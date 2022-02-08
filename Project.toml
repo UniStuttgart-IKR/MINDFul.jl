@@ -1,0 +1,13 @@
+name = "IBNFramework"
+uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
+authors = ["fchrstou <filippos.christou@ikr.uni-stuttgart.de> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
