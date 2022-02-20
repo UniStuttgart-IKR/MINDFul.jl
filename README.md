@@ -12,3 +12,24 @@ A basic priority of the package is to consider multi-domain networks with partia
 The package is built in a way to allow experimentation with different algorithms and dynamic relationships between the domains.
 
 # SimNetResou
+represtens the PHY layer of a simulated network
+
+# Encorporating network faults
+Uses event-based simulation for network fauls
+Bind with Reactive.jl
+
+# TODOs
+
+## Priority
+- when intent is being realized in another IBN the Compilation should be `RemoteCompilation` or similar [WIP]
+- Intent is installed only if all kids are installed (use Observable?)
+- Intent is fulfilled only if all kids are fulfilled
+
+## General
+- write tests
+- implement network faults
+- port details
+- port level faults ?
+- asychronous/sychronous information propagation from data layer to management layer
+- each IBN could be a different task
+- partial knowledge of a graph 

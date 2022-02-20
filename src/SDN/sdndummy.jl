@@ -8,15 +8,12 @@ This SDN controller is directly connected with the simulated physical layer netw
 """
 struct SDNdummy{T} <: SDN
     #TODO how to assure that it is unique per IBN group?
-    "id of SDN"
-    id::Int
     "network of SDN"
     gr::MetaDiGraph{T}
     "inter domain equipment(e.g. links)"
     interprops::Dict{CompositeEdge, Dict{Symbol, Any}}
 end
-
-SDNdummy(id::Int, gr::MetaDiGraph) = SDNdummy(id, gr, Dict{CompositeEdge, Dict{Symbol, Any}}())
+SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{CompositeEdge, Dict{Symbol, Any}}())
 
 """Return the graph SDN is responsible for"""
 graph(sdnd::SDNdummy) = sdnd.gr
@@ -26,6 +23,7 @@ function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}})
     #TODO ask router and link values in PHY
     for ce in cedges
         ed = edge(cg, ce)
+        #TODO choose properties
         set_prop!(cg, ed, :link, Link(25 , 100) )
         set_prop!(cg, reverse(ed), :link, Link(25 , 100) )
         # push interdomain values in sdns involved
@@ -38,6 +36,7 @@ function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}})
     return cg
 end
 
+"reserve capacity on an intraSDN edge"
 function reserve(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = graph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
@@ -51,6 +50,27 @@ function reserve(sdn::SDNdummy, e::Edge, capacity::Real)
     return false
 end
 
+"free capacity on an intraSDN edge"
+function free!(sdn::SDNdummy, e::Edge, capacity::Real)
+    mgr = graph(sdn)
+    rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
+    l = get_prop(mgr, e.src, e.dst, :link)
+    freeport!(rts[1]) 
+    freeport!(rts[2]) 
+    freecapacity!(l, capacity)
+    return true
+end
+
+"check capacity on an intraSDN edge"
+function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
+    mgr = graph(sdn)
+    rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
+    l = get_prop(mgr, e.src, e.dst, :link)
+    return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
+end
+
+
+"reserve capacity on an interSDN edge"
 function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
     mgr1 = graph(sdn1)
     mgr2 = graph(sdn2)
@@ -65,6 +85,30 @@ function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Re
     end
     return false
 end
+
+"free capacity on an interSDN edge"
+function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
+    mgr1 = graph(sdn1)
+    mgr2 = graph(sdn2)
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ce.src[2], ce.dst[2]])]
+    l = sdn1.interprops[ce][:link]
+    freeport!(rts[1])
+    freeport!(rts[2])
+    freecapacity!(l, capacity)
+    return true
+end
+
+"check capacity on an interSDN edge"
+function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
+    mgr1 = graph(sdn1)
+    mgr2 = graph(sdn2)
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ce.src[2], ce.dst[2]])]
+    l = sdn1.interprops[ce][:link]
+    return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
+end
+#
+# Do the same for paths
+#
 
 """Reserve `cap` resources amonge path `path`"""
 function reserve(sdn::SDNdummy, path::Vector{Int}, capacity::Real)
