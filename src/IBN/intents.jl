@@ -13,16 +13,20 @@ abstract type IntentState end
 struct InstalledIntent <: IntentState end
 struct UninstalledIntent <: IntentState end
 
-abstract type IntentTransition end
-struct InstallIntent <: IntentTransition end
-struct UninstallIntent <: IntentTransition end
+abstract type IntentStateTransition end
+struct InstallIntent <: IntentStateTransition end
+struct UninstallIntent <: IntentStateTransition end
 
 #traits for Intent
-src(i::Intent) = error("not implemented")
-dst(i::Intent) = error("not implemented")
+subjects(i::Intent) = error("not implemented")
 constraints(i::Intent) = error("not implemented")
 compilation(i::Intent) = error("not implemented")
 state(i::Intent) = error("not implemented")
+priority(i::Intent) = error("not implemented")
+conditions(i::Intent) = error("not implemented")
+actions(i::Intent) = error("not implemented")
+status(i::Intent) = error("not implemented")
+
 
 #TODO add node port number information
 # since in the future different ports will have different abilities
@@ -46,7 +50,7 @@ mutable struct ConnectivityIntent <: Intent
     src::Tuple{Int, Int}
     "Destination node as (IBN.id, node-id)"
     dst::Tuple{Int, Int}
-    #TODO constrs is array of abstract, so not performant
+    #TODO constrs is array of abstract, so not performant (Union Splitting, or Tuple in the future ?)
     "Intents constraints"
     constraints::Vector{IntentConstraint}
     "Intent concrete compilation to policy"
@@ -58,7 +62,7 @@ src(i::ConnectivityIntent) = i.src
 dst(i::ConnectivityIntent) = i.dst
 constraints(i::ConnectivityIntent) = i.constraints
 compilation(i::ConnectivityIntent) = i.compilation
-setcompilation!(i::ConnectivityIntent, ic::IntentCompilation) = setfield!(i, :compilation, ic)
+setcompilation!(i::ConnectivityIntent, ic::T) where {T<:Union{IntentCompilation, Missing}} = setfield!(i, :compilation, ic)
 state(i::ConnectivityIntent) = i.state
 setstate!(i::ConnectivityIntent, is::IntentState) = setfield!(i, :state, is)
 ConnectivityIntent(ce::CompositeEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
@@ -77,6 +81,6 @@ struct DelayConstraint <: IntentConstraint
     delay::Float64
 end
 
-step(ista::T, itra::R) where {T<:IntentState, R<:IntentTransition} = error("illegal operation")
+step(ista::T, itra::R) where {T<:IntentState, R<:IntentStateTransition} = error("illegal operation")
 
 

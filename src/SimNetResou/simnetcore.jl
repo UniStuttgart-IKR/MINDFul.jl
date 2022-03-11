@@ -53,3 +53,46 @@ function randomsimgraph!(mgr::MetaDiGraph)
     end
     return mgr
 end
+
+"""
+Builds a simulated graph 
+Give in a metagraph having:
+`:routerports` as integer in every node
+`:xcoord` as integer in every node
+`:ycoord` as integer in every node
+`:linkcapacity` as float64 in every link
+"""
+function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
+    simgr = MetaDiGraph(mgr)
+    for v in vertices(mgr)
+        set_prop!(simgr, v, :router, Router(get_prop(mgr, v, :routerports)))
+        set_prop!(simgr, v, :xcoord, get_prop(mgr, v, :xcoord))
+        set_prop!(simgr, v, :ycoord, get_prop(mgr, v, :ycoord))
+    end
+    for e in edges(MetaGraph(mgr))
+        #calculate distance
+        possrc = [get_prop(mgr, e.src, :xcoord), get_prop(mgr, e.src, :ycoord)]
+        posdst = [get_prop(mgr, e.dst, :xcoord), get_prop(mgr, e.dst, :ycoord)]
+        distance = distance_method(possrc, posdst)
+
+        set_prop!(simgr, e, :link, Link(distance , get_prop(mgr, e, :linkcapacity)) )
+        set_prop!(simgr, reverse(e), :link, Link(distance , get_prop(mgr, e, :linkcapacity)) )
+    end
+    return simgr
+end
+euclidean_dist(possrc, posdst) = sqrt(sum((possrc .- posdst) .^ 2))
+
+function simgraph(cg::CompositeGraph{MetaDiGraph, T}; distance_method=euclidean_dist) where {T<:AbstractGraph}
+    cgnew = CompositeGraph{MetaDiGraph, T}(nothing)
+    for gr in cg.grv
+        add_vertex!(cgnew, simgraph(gr; distance_method=distance_method))
+    end
+    for interedgs in cg.ceds
+        add_edge!(cgnew, interedgs)
+        possrc = [get_prop(cgnew, vertex(cgnew, interedgs.src...), :xcoord), get_prop(cgnew, vertex(cgnew, interedgs.src...), :ycoord)]
+        posdst = [get_prop(cgnew, vertex(cgnew, interedgs.dst...), :xcoord), get_prop(cgnew, vertex(cgnew, interedgs.dst...), :ycoord)]
+        distance = distance_method(possrc, posdst)
+        set_prop!(cgnew, edge(cgnew, interedgs), :link, Link(distance , get_prop(cg, edge(cg, interedgs), :linkcapacity)) )
+    end
+    return cgnew
+end

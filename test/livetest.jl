@@ -1,82 +1,35 @@
-using Revise, Chain, Parameters
+using Revise
+using Chain, Parameters
 using Test
 using Graphs, MetaGraphs, NetworkLayout
+using EzXML, GraphIO
 using IBNFramework
 using CompositeGraphs
-using GraphMakieUtils
+using TestSetExtensions
+using GraphMakie
 using GLMakie
 
-gr1 = complete_graph(3) |> MetaDiGraph
-gr2 = complete_graph(3) |> MetaDiGraph
-randomsimgraph!(gr1)
-randomsimgraph!(gr2)
+globalnet = loadgraph(open("../data/networksnest.graphml"), GraphMLFormat(), CompositeGraphs.CompositeGraphFormat())
+globalnet = IBNFramework.simgraph(globalnet)
 
-cg1 = cycle_graph(4) |> MetaDiGraph
-cg2 = cycle_graph(5) |> MetaDiGraph
-randomsimgraph!(cg1)
-randomsimgraph!(cg2)
+myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
 
-#f, ax, g = draw_network(gr1; graphplot_opts()...)
+# intra SDN, intra IBN intent
+conint1 = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(25)]);
+intidx1 = addintent(myibns[1], conint1);
+s1 = IBNFramework.step!(myibns[1],intidx1, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus());
 
-sdnd11 = SDNdummy(gr1)
-sdnd12 = SDNdummy(gr2)
+# inter SDN, intra IBN intent
+conint2 = ConnectivityIntent((myibns[1].id,2), (myibns[1].id,7), [CapacityConstraint(15)]);
+intidx2 = addintent(myibns[1], conint2);
+s2 = IBNFramework.step!(myibns[1],intidx2, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus());
 
-sdnd21 = SDNdummy(cg1)
-sdnd22 = SDNdummy(cg2)
+# inter SDN, inter IBN intent
+conint3 = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,3), [CapacityConstraint(15)])
+intidx3 = addintent(myibns[1], conint3)
+s3 = IBNFramework.step!(myibns[1],intidx3, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus())
 
-ee1 = [CompositeEdge((1,1),(2,1))]
-ee2 = [CompositeEdge((1,3),(2,5)), CompositeEdge((1,2), (2,2))]
-netcounter = Counter()
-ibn1 = IBNFramework.IBN!(netcounter,[sdnd11, sdnd12], ee1)
-#ibn1 = IBNFramework.IBN!(netcounter,Vector{Union{SDNdummy, IBN}}([sdnd11, sdnd12]), ee1)
-ibn2 = IBNFramework.IBN!(netcounter,[sdnd21, sdnd22], ee2)
-
-conint1 = ConnectivityIntent((ibn1.id,3), (ibn1.id,5), [CapacityConstraint(15)])
-intidx1 = addintent(ibn1, conint1)
-s = IBNFramework.step!(ibn1,intidx1, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus())
-
-@test IBNFramework.state(ibn1.intents[1]) == IBNFramework.InstalledIntent()
-@test IBNFramework.compilation(ibn1.intents[1]) isa IBNFramework.ConnectivityIntentCompilation
-
-
-conint2 = ConnectivityIntent((ibn2.id,1), (ibn2.id,8), [CapacityConstraint(50)])
-intidx2 = addintent(ibn2, conint2)
-s = IBNFramework.step!(ibn2,intidx2, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus())
-
-cg = CompositeGraph([ibn1.cgr, ibn2.cgr], [CompositeEdge((1,2),(2,8)), CompositeEdge(1,4,2,7)])
-
-@test [Edge(cg.vmap[e.src][2],cg.vmap[e.dst][2] ) for e in edges(cg) if cg.vmap[e.src][1] == 1 && cg.vmap[e.dst][1] == 1] == collect(edges(cg.grv[1]))
-@test [Edge(cg.vmap[e.src][2],cg.vmap[e.dst][2] ) for e in edges(cg) if cg.vmap[e.src][1] == 2 && cg.vmap[e.dst][1] == 2] == collect(edges(cg.grv[2]))
-# Draw network recipes
-#
- "draw network w/ resources"
-function draw_ibn(ibn::IBN)
-    f=draw_network(ibn.cgr.flatgr, 
-            nlabels = [string(v, ",", get_prop(ibn.cgr, v, :router).rezports, "/",get_prop(ibn.cgr, v, :router).nports) for v in vertices(ibn.cgr)], 
-            elabels = [string(get_prop(ibn.cgr, l, :link).rezcapacity,"/",get_prop(ibn.cgr, l, :link).capacity) for l in edges(ibn.cgr)])
-    f[1]
-end
-
-"draw network intent with resources"
-function draw_ibn(ibn::IBN, paths::Vector{Vector{Int}})
-    f=draw_network(ibn.cgr.flatgr, 
-            nlabels = [string(v, ",", get_prop(ibn.cgr, v, :router).rezports, "/",get_prop(ibn.cgr, v, :router).nports) for v in vertices(ibn.cgr)], 
-            elabels = [string(get_prop(ibn.cgr, l, :link).rezcapacity,"/",get_prop(ibn.cgr, l, :link).capacity) for l in edges(ibn.cgr)], 
-            paths=[IBNFramework.compilation(ibn.intents[1]).path]);f
-    f[1]
-end
-
-"with initial annotation"
-function draw_ibn_2(ibn::IBN)
-    f =draw_network(ibn.cgr.flatgr, 
-           nlabels = [string(ibn.cgr.vmap[v], ",", get_prop(ibn.cgr, v, :router).rezports, "/",get_prop(ibn.cgr, v, :router).nports) for v in vertices(ibn.cgr)], 
-           elabels = [string(get_prop(ibn.cgr, l, :link).rezcapacity,"/",get_prop(ibn.cgr, l, :link).capacity) for l in edges(ibn.cgr)])
-    f[1]
-end
-
-function draw_ibn_2(cgr::CompositeGraph)
-    f =draw_network(cgr.flatgr, 
-           nlabels = [string(cgr.vmap[v], ",", get_prop(cgr, v, :router).rezports, "/",get_prop(cgr, v, :router).nports) for v in vertices(cgr)], 
-           elabels = [string(get_prop(cgr, l, :link).rezcapacity,"/",get_prop(cgr, l, :link).capacity) for l in edges(cgr)])
-    f[1]
-end
+#elem_1 = [LineElement(color = RGB(0.78,0.129,0.867), linestyle = nothing)]
+#elem_2 = [LineElement(color = RGB(0.82,0.29,0.0), linestyle = nothing)]
+#fi,ai,pi = IBNFramework.ibnplot(myibns[1], layout=IBNFramework.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, color_paths=[[1,2,3],[2,4,8,7]])
+#Legend(fi[1,1], [elem_1, elem_2], ["Intent1", "Intent2"], tellheight = false, tellwidth = false, margin=(10,10,10,10),halign = :right)

@@ -7,6 +7,7 @@ This SDN controller is directly connected with the simulated physical layer netw
     $(TYPEDFIELDS)
 """
 struct SDNdummy{T} <: SDN
+    #TODO add SDN NBI
     #TODO how to assure that it is unique per IBN group?
     "network of SDN"
     gr::MetaDiGraph{T}
@@ -34,6 +35,19 @@ function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}})
         end
     end
     return cg
+end
+
+function connect!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}}, ds::Vector{Dict{Symbol, K}}) where {T,R,K}
+    for (ce,d) in zip(cedges, ds)
+        for sdn in [sdns[ce.src[1]], sdns[ce.dst[1]]]
+            sdn.interprops[ce] = d
+        end
+    end
+    return true
+end
+function connect!(sdn1::SDNdummy{R}, cedge::CompositeEdge{T}, d::Dict{Symbol, K}) where {T,R,K}
+    sdn1.interprops[cedge] = d
+    return true
 end
 
 "reserve capacity on an intraSDN edge"

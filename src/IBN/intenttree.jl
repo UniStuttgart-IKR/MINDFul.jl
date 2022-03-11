@@ -14,14 +14,14 @@ src(it::IntentTree) = src(it.data)
 dst(it::IntentTree) = dst(it.data)
 constraints(it::IntentTree) = constraints(it.data)
 compilation(it::IntentTree) = compilation(it.data)
-setcompilation!(it::IntentTree, ic::IntentCompilation) = setcompilation!(it.data, ic)
+setcompilation!(it::IntentTree, ic::T) where {T<:Union{IntentCompilation, Missing}} = setcompilation!(it.data, ic)
 state(it::IntentTree) = state(it.data)
 setstate!(it::IntentTree, is::IntentState) = setstate!(it.data, is)
 
 IntentTree(d::T, p=nothing, c=IntentTree{T}[]) where T = IntentTree{T}(d, p, c)
 
-function addchild(parent::IntentTree{T}, data::T) where {T}
-  push!(parent.children, IntentTree(data, parent))
+function addchild!(parent::IntentTree{T}, data::T) where {T}
+  IntentTree(data, parent)
 end
 #
 # specialize function as instructed in AbstractTrees examples docu

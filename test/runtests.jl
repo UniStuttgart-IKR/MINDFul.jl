@@ -1,6 +1,11 @@
-using IBNFramework
+using Chain, Parameters
 using Test
+using Graphs, MetaGraphs, NetworkLayout
+using EzXML, GraphIO
+using IBNFramework
+using CompositeGraphs
+using TestSetExtensions
 
-@testset "IBNFramework.jl" begin
-    # Write your tests here.
+@testset ExtendedTestSet "IBNFramework.jl" begin
+    @includetests ["basictests"]
 end

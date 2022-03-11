@@ -19,3 +19,63 @@ macro recargs!(recarglist::Symbol, funex::Expr)
     end
 end
 
+function getfirst(p, itr)
+    for el in itr
+        p(el) && return el
+    end
+    return nothing
+end
+
+function compositeGraph2IBNs!(globalnet::CompositeGraph)
+    CompositeGraphs.removeemptygraphs_recursive!(globalnet)
+    ibncounter = Counter()
+
+    myibns = Vector{IBN{SDNdummy{Int}, MetaDiGraph}}()
+    for ibncgnet in globalnet.grv
+        sdns = SDNdummy.(ibncgnet.grv)
+        IBNFramework.connect!(sdns, ibncgnet.ceds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.ceds)])
+        push!(myibns, IBN(ibncounter(), sdns, ibncgnet))
+    end
+    for ce in globalnet.ceds
+        ed = CompositeGraphs.edge(globalnet, ce)
+        ibn1 = myibns[ce.src[1]]
+        node1 = ce.src[2]
+        ibn2 = myibns[ce.dst[1]]
+        node2 = ce.dst[2]
+
+        idx = findfirst(x -> isa(x, IBN) && getfield(x,:id)==ibn2.id, ibn1.controllers)
+        if isnothing(idx)
+            #create new graph and controller
+            add_vertex!(ibn1.cgr, MetaDiGraph())
+            push!(ibn1.controllers, ibn2)
+            #add node
+            add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domain=length(ibn1.cgr.grv), targetnode=node2)
+            idx = length(ibn1.cgr.grv)
+        else
+            add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domain=idx, targetnode=node2)
+        end
+        con1idx = CompositeGraphs.domain(ibn1.cgr, node1)
+        con2idx = idx
+        interibnedge = CompositeEdge(con1idx, node1, con2idx, node2)
+        IBNFramework.connect!(ibn1.controllers[con1idx], interibnedge, props(globalnet, ed))
+        add_edge!(ibn1.cgr, node1, vertex(ibn1.cgr, con2idx, node2), props(globalnet, ed))
+
+        idx = findfirst(x -> isa(x, IBN) && getfield(x,:id)==ibn1.id, ibn2.controllers)
+        if isnothing(idx)
+            #create new graph and controller
+            add_vertex!(ibn2.cgr, MetaDiGraph())
+            push!(ibn2.controllers, ibn1)
+            #add node
+            add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domain=length(ibn2.cgr.grv), targetnode=node1)
+            idx = length(ibn2.cgr.grv)
+        else
+            add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domain=idx, targetnode=node1)
+        end
+        con1idx = idx
+        con2idx = CompositeGraphs.domain(ibn2.cgr, node2)
+        interibnedge = CompositeEdge(con1idx, node1, con2idx, node2)
+        IBNFramework.connect!(ibn2.controllers[con2idx], interibnedge, props(globalnet, ed))
+        add_edge!(ibn2.cgr, vertex(ibn2.cgr, con1idx, node1), node2, props(globalnet, ed))
+    end
+    return myibns
+end

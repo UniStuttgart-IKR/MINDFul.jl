@@ -24,5 +24,7 @@ include("IBN/IBN.jl")
 
 include("SimNetResou/SimNetResou.jl")
 
+include("recipes.jl")
+
 
 end
