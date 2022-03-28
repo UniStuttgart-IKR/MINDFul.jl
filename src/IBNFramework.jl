@@ -7,6 +7,8 @@ using DocStringExtensions
 using Unitful
 using CompositeGraphs
 
+import Term
+
 @reexport using AbstractTrees
 @reexport import AbstractTrees:isroot
 
@@ -15,6 +17,7 @@ export Counter
 export SDN, SDNdummy
 export IBN, addintent, sdnofnode
 export IntentTree
+export deploy!
 
 include("utils.jl")
 

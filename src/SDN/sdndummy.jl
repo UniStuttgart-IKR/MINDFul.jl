@@ -17,7 +17,7 @@ end
 SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{CompositeEdge, Dict{Symbol, Any}}())
 
 """Return the graph SDN is responsible for"""
-graph(sdnd::SDNdummy) = sdnd.gr
+getgraph(sdnd::SDNdummy) = sdnd.gr
 
 function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}}) where {T,R}
     cg = CompositeGraph(getfield.(sdns, :gr), cedges; both_ways=true)
@@ -52,7 +52,7 @@ end
 
 "reserve capacity on an intraSDN edge"
 function reserve(sdn::SDNdummy, e::Edge, capacity::Real)
-    mgr = graph(sdn)
+    mgr = getgraph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
     l = get_prop(mgr, e.src, e.dst, :link)
     if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
@@ -66,7 +66,7 @@ end
 
 "free capacity on an intraSDN edge"
 function free!(sdn::SDNdummy, e::Edge, capacity::Real)
-    mgr = graph(sdn)
+    mgr = getgraph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
     l = get_prop(mgr, e.src, e.dst, :link)
     freeport!(rts[1]) 
@@ -77,7 +77,7 @@ end
 
 "check capacity on an intraSDN edge"
 function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
-    mgr = graph(sdn)
+    mgr = getgraph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
     l = get_prop(mgr, e.src, e.dst, :link)
     return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
@@ -85,11 +85,12 @@ end
 
 
 "reserve capacity on an interSDN edge"
-function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
-    mgr1 = graph(sdn1)
-    mgr2 = graph(sdn2)
+function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceinteribn=nothing)
+    ceinteribn === nothing && (ceinteribn = ce)
+    mgr1 = getgraph(sdn1)
+    mgr2 = getgraph(sdn2)
 
-    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ce.src[2], ce.dst[2]])]
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceinteribn.src[2], ceinteribn.dst[2]])]
     l = sdn1.interprops[ce][:link]
     if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
         useport!(rts[1])
@@ -102,8 +103,8 @@ end
 
 "free capacity on an interSDN edge"
 function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
-    mgr1 = graph(sdn1)
-    mgr2 = graph(sdn2)
+    mgr1 = getgraph(sdn1)
+    mgr2 = getgraph(sdn2)
     rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ce.src[2], ce.dst[2]])]
     l = sdn1.interprops[ce][:link]
     freeport!(rts[1])
@@ -113,10 +114,13 @@ function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real
 end
 
 "check capacity on an interSDN edge"
-function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
-    mgr1 = graph(sdn1)
-    mgr2 = graph(sdn2)
-    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ce.src[2], ce.dst[2]])]
+function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceinteribn=nothing)
+    ceinteribn === nothing && (ceinteribn = ce)
+    # TODO: build an interface for IBNs
+    mgr1 = getgraph(sdn1)
+    mgr2 = getgraph(sdn2)
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceinteribn.src[2], ceinteribn.dst[2]])]
+    # always get link from the first SDN argument
     l = sdn1.interprops[ce][:link]
     return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
 end
@@ -126,7 +130,7 @@ end
 
 """Reserve `cap` resources amonge path `path`"""
 function reserve(sdn::SDNdummy, path::Vector{Int}, capacity::Real)
-    mgr = graph(sdn)
+    mgr = getgraph(sdn)
     if isreservepossible(mgr, path, capacity)
         for v in path
             rt = get_prop(mgr, v, :router)
@@ -161,7 +165,7 @@ function isreservepossible(mgr::MetaDiGraph, path::Vector{Int}, capacity::Real)
 end
 
 function free(sdnd::SDNdummy, path::Vector{Int}, capacity::Real)
-    mgr = graph(sdnd)
+    mgr = getgraph(sdnd)
     for v in path
         rt = get_prop(mgr, v, :router)
         freeport!(rt)

@@ -35,12 +35,16 @@ struct IBN{T<:SDN,R}
     interprops::Dict{Int,IBNInterProps}
 end
 #TODO not good minus 1
+getgraph(ibn::IBN) = ibn.cgr.flatgr
+getid(ibn::IBN) = ibn.id
+getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
 controllerofnode(ibn::IBN, node::Int) = ibn.controllers[domain(ibn.cgr, node)]
-isintraintent(ibn::IBN, intentt::IntentTree{R}) where {R<:Intent} = ibn.id == src(intentt)[1] == dst(intentt)[1]
-ibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
-sdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
+nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.cgr.vmap) if nd[1] == ci]
+isintraintent(ibn::IBN, intentt::IntentTree{R}) where {R<:Intent} = ibn.id == getsrc(intentt)[1] == getdst(intentt)[1]
+getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
+getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
 
-ibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, ibns(ibn))
+getibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, getibns(ibn))
 #TODO implement a different method (Channels, Tasks, yield)
 
 IBN(counter::Counter, args...) = IBN(counter(), args...)
@@ -103,9 +107,9 @@ function connectIBNs!(ibn1::IBN, ibn2::IBN, cedges::Vector{CompositeEdge{T}}, dp
     v1add = [vp for vp in v1list if !has_vertex(gr1, vp)]
     add_vertices!(gr1, ibn1.cgr, v1add)
     
-    CompositeGraphs.add_graph!(ibn1.cgr, gr2, cedges, dprops; vmap=vcat(vmap2, v2add), both_ways=true)
+    CompositeGraphs.add_vertex!(ibn1.cgr, gr2, cedges, dprops; vmap=vcat(vmap2, v2add), both_ways=true)
     #reverse cedges
-    CompositeGraphs.add_graph!(ibn2.cgr, gr1, cedges, dprops; vmap=vcat(vmap1, v1add), both_ways=true, rev_cedges=true)
+    CompositeGraphs.add_vertex!(ibn2.cgr, gr1, cedges, dprops; vmap=vcat(vmap1, v1add), both_ways=true, rev_cedges=true)
 end
 
 "Incorporate new SDN to the IBN structure"
@@ -121,141 +125,14 @@ end
 
 "Add InterIBN-Intent as IBN2IBN, customer2provider"
 function addintent(ibnp::IBN, ibnc::IBN, intent::Intent)
-    error("not implemented")
+    @warn("permissions not implemented")
+    addintent(ibnc, intent)
     #return intent number
-end
-
-"ibn-customer accesses the intent state machine of ibn-provider"
-function step!(ibnp::IBN, ibnc::IBN, intidx::Int)
-
 end
 
 "ibn-customer asks for the graph of ibn-provider"
 function subgraph(ibnp::IBN, ibnc::IBN)
     #check permissions
     return (MetaDiGraph(), Vector{Int}())
-end
-
-"""
-Installs a single intent.
-First, it compiles the intent if it doesn't have already an implementation
-Second, it applies the intent implementation on the network
-"""
-function step!(ibn::IBN, inid::Int, itra::InstallIntent, ibnModus::SimpleIBNModus; intent_comp=shortestpathcompilation, intent_real=directrealization)
-    #TODO introduce a way to control behavior
-    intent = ibn.intents[inid]
-    if state(intent) isa UninstalledIntent
-        if ismissing(compilation(intent))
-            setcompilation!(intent, intent_comp(ibn, ibn.intents[inid]))
-        end
-        ismissing(compilation(intent)) && return false
-        realized = intent_real(ibn, compilation(intent))
-
-        if realized 
-            @info "Installed intent $(ibn.intents[inid])"
-            setstate!(intent, InstalledIntent())
-            return true
-        else
-            return false
-        end
-    else
-        @info "Cannot install intent $(intent) on state $(state(intent))"
-        return false
-    end
-end
-
-"""
-Installs a bunch of intent all together.
-Takes into consideration resources collisions.
-"""
-function step(ibn::IBN, inid::Vector{Int}, itra::InstallIntent)
-    return false
-end
-
-"Uninstalls a single intent"
-function step!(ibn::IBN, inid::Int, itra::UninstallIntent)
-    intent = ibn.intents[inid]
-    if state(intent) isa InstalledIntent
-        withdrew = withdraw(ibn, intent)
-        if withdrew
-            @info "Uninstalled intent $(ibn.intents[inid])"
-            setstate!(intent, UninstalledIntent())
-            return true
-        else
-            return false
-        end
-    else
-        @info "Already uninstalled intent $(ibn.intents[inid])"
-        return false
-    end
-end
-
-"Checks if intent is satisfied"
-function issatisfied(ibn::IBN, inid::Int)
-    issatisfied = isinstalled(ibn, inid)
-    for constr in ibn.intents[inid].constrs
-        issatisfied = issatisfied && issatisfied(ibn, inid, constr)
-    end
-    return issatisfied
-end
-
-isinstalled(ibn::IBN, inid::Int) = state(ibn.intents[inid]) isa InstalledIntent
-issatisfied(ibn::IBN, inid::Int, constr::CapacityConstraint) = return compilation(ibn.intents[inid]).capacity >= constr.capacity
-issatisfied(ibn::IBN, inid::Int, constr:: DelayConstraint) = sum(delay(l) for l in edgeify(compilation(ibn.intents[inid]).path)) <= constr.delay
-
-function shortestpathcompilation(ibn::IBN, intent::IntentTree{ConnectivityIntent})
-    #intent can be completely handled inside the IBN network
-    if isintraintent(ibn, intent)
-        #TODO adaptation for id
-        path = yen_k_shortest_paths(ibn.cgr.flatgr, src(intent)[2], dst(intent)[2], weights(ibn.cgr.flatgr), 1).paths[]
-        cap = [c.capacity for c in constraints(intent) if c isa CapacityConstraint][]
-        return ConnectivityIntentCompilation(path, cap)
-    else
-#        if intent.data.src[1] == ibn.id && intent.data.dst[1] != ibn.id
-#            addchild(intent, ConnectivityIntent((ibn.id, intent.data.src[2]), (ibn.id, 10), intent.data.constraints ))
-#            addchild(intent, ConnectivityIntent((intent.data.dst[1], 1), (intent.data.dst[1], intent.data.dst[2]), intent.data.constraints ))
-#        end
-        @warn("inter-IBN intents not implemented for `shortestpathcompilation`")
-        return missing
-    end
-end
-
-"""
-Realize the intent implementation by delegating tasks in the different responsible SDNs
-First check, then reserve
-"""
-function directrealization(ibn::IBN, intimp::ConnectivityIntentCompilation)
-    #TODO check if intent already installed ?
-    succeeded = true
-    reclist = Vector{}()
-    for e in edgeify(intimp.path)
-        if controllerofnode(ibn, e.src) == controllerofnode(ibn, e.dst)
-            #intradomain
-            succeeded = succeeded && @recargs!(reclist, isavailable(controllerofnode(ibn, e.src), domainedge(ibn.cgr, e), intimp.capacity))
-        else
-            #interdomain
-            succeeded = succeeded && @recargs!(reclist, isavailable(controllerofnode(ibn, e.src), controllerofnode(ibn, e.dst), compositeedge(ibn.cgr, e), intimp.capacity))
-        end
-        succeeded || break
-    end
-    if succeeded
-        for rec in reclist
-            reserve(rec...)
-        end
-    end
-    return succeeded
-end
-
-function withdraw(ibn::IBN, intimp::ConnectivityIntentCompilation)
-    for e in edgeify(intimp.path)
-        if controllerofnode(ibn, e.src) == controllerofnode(ibn, e.dst)
-            #intradomain
-            free!(controllerofnode(ibn, e.src), domainedge(ibn.cgr, e), intimp.capacity)
-        else
-            #interdomain
-            free!(controllerofnode(ibn, e.src), controllerofnode(ibn, e.dst), compositeedge(ibn.cgr, e), intimp.capacity)
-        end
-    end
-    return true
 end
 

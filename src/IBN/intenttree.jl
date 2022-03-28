@@ -1,27 +1,40 @@
+abstract type Intent end
+abstract type IntentConstraint end
+abstract type IntentCompilation end
+abstract type IntentCondition end
+
+@enum IntentState installed uninstalled compiled uncompiled
+@enum IntentTransition doinstall douninstall docompile douncompile
+
+struct InheritIntentCompilation <: IntentCompilation end
+
 struct IntentTree{T<:Intent}
     data::T
-    parent::Union{Nothing,IntentTree{T}}
-    children::Vector{IntentTree{T}}
+    parent::Union{Nothing,IntentTree}
+    children::Vector{IntentTree}
 
-    IntentTree{T}(data, ::Nothing, v::AbstractVector{IntentTree{T}}) where T = new{T}(data, nothing, v)
-    function IntentTree{T}(d::T, p::IntentTree{T}, c::AbstractVector{IntentTree{T}}) where T
+    IntentTree{T}(data::T, ::Nothing, v::AbstractVector{IntentTree}) where T = new{T}(data, nothing, v)
+    function IntentTree{T}(d::T, p::IntentTree, c::AbstractVector{IntentTree}) where T
         ret = new{T}(d, p, c)
         push!(p.children , ret)
         ret
     end
 end
-src(it::IntentTree) = src(it.data)
-dst(it::IntentTree) = dst(it.data)
-constraints(it::IntentTree) = constraints(it.data)
-compilation(it::IntentTree) = compilation(it.data)
+getsrc(it::IntentTree) = getsrc(it.data)
+getdst(it::IntentTree) = getdst(it.data)
+getconstraints(it::IntentTree) = getconstraints(it.data)
+getcompilation(it::IntentTree) = getcompilation(it.data)
 setcompilation!(it::IntentTree, ic::T) where {T<:Union{IntentCompilation, Missing}} = setcompilation!(it.data, ic)
-state(it::IntentTree) = state(it.data)
+getconditions(it::IntentTree) = getconditions(it.data)
+getstate(it::IntentTree) = getstate(it.data)
 setstate!(it::IntentTree, is::IntentState) = setstate!(it.data, is)
 
-IntentTree(d::T, p=nothing, c=IntentTree{T}[]) where T = IntentTree{T}(d, p, c)
+IntentTree(d::T, p=nothing, c=IntentTree[]) where {T<:Intent} = IntentTree{T}(d, p, c)
 
-function addchild!(parent::IntentTree{T}, data::T) where {T}
-  IntentTree(data, parent)
+function addchild!(parent::IntentTree{T}, data::R) where {T <: Intent, R <: Intent}
+  child = IntentTree(data, parent)
+  setcompilation!(parent, InheritIntentCompilation())
+  child
 end
 #
 # specialize function as instructed in AbstractTrees examples docu

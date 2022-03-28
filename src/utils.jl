@@ -33,7 +33,7 @@ function compositeGraph2IBNs!(globalnet::CompositeGraph)
     myibns = Vector{IBN{SDNdummy{Int}, MetaDiGraph}}()
     for ibncgnet in globalnet.grv
         sdns = SDNdummy.(ibncgnet.grv)
-        IBNFramework.connect!(sdns, ibncgnet.ceds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.ceds)])
+        connect!(sdns, ibncgnet.ceds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.ceds)])
         push!(myibns, IBN(ibncounter(), sdns, ibncgnet))
     end
     for ce in globalnet.ceds
@@ -55,9 +55,11 @@ function compositeGraph2IBNs!(globalnet::CompositeGraph)
             add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domain=idx, targetnode=node2)
         end
         con1idx = CompositeGraphs.domain(ibn1.cgr, node1)
+        domainnode1 = ibn1.cgr.vmap[node1][2]
         con2idx = idx
-        interibnedge = CompositeEdge(con1idx, node1, con2idx, node2)
-        IBNFramework.connect!(ibn1.controllers[con1idx], interibnedge, props(globalnet, ed))
+        domainnode2 = ibn1.cgr.vmap[node2][2]
+        interibnedge = CompositeEdge(con1idx, domainnode1, con2idx, domainnode2)
+        connect!(ibn1.controllers[con1idx], interibnedge, props(globalnet, ed))
         add_edge!(ibn1.cgr, node1, vertex(ibn1.cgr, con2idx, node2), props(globalnet, ed))
 
         idx = findfirst(x -> isa(x, IBN) && getfield(x,:id)==ibn1.id, ibn2.controllers)
@@ -72,10 +74,18 @@ function compositeGraph2IBNs!(globalnet::CompositeGraph)
             add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domain=idx, targetnode=node1)
         end
         con1idx = idx
+        domainnode1 = ibn2.cgr.vmap[node1][2]
         con2idx = CompositeGraphs.domain(ibn2.cgr, node2)
-        interibnedge = CompositeEdge(con1idx, node1, con2idx, node2)
-        IBNFramework.connect!(ibn2.controllers[con2idx], interibnedge, props(globalnet, ed))
+        domainnode2 = ibn2.cgr.vmap[node2][2]
+        interibnedge = CompositeEdge(con1idx, domainnode1, con2idx, domainnode2)
+        connect!(ibn2.controllers[con2idx], interibnedge, props(globalnet, ed))
         add_edge!(ibn2.cgr, vertex(ibn2.cgr, con1idx, node1), node2, props(globalnet, ed))
     end
     return myibns
+end
+
+function myprint(ci, io::IO = stdout)
+    rts = [Term.RenderableText("[bold white]" * string(fname) * ": [/bold white]" * Term.escape_brackets(string(getfield(ci, fname)))) for fname in fieldnames(typeof(ci))]
+    tb = Term.TextBox(string(reduce(/, rts)), title = string(typeof(ci)), title_style="bold yellow")
+    println(io, tb)
 end

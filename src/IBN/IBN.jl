@@ -1,4 +1,5 @@
-include("intents.jl")
 include("intenttree.jl")
 include("ibncore.jl")
-include("IBNReinforcementLearning.jl")
+include("intents.jl")
+include("intentstatemachine.jl")
+include("algorithms.jl")

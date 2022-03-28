@@ -15,6 +15,7 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]

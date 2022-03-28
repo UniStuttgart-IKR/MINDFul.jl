@@ -5,6 +5,10 @@ import Colors
 isvvi(x::Vector{Vector{T}}) where T = all(i -> i isa Integer, Iterators.flatten(x))
 isvvi(j) = false
 
+struct DummyPlotIBN{R,T}
+    cgr::CompositeGraph{R,T}
+end
+
 function coordlayout(gr::AbstractGraph, xcoord::Symbol=:xcoord, ycoord::Symbol=:ycoord)
     try 
         xs = [[get_prop(gr, v, xcoord), get_prop(gr,v, ycoord)] for v in vertices(gr)]

@@ -56,11 +56,17 @@ end
 
 """
 Builds a simulated graph 
-Give in a metagraph having:
-`:routerports` as integer in every node
-`:xcoord` as integer in every node
-`:ycoord` as integer in every node
-`:linkcapacity` as float64 in every link
+Give in a `MetaGraph` having:
+- `:routerports` as integer in every node
+- `:xcoord` as integer in every node
+- `:ycoord` as integer in every node
+- `:linkcapacity` as float64 in every link
+
+Get as an output a `MetaGraph` having:
+- `:xcoord` as integer in every node
+- `:ycoord` as integer in every node
+- `:router` as `Router` in every node
+- `:link` as `Link` in every edge
 """
 function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
     simgr = MetaDiGraph(mgr)
@@ -95,4 +101,12 @@ function simgraph(cg::CompositeGraph{MetaDiGraph, T}; distance_method=euclidean_
         set_prop!(cgnew, edge(cgnew, interedgs), :link, Link(distance , get_prop(cg, edge(cg, interedgs), :linkcapacity)) )
     end
     return cgnew
+end
+
+function linklengthweights(mgr::AbstractMetaGraph)
+    ws = zeros(Float64 ,nv(mgr),nv(mgr))
+    for e in edges(mgr)
+        ws[e.src, e.dst] = uconvert(u"km", get_prop(mgr, e, :link).length) |> ustrip
+    end
+    ws
 end
