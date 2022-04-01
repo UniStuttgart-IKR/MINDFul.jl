@@ -13,6 +13,10 @@ status(i::Intent) = error("not implemented")
 
 getsrc(i::Intent) = i.src
 getdst(i::Intent) = i.dst
+getsrcdom(i::Intent) = i.src[1]
+getsrcdomnode(i::Intent) = i.src[2]
+getdstdom(i::Intent) = i.dst[1]
+getdstdomnode(i::Intent) = i.dst[2]
 getconstraints(i::Intent) = i.constraints
 getcompilation(i::Intent) = i.compilation
 setcompilation!(i::Intent, ic::T) where {T<:Union{IntentCompilation, Missing}} = setfield!(i, :compilation, ic)
@@ -20,7 +24,7 @@ getconditions(i::Intent) = i.conditions
 getstate(i::Intent) = i.state
 setstate!(i::Intent, is::IntentState) = setfield!(i, :state, is)
 
-#TODO add node port number information
+#TODO add node port number information and frequency slot information
 # since in the future different ports will have different abilities
 struct ConnectivityIntentCompilation <: IntentCompilation
     "Flow path"
@@ -28,6 +32,14 @@ struct ConnectivityIntentCompilation <: IntentCompilation
     "Capacity reserved along the path"
     capacity::Float64
 end
+
+#struct OptConnectivityIntentCompilation <: IntentCompilation
+#    "Flow path"
+#    path::Vector{Int}
+#    "Capacity reserved along the path"
+#    channel::RangeHotVector
+#    #modulation
+#end
 
 mutable struct RemoteIntentCompilation <: IntentCompilation
     "remote IBN"
@@ -66,6 +78,7 @@ newintent(intent::ConnectivityIntent) = ConnectivityIntent(getsrc(intent), getds
 newintent(intent::ConnectivityIntent, comp::R) where {R<:IntentCompilation} = 
     ConnectivityIntent(getsrc(intent), getdst(intent), getconstraints(intent), getconditions(intent), comp, compiled)
 
+isintraintent(ibn::IBN, intentt::IntentTree{R}) where {R<:Intent} = ibn.id == getsrc(intentt)[1] == getdst(intentt)[1]
 """
 Intent for connecting 2 IBNs
 
@@ -89,6 +102,11 @@ end
 IBNConnectivityIntent(ce::CompositeEdge, args...) = IBNConnectivityIntent(ce.src, ce.dst, args...)
 IBNConnectivityIntent(src::Tuple{Int,Int},dst::Tuple{Int, Int}, constraints::Vector{R}, conditions::Vector{T}=Vector{IntentCondition}()) where 
     {T<:IntentCondition, R<:IntentConstraint} = IBNConnectivityIntent(src, dst, constraints, conditions, missing, uncompiled)
+
+getsrcdom(i::IBNConnectivityIntent{Int, Tuple{Int,Int}}) = i.src
+getsrcdomnode(i::IBNConnectivityIntent{Int, Tuple{Int,Int}}) = error("$(typeof(i)) does not have a particular source node")
+getdstdom(i::IBNConnectivityIntent{Tuple{Int,Int}, Int}) = i.dst
+getdstdomnode(i::IBNConnectivityIntent{Tuple{Int,Int}, Int}) = error("$(typeof(i)) does not have a particular destination node")
 
 struct CapacityConstraint <: IntentConstraint
     #TODO intergrate with Unitful once PR is pushed

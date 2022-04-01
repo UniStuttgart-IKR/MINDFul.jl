@@ -1,100 +1,123 @@
-"Compile intent using shortest path"
-function shortestpathcompilation!(ibn::IBN, intenttr::IntentTree{ConnectivityIntent})
-    #intent can be completely handled inside the IBN network
-    if isintraintent(ibn, intenttr)
-        #TODO adaptation for id
-        path = yen_k_shortest_paths(ibn.cgr.flatgr, getsrc(intenttr)[2], getdst(intenttr)[2], linklengthweights(ibn.cgr.flatgr), 1).paths[]
-        cap = [c.capacity for c in getconstraints(intenttr) if c isa CapacityConstraint][]
-        setcompilation!(intenttr, ConnectivityIntentCompilation(path, cap))
-        return true
-    else
-        #randomly pick an IBN neighborhood if intent.dst is not one of them
-        # pick a transition point based on shortest path
-        # deploy!
-        # create an intent to connect to IBN without specifying node ? then get compilation and create the next intent.
+abstract type IntentDomain end
+struct IntraIntent <: IntentDomain end
+abstract type IntentDirection end
+struct IntentForward <: IntentDirection end
+struct IntentBackward <: IntentDirection end
+struct InterIntent{R<:IntentDirection} <: IntentDomain end
+InterIntent() = InterIntent{IntentForward}()
 
-        # neibn could be also the same ibn as now
-        neibnsrc = getibn(ibn, getsrc(intenttr)[1])
-        neibndst = getibn(ibn, getdst(intenttr)[1])
+function compile!(ibn::IBN, intr::IntentTree{R}, algmethod::F; algargs...) where {R<:Union{ConnectivityIntent},F<:Function}
+    iam(ibn, neibn) = getid(ibn) == getid(neibn)
+    firstforeignibnnode(ibn::IBN) = getfirst(x -> ibn.controllers[CompositeGraphs.domain(ibn.cgr,x)] isa IBN, [v for v in vertices(ibn.cgr)])
+    firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[CompositeGraphs.domain(ibn.cgr,x)] == neibn, [v for v in vertices(ibn.cgr)])
+
+    success = false
+    if isintraintent(ibn, intr)
+        success = algmethod(ibn, intr, IntraIntent(); algargs...)
+    else
+        neibnsrc = getibn(ibn, getsrcdom(intr))
+        neibndst = getibn(ibn, getdstdom(intr))
         if neibnsrc === nothing && neibndst !== nothing
-            # check if I am the neibn
-#            IBNConnectivityIntent(getsrc(intent))
-            if getid(neibndst) == getid(ibn)
-                # TODO the constraint will probably need to change (e.g. delay split)
-                # get a random IBN to help
+            if iam(ibn,neibndst)
                 neibn = first(getibns(ibn))
-                IBNConnectivityIntent(getsrc(intenttr), getid(ibn), getconstraints(intenttr), getconditions(intenttr),
-                                      RemoteIntentCompilation(neibn, missing), uninstalled)
+                success = algmethod(ibn, neibn, intr, InterIntent{IntentBackward}(); algargs...)
             else
-                remintent = newintent(intenttr.data, RemoteIntentCompilation(neibndst, missing))
-                addchild!(intenttr, remintent)
+                success = delegatecompilation!(ibn, neibndst, intr, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst === nothing
-            nothing
-        elseif neibnsrc !== nothing && neibndst !== nothing
-            if getid(neibnsrc) == getid(ibn)
-                myintent = IBNConnectivityIntent(getsrc(intenttr), getid(neibndst), getconstraints(intenttr), getconditions(intenttr),
-                                      missing, uncompiled)
-                intentchildtr = addchild!(intenttr, myintent)
-                #compile it
-                shortestpathcompilation!(ibn, intentchildtr)
-                setstate!(intentchildtr, compiled)
-                compchild = getcompilation(intentchildtr)
-
-                transnode = (getid(neibndst), ibn.cgr.vmap[compchild.path[end]][2])
-                remintent = ConnectivityIntent(transnode, getdst(intenttr), getconstraints(intenttr), getconditions(intenttr), missing, uncompiled)
-                remintenttr = addchild!(intenttr, remintent)
-                remidx = addintent(ibn, neibndst, newintent(remintenttr.data))
-                setcompilation!(remintent, RemoteIntentCompilation(neibndst, remidx))
-                #compile the remote intent
-                deployed = deploy!(ibn, neibndst, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus())
-                if !deployed
-                    error("could not deploy the intent")
-                else
-                    setstate!(neibndst.intents[remidx], compiled)
-                    setstate!(intenttr, compiled)
-                end
-
-            elseif getid(neibndst) == getid(ibn)
-                nothing
+            if iam(ibn,neibnsrc)
+                neibn = first(getibns(ibn))
+                success = algmethod(ibn, neibn, intr, InterIntent{IntentForward}(); algargs...)
             else
-                nothing
+                success = delegatecompilation!(ibn, neibnsrc, intr, algmethod; algargs...)
             end
-        else
-            @warn("cannot communicate to any of the two ibns")
+        elseif neibnsrc !== nothing && neibndst !== nothing
+            if iam(ibn,neibnsrc)
+                success = algmethod(ibn, neibndst, intr, InterIntent{IntentForward}(); algargs...)
+            elseif iam(ibn, neibndst)
+                success = algmethod(ibn, neibnsrc, intr, InterIntent{IntentBackward}(); algargs...)
+            else
+                success = delegatecompilation!(ibn, neibnsrc, intr, algmethod; algargs...)
+            end
+        elseif neibnsrc == nothing && neibndst == nothing
+            # talk to random IBN (this is where fun begins!)
+            neibn = first(getibns(ibn))
+            success = delegatecompilation!(ibn, neibn, intr, algmethod; algargs...)
+            return false
         end
-        @warn("inter-IBN intents WIP for `shortestpathcompilation`")
-        return true
     end
+    success && setstate!(intr, compiled)
+    return success
 end
 
-
-"connect src IBNs without specific src/dst node requirements"
-function shortestpathcompilation!(ibn::IBN, intenttr::IntentTree{IBNConnectivityIntent{Tuple{Int, Int}, Int}})
-    neibnsrc = getibn(ibn, getsrc(intenttr)[1])
-    neibndst = getibn(ibn, getdst(intenttr))
-    if neibnsrc === nothing && neibndst !== nothing
-        nothing
-    elseif neibnsrc !== nothing && neibndst === nothing
-        nothing
-    elseif neibnsrc !== nothing && neibndst !== nothing
-        if getid(neibnsrc) == getid(ibn)
-            yenstates = [yen_k_shortest_paths(ibn.cgr.flatgr, getsrc(intenttr)[2], transnode, linklengthweights(ibn.cgr.flatgr), 1) 
-                         for transnode in nodesofcontroller(ibn, getindex(ibn, neibndst))]
-            paths = reduce(vcat, getfield.(yenstates, :paths))
-            dists = reduce(vcat, getfield.(yenstates, :dists))
-            sortidx = sortperm(dists)
-            dists .= dists[sortidx]
-            paths .= paths[sortidx]
-            # TODO check constraints feasibility
-            cap = [c.capacity for c in getconstraints(intenttr) if c isa CapacityConstraint][]
-            setcompilation!(intenttr, ConnectivityIntentCompilation(paths[1], cap))
-        elseif getid(neibndst) == getid(ibn)
-            nothing
-        else
-            nothing
-        end
+function kshortestpath!(ibnp::IBN, ibnc::IBN, intr::IntentTree{ConnectivityIntent}, iid::InterIntent{R}; k=5) where R<:IntentDirection
+    iidforward = R isa IntentForward
+    if iidforward
+        myintent = IBNConnectivityIntent(getsrc(intr), getid(ibnc), getconstraints(intr), getconditions(intr), missing, uncompiled)
     else
-        @warn("cannot communicate to any of the two ibns")
+        myintent = IBNConnectivityIntent(getid(ibnc), getdst(intr) , getconstraints(intr), getconditions(intr), missing, uncompiled)
     end
+    intentchildtr = addchild!(intr, myintent)
+    success = compile!(ibnp, intentchildtr, kshortestpath!; k=k)
+    success || return false
+
+    # create an intent for fellow ibn
+    compchild = getcompilation(intentchildtr)
+    if iidforward
+        transnode = (getid(ibnc), ibnp.cgr.vmap[compchild.path[end]][2])
+        remintent = ConnectivityIntent(transnode, getdst(intr), getconstraints(intr), getconditions(intr), missing, uncompiled)
+    else
+        transnode = (getid(ibnc), ibnp.cgr.vmap[compchild.path[1]][2])
+        remintent = ConnectivityIntent(getsrc(intr), transnode, getconstraints(intr), getconditions(intr), missing, uncompiled)
+    end
+
+    # deploy the intent to the fellow ibn
+    success = delegateinheritcompilation!(ibnp, ibnc, intr, remintent, kshortestpath!; k=k)
+    success || return false
+end
+
+function kshortestpath!(ibn::IBN, intr::IntentTree{ConnectivityIntent}, ::IntraIntent; k = 5)
+    paths = yen_k_shortest_paths(ibn.cgr.flatgr, getsrc(intr)[2], getdst(intr)[2], linklengthweights(ibn.cgr.flatgr), k).paths
+    # TODO what about other constraints
+    cap = [c.capacity for c in getconstraints(intr) if c isa CapacityConstraint][]
+    # take first path which is available
+    for path in paths
+        if isavailable(ibn, path, cap)
+            setcompilation!(intr, ConnectivityIntentCompilation(path, cap))
+            return true
+        end
+    end
+    return false
+end
+
+function kshortestpath!(ibn::IBN, intenttr::IntentTree{R}; k=5) where {R<:IBNConnectivityIntent}
+    success = false
+    neibn, yenstates = kshortestpathcalc(ibn, intenttr)
+    paths = reduce(vcat, getfield.(yenstates, :paths))
+    dists = reduce(vcat, getfield.(yenstates, :dists))
+    sortidx = sortperm(dists)
+    dists .= dists[sortidx]
+    paths .= paths[sortidx]
+    # TODO check constraints feasibility
+    cap = [c.capacity for c in getconstraints(intenttr) if c isa CapacityConstraint][]
+    for path in paths
+        if isavailable(ibn, path, cap)
+            setcompilation!(intenttr, ConnectivityIntentCompilation(paths[1], cap))
+            return true
+        end
+    end
+    return success
+end
+
+function kshortestpathcalc(ibn::IBN, intenttr::IntentTree{IBNConnectivityIntent{Tuple{Int,Int}, Int}}; k=5)
+    neibn = getibn(ibn, getdst(intenttr))
+    yenstates = [yen_k_shortest_paths(ibn.cgr.flatgr, getsrc(intenttr)[2], transnode, linklengthweights(ibn.cgr.flatgr), k) 
+                 for transnode in nodesofcontroller(ibn, getindex(ibn, neibn))]
+    return (neibn, yenstates)
+end
+function kshortestpathcalc(ibn::IBN, intenttr::IntentTree{IBNConnectivityIntent{Int, Tuple{Int,Int}}}; k=5)
+    neibn = getibn(ibn, getsrc(intenttr))
+    yenstates = [yen_k_shortest_paths(ibn.cgr.flatgr, transnode, getdst(intenttr)[2], linklengthweights(ibn.cgr.flatgr), k) 
+                 for transnode in nodesofcontroller(ibn, getindex(ibn, neibn))]
+    return (neibn, yenstates)
 end

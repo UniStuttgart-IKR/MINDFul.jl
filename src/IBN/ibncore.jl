@@ -1,6 +1,7 @@
 "Defines the way the IBN Framework state machine will behave"
 abstract type IBNModus end
 struct SimpleIBNModus <: IBNModus end
+struct AdvancedIBNModus <: IBNModus end
 
 
 "Information needed for interacting IBN"
@@ -40,10 +41,8 @@ getid(ibn::IBN) = ibn.id
 getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
 controllerofnode(ibn::IBN, node::Int) = ibn.controllers[domain(ibn.cgr, node)]
 nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.cgr.vmap) if nd[1] == ci]
-isintraintent(ibn::IBN, intentt::IntentTree{R}) where {R<:Intent} = ibn.id == getsrc(intentt)[1] == getdst(intentt)[1]
 getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
 getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
-
 getibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, getibns(ibn))
 #TODO implement a different method (Channels, Tasks, yield)
 

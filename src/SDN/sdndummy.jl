@@ -83,14 +83,17 @@ function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
     return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
 end
 
+function isavailable(sdn::SDNdummy, p::Vector{<:Integer}, capacity::Real)
+    all(isavailable(sdn, e, capacity) for e in edgeify(p))
+end
 
 "reserve capacity on an interSDN edge"
-function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceinteribn=nothing)
-    ceinteribn === nothing && (ceinteribn = ce)
+function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceintrasdn=nothing)
+    ceintrasdn === nothing && (ceintrasdn = ce)
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)
 
-    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceinteribn.src[2], ceinteribn.dst[2]])]
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceintrasdn.src[2], ceintrasdn.dst[2]])]
     l = sdn1.interprops[ce][:link]
     if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
         useport!(rts[1])
@@ -114,12 +117,12 @@ function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real
 end
 
 "check capacity on an interSDN edge"
-function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceinteribn=nothing)
-    ceinteribn === nothing && (ceinteribn = ce)
+function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceintrasdn=nothing)
+    ceintrasdn === nothing && (ceintrasdn = ce)
     # TODO: build an interface for IBNs
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)
-    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceinteribn.src[2], ceinteribn.dst[2]])]
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceintrasdn.src[2], ceintrasdn.dst[2]])]
     # always get link from the first SDN argument
     l = sdn1.interprops[ce][:link]
     return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)

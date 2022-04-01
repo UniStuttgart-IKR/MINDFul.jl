@@ -22,6 +22,10 @@ struct IntentTree{T<:Intent}
 end
 getsrc(it::IntentTree) = getsrc(it.data)
 getdst(it::IntentTree) = getdst(it.data)
+getsrcdom(it::IntentTree) = getsrcdom(it.data)
+getsrcdomnode(it::IntentTree) = getsrcdomnode(it.data)
+getdstdom(it::IntentTree) = getdstdom(it.data)
+getdstdomnode(it::IntentTree) = getdstdomnode(it.data)
 getconstraints(it::IntentTree) = getconstraints(it.data)
 getcompilation(it::IntentTree) = getcompilation(it.data)
 setcompilation!(it::IntentTree, ic::T) where {T<:Union{IntentCompilation, Missing}} = setcompilation!(it.data, ic)
