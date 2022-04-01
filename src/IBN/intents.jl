@@ -47,6 +47,8 @@ mutable struct RemoteIntentCompilation <: IntentCompilation
     "Intent index in the remote IBN"
     intentidx::Union{Int, Missing}
 end
+Base.show(io::IO, ric::RemoteIntentCompilation) = print(io,"RemoteIntentCompilation(ibnid=$(getid(ric.remoteibn)), idx = $(ric.intentidx)))")
+Base.show(io::IO, ::MIME"text/plain", ric::RemoteIntentCompilation) = print(io,"RemoteIntentCompilation(ibnid=$(getid(ric.remoteibn)), idx = $(ric.intentidx)))")
 
 """
 Intent for connecting 2 nodes

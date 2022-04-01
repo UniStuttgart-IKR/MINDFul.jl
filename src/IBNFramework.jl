@@ -15,8 +15,8 @@ import Term
 export isleaf
 export Counter
 export SDN, SDNdummy
-export IBN, addintent, sdnofnode
-export IntentTree
+export IBN, addintent!
+export IntentTree, Intent, ConnectivityIntent
 export deploy!
 
 

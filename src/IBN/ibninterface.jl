@@ -114,7 +114,8 @@ end
 function delegateinheritcompilation!(ibnp::IBN, ibnc::IBN, intr::IntentTree, remintent::Intent, algmethod; algargs...)
     success = false
     remintr = addchild!(intr, remintent)
-    remidx = addintent(ibnp, ibnc, newintent(remintr.data))
+    ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
+    remidx = addintent!(ibnpissuer, ibnc, newintent(remintr.data))
     setcompilation!(remintent, RemoteIntentCompilation(ibnc, remidx))
     success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
     success && setstate!(remintr, compiled)
@@ -123,7 +124,8 @@ end
 
 function delegatecompilation!(ibnp::IBN, ibnc::IBN, intr::IntentTree, algmethod; algargs...)
     success = false
-    remidx = addintent(ibnp, ibnc, newintent(intr.data))
+    ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
+    remidx = addintent!(ibnpissuer, ibnc, newintent(intr.data))
     setcompilation!(intr, RemoteIntentCompilation(ibnc, remidx))
     success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
     success && setstate!(intr, compiled)

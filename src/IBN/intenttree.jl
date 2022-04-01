@@ -9,17 +9,20 @@ abstract type IntentCondition end
 struct InheritIntentCompilation <: IntentCompilation end
 
 struct IntentTree{T<:Intent}
+    "Index of Intent in the IBN. The same as the index of intent in the IBN Vector. Same for the whole tree"
+    idx::Int
     data::T
     parent::Union{Nothing,IntentTree}
     children::Vector{IntentTree}
 
-    IntentTree{T}(data::T, ::Nothing, v::AbstractVector{IntentTree}) where T = new{T}(data, nothing, v)
-    function IntentTree{T}(d::T, p::IntentTree, c::AbstractVector{IntentTree}) where T
-        ret = new{T}(d, p, c)
+    IntentTree{T}(idx::Int, data::T, ::Nothing, v::AbstractVector{IntentTree}) where T = new{T}(idx, data, nothing, v)
+    function IntentTree{T}(idx::Int, d::T, p::IntentTree, c::AbstractVector{IntentTree}) where T
+        ret = new{T}(idx, d, p, c)
         push!(p.children , ret)
         ret
     end
 end
+getindex(it::IntentTree) = it.idx
 getsrc(it::IntentTree) = getsrc(it.data)
 getdst(it::IntentTree) = getdst(it.data)
 getsrcdom(it::IntentTree) = getsrcdom(it.data)
@@ -33,10 +36,10 @@ getconditions(it::IntentTree) = getconditions(it.data)
 getstate(it::IntentTree) = getstate(it.data)
 setstate!(it::IntentTree, is::IntentState) = setstate!(it.data, is)
 
-IntentTree(d::T, p=nothing, c=IntentTree[]) where {T<:Intent} = IntentTree{T}(d, p, c)
+IntentTree(idx::Int, d::T, p=nothing, c=IntentTree[]) where {T<:Intent} = IntentTree{T}(idx, d, p, c)
 
 function addchild!(parent::IntentTree{T}, data::R) where {T <: Intent, R <: Intent}
-  child = IntentTree(data, parent)
+  child = IntentTree(parent.idx, data, parent)
   setcompilation!(parent, InheritIntentCompilation())
   child
 end
