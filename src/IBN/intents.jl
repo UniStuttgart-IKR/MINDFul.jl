@@ -80,7 +80,18 @@ newintent(intent::ConnectivityIntent) = ConnectivityIntent(getsrc(intent), getds
 newintent(intent::ConnectivityIntent, comp::R) where {R<:IntentCompilation} = 
     ConnectivityIntent(getsrc(intent), getdst(intent), getconstraints(intent), getconditions(intent), comp, compiled)
 
-isintraintent(ibn::IBN, intentt::IntentTree{R}) where {R<:Intent} = ibn.id == getsrc(intentt)[1] == getdst(intentt)[1]
+function isintraintent(ibn::IBN, intenttr::IntentTree{R}) where {R<:Intent}
+    if getid(ibn) == getsrc(intenttr)[1] == getdst(intenttr)[1]
+        return true
+    elseif getid(ibn) == getsrcdom(intenttr)
+        return getdst(intenttr) in transnodes(ibn)
+    elseif getid(ibn) == getdstdom(intenttr)
+        return getsrc(intenttr) in transnodes(ibn)
+    else
+        return false
+    end
+end
+
 """
 Intent for connecting 2 IBNs
 
@@ -133,3 +144,126 @@ end
 isinstalled(ibn::IBN, inid::Int) = state(ibn.intents[inid]) == installed
 issatisfied(ibn::IBN, inid::Int, constr::CapacityConstraint) = return getcompilation(ibn.intents[inid]).capacity >= constr.capacity
 issatisfied(ibn::IBN, inid::Int, constr:: DelayConstraint) = sum(delay(l) for l in edgeify(getcompilation(ibn.intents[inid]).path)) <= constr.delay
+
+has_extendedchildren(intr::IntentTree) = (getcompilation(intr) isa RemoteIntentCompilation) || AbstractTrees.has_children(intr)
+
+function extendedchildren(intr::IntentTree)
+    if getcompilation(intr) isa RemoteIntentCompilation
+        comp = getcompilation(intr)
+        return [comp.remoteibn.intents[comp.intentidx]]
+    elseif AbstractTrees.has_children(intr)
+        return children(intr)
+    end
+end
+"Assuming that `intr` belongs to `ibn`, return extended children together with the corresponding ibn"
+function extendedchildren(ibn::IBN, intr::IntentTree)
+    if getcompilation(intr) isa RemoteIntentCompilation
+        comp = getcompilation(intr)
+        return zip(Iterators.repeated(comp.remoteibn),[comp.remoteibn.intents[comp.intentidx]])
+    elseif AbstractTrees.has_children(intr)
+        return zip(Iterators.repeated(ibn), children(intr))
+    end
+end
+
+function recursive_extendedchildren!(ibn::IBN, intents, intr::IntentTree; ibnidfilter::Union{Nothing, Int}=nothing)
+    if has_extendedchildren(intr)
+        for (nextibn, chintentr) in extendedchildren(ibn,intr)
+            if getid(nextibn) == ibnidfilter
+                push!(intents, chintentr.data)
+            end
+            recursive_extendedchildren!(nextibn, intents, chintentr; ibnidfilter=ibnidfilter)
+        end
+    end
+end
+function recursive_extendedchildren!(ibn::IBN, ibnintd::Dict{Int, Vector{Intent}}, intr::IntentTree)
+    if has_extendedchildren(intr)
+        for (nextibn, chintentr) in extendedchildren(ibn,intr)
+            if !haskey(ibnintd, getid(nextibn))
+                ibnintd[getid(nextibn)] = Vector{Intent}()
+            end
+            push!(ibnintd[getid(nextibn)], chintentr.data)
+            recursive_extendedchildren!(nextibn, ibnintd, chintentr)
+        end
+    end
+end
+function recursive_extendedchildren!(intents, intr::IntentTree)
+    if has_extendedchildren(intr)
+        for chintentr in extendedchildren(intr)
+            push!(intents, chintentr.data)
+            recursive_extendedchildren!(intents, chintentr)
+        end
+    end
+end
+function recursive_children!(intents, intr::IntentTree)
+    if AbstractTrees.has_children(intr)
+        for chintentr in children(intr)
+            push!(intents, chintentr.data)
+            recursive_children!(intents, chintentr)
+        end
+    end
+end
+function descendants(intr::IntentTree)
+    intents = Vector{Intent}()
+    push!(intents, intr.data)
+    recursive_extendedchildren!(intents, intr)
+    return intents
+end
+function family(ibn::IBN, intidx::Int; intraibn::Bool=false, ibnidfilter::Union{Nothing, Int}=nothing)
+    intents = Vector{Intent}()
+    if intraibn
+        if ibnidfilter === nothing || ibnidfilter == getid(ibn)
+            return intents
+        else
+            push!(intents, ibn.intents[intidx].data)
+            recursive_children!(intents, ibn.intents[intidx])
+        end
+    else
+        if ibnidfilter === nothing || ibnidfilter == getid(ibn)
+            push!(intents, ibn.intents[intidx].data)
+        end
+        recursive_extendedchildren!(ibn, intents, ibn.intents[intidx]; ibnidfilter=ibnidfilter)
+    end
+    return intents
+end
+
+function dividefamily(ibn::IBN, intidx::Int)
+    ibnintd = Dict{Int, Vector{Intent}}()
+    ibnintd[getid(ibn)] = Vector{Intent}([ibn.intents[intidx].data])
+    recursive_extendedchildren!(ibn, ibnintd, ibn.intents[intidx])
+    return ibnintd
+end
+
+function edgeify(intents::Vector{Intent}, ::Type{R}) where R<:IntentCompilation
+    concomps = [getcompilation(intent) for intent in intents if getcompilation(intent) isa ConnectivityIntentCompilation]
+    paths = [getfield(concomp, :path) for concomp in concomps]
+    return [edgeify(path) for path in paths]
+end
+
+"""
+Takes input all available IBNs
+Prints out a full Intent Tree across all of them
+"""
+function print_tree_extended(intr::IntentTree, maxdepth=5)
+    p = getpair(intr)
+    print_tree(p, maxdepth=maxdepth)
+end
+
+function getextendedchildrenpair(intr::IntentTree)
+    if getcompilation(intr) isa RemoteIntentCompilation
+        comp = getcompilation(intr)
+        getpair(comp.remoteibn.intents[comp.intentidx])
+    elseif AbstractTrees.has_children(intr)
+        getpair.(children(intr))
+    else
+        return intr
+    end
+end
+
+function getpair(intr::IntentTree)
+    if !has_extendedchildren(intr)
+        return intr
+    else
+        return Pair(intr, getextendedchildrenpair(intr))
+    end
+end
+

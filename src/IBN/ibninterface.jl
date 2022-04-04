@@ -131,3 +131,4 @@ function delegatecompilation!(ibnp::IBN, ibnc::IBN, intr::IntentTree, algmethod;
     success && setstate!(intr, compiled)
     return success
 end
+

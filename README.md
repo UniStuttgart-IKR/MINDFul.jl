@@ -27,6 +27,7 @@ Bind with Reactive.jl
 
 ## General
 - write tests
+- introduce entity types (nodes, global nodes, local nodes, domain)
 - implement network faults
 - port details
 - port level faults ?

@@ -9,7 +9,7 @@ using Logging
 
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
-globalnet = loadgraph(open("../data/networksnest.graphml"), GraphMLFormat(), CompositeGraphs.CompositeGraphFormat())
+globalnet = loadgraph(open("../data/networksnest2.graphml"), GraphMLFormat(), CompositeGraphs.CompositeGraphFormat())
 globalnet = IBNFramework.simgraph(globalnet)
 
 myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
@@ -17,6 +17,13 @@ nothing
 # intra SDN, intra IBN intent
 @testset "connectivityIntentsKshortestPath.jl" begin
     with_logger(testlogger) do
+        # across the same node. must be false
+        @test !let
+            conint = ConnectivityIntent((myibns[1].id,4), (myibns[1].id,4), [CapacityConstraint(5)])
+            intidx = addintent!(myibns[1], conint)
+            IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
+            IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+        end
         # intra SDN, intra IBN intent
         @test let
             conint = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(5)]);
@@ -55,6 +62,20 @@ nothing
         # inter IBN Intent: src known, destination the IBN
         @test let
             conint = ConnectivityIntent((myibns[2].id,3), (myibns[1].id,1), [CapacityConstraint(5)])
+            intidx = addintent!(myibns[1], conint)
+            IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
+            IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+        end
+        # inter IBN Intent: src known, destination edge node known
+        @test let
+            conint = ConnectivityIntent((myibns[2].id,3), (myibns[3].id,7), [CapacityConstraint(5)])
+            intidx = addintent!(myibns[1], conint)
+            IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
+            IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+        end
+        # inter IBN Intent: src known, destination edge node known (my)
+        @test let
+            conint = ConnectivityIntent((myibns[2].id,6), (myibns[1].id,6), [CapacityConstraint(5)])
             intidx = addintent!(myibns[1], conint)
             IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
             IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)

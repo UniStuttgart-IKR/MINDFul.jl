@@ -49,6 +49,7 @@ end
 Base.show(io::IO, t::IntentTree{T}) where T = print(io, "IntentTree{$(T)}(", t.data, ')')
 AbstractTrees.printnode(io::IO, node::IntentTree) = print(io, node.data)
 AbstractTrees.children(node::IntentTree) = node.children
+AbstractTrees.has_children(node::IntentTree) = length(node.children) > 0
 AbstractTrees.parent(node::IntentTree) = node.parent
 AbstractTrees.isroot(node::IntentTree) = parent(node) === nothing
 

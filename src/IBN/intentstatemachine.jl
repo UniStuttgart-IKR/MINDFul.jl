@@ -25,7 +25,8 @@ function step!(ibn::IBN, inid::Int, ista::IntentState, itra::IntentTransition, s
     elseif ista == compiled && itra == docompile
         @info("Intent already compiled")
     else 
-        error("illegal operation: Cannot "*string(itra)*" on "*string(ista))
+        @warn("illegal operation: Cannot "*string(itra)*" on "*string(ista))
+        return false
     end
 end
 

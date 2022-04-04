@@ -182,17 +182,17 @@
                 <node id="ibn3:sdn1">
                     <graph id="ibn3:sdn1" edgedefault="directed">
                         <node id="ibn3:sdn1:N1">
-                            <data key="xcoord">26.0</data>
-                            <data key="ycoord">-22.0</data>
+                            <data key="xcoord">27.0</data>
+                            <data key="ycoord">-20.0</data>
                             <data key="ports">51</data>
                         </node>
                         <node id="ibn3:sdn1:N2">
                             <data key="xcoord">24.0</data>
-                            <data key="ycoord">-24.0</data>
+                            <data key="ycoord">-25.0</data>
                             <data key="ports">52</data>
                         </node>
                         <node id="ibn3:sdn1:N3">
-                            <data key="xcoord">27.0</data>
+                            <data key="xcoord">28.0</data>
                             <data key="ycoord">-23.0</data>
                             <data key="ports">53</data>
                         </node>

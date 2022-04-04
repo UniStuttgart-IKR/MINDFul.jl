@@ -12,6 +12,10 @@ function compile!(ibn::IBN, intr::IntentTree{R}, algmethod::F; algargs...) where
     firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[CompositeGraphs.domain(ibn.cgr,x)] == neibn, [v for v in vertices(ibn.cgr)])
 
     success = false
+    if getsrc(intr) == getdst(intr)
+        @info "Cannot compile a connectivity intent between the same node"
+        return success
+    end
     if isintraintent(ibn, intr)
         success = algmethod(ibn, intr, IntraIntent(); algargs...)
     else
@@ -51,7 +55,7 @@ function compile!(ibn::IBN, intr::IntentTree{R}, algmethod::F; algargs...) where
 end
 
 function kshortestpath!(ibnp::IBN, ibnc::IBN, intr::IntentTree{ConnectivityIntent}, iid::InterIntent{R}; k=5) where R<:IntentDirection
-    iidforward = R isa IntentForward
+    iidforward = R <: IntentForward
     if iidforward
         myintent = IBNConnectivityIntent(getsrc(intr), getid(ibnc), getconstraints(intr), getconditions(intr), missing, uncompiled)
     else
@@ -77,7 +81,9 @@ function kshortestpath!(ibnp::IBN, ibnc::IBN, intr::IntentTree{ConnectivityInten
 end
 
 function kshortestpath!(ibn::IBN, intr::IntentTree{ConnectivityIntent}, ::IntraIntent; k = 5)
-    paths = yen_k_shortest_paths(ibn.cgr.flatgr, getsrc(intr)[2], getdst(intr)[2], linklengthweights(ibn.cgr.flatgr), k).paths
+    src = getsrcdom(intr) == getid(ibn) ? getsrcdomnode(intr) : localnode(ibn, getsrc(intr), subnetwork_view=false)
+    dst = getdstdom(intr) == getid(ibn) ? getdstdomnode(intr) : localnode(ibn, getdst(intr), subnetwork_view=false)
+    paths = yen_k_shortest_paths(ibn.cgr.flatgr, src, dst, linklengthweights(ibn.cgr.flatgr), k).paths
     # TODO what about other constraints
     cap = [c.capacity for c in getconstraints(intr) if c isa CapacityConstraint][]
     # take first path which is available

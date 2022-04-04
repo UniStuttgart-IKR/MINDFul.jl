@@ -16,9 +16,11 @@ export isleaf
 export Counter
 export SDN, SDNdummy
 export IBN, addintent!
-export IntentTree, Intent, ConnectivityIntent
+export IntentTree, Intent, ConnectivityIntent, ConnectivityIntentCompilation
 export deploy!
-
+export print_tree_extended
+export getcompilation, getlegendplots, getid
+export family
 
 include("utils.jl")
 

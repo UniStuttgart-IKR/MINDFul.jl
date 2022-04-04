@@ -15,6 +15,7 @@ struct SDNdummy{T} <: SDN
     interprops::Dict{CompositeEdge, Dict{Symbol, Any}}
 end
 SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{CompositeEdge, Dict{Symbol, Any}}())
+getid(sdnd::SDNdummy) = nothing
 
 """Return the graph SDN is responsible for"""
 getgraph(sdnd::SDNdummy) = sdnd.gr

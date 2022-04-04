@@ -45,6 +45,7 @@ struct IBN{T<:SDN,R}
 end
 #TODO not good minus 1
 getgraph(ibn::IBN) = ibn.cgr.flatgr
+getcontrollers(ibn::IBN) = ibn.controllers
 getid(ibn::IBN) = ibn.id
 getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
 getindex(ibn::IBN, c::R) where {R<:Intent} = findfirst(==(c), getfield.(ibn.intents, :data))
@@ -54,6 +55,28 @@ nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.cgr.vmap) 
 getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
 getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
 getibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, getibns(ibn))
+"returns trans nodes of the IBN in the format of (IBN id, node id)"
+function transnodes(ibn::IBN; subnetwork_view=true)
+    if subnetwork_view 
+        [(getid(ibn.controllers[v[1]]), v[2]) for v in ibn.cgr.vmap if ibn.controllers[v[1]] isa IBN]
+    else
+        [v for v in vertices(ibn.cgr) if ibn.controllers[ibn.cgr.vmap[v][1]] isa IBN]
+    end
+end
+"convert global domnod to local view of the ibn if exists"
+function localnode(ibn::IBN, domnod::Tuple{Int,Int}; subnetwork_view=true)
+    #domnod[2] is the same as the local view. just have to find the internal representation of IBN domnode[1]
+    idx = findfirst(==(domnod[1]), getid.(getcontrollers(ibn)))
+    if (idx, domnod[2]) in ibn.cgr.vmap
+        if subnetwork_view
+            return (idx, domnod[2])
+        else
+            return vertex(ibn.cgr, (idx, domnod[2]))
+        end
+    else
+        return nothing
+    end
+end
 #TODO implement a different method (Channels, Tasks, yield)
 
 IBN(counter::Counter, args...) = IBN(counter(), args...)
@@ -74,6 +97,7 @@ IBN(c::Int, controllers::Vector{T}, cg::CompositeGraph) where {T<:Union{SDN,IBN}
                                                             cg,
                                                             Dict{Int, IBNInterProps}())
 
+Base.show(io::IO, ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.cgr), $(ibn.interprops))")
 Base.show(io::IO, ::MIME"text/plain", ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.cgr), $(ibn.interprops))")
 
 function connect(ibn1::IBN, ibn2::IBN, e::Edge)
