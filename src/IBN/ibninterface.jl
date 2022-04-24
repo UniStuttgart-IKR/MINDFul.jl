@@ -1,39 +1,49 @@
-#function isavailable(ibn::IBN{T}, path::Vector{Int}, capacity::Real) where T<:SDN
-#    available = true
-#    (sdns, paths) = breakdown(ibn, path)
-#    for (sdn,path) in zip(sdns, paths)
-#        available = available && isavailable(sdn, path, capacity)
-#        available || return false
-#    end
-#    # interSDN
-#    ceds = CompositeGraphs.compositeedge.([ibn.cgr], filter(x -> !CompositeGraphs.issamedomain(ibn.cgr, x), [e for e in edgeify(path)]))
-#    for ce in ceds
-#        available = available && isavailable(ibn.controllers[ce.src[1]], ibn.controllers[ce.dst[1]], ce, capacity)
-#        available || return false
-#    end
-#    return available
-#end
-
-function isavailable(ibn::IBN, path::Vector{Int}, capacity::Real)
+function isavailable(ibn::IBN, path::Vector{Int}, reqs...)
     for e in edgeify(path)
-       isavailable(breakdown(ibn, e)..., capacity) || return false
+       isavailable(breakdown(ibn, e)..., reqs...) || return false
     end
     return true
 end
-function reserve(ibn::IBN, path::Vector{Int}, capacity::Real)
+function reserve(ibn::IBN, ibnintid::Tuple{Int,Int}, path::Vector{Int}, reqs...)
     for e in edgeify(path)
-       reserve(breakdown(ibn, e)..., capacity) || return false
+       reserve(breakdown(ibn, e)..., reqs...) || return false
     end
     return true
 end
 
+function reserve(ibn::IBN, ibnintid::Tuple{Int,Int}, optpath::Vector{OpticalCircuit}, reqs...)
+    for optcirc in optpath
+        # reserve node port
+        src = optcirc.path[1]
+        portnum = reserve_routerport(controllerofnode(ibn, src), ibnintid, src)
+        # reserve optical edges (not ports)
+        for optedg in edgeify(optcirc.path)
+            reserve(reserve_fiber, ibnintid, optcirc.props; breakdown(ibn, optedg)...)
+        end
+        # reserve node port
+        dst = optcirc.path[end]
+        portnum = reserve_routerport(controllerofnode(ibn, dst), ibnintid, src)
+    end
+    return true
+end
+
+function breakdown(ibn::IBN, n::Int)
+    controller = controllerofnode(ibn, n)
+    if controller isa IBN
+        node = ibn.cgr.vmap[n][2]
+        ibnsrc = controllerofnodesrc
+    else
+        cesrc = (getid(ibn), e.src)
+        ibnsrc = ibn
+    end
+end
 
 function breakdown(ibn::IBN, e::Edge)
     controllerofnodesrc = controllerofnode(ibn, e.src)
     controllerofnodedst = controllerofnode(ibn, e.dst)
     if controllerofnodesrc == controllerofnodedst
         #intradomain
-        return (controllerofnodesrc, domainedge(ibn.cgr, e))
+        return (;sdn1=controllerofnodesrc, sdn2=nothing, ce=domainedge(ibn.cgr, e), ceintra=nothing)
     else
         #interdomain
         if controllerofnodesrc isa IBN || controllerofnodedst isa IBN
@@ -52,9 +62,9 @@ function breakdown(ibn::IBN, e::Edge)
                 ibndst = ibn
             end
             ce = CompositeEdge(cesrc, cedst)
-            return (ibnsrc, ibndst, ce)
+            return ibns2sdns(ibnsrc, ibndst, ce)
         else
-            return (controllerofnodesrc, controllerofnodedst, compositeedge(ibn.cgr, e))
+            return ibns2sdns(controllerofnodesrc, controllerofnodedst, compositeedge(ibn.cgr, e))
         end
     end
 end
@@ -92,7 +102,8 @@ function reserve(con1::IBN, con2::IBN, ce::CompositeEdge, capacity::Real)
     reserve(ibns2sdns(con1, con2, ce, capacity)...)
 end
 
-function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::CompositeEdge, capacity)
+ibns2sdns(args...) = args
+function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::CompositeEdge)
     src = ce.src
     dst = ce.dst
 
@@ -108,27 +119,27 @@ function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::CompositeEdge, capacity)
 
     ce = CompositeEdge(src, dst)
     ceintrasdn = CompositeEdge(srcintrasdn, dstintrasdn)
-    return (sdn1, sdn2, ce, capacity, ceintrasdn)
+    return (;sdn1=sdn1, sdn2=sdn2, ce=ce, ceintra=ceintrasdn)
 end
 
-function delegateinheritcompilation!(ibnp::IBN, ibnc::IBN, intr::IntentTree, remintent::Intent, algmethod; algargs...)
+"C"
+function delegateintent!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode, remintent::Intent, algmethod; algargs...)
     success = false
     remintr = addchild!(intr, remintent)
     ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
     remidx = addintent!(ibnpissuer, ibnc, newintent(remintr.data))
-    setcompilation!(remintent, RemoteIntentCompilation(ibnc, remidx))
+    addchild!(remintent, RemoteIntent(ibnc, remidx))
     success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
     success && setstate!(remintr, compiled)
     return success
 end
 
-function delegatecompilation!(ibnp::IBN, ibnc::IBN, intr::IntentTree, algmethod; algargs...)
+function delegateintent!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode, algmethod; algargs...)
     success = false
     ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
-    remidx = addintent!(ibnpissuer, ibnc, newintent(intr.data))
-    setcompilation!(intr, RemoteIntentCompilation(ibnc, remidx))
+    remidx = addchild!(ibnpissuer, ibnc, newintent(intr.data))
+    addchild!(intr, RemoteIntent(ibnc, remidx))
     success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
     success && setstate!(intr, compiled)
     return success
 end
-

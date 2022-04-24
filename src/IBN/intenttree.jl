@@ -1,13 +1,3 @@
-abstract type Intent end
-abstract type IntentConstraint end
-abstract type IntentCompilation end
-abstract type IntentCondition end
-
-@enum IntentState installed uninstalled compiled uncompiled
-@enum IntentTransition doinstall douninstall docompile douncompile
-
-struct InheritIntentCompilation <: IntentCompilation end
-
 struct IntentTree{T<:Intent}
     "Index of Intent in the IBN. The same as the index of intent in the IBN Vector. Same for the whole tree"
     idx::Int
@@ -22,6 +12,7 @@ struct IntentTree{T<:Intent}
         ret
     end
 end
+# TODO getid better?
 getindex(it::IntentTree) = it.idx
 getsrc(it::IntentTree) = getsrc(it.data)
 getdst(it::IntentTree) = getdst(it.data)
@@ -64,9 +55,9 @@ Base.IteratorSize(::Type{IntentTree{T}}) where T = Base.SizeUnknown()
 Base.eltype(::Type{<:TreeIterator{IntentTree{T}}}) where T = IntentTree{T}
 Base.IteratorEltype(::Type{<:TreeIterator{IntentTree{T}}}) where T = Base.HasEltype()
 
-struct TrackIterator{T}
-    tree::T
-end
+#struct TrackIterator{T}
+#    tree::T
+#end
 
 function Base.iterate(node::IntentTree)
     !isleaf(node) ? (node.children[1], 1) : nothing
@@ -76,4 +67,5 @@ function Base.iterate(node::IntentTree, state::Int)
     state += 1
     state <= length(node.children) ? (node.children[state], state) : nothing
 end
+
 

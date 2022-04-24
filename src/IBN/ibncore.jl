@@ -1,55 +1,10 @@
-"Defines the way the IBN Framework state machine will behave"
-abstract type IBNModus end
-struct SimpleIBNModus <: IBNModus end
-struct AdvancedIBNModus <: IBNModus end
-
-abstract type IntentIssuer end
-struct NetworkProvider <: IntentIssuer end
-struct IBNIssuer <: IntentIssuer
-    ibnid::Int
-    intentidx::Int
-end
-
-
-"Information needed for interacting IBN"
-struct IBNInterProps 
-    "permissions of other IBN"
-    permissions::BitVector
-end
-"""
-The Intent Framework
-The intent id is the vector index
-`controllers` must have same length with `cgr.grv`
-    $(TYPEDFIELDS)
-"""
-struct IBN{T<:SDN,R}
-    "id of IBN"
-    id::Int
-    #TODO Union split ?
-    "The intent collection of the IBN Framework"
-    intents::Vector{IntentTree}
-    intentissuers::Vector{IntentIssuer}
-    #TODO integrate permissions 
-    #TODO implement IBN-NBI
-    "The collection of SDNs controlled from this IBN Framework and interacting IBNs (future should be IBN-NBIs)"
-    controllers::Vector{Union{T, IBN}}
-    #TODO make R -> CompositeGraph directly
-    """
-    Composite Graph consisting of the several SDNs
-    cgr is a shallow copy of the sdn graphs, 
-    meaning all PHY information is available in the IBN
-    """
-    cgr::CompositeGraph{R,R}
-    "InterIBN interoperability with key being the IBN id"
-    interprops::Dict{Int,IBNInterProps}
-end
 #TODO not good minus 1
 getgraph(ibn::IBN) = ibn.cgr.flatgr
 getcontrollers(ibn::IBN) = ibn.controllers
 getid(ibn::IBN) = ibn.id
 getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
 getindex(ibn::IBN, c::R) where {R<:Intent} = findfirst(==(c), getfield.(ibn.intents, :data))
-getindex(ibn::IBN, c::R) where {R<:IntentTree} = findfirst(==(c), ibn.intents)
+getindex(ibn::IBN, c::R) where {R<:IntentDAG} = findfirst(==(c), ibn.intents)
 controllerofnode(ibn::IBN, node::Int) = ibn.controllers[domain(ibn.cgr, node)]
 nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.cgr.vmap) if nd[1] == ci]
 getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
@@ -79,23 +34,6 @@ function localnode(ibn::IBN, domnod::Tuple{Int,Int}; subnetwork_view=true)
 end
 #TODO implement a different method (Channels, Tasks, yield)
 
-IBN(counter::Counter, args...) = IBN(counter(), args...)
-IBN!(counter::Counter, args...) = IBN!(counter(), args...)
-"Empty constructor"
-IBN(c::Int, ::Type{T}) where {T<:SDN}  = IBN(c, 
-                                            Vector{IntentTree{Intent}}(), 
-                                            Vector{IntentIssuer}(), 
-                                            Vector{Union{T, IBN}}(), 
-                                            CompositeGraph(),
-                                            Dict{Int, IBNInterProps}())
-IBN(c::Int, controllers::Vector{T}) where {T<:Union{SDN,IBN}}  = IBN(c, controllers, CompositeGraph(getfield.(controllers, :gr)))
-IBN!(c::Int, controllers::Vector{T}, eds::Vector{CompositeEdge{R}}) where {T<:Union{SDN,IBN}, R}  = IBN(c, controllers, mergeSDNs!(controllers, eds))
-IBN(c::Int, controllers::Vector{T}, cg::CompositeGraph) where {T<:Union{SDN,IBN}}  = IBN(c, 
-                                                            Vector{IntentTree}(), 
-                                                            Vector{IntentIssuer}(), 
-                                                            Vector{Union{T, IBN}}(controllers), 
-                                                            cg,
-                                                            Dict{Int, IBNInterProps}())
 
 Base.show(io::IO, ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.cgr), $(ibn.interprops))")
 Base.show(io::IO, ::MIME"text/plain", ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.cgr), $(ibn.interprops))")
@@ -157,7 +95,7 @@ addinterSDNedges(ibn::IBN, ces::Vector{CompositeEdge}) = error("not implemented"
 "Add Intent as Network Operator"
 function addintent!(ibn::IBN, intent::Intent)
     idx = length(ibn.intents) + 1
-    push!(ibn.intents, IntentTree(idx, intent))
+    push!(ibn.intents, IntentDAG(idx, intent))
     push!(ibn.intentissuers, NetworkProvider())
     return idx
 end
@@ -166,7 +104,7 @@ end
 function addintent!(ibnp::IBNIssuer, ibnc::IBN, intent::Intent)
     @warn("permissions not implemented")
     idx = length(ibnc.intents) + 1
-    push!(ibnc.intents, IntentTree(idx, intent))
+    push!(ibnc.intents, IntentDAG(idx, intent))
     push!(ibnc.intentissuers, ibnp)
     return idx
 end

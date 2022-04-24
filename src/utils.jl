@@ -26,11 +26,22 @@ function getfirst(p, itr)
     return nothing
 end
 
+function findNpop!(p, itr)
+    for (i,el) in enumerate(itr)
+        p(el) && return popat!(itr,i)
+    end
+    return nothing
+end
+
+rate2slots(rt::Real) = round(Int, rt)
+
+delay(dist) = 3.0u"μs/km" * dist
+
 function compositeGraph2IBNs!(globalnet::CompositeGraph)
     CompositeGraphs.removeemptygraphs_recursive!(globalnet)
     ibncounter = Counter()
 
-    myibns = Vector{IBN{SDNdummy{Int}, MetaDiGraph}}()
+    myibns = Vector{IBN{SDNdummy{Int}}}()
     for ibncgnet in globalnet.grv
         sdns = SDNdummy.(ibncgnet.grv)
         connect!(sdns, ibncgnet.ceds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.ceds)])

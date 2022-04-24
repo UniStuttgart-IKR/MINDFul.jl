@@ -6,8 +6,11 @@
 	<key attr.name="ycoord" attr.type="double" for="node" id="ycoord" />
 	<key attr.name="xcoord" attr.type="double" for="node" id="xcoord" />
 	<key attr.name="routerports" attr.type="int" for="node" id="ports" />
-    <key attr.name="linkcapacity" attr.type="int" for="edge" id="capacity">
-        <default>100</default>
+    <key attr.name="fiberslots" attr.type="int" for="edge" id="slots">
+        <default>15</default>
+    </key>
+	<key attr.name="oxc" attr.type="boolean" for="node" id="oxc">
+        <default>true</default>
     </key>
     <graph id="global-network" edgedefault="directed">
         <node id="ibn1">

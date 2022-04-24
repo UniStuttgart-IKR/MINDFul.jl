@@ -6,31 +6,31 @@ using Graphs, MetaGraphs
 using DocStringExtensions
 using Unitful
 using CompositeGraphs
+using UUIDs
+import MetaGraphsNext as MGN
+import MetaGraphsNext: MetaGraph as MG
+import MetaGraphsNext: MetaDiGraph as MDG
+import IterTools: partition
 
 import Term
 
 @reexport using AbstractTrees
 @reexport import AbstractTrees:isroot
 
-export isleaf
 export Counter
 export SDN, SDNdummy
-export IBN, addintent!
-export IntentTree, Intent, ConnectivityIntent, ConnectivityIntentCompilation
-export deploy!
-export print_tree_extended
-export getcompilation, getlegendplots, getid
-export family
+export IBN, addintent!, deploy!, transnodes, issatisfied
+export RouterView, FiberView
+export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
+export getroot, addchild!, children
+export simgraph, compositeGraph2IBNs!, randomsimgraph! 
+export ibnplot, ibnplot!, intentplot, intentplot!
 
 include("utils.jl")
-
+include("types/types.jl")
 include("SDN/SDN.jl")
-
 include("IBN/IBN.jl")
-
-include("SimNetResou/SimNetResou.jl")
-
-include("recipes.jl")
-
+include("NetRes/NetRes.jl")
+include("visualize.jl")
 
 end

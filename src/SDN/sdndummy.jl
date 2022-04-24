@@ -19,7 +19,6 @@ getid(sdnd::SDNdummy) = nothing
 
 """Return the graph SDN is responsible for"""
 getgraph(sdnd::SDNdummy) = sdnd.gr
-
 function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}}) where {T,R}
     cg = CompositeGraph(getfield.(sdns, :gr), cedges; both_ways=true)
     #TODO ask router and link values in PHY
@@ -51,6 +50,13 @@ function connect!(sdn1::SDNdummy{R}, cedge::CompositeEdge{T}, d::Dict{Symbol, K}
     return true
 end
 
+isavailable_port(sdn::SDNdummy, v::Int) = hasport(get_prop(getgraph(sdn), v, :router))
+reserve_port!(sdn::SDNdummy, v::Int, intidx) = useport!(get_prop(getgraph(sdn), v, :router), intidx)
+function issatisfied_port(sdn::SDNdummy, v::Int, intidx)
+    rtview = get_prop(getgraph(sdn), v, :router)
+    return intidx in rtview.reservations
+end
+
 "reserve capacity on an intraSDN edge"
 function reserve(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = getgraph(sdn)
@@ -76,6 +82,39 @@ function free!(sdn::SDNdummy, e::Edge, capacity::Real)
     return true
 end
 
+function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int})
+    gr = getgraph(sdn)
+    if ce.src[1] == ce.dst[1]
+        e = Edge(ce.src[2], ce.dst[2])
+        link = get_prop(gr, e, :link)
+    else
+        link = sdn.interprops[ce][:link]
+    end
+    return hasslots(link, sr)
+end
+
+function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx)
+    gr = getgraph(sdn)
+    if ce.src[1] == ce.dst[1]
+        e = Edge(ce.src[2], ce.dst[2])
+        link = get_prop(gr, e, :link)
+    else
+        link = sdn.interprops[ce][:link]
+    end
+    return useslots!(link, sr, intidx)
+end
+
+function issatisfied_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx)
+    gr = getgraph(sdn)
+    if ce.src[1] == ce.dst[1]
+        e = Edge(ce.src[2], ce.dst[2])
+        link = get_prop(gr, e, :link)
+    else
+        link = sdn.interprops[ce][:link]
+    end
+    resvs = link.reservations
+    all(x -> x == intidx, resvs[sr])
+end
 "check capacity on an intraSDN edge"
 function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = getgraph(sdn)
@@ -128,55 +167,48 @@ function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity
     l = sdn1.interprops[ce][:link]
     return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
 end
-#
-# Do the same for paths
-#
 
-"""Reserve `cap` resources amonge path `path`"""
-function reserve(sdn::SDNdummy, path::Vector{Int}, capacity::Real)
-    mgr = getgraph(sdn)
-    if isreservepossible(mgr, path, capacity)
-        for v in path
-            rt = get_prop(mgr, v, :router)
-            useport!(rt)
-        end
-        for sd in zip(path, path[2:end])
-            l = get_prop(mgr, sd[1], sd[2], :link)
-            usecapacity!(l, capacity)
-        end
-        return true
-    else
-        return false
-    end
-end
+##---------Multilayer-------------#
 
-"""Checks if resources `cap` can be reserved in the network `mgr`"""
-function isreservepossible(mgr::MetaDiGraph, path::Vector{Int}, capacity::Real)
-    ispossible = true
-    for v in path
-        rt = get_prop(mgr, v, :router)
-        !hasport(rt) && (ispossible = false)
-        !ispossible && break
-    end
-    if ispossible
-        for sd in zip(path, path[2:end])
-            l = get_prop(mgr, sd[1], sd[2], :link)
-            !hascapacity(l, capacity) && (ispossible = false)
-            !ispossible && break
-        end
-    end
-    return ispossible
-end
-
-function free(sdnd::SDNdummy, path::Vector{Int}, capacity::Real)
+function reserve_routerport(sdnd::SDNdummy, ibnintid::Tuple{Int, Int}, node::Int)
     mgr = getgraph(sdnd)
-    for v in path
-        rt = get_prop(mgr, v, :router)
-        freeport!(rt)
+    rt = get_prop(mgr, node, :router)
+    return useport!(rt, ibnintid)
+end
+
+function reserve_fiber(sdn::SDNdummy, ibnintid::Tuple{Int,Int}, e::Edge, props::OpticalTransProperties)
+    mgr = getgraph(sdn)
+    rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
+    l = get_prop(mgr, e.src, e.dst, :link)
+    if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
+        useport!(rts[1])
+        useport!(rts[2])
+        usecapacity!(l, capacity)
+        return true
     end
-    for sd in zip(path, path[2:end])
-        l = get_prop(mgr, sd[1], sd[2], :link)
-        freecapacity!(l, capacity)
+    return false
+end
+
+function reserve_fiber(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, ceintrasdn, props::OpticalTransProperties)
+    ceintra = ceintrasdn === nothing ? ce : ceintrasdn
+    mgr1 = getgraph(sdn1)
+    mgr2 = getgraph(sdn2)
+
+    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceintra.src[2], ceintra.dst[2]])]
+    l = sdn1.interprops[ce][:link]
+    if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
+        useport!(rts[1])
+        useport!(rts[2])
+        usecapacity!(l, capacity)
+        return true
     end
-    return true
+    return false
+end
+
+function reserve(reservemethod::F, ibnintid::Tuple{Int,Int}, args...; sdn1=nothing, sdn2=nothing, ce=nothing, ceintra=nothing) where F <: Function
+    if sdn2 === nothing
+        reservemethod(sdn1, ibnintid, ce, args...)
+    else
+        reservemethod(sdn1, sdn2, ce, ceintra, args...)
+    end
 end

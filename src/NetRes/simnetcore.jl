@@ -2,8 +2,6 @@
 # Simulating the Physical Layer
 =#
 
-export randomsimgraph! 
-
 """
 Router nodes
 
@@ -12,13 +10,21 @@ Router nodes
 mutable struct Router
     "Available ports needed to attach a fiber link"
     nports::Int
-    "Already reserved ports"
-    rezports::Int
 end
-Router(np::Int) = Router(np, 0)
-hasport(rt::Router) = rt.nports - rt.rezports > 0 
-useport!(rt::Router) = hasport(rt) ? rt.rezports += 1 : error("No more available ports in Router ", rt)
-freeport!(rt::Router) = rt.rezports - 1 >= 0 ? rt.rezports -= 1 : rt.rezports = 0
+getports(rt::Router) = rt.nports
+
+"""
+Fiber link connecting routers
+
+    $(TYPEDFIELDS)
+"""
+mutable struct Fiber
+    "Length of link"
+    distance::typeof(1.0u"km")
+    # TODO fibertype
+end
+Fiber(len::Real) = Fiber(len*1.0u"km")
+distance(f::Fiber) = f.distance
 
 """
 Fiber link connecting routers
@@ -39,7 +45,6 @@ Link(len::Real, cap::Real) = Link(len*1.0u"km", convert(Float64, cap), 0.0)
 hascapacity(l::Link, cap::Real) = l.capacity - l.rezcapacity > cap
 usecapacity!(l::Link, cap::Real) = hascapacity(l, cap) ? l.rezcapacity += cap : error("No more capacity on the Link ", l)
 freecapacity!(l::Link, cap::Real) = l.rezcapacity - cap > 0 ? l.rezcapacity -= cap : l.rezcapacity = 0
-delay(l::Link) = 5u"ns/km" * l.length
 
 randomgraph(gr::DiGraph) = randomgraph(MetaDiGraph(gr))
 function randomsimgraph!(mgr::MetaDiGraph)
@@ -60,20 +65,22 @@ Give in a `MetaGraph` having:
 - `:routerports` as integer in every node
 - `:xcoord` as integer in every node
 - `:ycoord` as integer in every node
-- `:linkcapacity` as float64 in every link
+- `:oxc` as boolean in every node
+- `:fiberslots` as int in every link
 
 Get as an output a `MetaGraph` having:
 - `:xcoord` as integer in every node
 - `:ycoord` as integer in every node
-- `:router` as `Router` in every node
-- `:link` as `Link` in every edge
+- `:router` as `RouterView` in every node
+- `:link` as `FiberView` in every edge
 """
 function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
     simgr = MetaDiGraph(mgr)
     for v in vertices(mgr)
-        set_prop!(simgr, v, :router, Router(get_prop(mgr, v, :routerports)))
+        set_prop!(simgr, v, :router, RouterView(Router(get_prop(mgr, v, :routerports))))
         set_prop!(simgr, v, :xcoord, get_prop(mgr, v, :xcoord))
         set_prop!(simgr, v, :ycoord, get_prop(mgr, v, :ycoord))
+        set_prop!(simgr, v, :oxc, get_prop(mgr, v, :oxc))
     end
     for e in edges(MetaGraph(mgr))
         #calculate distance
@@ -81,8 +88,8 @@ function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
         posdst = [get_prop(mgr, e.dst, :xcoord), get_prop(mgr, e.dst, :ycoord)]
         distance = distance_method(possrc, posdst)
 
-        set_prop!(simgr, e, :link, Link(distance , get_prop(mgr, e, :linkcapacity)) )
-        set_prop!(simgr, reverse(e), :link, Link(distance , get_prop(mgr, e, :linkcapacity)) )
+        set_prop!(simgr, e, :link, FiberView(Fiber(distance); frequency_slots=get_prop(mgr, e, :fiberslots)) )
+        set_prop!(simgr, reverse(e), :link, FiberView(Fiber(distance); frequency_slots=get_prop(mgr, e, :fiberslots)) )
     end
     return simgr
 end
@@ -98,7 +105,7 @@ function simgraph(cg::CompositeGraph{MetaDiGraph, T}; distance_method=euclidean_
         possrc = [get_prop(cgnew, vertex(cgnew, interedgs.src...), :xcoord), get_prop(cgnew, vertex(cgnew, interedgs.src...), :ycoord)]
         posdst = [get_prop(cgnew, vertex(cgnew, interedgs.dst...), :xcoord), get_prop(cgnew, vertex(cgnew, interedgs.dst...), :ycoord)]
         distance = distance_method(possrc, posdst)
-        set_prop!(cgnew, edge(cgnew, interedgs), :link, Link(distance , get_prop(cg, edge(cg, interedgs), :linkcapacity)) )
+        set_prop!(cgnew, edge(cgnew, interedgs), :link, FiberView(Fiber(distance), frequency_slots=get_prop(cg, edge(cg, interedgs), :fiberslots)) )
     end
     return cgnew
 end
@@ -106,7 +113,7 @@ end
 function linklengthweights(mgr::AbstractMetaGraph)
     ws = zeros(Float64 ,nv(mgr),nv(mgr))
     for e in edges(mgr)
-        ws[e.src, e.dst] = uconvert(u"km", get_prop(mgr, e, :link).length) |> ustrip
+        ws[e.src, e.dst] = uconvert(u"km", distance(get_prop(mgr, e, :link))) |> ustrip
     end
     ws
 end
