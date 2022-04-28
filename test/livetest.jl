@@ -27,8 +27,9 @@ myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
 #IBNFramework.deploy!(myibns[1], intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
 #IBNFramework.deploy!(myibns[1], intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization!)
 #
-        # intra SDN, intra IBN intent
-#conint = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(15), DelayConstraint(5.0u"ms")])
+
+## intra SDN, intra IBN intent
+#conint = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(270), DelayConstraint(5.0u"ms")])
 #intidx = addintent!(myibns[1], conint)
 #IBNFramework.deploy!(myibns[1], intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath_opt!)
 #IBNFramework.deploy!(myibns[1], intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization!)
@@ -40,7 +41,14 @@ myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
 #IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization!);
 
 # inter IBN Intent: src the IBN, destination edge node known
-conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,1), [CapacityConstraint(5)])
+conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,1), [CapacityConstraint(5), DelayConstraint(5u"ms")])
 intidx = addintent!(myibns[1], conint)
 IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath_opt!)
 IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization!)
+
+
+## inter IBN Intent: src the IBN, destination known
+#conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,3), [CapacityConstraint(5)])
+#intidx = addintent!(myibns[1], conint)
+#IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath_opt!)
+##IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization!)

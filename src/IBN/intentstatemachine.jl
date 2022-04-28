@@ -1,3 +1,6 @@
+deploy!(ibnc::IBN, ibns::IBN, intentidx::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
+        ; algargs...) = deploy!(ibnc, ibns, ibns.intents[intentidx], getroot(ibns.intents[intentidx]), itra, strategy, algmethod; algargs...)
+
 deploy!(ibn::IBN, intentidx::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
         ; algargs...) = deploy!(ibn, ibn.intents[intentidx], getroot(ibn.intents[intentidx]), itra, strategy, algmethod; algargs...)
 
@@ -6,12 +9,12 @@ deploy!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, 
         ; algargs...) = deploy!(ibn, ibn, dag, idagn, itra, strategy, algmethod; algargs...)
 
 "ibn-customer accesses the intent state machine of ibn-provider"
-function deploy!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod; algargs...)
-    if getid(ibnp) == getid(ibnc)
-        step!(ibnc, dag, idagn, idagn.state, itra, strategy, algmethod; algargs...)
+function deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod; algargs...)
+    if getid(ibnc) == getid(ibns)
+        step!(ibns, dag, idagn, idagn.state, itra, strategy, algmethod; algargs...)
     else
         @warn("no permissions implemented")
-        step!(ibnc, dag, idagn, idagn.state, itra, strategy, algmethod; algargs...)
+        step!(ibns, dag, idagn, idagn.state, itra, strategy, algmethod; algargs...)
     end
 end
 
@@ -49,34 +52,40 @@ end
 
 """
 Installs a single intent.
-First, it compiles the intent if it doesn't have already an implementation
-Second, it applies the intent implementation on the network
+It applies the intent implementation on the network
 """
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compiled}, itra::Val{doinstall}, intent_real; algargs...)
-    if !issatisfied(ibn, dag, idagn; onlylogic=true)
-        @info "Intent realization is not logically constistent and will not procceed in installation"
-        return getstate(dag)
-    end
+#    if !issatisfied(ibn, dag, idagn; onlylogic=true)
+#        @info "Intent realization is not logically constistent and will not procceed in installation"
+#        return getstate(idagn)
+#    end
     state_prev = getstate(idagn)
     state = realize!(ibn, dag, idagn, intent_real; algargs...)
-    state != state_prev && @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    if state != state_prev
+        @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    else
+        @info "No possible Transition from $(state_prev): $(idagn.intent)"
+    end
     return state
 end
 
 function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
-    success = algmethod(ibn, dag, idagn; algargs...)
-    success && (idagn.state =  compiled)
-    return success
+    algmethod(ibn, dag, idagn; algargs...)
+    return getstate(idagn)
 end
 
 function realize!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     leafidns = getleafs(dag, idagn)
     # aggregate low level intents (might be collisions ?)
     for lidn in leafidns
-#        if comp isa RemoteIntent
-#            success = deploy!(ibn, comp.remoteibn, comp.intentidx, 
-#                  IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
-        algmethod(ibn, dag, lidn)
+
+        if lidn.intent isa RemoteIntent
+            remibn = getibn(ibn, lidn.intent.ibnid)
+            deploy!(ibn, remibn, lidn.intent.intentidx, 
+                  doinstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
+        else
+            algmethod(ibn, dag, lidn)
+        end
     end
     return getstate(idagn)
 end
@@ -104,11 +113,11 @@ function directrealization!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) whe
     if isavailable(ibn, dag, idn)
         if getstate(idn) != installed
             if reserve(ibn, dag, idn) 
-                setstate!(idn, dag, Val(installed))
+                setstate!(idn, dag, ibn, Val(installed))
                 return getstate(idn)
             end
         end
     end
-    setstate!(idn, dag, Val(installfailed))
+    setstate!(idn, dag, ibn, Val(installfailed))
     return getstate(idn)
 end

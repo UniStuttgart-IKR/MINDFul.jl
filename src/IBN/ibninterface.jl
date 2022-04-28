@@ -122,24 +122,47 @@ function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::CompositeEdge)
     return (;sdn1=sdn1, sdn2=sdn2, ce=ce, ceintra=ceintrasdn)
 end
 
-"C"
-function delegateintent!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode, remintent::Intent, algmethod; algargs...)
-    success = false
-    remintr = addchild!(intr, remintent)
-    ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
-    remidx = addintent!(ibnpissuer, ibnc, newintent(remintr.data))
-    addchild!(remintent, RemoteIntent(ibnc, remidx))
-    success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
-    success && setstate!(remintr, compiled)
-    return success
+"Delegates intent and triggers its compilation"
+function delegateintent!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idn::IntentDAGNode, remintent::Intent, algmethod; algargs...)
+    remintr = addchild!(dag, getid(idn), remintent)
+    ibnpissuer = IBNIssuer(getid(ibnc), getidx(dag), getid(idn))
+    remidx = addintent!(ibnpissuer, ibns, getintent(remintr))
+    addchild!(dag, getid(remintr), RemoteIntent(getid(ibns), remidx))
+    return deploy!(ibnc, ibns, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
 end
 
-function delegateintent!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode, algmethod; algargs...)
-    success = false
-    ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
-    remidx = addchild!(ibnpissuer, ibnc, newintent(intr.data))
-    addchild!(intr, RemoteIntent(ibnc, remidx))
-    success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
-    success && setstate!(intr, compiled)
-    return success
+#function delegateintent!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode, algmethod; algargs...)
+#    success = false
+#    ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
+#    remidx = addchild!(ibnpissuer, ibnc, newintent(intr.data))
+#    addchild!(intr, RemoteIntent(ibnc, remidx))
+#    success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
+#    success && setstate!(intr, compiled)
+#    return success
+#end
+
+function setstate!(ibnc::IBN, ibns::IBN, intentibnid::Int, intentidx::Int, state::IntentState)
+    #check all intents of all dags if there is a RemoteIntent(intentibnid, intentidx)
+    rmintent = RemoteIntent(intentibnid, intentidx)
+    for dag in ibnc.intents
+        # TODO don't search all buy only what's on IBNIssuer
+        rmis = filter(x -> x.intent==rmintent, descendants(dag))
+        for rmi in rmis
+            setstate!(rmi, dag, ibnc, state)
+        end
+    end
+end
+
+function delegate_edgeintents(ibn, dag, idn, interconstraints, compmethod)
+    length(interconstraints) > 1 && @warn "Intent issues multiple EdgeIntents"
+    for kvpair in interconstraints
+        ei = EdgeIntent(kvpair.second)
+        ibnserver = getibn(ibn, kvpair.first)
+        delegateintent!(ibn, ibnserver, dag, idn, ei, compmethod)
+    end
+end
+function delegate_edgeintent(ibn, dag, idn, kvpair, compmethod)
+    ei = EdgeIntent(kvpair.second)
+    ibnserver = getibn(ibn, kvpair.first)
+    delegateintent!(ibn, ibnserver, dag, idn, ei, compmethod)
 end

@@ -4,8 +4,26 @@
 newintent(intent::ConnectivityIntent) = ConnectivityIntent(getsrc(intent), getdst(intent), getconstraints(intent), 
                                                            getconditions(intent))
 getintentidx(idag::IntentDAG) = idag.graph_data.idx
-
 getintentdagnodes(dag::IntentDAG) = Base.getindex.(values(dag.vertex_properties), 2)
+getnode(i::Intent) = i.node
+
+convert2global(ibn::IBN, lli::NodeSpectrumIntent{Int, E}) where 
+    E<:Edge = NodeSpectrumIntent(globalnode(ibn, lli.node), globaledge(ibn, lli.edge), lli.slots, lli.bandwidth)
+
+convert2global(ibn::IBN, lli::NodeRouterIntent{Int}) = 
+    NodeRouterIntent(globalnode(ibn, lli.node), lli.ports)
+
+"Return global intent index"
+function intentidx(ibn::IBN, dag::IntentDAG, idn::R=missing) where R <: Union{IntentDAGNode, Missing}
+    ibnid = getid(ibn)
+    dagidx = getidx(dag)
+    if idn === missing
+        idnuid = getid(getroot(idn))
+    else
+        idnuid = getid(idn)
+    end
+    return (ibnid, dagidx, idnuid)
+end
 
 function getfirstdagnode_fromintent(dag::IntentDAG, intent::Intent)
     for idn in getintentdagnodes(dag)
@@ -15,7 +33,7 @@ function getfirstdagnode_fromintent(dag::IntentDAG, intent::Intent)
     end
 end
 
-function getsymmetricintent(nsi::NodeSpectrumIntent)
+function getsymmetricintent(nsi::R) where R<:NodeSpectrumIntent
     if nsi.node == src(nsi.edge)
         nod = dst(nsi.edge)
     else
@@ -24,7 +42,7 @@ function getsymmetricintent(nsi::NodeSpectrumIntent)
     return NodeSpectrumIntent(nod, nsi.edge, nsi.slots, nsi.bandwidth)
 end
 
-function getcompliant_pathintent(ibn::IBN, parint::I, path::Vector{Int}) where {I<:Intent}
+function getcompliantintent(ibn::IBN, parint::I, ::Type{PathIntent}, path::Vector{Int}) where {I<:Intent}
     dc = getfirst(x -> x isa DelayConstraint, parint.constraints)
     if dc !== nothing
         if delay(distance(ibn, path)) > dc.delay
@@ -33,7 +51,7 @@ function getcompliant_pathintent(ibn::IBN, parint::I, path::Vector{Int}) where {
     end
     return PathIntent(path, filter(x -> !(x isa DelayConstraint), parint.constraints))
 end
-function getcompliant_spectrumintent(ibn::IBN, parint::I, path::Vector{Int}, drate::Float64, sr::UnitRange{Int}) where {I<:Intent}
+function getcompliantintent(ibn::IBN, parint::I, ::Type{SpectrumIntent}, path::Vector{Int}, drate::Float64, sr::UnitRange{Int}) where {I<:Intent}
     cc = getfirst(x -> x isa CapacityConstraint, parint.constraints)
     if cc !== nothing
         if cc.drate > drate
@@ -42,6 +60,48 @@ function getcompliant_spectrumintent(ibn::IBN, parint::I, path::Vector{Int}, dra
     end
     return SpectrumIntent(path, drate, sr, filter(x -> !(x isa CapacityConstraint), parint.constraints))
 end
+
+"""
+Convert `intent` from `ibn1` to constraint for the neighbor IBN
+returns a Pair{neighbor ibn id, intent constraint}
+"""
+function intent2constraint(intent::R, ibn::IBN) where R<:NodeRouterIntent
+    if getnode(intent) in transnodes(ibn, subnetwork_view=false)
+        cnode = ibn.cgr.vmap[getnode(intent)]
+        contr = ibn.controllers[cnode[1]]
+        if contr isa IBN
+            ibnid = getid(contr)
+        else
+            error("Transode has not an IBN controller")
+        end
+        return Pair(ibnid, GoThroughConstraint((ibnid, cnode[2]), signalElectrical))
+    end
+end
+
+"assumes only one node is in another ibn"
+function intent2constraint(intent::R, ibn::IBN) where R<:NodeSpectrumIntent
+    if getnode(intent) in transnodes(ibn, subnetwork_view=false)
+        cnode = ibn.cgr.vmap[getnode(intent)]
+        contr = ibn.controllers[cnode[1]]
+        if contr isa IBN
+            ibnid = getid(contr)
+        else
+            error("Transode has not an IBN controller")
+        end
+        if src(intent.edge) in transnodes(ibn, subnetwork_view=false)
+            csrc = (ibnid, cnode[2])
+            cdst = (getid(ibn), dst(intent.edge))
+            cedg = CompositeEdge(csrc, cdst)
+            return Pair(ibnid, GoThroughConstraint((ibnid, cnode[2]), signalFiberOut, SpectrumRequirements(cedg, intent.slots, intent.bandwidth)))
+        else
+            cdst = (ibnid, cnode[2])
+            csrc = (getid(ibn), src(intent.edge))
+            cedg = CompositeEdge(csrc, cdst)
+            return Pair(ibnid, GoThroughConstraint((ibnid, cnode[2]), signalFiberIn, SpectrumRequirements(cedg, intent.slots, intent.bandwidth)))
+        end
+    end
+end
+
 
 "Path needs to be completely inside the IBN"
 function isavailable(ibn::IBN, dag::IntentDAG, pathint::T) where {T<:PathIntent}
@@ -52,23 +112,32 @@ function isavailable(ibn::IBN, dag::IntentDAG, pathint::T) where {T<:PathIntent}
         src = ibn.cgr.vmap[path[1]][2]
         dst = ibn.cgr.vmap[path[end]][2]
         return isavailable_port(sdn1, src) && isavailable_port(sdn2, dst)
-    else
-        error("cannot ask if another IBN has resources available. Issue an intent")
+    elseif sdn1 isa SDN
+        # only consider intradomain knowledge. assume it's possible for the other domain
+        src = ibn.cgr.vmap[path[1]][2]
+        return isavailable_port(sdn1, src)
+    elseif sdn2 isa SDN
+        # only consider intradomain knowledge. assume it's possible for the other domain
+        dst = ibn.cgr.vmap[path[end]][2]
+        return isavailable_port(sdn2, dst)
     end
     return false
 end
 
 function isavailable(ibn::IBN, dag::IntentDAG, speint::T) where {T<:SpectrumIntent}
-    success = true
+    success = false
     for e in edgeify(speint.lightpath)
         ce = CompositeGraphs.compositeedge(ibn.cgr, e)
         sdn1 = controllerofnode(ibn, e.src)
         sdn2 = controllerofnode(ibn, e.dst)
         if sdn1 isa SDN && sdn2 isa SDN
-            success == success && isavailable_slots(sdn1, ce, speint.spectrumalloc)
-            success || return false
-        else
-            error("Cannot ask if another IBN has resources available. Issue an intent")
+            return isavailable_slots(sdn1, ce, speint.spectrumalloc)
+        elseif sdn1 isa SDN
+            # only consider intradomain knowledge. assume it's possible for the other domain
+            return isavailable_slots(sdn1, ce, speint.spectrumalloc)
+        elseif sdn2 isa SDN
+            # only consider intradomain knowledge. assume it's possible for the other domain
+            return isavailable_slots(sdn2, ce, speint.spectrumalloc)
         end
     end
     return success
@@ -88,51 +157,48 @@ function intersdnspace(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode)
     return (intent, ce, sdn1, sdn2)
 end
 
-function isavailable(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{NodeRouterIntent})
+function isavailable(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
     return isavailable_port(sdn, sdnode)
 end
 
-function reserve(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{NodeRouterIntent})
+function reserve(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
     return reserve_port!(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
 end
 
-function issatisfied(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{NodeRouterIntent})
+function issatisfied(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
     return issatisfied_port(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
 end
 
-function isavailable(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{NodeSpectrumIntent})
+function isavailable(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    getstate(getfirstdagnode_fromintent(dag, getsymmetricintent(intent))) == installed && return true
-    if sdn1 isa SDN && sdn2 isa SDN
-        return isavailable_slots(sdn1, ce, intent.slots)
+    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    sdn = sdn1 isa SDN ? sdn1 : sdn2
+    if sdn isa SDN
+        return isavailable_slots(sdn, ce, intent.slots, reserve_src)
     end
     return false
 end
 
-function reserve(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{NodeSpectrumIntent})
+function reserve(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    getstate(getfirstdagnode_fromintent(dag, getsymmetricintent(intent))) == installed && return true
-    if sdn1 isa SDN && sdn2 isa SDN
-        return reserve_slots!(sdn1, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)))
+    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    sdn = sdn1 isa SDN ? sdn1 : sdn2
+    if sdn isa SDN
+        return reserve_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src)
     end
     return false
 end
 
-function issatisfied(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{NodeSpectrumIntent})
+function issatisfied(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    if sdn1 isa SDN && sdn2 isa SDN
-        issatisfied_slots!(sdn1, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi))) && return true
+    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    sdn = sdn1 isa SDN ? sdn1 : sdn2
+    if sdn isa SDN
+        issatisfied_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src) && return true
     end
-
-    symidn = getfirstdagnode_fromintent(dag, getsymmetricintent(intent))
-    intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, symidn)
-    if sdn1 isa SDN && sdn2 isa SDN
-        issatisfied_slots!(sdn1, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(symidn))) && return true
-    end
-
     return false
 end
 
@@ -194,12 +260,12 @@ function recursive_children!(intents, intr::IntentDAG)
         end
     end
 end
-function descendants(intr::IntentDAG)
-    intents = Vector{Intent}()
-    push!(intents, intr.data)
-    push_extendedchildren!(intents, intr)
-    return intents
-end
+#function descendants(intr::IntentDAG)
+#    intents = Vector{Intent}()
+#    push!(intents, intr.data)
+#    push_extendedchildren!(intents, intr)
+#    return intents
+#end
 function family(ibn::IBN, intidx::Int; intraibn::Bool=false, ibnidfilter::Union{Nothing, Int}=nothing)
     intents = Vector{Intent}()
     if intraibn

@@ -162,8 +162,7 @@ function Makie.plot!(intplot::IntentPlot)
     else 
         labs = [let dagnode=dag[MGN.label_for(dag,v)]; dagtext(dagnode.intent)*"\nstate=$(dagnode.state)"; end for v in  vertices(dag)]
     end
-    labsalign = [length(outneighbors(dag, v)) == 0 ? (:center, :top) : (:left, :bottom)  for v in vertices(dag)]
-    labsalign[1] = (:center,:bottom)
+    labsalign = [length(outneighbors(dag, v)) == 0 ? (:center, :top) : (:center, :bottom)  for v in vertices(dag)]
     GraphMakie.graphplot!(intplot, dag, layout=NetworkLayout.Buchheim(), nlabels=labs, nlabels_align=labsalign)
 
     return intplot

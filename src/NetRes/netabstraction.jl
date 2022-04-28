@@ -29,8 +29,8 @@ distance(fv::F) where {F<:FiberView} = distance(fv.fiber)
 delay(fv::FiberView) = 5u"ns/km" * distance(fv)
 function hasslots(f::FiberView, nslots::Int)
     freeslots = 0
-    for slotisavailable in f.spectrum
-        if slotisavailable
+    for (slots_av_src, slots_av_dst) in zip(f.spectrum_src, f.spectrum_dst)
+        if slots_av_src && slots_av_dst
             freeslots += 1
             if freeslots == nslots
                 return true
@@ -41,39 +41,39 @@ function hasslots(f::FiberView, nslots::Int)
     end
     return false
 end
-hasslots(f::FiberView, sr::UnitRange{Int}) = all(f.spectrum[sr])
+hasslots(f::FiberView, sr::UnitRange{Int}) = all(vcat(f.spectrum_src[sr], f.spectrum_dst[sr]))
 
-function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID})
+function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID}, reserve_src::Bool)
     for i in channel
-        if f.spectrum[i] == false
-            @warn("Some slots are already allocated. Reverting.")
-            for j in channel.start:i-1
-                f.spectrum[j] = true
+        if reserve_src
+            if !f.spectrum_src[i]
+                @warn("Some slots are already allocated. Reverting.")
+                for j in channel.start:i-1
+                    f.spectrum_src[j] = true
+                end
+                return false
             end
-            return false
+            f.spectrum_src[i] = false
+            f.reservations_src[i] = ibnintid
+        else
+            if !f.spectrum_dst[i]
+                @warn("Some slots are already allocated. Reverting.")
+                for j in channel.start:i-1
+                    f.spectrum_dst[j] = true
+                end
+                return false
+            end
+            f.spectrum_dst[i] = false
+            f.reservations_dst[i] = ibnintid
         end
-        f.spectrum[i] = false
-        f.reservations[i] = ibnintid
     end
     return true
 end
 
-function useslots!(f::FiberView, nslots::Int, allocationmethod::F=firstfit) where F<:Function
-    slotidx = firstfit(f, nslots)
-    if slotidx !== nothing
-        for i in slotidx:nslots+slotidx-1
-            f.spectrum[i] = false
-        end
-        return true
-    else
-        return false
-    end
-end
-
 function firstfit(spec, nslots::Int)
     freeslots = 0
-    for (i,slotisavailable) in enumerate(spec)
-        if slotisavailable
+    for (i, slotsava) in enumerate(spec)
+        if slotsava
             freeslots += 1
             if freeslots == nslots
                 return i-freeslots+1
@@ -85,10 +85,12 @@ function firstfit(spec, nslots::Int)
     return nothing
 end
 
-firstfit(f::FiberView, nslots::Int) = firstfit(f.spectrum, nslots)
+firstfit(f::FiberView, nslots::Int) = firstfit(f.spectrum_src .& f.spectrum_dst, nslots)
 
 function firstfit(fs::Vector{F}, nslots::Int) where {F<:FiberView}
-    spectrums = getfield.(fs, :spectrum)
-    avspectrum = reduce(.&, spectrums)
-    firstfit(avspectrum, nslots)
+    spectrums_src = getfield.(fs, :spectrum_src)
+    spectrums_dst = getfield.(fs, :spectrum_dst)
+    avspectrum_src = reduce(.&, spectrums_src)
+    avspectrum_dst = reduce(.&, spectrums_dst)
+    firstfit(avspectrum_src .& avspectrum_dst, nslots)
 end

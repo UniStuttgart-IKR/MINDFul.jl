@@ -1,3 +1,20 @@
+@enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalGroomingDown, signalGrooming, signalGroomingUp, 
+      signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd)
+
+"R is Int for local mode and Tuple{Int, Int} for global"
+struct ConnectionState{R}
+    node::R
+    signaloc::SignalLoc
+end
+getnode(cs::ConnectionState) = cs.node
+
+struct SpectrumRequirements
+    cedge::CompositeEdge
+    frslots::UnitRange{Int}
+    "Gbps"
+    bandwidth::Float64
+end
+
 struct Transponder
     optreach::typeof(1.0u"km")
     rate::Float64
@@ -37,11 +54,13 @@ struct OXCView end
 struct FiberView{F}
     fiber::F
     "True if available"
-    spectrum::Vector{Bool}
+    spectrum_src::Vector{Bool}
     "lists which intents are reserved the resources"
-    reservations::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
+    reservations_src::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
+    spectrum_dst::Vector{Bool}
+    reservations_dst::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
 end
-FiberView(fiber; frequency_slots=320) = FiberView(fiber, fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
+FiberView(fiber; frequency_slots=320) = FiberView(fiber, fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
 
 struct OpticalRequirements
     "frequency slots allocation"

@@ -49,6 +49,8 @@ mutable struct RemoteIntent <: Intent
     intentidx::Union{Int, Missing}
 end
 Base.show(io::IO, ric::RemoteIntent) = print(io,"RemoteIntent(ibnid=$(ric.ibnid)), idx = $(ric.intentidx)))")
+dagtext(ci::RemoteIntent) = "RemoteIntent($(ci.ibnid), $(ci.intentidx))"
+Base.:(==)(rm1::RemoteIntent, rm2::RemoteIntent) = (rm1.ibnid == rm2.ibnid) && (rm1.intentidx == rm2.intentidx)
 
 """
 Intent for connecting 2 nodes
@@ -76,6 +78,13 @@ getdstdom(i::Intent) = i.dst[1]
 getdstdomnode(i::Intent) = i.dst[2]
 dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.constraints), $(ci.conditions))"
 ConnectivityIntent(ce::CompositeEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
+
+struct EdgeIntent{C,R} <: Intent
+    constraints::C
+    conditions::R
+end
+EdgeIntent(constraints) = EdgeIntent(constraints, missing)
+dagtext(ci::EdgeIntent) = "EdgeIntent($(ci.constraints), $(ci.conditions))"
 
 struct PathIntent{C} <: Intent
     "Flow path"
@@ -109,19 +118,49 @@ end
 #OTN configuration
 #OXC ports?
 #OXC bypass
-struct NodeRouterIntent <: LowLevelIntent
-    node::Int
+# TODO delete ports. NodeRouterIntent can only occupy 1 port
+"R can be Int for local view or Tuple{Int, Int} for gloval view"
+struct NodeRouterIntent{R} <: LowLevelIntent
+    node::R
     ports::Int
 end
+NodeRouterIntent(nd) = NodeRouterIntent(nd, 1)
 dagtext(ci::NodeRouterIntent) = "NodeRouterIntent\nnode=$(ci.node)\nports=$(ci.ports)"
 
-struct NodeSpectrumIntent <: LowLevelIntent
-    node::Int
-    edge::Edge
+"""
+R can be Int for local view or Tuple{Int, Int} for gloval view
+T can be Edge for local view or CompositeEdge for gloval view
+""" 
+struct NodeSpectrumIntent{R,T} <: LowLevelIntent
+    node::R
+    edge::T
     slots::UnitRange{Int}
     bandwidth::Float64
 end
 dagtext(ci::NodeSpectrumIntent) = "NodeSpectrumIntent\nnode=$(ci.node)\nedge=$(ci.edge)\nslots=$(ci.slots)\nbandwidth=$(ci.bandwidth)"
+
+"""
+Intent for connecting 2 IBNs
+
+    $(TYPEDFIELDS)
+"""
+struct DomainConnectivityIntent{R,T,C,D} <: Intent 
+    "Source node as (IBN.id, node-id)"
+    src::R
+    "Destination node as (IBN.id, node-id)"
+    dst::T
+    #TODO constrs is array of abstract, so not performant (Union Splitting, or Tuple in the future ?)
+    "Intents constraints"
+    constraints::C
+    "Intents conditions"
+    conditions::D
+end
+dagtext(ci::DomainConnectivityIntent) = "DomainConnectivityIntent($(ci.src), $(ci.dst), $(ci.constraints), $(ci.conditions))"
+DomainConnectivityIntent(ce::CompositeEdge, args...) = DomainConnectivityIntent(ce.src, ce.dst, args...)
+getsrcdom(i::DomainConnectivityIntent{Int, Tuple{Int,Int}}) = i.src
+getsrcdomnode(i::DomainConnectivityIntent{Int, Tuple{Int,Int}}) = error("$(typeof(i)) does not have a particular source node")
+getdstdom(i::DomainConnectivityIntent{Tuple{Int,Int}, Int}) = i.dst
+getdstdomnode(i::DomainConnectivityIntent{Tuple{Int,Int}, Int}) = error("$(typeof(i)) does not have a particular destination node")
 
 struct CapacityConstraint <: IntentConstraint
     #TODO intergrate with Unitful once PR is pushed
@@ -135,27 +174,9 @@ struct DelayConstraint <: IntentConstraint
     delay::typeof(1.0u"ms")
 end
 
-"""
-Intent for connecting 2 IBNs
-
-    $(TYPEDFIELDS)
-"""
-struct DomainConnectivityIntent{R,T} <: Intent 
-    "Source node as (IBN.id, node-id)"
-    src::R
-    "Destination node as (IBN.id, node-id)"
-    dst::T
-    #TODO constrs is array of abstract, so not performant (Union Splitting, or Tuple in the future ?)
-    "Intents constraints"
-    constraints::Vector{IntentConstraint}
-    "Intents conditions"
-    conditions::Vector{IntentCondition}
+struct GoThroughConstraint{R} <: IntentConstraint
+    node::Tuple{Int,Int}
+    layer::SignalLoc
+    req::R
 end
-shorttext(ci::DomainConnectivityIntent) = "DomainConnectivityIntent($(ci.src), $(ci.dst)"
-DomainConnectivityIntent(ce::CompositeEdge, args...) = DomainConnectivityIntent(ce.src, ce.dst, args...)
-DomainConnectivityIntent(src,dst, constraints::Vector{R}, conditions::Vector{T}=Vector{IntentCondition}()) where 
-{T<:IntentCondition, R<:IntentConstraint} = DomainConnectivityIntent(src, dst, Vector{IntentConstraint}(constraints), conditions, missing, uncompiled)
-getsrcdom(i::DomainConnectivityIntent{Int, Tuple{Int,Int}}) = i.src
-getsrcdomnode(i::DomainConnectivityIntent{Int, Tuple{Int,Int}}) = error("$(typeof(i)) does not have a particular source node")
-getdstdom(i::DomainConnectivityIntent{Tuple{Int,Int}, Int}) = i.dst
-getdstdomnode(i::DomainConnectivityIntent{Tuple{Int,Int}, Int}) = error("$(typeof(i)) does not have a particular destination node")
+GoThroughConstraint(nd,l) = GoThroughConstraint(nd, l, missing)

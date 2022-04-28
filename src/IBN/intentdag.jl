@@ -1,4 +1,4 @@
-idx(dag::IntentDAG) = dag.graph_data.idx
+getidx(dag::IntentDAG) = dag.graph_data.idx
 function addchild!(idag::IntentDAG, intent::I) where I<:Intent
     state = intent isa LowLevelIntent ? compiled : uncompiled
     childnode = IntentDAGNode(intent, state, uuidlast(idag))
@@ -36,13 +36,13 @@ function isintraintent(ibn::IBN, intent::ConnectivityIntent)
     end
 end
 
-function setstate!(idn, dag, newstate::IntentState)
+function setstate!(idn, dag, ibn::IBN, newstate::IntentState)
     if newstate == compiled
-        setstate!(idn, dag, Val(compiled))
+        setstate!(idn, dag, ibn, Val(compiled))
     elseif newstate == installed
-        setstate!(idn, dag, Val(installed))
+        setstate!(idn, dag, ibn, Val(installed))
     else
-        setstate!(idn, dag, newstate)
+        idn.state = newstate
     end
 end
 
@@ -50,33 +50,51 @@ end
 """propagate state in the DAG
 "compiled" and "installed" states start only from `LowLevelIntents` and propagte the tree up to the root
 """
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, newstate::Val{compiled})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
     idn.state = compiled
-    for par in parents(dag, idn)
-        try2setstate!(par, dag, Val(compiled))
+    if isroot(dag, idn)
+        intentissuer = ibn.intentissuers[getidx(dag)]
+        if intentissuer isa IBNIssuer
+            ibnid = intentissuer.ibnid
+            ibncustomer = getibn(ibn, ibnid)
+            setstate!(ibncustomer, ibn, getid(ibn), getidx(dag), compiled)
+        end
+    else
+        for par in parents(dag, idn)
+            try2setstate!(par, dag, ibn, Val(compiled))
+        end
     end
 end
 
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, newstate::Val{installed})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
     idn.state = installed
-    for par in parents(dag, idn)
-        try2setstate!(par, dag, Val(installed))
+    if isroot(dag, idn)
+        intentissuer = ibn.intentissuers[getidx(dag)]
+        if intentissuer isa IBNIssuer
+            ibnid = intentissuer.ibnid
+            ibncustomer = getibn(ibn, ibnid)
+            setstate!(ibncustomer, ibn, getid(ibn), getidx(dag), installed)
+        end
+    else
+        for par in parents(dag, idn)
+            try2setstate!(par, dag, ibn, Val(installed))
+        end
     end
 end
 
-setstate!(idn::IntentDAGNode, dag::IntentDAG, newstate::Val{installing}) = (idn.state = installing)
-setstate!(idn::IntentDAGNode, dag::IntentDAG, newstate::Val{installfailed}) = (idn.state = installfailed)
+setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing}) = (idn.state = installing)
+setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed}) = (idn.state = installfailed)
 
 """
 Checks all children of `idn` and if all are compiled, `idn` is getting in the compiled state also.
 If not, it gets in the `compiling` state.
 """
-function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, newstate::Val{compiled})
+function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
     descs = descendants(dag, idn)
     if all(x -> x.state == compiled, descs)
-        setstate!(idn, dag, Val(compiled))
+        setstate!(idn, dag, ibn, Val(compiled))
     else
-        setstate!(idn, dag, Val(compiling))
+        setstate!(idn, dag, ibn, Val(compiling))
     end
 end
 
@@ -84,12 +102,12 @@ end
 Checks all children of `idn` and if all are installed, `idn` is getting in the installed state also.
 If not, it gets in the `installing` state.
 """
-function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, newstate::Val{installed})
+function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
     descs = descendants(dag, idn)
     if all(x -> x.state == installed, descs)
-        setstate!(idn, dag, Val(installed))
+        setstate!(idn, dag, ibn, Val(installed))
     else
-        setstate!(idn, dag, Val(installing))
+        setstate!(idn, dag, ibn, Val(installing))
     end
 end
 
@@ -104,6 +122,7 @@ function children(dag::IntentDAG, idn::IntentDAGNode)
     return [dag[MGN.label_for(dag, v)] for v in outneighbors(dag, MGN.code_for(dag, idn.id))]
 end
 
+isroot(dag::IntentDAG, idn::IntentDAGNode) = length(inneighbors(dag, MGN.code_for(dag, idn.id))) == 0
 haschildren(dag::IntentDAG, idn::IntentDAGNode) = length(outneighbors(dag, MGN.code_for(dag, idn.id))) > 0
 
 getleafs(dag::IntentDAG) = getleafs(dag, getroot(dag))

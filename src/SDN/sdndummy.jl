@@ -54,7 +54,7 @@ isavailable_port(sdn::SDNdummy, v::Int) = hasport(get_prop(getgraph(sdn), v, :ro
 reserve_port!(sdn::SDNdummy, v::Int, intidx) = useport!(get_prop(getgraph(sdn), v, :router), intidx)
 function issatisfied_port(sdn::SDNdummy, v::Int, intidx)
     rtview = get_prop(getgraph(sdn), v, :router)
-    return intidx in rtview.reservations
+    return intidx in skipmissing(rtview.reservations)
 end
 
 "reserve capacity on an intraSDN edge"
@@ -82,6 +82,20 @@ function free!(sdn::SDNdummy, e::Edge, capacity::Real)
     return true
 end
 
+function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, reserve_src::Bool)
+    gr = getgraph(sdn)
+    if ce.src[1] == ce.dst[1]
+        e = Edge(ce.src[2], ce.dst[2])
+        link = get_prop(gr, e, :link)
+    else
+        link = sdn.interprops[ce][:link]
+    end
+    if reserve_src
+        return all(link.spectrum_src[sr])
+    else
+        return all(link.spectrum_dst[sr])
+    end
+end
 function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int})
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -90,10 +104,10 @@ function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int})
     else
         link = sdn.interprops[ce][:link]
     end
-    return hasslots(link, sr)
+    hasslots(link, sr)
 end
 
-function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx)
+function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -101,10 +115,10 @@ function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, in
     else
         link = sdn.interprops[ce][:link]
     end
-    return useslots!(link, sr, intidx)
+    return useslots!(link, sr, intidx, reserve_src)
 end
 
-function issatisfied_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx)
+function issatisfied_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -112,9 +126,16 @@ function issatisfied_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}
     else
         link = sdn.interprops[ce][:link]
     end
-    resvs = link.reservations
-    all(x -> x == intidx, resvs[sr])
+    if reserve_src
+        resvs = link.reservations_src
+    else
+        resvs = link.reservations_dst
+    end
+    res = all(x -> x == intidx, resvs[sr])
+    ismissing(res) && return false
+    return res
 end
+
 "check capacity on an intraSDN edge"
 function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = getgraph(sdn)

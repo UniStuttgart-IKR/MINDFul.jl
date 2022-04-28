@@ -33,6 +33,23 @@ function findNpop!(p, itr)
     return nothing
 end
 
+function push2dict!(d::Dict{K,Vector{V}}, key, val) where {K,V}
+    if haskey(d, key)
+        push!(d[key], val)
+    else
+        d[key] = Vector{V}([val])
+    end
+end
+function push2dict!(d::Dict{K,Vector{V}}, d2::Dict{K, Vector{V}}) where {K,V}
+    for kv2 in d2
+        if haskey(d, kv2.first)
+            push!(d[kv2.first], kv2.second...)
+        else
+            d[kv2.first] = kv2.second
+        end
+    end
+end
+
 rate2slots(rt::Real) = round(Int, rt)
 
 delay(dist) = 3.0u"μs/km" * dist

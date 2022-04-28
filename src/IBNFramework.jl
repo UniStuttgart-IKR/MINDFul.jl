@@ -20,9 +20,9 @@ import Term
 export Counter
 export SDN, SDNdummy
 export IBN, addintent!, deploy!, transnodes, issatisfied
-export RouterView, FiberView
+export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
-export getroot, addchild!, children
+export getroot, addchild!, children, descendants
 export simgraph, compositeGraph2IBNs!, randomsimgraph! 
 export ibnplot, ibnplot!, intentplot, intentplot!
 

@@ -1,15 +1,16 @@
-"Defines the way the IBN Framework state machine will behave"
+"Defines the way the IBN Framework state machine will behave" 
 abstract type IBNModus end
-struct SimpleIBNModus <: IBNModus end
+struct SimpleIBNModus <: IBNModus end 
 struct AdvancedIBNModus <: IBNModus end
-
 "Defines the entity issuing an intent"
 abstract type IntentIssuer end
 struct NetworkProvider <: IntentIssuer end
 struct IBNIssuer <: IntentIssuer
     ibnid::Int
     intentidx::Int
+    subintent::UUID
 end
+IBNIssuer(ibnid::Int, intentidx::Int) = IBNIssuer(ibnid, intentidx, UUID(1))
 
 "Characterization of an Intent for algorithm dispatch"
 abstract type IntentDomain end
@@ -71,3 +72,23 @@ IBN(c::Int, controllers::Vector{T}, cg::CompositeGraph) where {T<:Union{SDN,IBN}
                                                             Vector{Union{T, IBN}}(controllers), 
                                                             cg,
                                                             Dict{Int, IBNInterProps}())
+
+struct IBNnIntent{R}
+    ibn::IBN
+    dag::IntentDAG
+    idn::IntentDAGNode{R}
+end
+
+struct IBNnIntentGLLI{R,T<:LowLevelIntent}
+    ibn::IBN
+    dag::IntentDAG
+    idn::IntentDAGNode{R}
+    "global low level intent"
+    lli::T
+    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeSpectrumIntent{Tuple{Int, Int}, C}) where
+        {R <: Intent, C <: CompositeEdge} = new{R, NodeSpectrumIntent{Tuple{Int, Int}, C}}(ibn, dag, idn,lli)
+    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeRouterIntent{Tuple{Int, Int}}) where
+        R <: Intent = new{R, NodeRouterIntent{Tuple{Int, Int}}}(ibn, dag, idn,lli)
+end
+
+getlli(giig::IBNnIntentGLLI) = giig.lli

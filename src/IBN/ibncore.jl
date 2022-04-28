@@ -18,20 +18,54 @@ function transnodes(ibn::IBN; subnetwork_view=true)
         [v for v in vertices(ibn.cgr) if ibn.controllers[ibn.cgr.vmap[v][1]] isa IBN]
     end
 end
+
 "convert global domnod to local view of the ibn if exists"
 function localnode(ibn::IBN, domnod::Tuple{Int,Int}; subnetwork_view=true)
     #domnod[2] is the same as the local view. just have to find the internal representation of IBN domnode[1]
-    idx = findfirst(==(domnod[1]), getid.(getcontrollers(ibn)))
-    if (idx, domnod[2]) in ibn.cgr.vmap
+    if domnod[1] == getid(ibn)
         if subnetwork_view
-            return (idx, domnod[2])
+            return ibn.cgr.vmap[domnod[2]]
         else
-            return vertex(ibn.cgr, (idx, domnod[2]))
+            if ibn.cgr.vmap[domnod[2]] in ibn.cgr.vmap
+                return domnod[2]
+            end
         end
     else
-        return nothing
+        idx = findfirst(==(domnod[1]), getid.(getcontrollers(ibn)))
+        if (idx, domnod[2]) in ibn.cgr.vmap
+            if subnetwork_view
+                return (idx, domnod[2])
+            else
+                return vertex(ibn.cgr, (idx, domnod[2]))
+            end
+        else
+            return nothing
+        end
+    end
+    return nothing
+end
+
+function globalnode(ibn::IBN, node::Int)
+    contr = controllerofnode(ibn, node)
+    if contr isa IBN
+        return (getid(contr), ibn.cgr.vmap[node][2])
+    else
+        return (getid(ibn), node)
     end
 end
+
+"convert a global CompositeEdge(ibn1id, srcid, ibn2id, dstid) to local ibn lingo"
+function localedge(ibn::IBN, cedge::CompositeEdge; subnetwork_view=true)
+    csrc = localnode(ibn, cedge.src; subnetwork_view = subnetwork_view)
+    cdst = localnode(ibn, cedge.dst; subnetwork_view = subnetwork_view)
+    if subnetwork_view
+        return CompositeEdge(csrc, cdst)
+    else
+        return Edge(csrc, cdst)
+    end
+end
+
+globaledge(ibn::IBN, ed::Edge) = CompositeEdge(globalnode(ibn, src(ed)), globalnode(ibn, dst(ed)))
 #TODO implement a different method (Channels, Tasks, yield)
 
 
@@ -101,11 +135,11 @@ function addintent!(ibn::IBN, intent::Intent)
 end
 
 "Add InterIBN-Intent as IBN2IBN, customer2provider"
-function addintent!(ibnp::IBNIssuer, ibnc::IBN, intent::Intent)
+function addintent!(ibnc::IBNIssuer, ibns::IBN, intent::Intent)
     @warn("permissions not implemented")
-    idx = length(ibnc.intents) + 1
-    push!(ibnc.intents, IntentDAG(idx, intent))
-    push!(ibnc.intentissuers, ibnp)
+    idx = length(ibns.intents) + 1
+    push!(ibns.intents, IntentDAG(idx, intent))
+    push!(ibns.intentissuers, ibnc)
     return idx
 end
 
