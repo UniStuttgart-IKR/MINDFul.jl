@@ -131,16 +131,6 @@ function delegateintent!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idn::IntentDAGNod
     return deploy!(ibnc, ibns, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
 end
 
-#function delegateintent!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode, algmethod; algargs...)
-#    success = false
-#    ibnpissuer = IBNIssuer(getid(ibnp), getindex(intr))
-#    remidx = addchild!(ibnpissuer, ibnc, newintent(intr.data))
-#    addchild!(intr, RemoteIntent(ibnc, remidx))
-#    success = deploy!(ibnp, ibnc, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
-#    success && setstate!(intr, compiled)
-#    return success
-#end
-
 function setstate!(ibnc::IBN, ibns::IBN, intentibnid::Int, intentidx::Int, state::IntentState)
     #check all intents of all dags if there is a RemoteIntent(intentibnid, intentidx)
     rmintent = RemoteIntent(intentibnid, intentidx)
@@ -165,4 +155,26 @@ function delegate_edgeintent(ibn, dag, idn, kvpair, compmethod)
     ei = EdgeIntent(kvpair.second)
     ibnserver = getibn(ibn, kvpair.first)
     delegateintent!(ibn, ibnserver, dag, idn, ei, compmethod)
+end
+
+function anyreservations(ibn)
+    routers = [get_prop(ibn.cgr, v, :router) for v in vertices(ibn.cgr) if has_prop(ibn.cgr, v, :router)]
+    portreservations = getfield.(routers, :reservations)
+    totalavailable = all(ismissing, reduce(vcat, portreservations))
+    totalavailable || return true
+
+    portavailables = getfield.(routers, :portavailability)
+    totalavailable = all(==(true), reduce(vcat, portavailables))
+    totalavailable || return true
+
+    links = [get_prop(ibn.cgr, e.src, e.dst, :link) for e in edges(ibn.cgr) if has_prop(ibn.cgr, e.src, e.dst, :link)]
+    slotreservations = vcat(getfield.(links, :reservations_src), getfield.(links, :reservations_dst))
+    totalavailable = all(ismissing, reduce(vcat, slotreservations))
+    totalavailable || return true
+
+    slotavailables = vcat(getfield.(links, :spectrum_src), getfield.(links, :spectrum_dst))
+    totalavailable = all(==(true), reduce(vcat, slotavailables))
+    totalavailable || return true
+
+    return false
 end

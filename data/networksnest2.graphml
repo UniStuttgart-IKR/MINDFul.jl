@@ -7,7 +7,7 @@
 	<key attr.name="xcoord" attr.type="double" for="node" id="xcoord" />
 	<key attr.name="routerports" attr.type="int" for="node" id="ports" />
     <key attr.name="fiberslots" attr.type="int" for="edge" id="slots">
-        <default>15</default>
+        <default>320</default>
     </key>
 	<key attr.name="oxc" attr.type="boolean" for="node" id="oxc">
         <default>true</default>

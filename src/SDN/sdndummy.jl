@@ -52,6 +52,8 @@ end
 
 isavailable_port(sdn::SDNdummy, v::Int) = hasport(get_prop(getgraph(sdn), v, :router))
 reserve_port!(sdn::SDNdummy, v::Int, intidx) = useport!(get_prop(getgraph(sdn), v, :router), intidx)
+free_port!(sdn::SDNdummy, v::Int, intidx) = freeport!(get_prop(getgraph(sdn), v, :router), intidx)
+
 function issatisfied_port(sdn::SDNdummy, v::Int, intidx)
     rtview = get_prop(getgraph(sdn), v, :router)
     return intidx in skipmissing(rtview.reservations)
@@ -116,6 +118,17 @@ function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, in
         link = sdn.interprops[ce][:link]
     end
     return useslots!(link, sr, intidx, reserve_src)
+end
+
+function free_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
+    gr = getgraph(sdn)
+    if ce.src[1] == ce.dst[1]
+        e = Edge(ce.src[2], ce.dst[2])
+        link = get_prop(gr, e, :link)
+    else
+        link = sdn.interprops[ce][:link]
+    end
+    return freeslots!(link, sr, intidx, reserve_src)
 end
 
 function issatisfied_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)

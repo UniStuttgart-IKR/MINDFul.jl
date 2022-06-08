@@ -7,5 +7,5 @@ using CompositeGraphs
 using TestSetExtensions
 
 @testset ExtendedTestSet "IBNFramework.jl" begin
-    @includetests ["basictests, connectivityIntentsKshortestPath"]
+    @includetests ["connectivityIntentKshortestPath"]
 end

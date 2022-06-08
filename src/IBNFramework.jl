@@ -24,13 +24,12 @@ export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
 export getroot, addchild!, children, descendants
 export simgraph, compositeGraph2IBNs!, randomsimgraph! 
-export ibnplot, ibnplot!, intentplot, intentplot!
+export anyreservations, set_operation_status!
 
 include("utils.jl")
 include("types/types.jl")
 include("SDN/SDN.jl")
 include("IBN/IBN.jl")
 include("NetRes/NetRes.jl")
-include("visualize.jl")
 
 end

@@ -16,16 +16,16 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::
         if neibnsrc === nothing && neibndst !== nothing
             if iam(ibn,neibndst)
                 neibn = first(getibns(ibn))
-                state = algmethod(ibn, dag, neibn, idagn, InterIntent{IntentBackward}(); algargs...)
+                state = algmethod(ibn, neibn, dag, idagn, InterIntent{IntentBackward}(); algargs...)
             else
-                state = delegateintent!(ibn, neibndst, idagn, algmethod; algargs...)
+                state = delegateintent!(ibn, neibndst, dag, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst === nothing
             if iam(ibn,neibnsrc)
                 neibn = first(getibns(ibn))
-                state = algmethod(ibn, neibn, idagn, InterIntent{IntentForward}(); algargs...)
+                state = algmethod(ibn, neibn, dag, idagn, InterIntent{IntentForward}(); algargs...)
             else
-                state = delegateintent!(ibn, neibnsrc, idagn, algmethod; algargs...)
+                state = delegateintent!(ibn, neibnsrc, dag, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst !== nothing
             if iam(ibn,neibnsrc)
@@ -33,12 +33,12 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::
             elseif iam(ibn, neibndst)
                 state = algmethod(ibn, neibnsrc, dag, idagn, InterIntent{IntentBackward}(); algargs...)
             else
-                state = delegateintent!(ibn, neibnsrc, idagn, algmethod; algargs...)
+                state = delegateintent!(ibn, neibnsrc, dag, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc == nothing && neibndst == nothing
             # talk to random IBN (this is where fun begins!)
             neibn = first(getibns(ibn))
-            state = delegateintent!(ibn, neibn, idagn, algmethod; algargs...)
+            state = delegateintent!(ibn, neibn, dag, idagn, idagn.intent, algmethod; algargs...)
             return false
         end
     end
@@ -76,48 +76,6 @@ function kshortestpath_opt!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
     end
 end
 
-function kshortestpath!(ibnp::IBN, ibnc::IBN, intr::IntentDAGNode{ConnectivityIntent}, iid::InterIntent{R}; k=5) where R<:IntentDirection
-    iidforward = R <: IntentForward
-    if iidforward
-        myintent = DomainConnectivityIntent(getsrc(intr), getid(ibnc), getconstraints(intr), getconditions(intr), missing, uncompiled)
-    else
-        myintent = DomainConnectivityIntent(getid(ibnc), getdst(intr) , getconstraints(intr), getconditions(intr), missing, uncompiled)
-    end
-    intentchildtr = addchild!(intr, myintent)
-    success = compile!(ibnp, intentchildtr, kshortestpath!; k=k)
-    success || return false
-
-    # create an intent for fellow ibn
-    compchild = getcompilation(intentchildtr)
-    if iidforward
-        transnode = (getid(ibnc), ibnp.cgr.vmap[compchild.path[end]][2])
-        remintent = ConnectivityIntent(transnode, getdst(intr), getconstraints(intr), getconditions(intr), missing, uncompiled)
-    else
-        transnode = (getid(ibnc), ibnp.cgr.vmap[compchild.path[1]][2])
-        remintent = ConnectivityIntent(getsrc(intr), transnode, getconstraints(intr), getconditions(intr), missing, uncompiled)
-    end
-
-    # deploy the intent to the fellow ibn
-    success = delegateintent!(ibnp, ibnc, intr, remintent, kshortestpath!; k=k)
-    success || return false
-end
-
-function kshortestpath!(ibn::IBN, intr::IntentDAGNode{R}, ::IntraIntent; k = 5) where {R<:ConnectivityIntent}
-    src = getsrcdom(intr) == getid(ibn) ? getsrcdomnode(intr) : localnode(ibn, getsrc(intr), subnetwork_view=false)
-    dst = getdstdom(intr) == getid(ibn) ? getdstdomnode(intr) : localnode(ibn, getdst(intr), subnetwork_view=false)
-    paths = yen_k_shortest_paths(ibn.cgr.flatgr, src, dst, linklengthweights(ibn.cgr.flatgr), k).paths
-    # TODO what about other constraints
-    cap = [c.capacity for c in getconstraints(intr) if c isa CapacityConstraint][]
-    # take first path which is available
-    for path in paths
-        if isavailable(ibn, path, cap)
-            setcompilation!(intr, ConnectivityIntentCompilation(path, cap))
-            return true
-        end
-    end
-    return false
-end
-
 function kshortestpath_opt!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
                 k=5)  where {T<:ConnectivityIntent, R<:IntentDirection}
     iidforward = R <: IntentForward
@@ -127,23 +85,28 @@ function kshortestpath_opt!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::Inte
     else
         myintent = DomainConnectivityIntent(getid(ibnc), getdst(conint) , getconstraints(conint), getconditions(conint))
     end
-    intentchildtr = addchild!(dag, getid(idagnode), myintent)
-    success = compile!(ibnp, dag, intentchildtr, kshortestpath_opt!; k=k)
-    success || return false
+    domint = addchild!(dag, getid(idagnode), myintent)
+    state = compile!(ibnp, dag, domint, kshortestpath_opt!; k=k)
 
     # create an intent for fellow ibn
-    compchild = getcompilation(intentchildtr)
-    if iidforward
-        transnode = (getid(ibnc), ibnp.cgr.vmap[compchild.path[end]][2])
-        remintent = ConnectivityIntent(transnode, getdst(intr), getconstraints(intr), getconditions(intr), missing, uncompiled)
-    else
-        transnode = (getid(ibnc), ibnp.cgr.vmap[compchild.path[1]][2])
-        remintent = ConnectivityIntent(getsrc(intr), transnode, getconstraints(intr), getconditions(intr), missing, uncompiled)
+    if state == compiled
+
+        pintdn = getfirst(x -> getintent(x) isa PathIntent, children(dag, domint))
+        pintent = getintent(pintdn)
+        updatedconstraints = adjustNpropagate_constraints!(ibnp, dag, pintdn)
+        if iidforward
+            transnode = (getid(ibnc), ibnp.cgr.vmap[pintent.path[end]][2])
+            # need to update constraints
+            remintent = ConnectivityIntent(transnode, getdst(conint), updatedconstraints, getconditions(myintent))
+        else
+            transnode = (getid(ibnc), ibnp.cgr.vmap[pintent.path[1]][2])
+            remintent = ConnectivityIntent(getsrc(conint), transnode, updatedconstraints, getconditions(myintent))
+        end
+        success = delegateintent!(ibnp, ibnc, dag, pintdn, remintent, kshortestpath_opt!; k=k)
     end
 
     # deploy the intent to the fellow ibn
-    success = delegateintent!(ibnp, ibnc, intr, remintent, kshortestpath!; k=k)
-    success || return false
+    return getstate(idagnode)
 end
 
 "Delegates all constraints to a PathIntent"
@@ -226,12 +189,18 @@ function kshortestpath_opt!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
     dists .= dists[sortidx]
     paths .= paths[sortidx]
     for path in paths
-        pint = getcompliant_pathintent(ibn, intent, path)
+        pint = getcompliantintent(ibn, intent, PathIntent, path)
         if pint !== nothing && isavailable(ibn, dag, pint)
             childnode = addchild!(dag, idagnode.id, pint)
             #create a lowlevel intent for port allocation in the start and end node
             for lli in lowlevelintents(ibn, childnode.intent)
-                addchild!(dag, childnode.id, lli)
+                if lli.node in transnodes(ibn, subnetwork_view = false)
+                    pairconstr = intent2constraint(lli, ibn)
+                    delegate_edgeintent(ibn, dag, childnode, pairconstr, kshortestpath_opt!)
+#                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
+                else
+                    addchild!(dag, childnode.id, lli)
+                end
             end
             kshortestpath_opt!(ibn, dag, childnode, IntraIntent())
             try2setstate!(idagnode, dag, ibn, Val(compiled))
@@ -239,25 +208,6 @@ function kshortestpath_opt!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
         end
     end
     return getstate(idagnode)
-end
-
-function kshortestpath!(ibn::IBN, intenttr::IntentDAGNode{R}; k=5) where {R<:DomainConnectivityIntent}
-    success = false
-    neibn, yenstates = calc_kshortestpath(ibn, intenttr)
-    paths = reduce(vcat, getfield.(yenstates, :paths))
-    dists = reduce(vcat, getfield.(yenstates, :dists))
-    sortidx = sortperm(dists)
-    dists .= dists[sortidx]
-    paths .= paths[sortidx]
-    # TODO check constraints feasibility
-    cap = [c.capacity for c in getconstraints(intenttr) if c isa CapacityConstraint][]
-    for path in paths
-        if isavailable(ibn, path, cap)
-            setcompilation!(intenttr, ConnectivityIntentCompilation(paths[1], cap))
-            return true
-        end
-    end
-    return success
 end
 
 function calc_kshortestpath(ibn::IBN, intent::DomainConnectivityIntent{Tuple{Int,Int}, Int}; k=5)

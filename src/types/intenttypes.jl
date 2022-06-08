@@ -4,7 +4,7 @@ getnode(lli::LowLevelIntent) = lli.node
 abstract type IntentConstraint end
 abstract type IntentCondition end
 
-@enum IntentState installed installing installfailed uninstalled compiled compiling uncompiled
+@enum IntentState installed installing installfailed uninstalled compiled compiling uncompiled failure#malfunctioning
 @enum IntentTransition doinstall douninstall docompile douncompile
 
 """

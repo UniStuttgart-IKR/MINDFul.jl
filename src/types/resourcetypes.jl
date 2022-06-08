@@ -51,16 +51,18 @@ RouterView(rt) = RouterView(rt, fill(true, rt.nports), Vector{Union{Missing,Tupl
 struct OTNView end
 struct OXCView end
 
-struct FiberView{F}
+mutable struct FiberView{F}
     fiber::F
+    operates::Bool
     "True if available"
     spectrum_src::Vector{Bool}
     "lists which intents are reserved the resources"
     reservations_src::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
+
     spectrum_dst::Vector{Bool}
     reservations_dst::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
 end
-FiberView(fiber; frequency_slots=320) = FiberView(fiber, fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
+FiberView(fiber; frequency_slots=320) = FiberView(fiber, true, fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
 
 struct OpticalRequirements
     "frequency slots allocation"

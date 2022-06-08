@@ -33,6 +33,8 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::IntentState
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     elseif ista == compiled && itra == docompile
         @info("Intent already compiled")
+    elseif ista == failure && itra == docompile
+        step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     else 
         @warn("illegal operation: Cannot "*string(itra)*" on "*string(ista))
         return false
@@ -54,13 +56,36 @@ end
 Installs a single intent.
 It applies the intent implementation on the network
 """
-function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compiled}, itra::Val{doinstall}, intent_real; algargs...)
+function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compiled}, itra::Val{doinstall}, intent_inst; algargs...)
 #    if !issatisfied(ibn, dag, idagn; onlylogic=true)
 #        @info "Intent realization is not logically constistent and will not procceed in installation"
 #        return getstate(idagn)
 #    end
     state_prev = getstate(idagn)
-    state = realize!(ibn, dag, idagn, intent_real; algargs...)
+    state = install!(ibn, dag, idagn, intent_inst; algargs...)
+    if state != state_prev
+        @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    else
+        @info "No possible Transition from $(state_prev): $(idagn.intent)"
+    end
+    return state
+end
+
+"Uninstalls a single intent"
+function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{installed}, itra::Val{douninstall}, intent_uninst; algargs...)
+    state_prev = getstate(idagn)
+    state = uninstall!(ibn, dag, idagn, intent_uninst; algargs...)
+    if state != state_prev
+        @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    else
+        @info "No possible Transition from $(state_prev): $(idagn.intent)"
+    end
+    return state
+end
+
+function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{failure}, itra::Val{docompile}, intent_recomp; algargs...)
+    state_prev = getstate(idagn)
+    state = recompile!(ibn, dag, idagn, intent_recomp; algargs...)
     if state != state_prev
         @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
     else
@@ -74,11 +99,10 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; 
     return getstate(idagn)
 end
 
-function realize!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
+function install!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     leafidns = getleafs(dag, idagn)
     # aggregate low level intents (might be collisions ?)
     for lidn in leafidns
-
         if lidn.intent isa RemoteIntent
             remibn = getibn(ibn, lidn.intent.ibnid)
             deploy!(ibn, remibn, lidn.intent.intentidx, 
@@ -90,26 +114,33 @@ function realize!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; 
     return getstate(idagn)
 end
 
-
-"Uninstalls a single intent"
-function step!(ibn::IBN, inid::Int, ista::Val{installed}, itra::Val{douninstall})
-    intent = ibn.intents[inid]
-    withdrew = withdraw(ibn, intent)
-    if withdrew
-        @info "Uninstalled intent $(ibn.intents[inid])"
-        setstate!(intent, uninstalled)
-        return true
-    else
-        return false
+#same code as install! more or less: double code
+function uninstall!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
+    leafidns = getleafs(dag, idagn)
+    # aggregate low level intents (might be collisions ?)
+    for lidn in leafidns
+        if lidn.intent isa RemoteIntent
+            remibn = getibn(ibn, lidn.intent.ibnid)
+            deploy!(ibn, remibn, lidn.intent.intentidx, 
+                  douninstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
+        else
+            algmethod(ibn, dag, lidn)
+        end
     end
+    return getstate(idagn)
 end
 
+# double code
+function recompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
+    # uninstall all
+    # compile all
+end
 
 """
 Realize the intent implementation by delegating tasks in the different responsible SDNs
 First check, then reserve
 """
-function directrealization!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:LowLevelIntent
+function directinstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:LowLevelIntent
     if isavailable(ibn, dag, idn)
         if getstate(idn) != installed
             if reserve(ibn, dag, idn) 
@@ -120,4 +151,14 @@ function directrealization!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) whe
     end
     setstate!(idn, dag, ibn, Val(installfailed))
     return getstate(idn)
+end
+
+"""
+Uninstalls a low-level intent intent
+"""
+function directuninstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:LowLevelIntent
+    if free!(ibn, dag, idn)
+        setstate!(idn, dag, ibn, Val(compiled))
+        return getstate(idn)
+    end
 end

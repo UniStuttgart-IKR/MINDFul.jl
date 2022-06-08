@@ -54,6 +54,7 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{c
     idn.state = compiled
     if isroot(dag, idn)
         intentissuer = ibn.intentissuers[getidx(dag)]
+        # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
@@ -70,6 +71,7 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{i
     idn.state = installed
     if isroot(dag, idn)
         intentissuer = ibn.intentissuers[getidx(dag)]
+        # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
@@ -78,6 +80,23 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{i
     else
         for par in parents(dag, idn)
             try2setstate!(par, dag, ibn, Val(installed))
+        end
+    end
+end
+
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{failure})
+    idn.state = failure
+    if isroot(dag, idn)
+        intentissuer = ibn.intentissuers[getidx(dag)]
+        # if product of RemoteIntent
+        if intentissuer isa IBNIssuer
+            ibnid = intentissuer.ibnid
+            ibncustomer = getibn(ibn, ibnid)
+            setstate!(ibncustomer, ibn, getid(ibn), getidx(dag), failure)
+        end
+    else
+        for par in parents(dag, idn)
+            setstate!(par, dag, ibn, Val(failure))
         end
     end
 end
@@ -91,9 +110,9 @@ If not, it gets in the `compiling` state.
 """
 function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
     descs = descendants(dag, idn)
-    if all(x -> x.state == compiled, descs)
+    if all(x -> x.state in [compiled, installed, installing, installfailed], descs)
         setstate!(idn, dag, ibn, Val(compiled))
-    else
+    elseif any(x -> x.state in [uncompiled, compiling], descs)
         setstate!(idn, dag, ibn, Val(compiling))
     end
 end

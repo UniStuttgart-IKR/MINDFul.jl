@@ -10,16 +10,16 @@ function useport!(rt::RouterView, ibnintid::Tuple{Int,Int,UUID})
     return false
 end
 
-function freeport!(rt::RouterView, ibnintid::Tuple{Int, Int})
-    ff = findfirst(==(ibnintid), rt.reservations)
-    if ff !==nothing
+function freeport!(rt::RouterView, ibnintid::Tuple{Int, Int,UUID})
+    fall = findall(==(ibnintid), skipmissing(rt.reservations))
+    for ff in fall
         rt.portavailability[ff] = true
         rt.reservations[ff] = missing
     end
     return true
 end
 
-function freeport!(rt::RouterView, portidx::Int)
+function freeport!(rt::RouterView, portidx::Int, intidx)
     rt.portavailability[portidx] = true
     rt.reservations[portidx] = missing
     return true
@@ -70,6 +70,21 @@ function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,In
     return true
 end
 
+function freeslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID}, reserve_src::Bool)
+    for i in channel
+        if reserve_src
+            f.spectrum_src[i] && @warn("Some slots are already unused")
+            f.spectrum_src[i] = true
+            f.reservations_src[i] = missing
+        else
+            f.spectrum_dst[i] && @warn("Some slots are already unused")
+            f.spectrum_dst[i] = true
+            f.reservations_dst[i] = missing
+        end
+    end
+    return true
+end
+
 function firstfit(spec, nslots::Int)
     freeslots = 0
     for (i, slotsava) in enumerate(spec)
@@ -93,4 +108,25 @@ function firstfit(fs::Vector{F}, nslots::Int) where {F<:FiberView}
     avspectrum_src = reduce(.&, spectrums_src)
     avspectrum_dst = reduce(.&, spectrums_dst)
     firstfit(avspectrum_src .& avspectrum_dst, nslots)
+end
+
+#
+#-------------------- Network Faults ----------------------
+#
+function set_operation_status!(ibn::IBN, device::FiberView, status::Bool)
+    if device.operates != status
+        device.operates = status
+        # trigger intent monitoring from reservations
+        intentidxs = skipmissing(unique(vcat(device.reservations_src,device.reservations_dst)))
+        for intentidx in intentidxs
+            ibn.id == intentidx[1] || @warn("Device has been configured from a foreign IBN and cannot be notified of the status change")
+            idn = ibn.intents[intentidx[2]][intentidx[3]]
+            dag = ibn.intents[intentidx[2]]
+            if status
+                setstate!(idn, dag, ibn, Val(installed))
+            else
+                setstate!(idn, dag, ibn, Val(failure))
+            end
+        end
+    end
 end

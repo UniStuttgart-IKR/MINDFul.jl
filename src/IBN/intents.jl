@@ -33,6 +33,7 @@ function getfirstdagnode_fromintent(dag::IntentDAG, intent::Intent)
     end
 end
 
+#tdl
 function getsymmetricintent(nsi::R) where R<:NodeSpectrumIntent
     if nsi.node == src(nsi.edge)
         nod = dst(nsi.edge)
@@ -40,6 +41,23 @@ function getsymmetricintent(nsi::R) where R<:NodeSpectrumIntent
         nod = src(nsi.edge)
     end
     return NodeSpectrumIntent(nod, nsi.edge, nsi.slots, nsi.bandwidth)
+end
+
+function adjustNpropagate_constraints!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:PathIntent
+    constraints = getconstraints(getintent(idn))
+    propagete_constraints = Vector{IntentConstraint}()
+    for (i,constr) in enumerate(constraints)
+        if constr isa DelayConstraint
+            #readjust intent
+            mydelay = delay(distance(ibn, getintent(idn).path))
+            constraints[i] = DelayConstraint(mydelay)
+            
+            push!(propagete_constraints, DelayConstraint(constr.delay - mydelay))
+        else
+            push!(propagete_constraints, constr)
+        end
+    end
+    return propagete_constraints
 end
 
 function getcompliantintent(ibn::IBN, parint::I, ::Type{PathIntent}, path::Vector{Int}) where {I<:Intent}
@@ -166,6 +184,10 @@ function reserve(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:Node
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
     return reserve_port!(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
 end
+function free!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return free_port!(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
+end
 
 function issatisfied(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
@@ -188,6 +210,15 @@ function reserve(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:Node
     sdn = sdn1 isa SDN ? sdn1 : sdn2
     if sdn isa SDN
         return reserve_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src)
+    end
+    return false
+end
+function free!(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
+    intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
+    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    sdn = sdn1 isa SDN ? sdn1 : sdn2
+    if sdn isa SDN
+        return free_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src)
     end
     return false
 end

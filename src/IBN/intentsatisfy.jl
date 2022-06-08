@@ -35,7 +35,7 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
             end
         elseif cs.signaloc == signalElectricalUp
-            if lli isa NodeSpectrumIntent && getnode(lli) == getnode(cs)
+            if lli isa NodeRouterIntent && getnode(lli) == getnode(cs)
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalElectricalDown))
             end
@@ -72,6 +72,7 @@ end
 
 isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {R <: ConnectionState, C <: EdgeIntent} = true
 
+"onlylogic is WIP"
 issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, ibn.intents[intentidx], getroot(ibn.intents[intentidx]))
 
 # TODO issatisfied(onlylogic = true) could be implemented with ML ?

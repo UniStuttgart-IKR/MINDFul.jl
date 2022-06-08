@@ -34,3 +34,17 @@ Bind with Reactive.jl
 - asychronous/sychronous information propagation from data layer to management layer
 - each IBN could be a different task
 - partial knowledge of a graph 
+
+# Guidelines
+When adding a new intent:
+
+When adding a new solution to an intent:
+
+When adding a new constraint:
+- define how is it satisfied for all relevant intents (issatisfied)
+- define if constraint propagates in a specific way (adjustNpropagate_constraints!, getcompliantintent)
+
+When adding new permissions:
+
+When changing the intent state machine:
+- use a different `IBNMode`
