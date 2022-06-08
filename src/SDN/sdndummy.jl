@@ -109,6 +109,17 @@ function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int})
     hasslots(link, sr)
 end
 
+function doesoperate_link(sdn::SDNdummy, ce::CompositeEdge)
+    gr = getgraph(sdn)
+    if ce.src[1] == ce.dst[1]
+        e = Edge(ce.src[2], ce.dst[2])
+        link = get_prop(gr, e, :link)
+    else
+        link = sdn.interprops[ce][:link]
+    end
+    doesoperate(link)
+end
+
 function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]

@@ -69,6 +69,7 @@ function getcompliantintent(ibn::IBN, parint::I, ::Type{PathIntent}, path::Vecto
     end
     return PathIntent(path, filter(x -> !(x isa DelayConstraint), parint.constraints))
 end
+
 function getcompliantintent(ibn::IBN, parint::I, ::Type{SpectrumIntent}, path::Vector{Int}, drate::Float64, sr::UnitRange{Int}) where {I<:Intent}
     cc = getfirst(x -> x isa CapacityConstraint, parint.constraints)
     if cc !== nothing
@@ -129,17 +130,27 @@ function isavailable(ibn::IBN, dag::IntentDAG, pathint::T) where {T<:PathIntent}
     if sdn1 isa SDN && sdn2 isa SDN
         src = ibn.cgr.vmap[path[1]][2]
         dst = ibn.cgr.vmap[path[end]][2]
-        return isavailable_port(sdn1, src) && isavailable_port(sdn2, dst)
+        isavailable_port(sdn1, src) && isavailable_port(sdn2, dst) || return false
     elseif sdn1 isa SDN
         # only consider intradomain knowledge. assume it's possible for the other domain
         src = ibn.cgr.vmap[path[1]][2]
-        return isavailable_port(sdn1, src)
+        isavailable_port(sdn1, src) || return false
     elseif sdn2 isa SDN
         # only consider intradomain knowledge. assume it's possible for the other domain
         dst = ibn.cgr.vmap[path[end]][2]
-        return isavailable_port(sdn2, dst)
+        isavailable_port(sdn2, dst) || return false
     end
-    return false
+    for edg in edgeify(path)
+        sdn11 = controllerofnode(ibn, edg.src)
+        sdn22 = controllerofnode(ibn, edg.dst)
+        ce = CompositeGraphs.compositeedge(ibn.cgr, edg)
+        if sdn11 isa SDN
+            doesoperate_link(sdn11, ce) || return false
+        elseif sdn22 isa SDN
+            doesoperate = doesoperate_link(sdn22, ce) || return false
+        end
+    end
+    return true
 end
 
 function isavailable(ibn::IBN, dag::IntentDAG, speint::T) where {T<:SpectrumIntent}
@@ -234,25 +245,6 @@ function issatisfied(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:
 end
 
 has_extendedchildren(intr::IntentDAG) = (getcompilation(intr) isa RemoteIntentCompilation) || AbstractTrees.has_children(intr)
-#function extendedchildren(intr::IntentDAG)
-#    if getcompilation(intr) isa RemoteIntentCompilation
-#        comp = getcompilation(intr)
-#        return [comp.remoteibn.intents[comp.intentidx]]
-#    elseif AbstractTrees.has_children(intr)
-#        return children(intr)
-#    else
-#        return IntentDAG[]
-#    end
-#end
-#"Assuming that `intr` belongs to `ibn`, return extended children together with the corresponding ibn"
-#function extendedchildren(ibn::IBN, intr::IntentDAG)
-#    if getcompilation(intr) isa RemoteIntentCompilation
-#        comp = getcompilation(intr)
-#        return zip(Iterators.repeated(comp.remoteibn),[comp.remoteibn.intents[comp.intentidx]])
-#    elseif AbstractTrees.has_children(intr)
-#        return zip(Iterators.repeated(ibn), children(intr))
-#    end
-#end
 
 function push_extendedchildren!(intents, ibn::IBN, intr::IntentDAG; ibnidfilter::Union{Nothing, Int}=nothing)
     if has_extendedchildren(intr)
@@ -303,56 +295,21 @@ function family(ibn::IBN, intidx::Int; intraibn::Bool=false, ibnidfilter::Union{
         if ibnidfilter === nothing || ibnidfilter == getid(ibn)
             return intents
         else
-            push!(intents, ibn.intents[intidx].data)
-            recursive_children!(intents, ibn.intents[intidx])
+            push!(intents, getintent(ibn,intidx).data)
+            recursive_children!(intents, getintent(ibn,intidx))
         end
     else
         if ibnidfilter === nothing || ibnidfilter == getid(ibn)
-            push!(intents, ibn.intents[intidx].data)
+            push!(intents, getintent(ibn,intidx).data)
         end
-        push_extendedchildren!(intents, ibn, ibn.intents[intidx]; ibnidfilter=ibnidfilter)
+        push_extendedchildren!(intents, ibn, getintent(ibn,intidx); ibnidfilter=ibnidfilter)
     end
     return intents
 end
 
 function dividefamily(ibn::IBN, intidx::Int)
     ibnintd = Dict{Int, Vector{Intent}}()
-    ibnintd[getid(ibn)] = Vector{Intent}([ibn.intents[intidx].data])
-    push_extendedchildren!(ibnintd, ibn, ibn.intents[intidx])
+    ibnintd[getid(ibn)] = Vector{Intent}([getintent(ibn,intidx).data])
+    push_extendedchildren!(ibnintd, ibn, getintent(ibn,intidx))
     return ibnintd
 end
-
-#function edgeify(intents::Vector{Intent}, ::Type{R}) where R<:IntentCompilation
-#    concomps = [getcompilation(intent) for intent in intents if getcompilation(intent) isa ConnectivityIntentCompilation]
-#    paths = [getfield(concomp, :path) for concomp in concomps]
-#    return [edgeify(path) for path in paths]
-#end
-#
-#"""
-#Takes input all available IBNs
-#Prints out a full Intent Tree across all of them
-#"""
-#function print_tree_extended(intr::IntentDAG, maxdepth=5)
-#    p = getpair(intr)
-#    print_tree(p, maxdepth=maxdepth)
-#end
-#
-#function getextendedchildrenpair(intr::IntentDAG)
-#    if getcompilation(intr) isa RemoteIntentCompilation
-#        comp = getcompilation(intr)
-#        getpair(comp.remoteibn.intents[comp.intentidx])
-#    elseif AbstractTrees.has_children(intr)
-#        getpair.(children(intr))
-#    else
-#        return intr
-#    end
-#end
-#
-#function getpair(intr::IntentDAG)
-#    if !has_extendedchildren(intr)
-#        return intr
-#    else
-#        return Pair(intr, getextendedchildrenpair(intr))
-#    end
-#end
-#

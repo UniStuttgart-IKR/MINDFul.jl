@@ -10,6 +10,9 @@ nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.cgr.vmap) 
 getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
 getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
 getibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, getibns(ibn))
+getintentindex(ibn::IBN, intid::Int) = findfirst(x -> getid(x) == intid, ibn.intents)
+getintent(ibn::IBN, intid::Int) = let i = getintentindex(ibn, intid); i !== nothing ? ibn.intents[i] : nothing end
+getintentissuer(ibn::IBN, intid::Int) = let i = getintentindex(ibn, intid); i !== nothing ? ibn.intentissuers[i] : nothing end
 "returns trans nodes of the IBN in the format of (IBN id, node id)"
 function transnodes(ibn::IBN; subnetwork_view=true)
     if subnetwork_view 
@@ -128,19 +131,44 @@ addinterSDNedges(ibn::IBN, ces::Vector{CompositeEdge}) = error("not implemented"
 
 "Add Intent as Network Operator"
 function addintent!(ibn::IBN, intent::Intent)
-    idx = length(ibn.intents) + 1
+    idx = counter(ibn)
     push!(ibn.intents, IntentDAG(idx, intent))
     push!(ibn.intentissuers, NetworkProvider())
     return idx
 end
 
+function remintent!(ibn::IBN, idx::Int)
+    if getroot(getintent(ibn,idx)).state in [installed, failure]
+        error("Cannot remove an installed or failure intent. Please uninstall first.")
+        return false
+    else
+        intindex = getintentindex(ibn, idx)
+        deleteat!(ibn.intents, intindex)
+        deleteat!(ibn.intentissuers, intindex)
+        return true
+    end
+end
+
 "Add InterIBN-Intent as IBN2IBN, customer2provider"
 function addintent!(ibnc::IBNIssuer, ibns::IBN, intent::Intent)
     @warn("permissions not implemented")
-    idx = length(ibns.intents) + 1
+    idx = counter(ibns)
     push!(ibns.intents, IntentDAG(idx, intent))
     push!(ibns.intentissuers, ibnc)
     return idx
+end
+
+"Removes all intents made from this issuer combination"
+function remintent!(ibnc::IBNIssuer, ibns::IBN, intentid::Int)
+    if getroot(getintent(ibns, intentid)).state in [installed, failure]
+        error("Cannot remove an installed or failure intent. Please uninstall first.")
+        return false
+    else
+        intindex = getintentindex(ibns, intentid)
+        deleteat!(ibns.intents, intindex)
+        deleteat!(ibns.intentissuers, intindex)
+        return true
+    end
 end
 
 "ibn-customer asks for the graph of ibn-provider"

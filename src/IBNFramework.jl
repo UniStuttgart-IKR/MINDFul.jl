@@ -22,11 +22,13 @@ export SDN, SDNdummy
 export IBN, addintent!, deploy!, transnodes, issatisfied
 export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
-export getroot, addchild!, children, descendants
+export getroot, addchild!, children, descendants, getintent, getintentissuer
 export simgraph, compositeGraph2IBNs!, randomsimgraph! 
 export anyreservations, set_operation_status!
 
 include("utils.jl")
+const counter = Counter()
+
 include("types/types.jl")
 include("SDN/SDN.jl")
 include("IBN/IBN.jl")

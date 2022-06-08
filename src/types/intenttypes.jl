@@ -20,7 +20,7 @@ getstate(idagn::IntentDAGNode) = idagn.state
 getintent(idagn::IntentDAGNode) = idagn.intent
 getid(idagn::IntentDAGNode) = idagn.id
 """
-idx: The intent index in the IBN
+idx: The intent index as was set by the IBN
 intentcounter: The intent UUID index to be assigned next in the IntentDAG
 """
 mutable struct IntentDAGInfo
@@ -29,6 +29,8 @@ mutable struct IntentDAGInfo
 end
 IntentDAGInfo(idx::Int) = IntentDAGInfo(idx, 1)
 const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(0)))
+getid(dag::IntentDAG) = dag.graph_data.idx
+
 function IntentDAG(idx::Int, intent::Intent)
     mg = MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(idx))
     addchild!(mg, intent)

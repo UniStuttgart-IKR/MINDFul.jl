@@ -125,7 +125,7 @@ end
 "Delegates intent and triggers its compilation"
 function delegateintent!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idn::IntentDAGNode, remintent::Intent, algmethod; algargs...)
     remintr = addchild!(dag, getid(idn), remintent)
-    ibnpissuer = IBNIssuer(getid(ibnc), getidx(dag), getid(idn))
+    ibnpissuer = IBNIssuer(getid(ibnc), getid(dag), getid(idn))
     remidx = addintent!(ibnpissuer, ibns, getintent(remintr))
     addchild!(dag, getid(remintr), RemoteIntent(getid(ibns), remidx))
     return deploy!(ibnc, ibns, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
@@ -133,9 +133,10 @@ end
 
 function setstate!(ibnc::IBN, ibns::IBN, intentibnid::Int, intentidx::Int, state::IntentState)
     #check all intents of all dags if there is a RemoteIntent(intentibnid, intentidx)
+    # TODO just use IntentIssuer ?
     rmintent = RemoteIntent(intentibnid, intentidx)
     for dag in ibnc.intents
-        # TODO don't search all buy only what's on IBNIssuer
+        # TODO don't search all but only what's on IBNIssuer
         rmis = filter(x -> x.intent==rmintent, descendants(dag))
         for rmi in rmis
             setstate!(rmi, dag, ibnc, state)

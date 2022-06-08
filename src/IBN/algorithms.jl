@@ -76,6 +76,7 @@ function kshortestpath_opt!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
     end
 end
 
+"Handles interdomain connectivity intents"
 function kshortestpath_opt!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
                 k=5)  where {T<:ConnectivityIntent, R<:IntentDirection}
     iidforward = R <: IntentForward
@@ -109,7 +110,10 @@ function kshortestpath_opt!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::Inte
     return getstate(idagnode)
 end
 
-"Delegates all constraints to a PathIntent"
+"""
+Handles intra-domain connectivity intents.
+Delegates all constraints to a PathIntent
+"""
 function kshortestpath_opt!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent; k = 5) where {R<:ConnectivityIntent}
     conint = idagnode.intent
     src = getsrcdom(conint) == getid(ibn) ? getsrcdomnode(conint) : localnode(ibn, getsrc(conint), subnetwork_view=false)
@@ -137,7 +141,6 @@ function kshortestpath_opt!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
             break
         end
     end
-
     # Delegate edge intents if no parent to push
 #    isroot(dag, idagnode) &&  delegate_edgeintents(ibn, dag, idagnode, interconstraints, kshortestpath_opt!)
 

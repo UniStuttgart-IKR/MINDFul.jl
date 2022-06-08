@@ -73,7 +73,7 @@ end
 isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {R <: ConnectionState, C <: EdgeIntent} = true
 
 "onlylogic is WIP"
-issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, ibn.intents[intentidx], getroot(ibn.intents[intentidx]))
+issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, getintent(ibn,intentidx), getroot(getintent(ibn,intentidx)))
 
 # TODO issatisfied(onlylogic = true) could be implemented with ML ?
 "check if the path makes sense and the constraints are satisfied"
@@ -96,6 +96,8 @@ function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I 
         return issatisfied(globalIBNnllis, vcs, getconstraints(idagn.intent))
     end
 end
+
+logicalorderedintents(ibn::IBN, intid::Int) = logicalorderedintents(ibn, getintent(ibn, intid), getroot(getintent(ibn, intid)))
 
 "returns all lowlevelintents in no particular order"
 function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{I}) where I<:Intent
@@ -137,7 +139,7 @@ function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAG
         if idn.intent isa RemoteIntent
             ibnrem = getibn(ibn, idn.intent.ibnid)
             intidx = idn.intent.intentidx
-            dagrem = ibnrem.intents[intidx]
+            dagrem = getintent(ibnrem,intidx)
             push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagrem, getroot(dagrem))...)
             # get LowLevelIntent descendants of remote Intent
             # search remote Intent recursively for other remote intents to get all concerning LowLevelIntent

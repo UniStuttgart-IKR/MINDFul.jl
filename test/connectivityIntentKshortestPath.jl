@@ -8,6 +8,7 @@ using TestSetExtensions
 using Logging
 
 using IBNFramework: uncompiled, compiled, installed
+IBNF = IBNFramework
 
 function testintentdeployment_nodeploy(conint, ibn)
     intidx = addintent!(ibn, conint)
@@ -106,6 +107,40 @@ myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
 
         for ibn in myibns
             @test !anyreservations(ibn)
+
+            allstates = vcat([getfield.(IBNF.get_vertices(ibn.intents[i]), :state) 
+                              for i in 1:length(ibn.intents)]...)
+            @test !any(==(IBNF.installed), allstates)
+        end
+
+        for ibn in myibns
+            while true
+                i = findfirst(x -> x[2] isa IBNFramework.NetworkProvider 
+                              && getroot(ibn.intents[x[1]]).state != IBNFramework.uncompiled,
+                              collect(enumerate(ibn.intentissuers)))
+                i === nothing && break
+                intentid = IBNF.getid(ibn.intents[i])
+                deploy!(ibn, intentid, IBNFramework.douncompile, IBNFramework.SimpleIBNModus(), () -> nothing)
+            end
+        end
+        # now test result
+        for ibn in myibns
+            @test length(ibn.intents) == length(ibn.intentissuers)
+            @test all(x -> x isa IBNF.NetworkProvider, ibn.intentissuers)
+            @test all(x -> length(x) == 1 , ibn.intents)
+        end
+
+        # now remove all intents
+        for ibn in myibns
+            while true
+                length(ibn.intents) == 0 && break
+                idx = IBNF.getid(ibn.intents[1])
+                IBNF.remintent!(ibn, idx)
+            end
+        end
+        # and test the results
+        for ibn in myibns
+            @test length(ibn.intents) == length(ibn.intentissuers) == 0
         end
     end
 end

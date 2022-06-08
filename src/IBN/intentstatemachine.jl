@@ -1,8 +1,8 @@
-deploy!(ibnc::IBN, ibns::IBN, intentidx::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
-        ; algargs...) = deploy!(ibnc, ibns, ibns.intents[intentidx], getroot(ibns.intents[intentidx]), itra, strategy, algmethod; algargs...)
+deploy!(ibnc::IBN, ibns::IBN, intentid::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
+        ; algargs...) = deploy!(ibnc, ibns, getintent(ibns,intentid), getroot(getintent(ibns,intentid)), itra, strategy, algmethod; algargs...)
 
-deploy!(ibn::IBN, intentidx::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
-        ; algargs...) = deploy!(ibn, ibn.intents[intentidx], getroot(ibn.intents[intentidx]), itra, strategy, algmethod; algargs...)
+deploy!(ibn::IBN, intentid::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
+        ; algargs...) = deploy!(ibn, getintent(ibn,intentid), getroot(getintent(ibn,intentid)), itra, strategy, algmethod; algargs...)
 
 "Usually handle in the root of the DAG"
 deploy!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod
@@ -25,15 +25,17 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::IntentState
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     elseif ista == installed && itra == doinstall
         @info("Intent already installed")
-    elseif ista == installed && itra == douninstall
+    elseif (ista == installed || ista == failure) && itra == douninstall
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     elseif ista == uninstalled && itra == douninstall
         @info("Intent already uninstalled")
     elseif ista == uncompiled && itra == docompile
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     elseif ista == compiled && itra == docompile
-        @info("Intent already compiled")
+        @info("Recompiling intent...")
     elseif ista == failure && itra == docompile
+        step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
+    elseif ista == compiled && itra == douncompile
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     else 
         @warn("illegal operation: Cannot "*string(itra)*" on "*string(ista))
@@ -48,7 +50,11 @@ step!(ibn::IBN, inid::Int, ista::IntentState, itra::IntentTransition, strategy::
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{uncompiled}, itra::Val{docompile}, intent_comp; algargs...)
     state_prev = getstate(idagn)
     state = compile!(ibn, dag, idagn, intent_comp; algargs...)
-    state != state_prev && @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    if state != state_prev 
+        @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    else
+        @info "No compilation possible. $(state_prev) to $(state): $(idagn.intent)"
+    end
     return state
 end
 
@@ -72,9 +78,21 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compile
 end
 
 "Uninstalls a single intent"
-function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{installed}, itra::Val{douninstall}, intent_uninst; algargs...)
+function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::T, itra::Val{douninstall}, intent_uninst; algargs...) where 
+        T <: Union{Val{installed}, Val{failure}}
     state_prev = getstate(idagn)
     state = uninstall!(ibn, dag, idagn, intent_uninst; algargs...)
+    if state != state_prev
+        @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    else
+        @info "No possible Transition from $(state_prev): $(idagn.intent)"
+    end
+    return state
+end
+
+function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compiled}, itra::Val{douncompile}, intent_uncomp; algargs...)
+    state_prev = getstate(idagn)
+    state = uncompile!(ibn, dag, idagn, intent_uncomp; algargs...)
     if state != state_prev
         @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
     else
@@ -96,6 +114,30 @@ end
 
 function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     algmethod(ibn, dag, idagn; algargs...)
+    return getstate(idagn)
+end
+
+"""
+Delete all dag nodes except for the root
+If it has Remote Intent they need to be deleted also.
+"""
+function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
+    while true
+        # MGN is a little bit unstable. It reconfigures the structure everytime it gets deleted.
+        nv(dag) > 1 || break
+        idn = dag[MGN.label_for(dag, 2)]
+        if idn.intent isa RemoteIntent
+            remibn = getibn(ibn, idn.intent.ibnid)
+            ibnpissuer = IBNIssuer(getid(ibn), getid(dag), getid(idn))
+            remint = idn.intent.intentidx
+            # first uncompile them
+            deploy!(ibn, remibn, remint, douncompile, SimpleIBNModus(), () -> nothing)
+            # then delete them
+            remintent!(ibnpissuer, remibn, remint)
+        end
+        rem_vertex!(dag, 2)
+    end
+    setstate!(idagn, dag, ibn, Val(uncompiled))
     return getstate(idagn)
 end
 

@@ -113,19 +113,23 @@ end
 #
 #-------------------- Network Faults ----------------------
 #
+
+doesoperate(fv::FiberView) = fv.operates
+
 function set_operation_status!(ibn::IBN, device::FiberView, status::Bool)
     if device.operates != status
         device.operates = status
         # trigger intent monitoring from reservations
         intentidxs = skipmissing(unique(vcat(device.reservations_src,device.reservations_dst)))
         for intentidx in intentidxs
-            ibn.id == intentidx[1] || @warn("Device has been configured from a foreign IBN and cannot be notified of the status change")
-            idn = ibn.intents[intentidx[2]][intentidx[3]]
-            dag = ibn.intents[intentidx[2]]
+#            ibn.id == intentidx[1] || @warn("Device has been configured from a foreign IBN and cannot be notified of the status change")
+            remibn = getibn(ibn, intentidx[1])
+            idn = getintent(remibn, intentidx[2])[intentidx[3]]
+            dag = getintent(remibn, intentidx[2])
             if status
-                setstate!(idn, dag, ibn, Val(installed))
+                setstate!(idn, dag, remibn, Val(installed))
             else
-                setstate!(idn, dag, ibn, Val(failure))
+                setstate!(idn, dag, remibn, Val(failure))
             end
         end
     end

@@ -1,4 +1,3 @@
-getidx(dag::IntentDAG) = dag.graph_data.idx
 function addchild!(idag::IntentDAG, intent::I) where I<:Intent
     state = intent isa LowLevelIntent ? compiled : uncompiled
     childnode = IntentDAGNode(intent, state, uuidlast(idag))
@@ -41,6 +40,8 @@ function setstate!(idn, dag, ibn::IBN, newstate::IntentState)
         setstate!(idn, dag, ibn, Val(compiled))
     elseif newstate == installed
         setstate!(idn, dag, ibn, Val(installed))
+    elseif newstate == failure
+        setstate!(idn, dag, ibn, Val(failure))
     else
         idn.state = newstate
     end
@@ -53,12 +54,12 @@ end
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
     idn.state = compiled
     if isroot(dag, idn)
-        intentissuer = ibn.intentissuers[getidx(dag)]
+        intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getidx(dag), compiled)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), compiled)
         end
     else
         for par in parents(dag, idn)
@@ -67,15 +68,30 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{c
     end
 end
 
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
-    idn.state = installed
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{uncompiled})
+    idn.state = uncompiled
     if isroot(dag, idn)
-        intentissuer = ibn.intentissuers[getidx(dag)]
+        intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getidx(dag), installed)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), uncompiled)
+        end
+    else
+        @warn("Uncompiled intent with parents")
+    end
+end
+
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
+    idn.state = installed
+    if isroot(dag, idn)
+        intentissuer = getintentissuer(ibn, getid(dag))
+        # if product of RemoteIntent
+        if intentissuer isa IBNIssuer
+            ibnid = intentissuer.ibnid
+            ibncustomer = getibn(ibn, ibnid)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), installed)
         end
     else
         for par in parents(dag, idn)
@@ -87,12 +103,12 @@ end
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{failure})
     idn.state = failure
     if isroot(dag, idn)
-        intentissuer = ibn.intentissuers[getidx(dag)]
+        intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getidx(dag), failure)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), failure)
         end
     else
         for par in parents(dag, idn)

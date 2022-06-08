@@ -3,13 +3,14 @@ export edgeify, @recargs!
 "Converts a node path to a sequence of edges"
 edgeify(p) = map(Edge , zip(p, p[2:end]));
 
+#TODO compare pointers not values
 Base.@kwdef struct Counter
     #TODO implemente as simple integer?
-    states::Dict{Int,Int} = Dict{Int,Int}(0 => 0)
+    states::Dict{Any,Int} = Dict{Any,Int}(0 => 0)
 end
 
 (o::Counter)() = o.states[0] += 1
-(o::Counter)(i::Int) = haskey(o.states, i) ? o.states[i] += 1 : o.states[i] = 0
+(o::Counter)(x) = haskey(o.states, x) ? o.states[x] += 1 : o.states[x] = 1
 
 "Save arguments to `recarglist` and evaluate function `funex`"
 macro recargs!(recarglist::Symbol, funex::Expr)
@@ -136,3 +137,6 @@ Base.show(io::IO, ::MIME"text/plain", rh::RangeHotVector) = print(io,"RangeHotVe
 Base.one(rh::RangeHotVector) = RangeHotVector(1, length(rh), length(rh))
 rangesize(rhv::RangeHotVector) = rhv.to - rhv.from + 1
 
+
+"Get nodes from a MetaGraphNext graph"
+get_vertices(x) = Base.getindex.(values(x.vertex_properties), 2)
