@@ -15,7 +15,9 @@ mutable struct IntentDAGNode{T<:Intent}
     intent::T
     state::IntentState
     id::UUID
+    logstate::LogState{IntentState}
 end
+IntentDAGNode(kw...) where T<:Intent = IntentDAGNode(kw..., LogState{IntentState}())
 getstate(idagn::IntentDAGNode) = idagn.state
 getintent(idagn::IntentDAGNode) = idagn.intent
 getid(idagn::IntentDAGNode) = idagn.id
@@ -50,7 +52,7 @@ mutable struct RemoteIntent <: Intent
     "Intent index in the remote IBN"
     intentidx::Union{Int, Missing}
 end
-Base.show(io::IO, ric::RemoteIntent) = print(io,"RemoteIntent(ibnid=$(ric.ibnid)), idx = $(ric.intentidx)))")
+#Base.show(io::IO, ric::RemoteIntent) = print(io,"RemoteIntent(ibnid=$(ric.ibnid)), idx = $(ric.intentidx)))")
 dagtext(ci::RemoteIntent) = "RemoteIntent($(ci.ibnid), $(ci.intentidx))"
 Base.:(==)(rm1::RemoteIntent, rm2::RemoteIntent) = (rm1.ibnid == rm2.ibnid) && (rm1.intentidx == rm2.intentidx)
 
@@ -70,7 +72,7 @@ struct ConnectivityIntent{C,R} <: Intent
     "Intents conditions"
     conditions::R
     ConnectivityIntent(src::Tuple{Int,Int},dst::Tuple{Int, Int}, constraints::C, conditions::R=missing) where {C,R} =
-        new{C,R}(src, dst, constraints, conditions)
+    new{C,R}(src, dst, constraints, conditions)
 end
 getsrc(i::Intent) = i.src
 getdst(i::Intent) = i.dst
@@ -175,6 +177,8 @@ struct DelayConstraint <: IntentConstraint
     "Delay in milliseconds"
     delay::typeof(1.0u"ms")
 end
+
+struct AvailabilityConstraint <: IntentConstraint end
 
 struct GoThroughConstraint{R} <: IntentConstraint
     node::Tuple{Int,Int}

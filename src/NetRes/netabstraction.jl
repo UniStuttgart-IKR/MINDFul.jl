@@ -119,6 +119,8 @@ doesoperate(fv::FiberView) = fv.operates
 function set_operation_status!(ibn::IBN, device::FiberView, status::Bool)
     if device.operates != status
         device.operates = status
+        push!(device.logstate, (IBNFPROPS.time, device.operates))
+
         # trigger intent monitoring from reservations
         intentidxs = skipmissing(unique(vcat(device.reservations_src,device.reservations_dst)))
         for intentidx in intentidxs

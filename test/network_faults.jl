@@ -64,7 +64,7 @@ end
         # inter SDN, intra IBN intent
         conint = ConnectivityIntent((myibns[1].id,2), (myibns[1].id,7), [CapacityConstraint(5)]);
         edgecontained = CompositeEdge(1,3,1,5)
-        intentdeployandfault(conint, myibns[1], edgecontained)
+        intentdeployandfault(conint, myibns, 1, edgecontained)
 
         # inter IBN. intra-IBN edge fails
         conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,6), [CapacityConstraint(5)]);

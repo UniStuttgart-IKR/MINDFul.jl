@@ -54,6 +54,7 @@ struct OXCView end
 mutable struct FiberView{F}
     fiber::F
     operates::Bool
+    logstate::LogState{Bool}
     "True if available"
     spectrum_src::Vector{Bool}
     "lists which intents are reserved the resources"
@@ -62,7 +63,7 @@ mutable struct FiberView{F}
     spectrum_dst::Vector{Bool}
     reservations_dst::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
 end
-FiberView(fiber; frequency_slots=320) = FiberView(fiber, true, fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
+FiberView(fiber; frequency_slots=320) = FiberView(fiber, true, LogState{Bool}(),fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
 
 struct OpticalRequirements
     "frequency slots allocation"

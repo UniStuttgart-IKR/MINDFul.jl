@@ -131,7 +131,7 @@ addinterSDNedges(ibn::IBN, ces::Vector{CompositeEdge}) = error("not implemented"
 
 "Add Intent as Network Operator"
 function addintent!(ibn::IBN, intent::Intent)
-    idx = counter(ibn)
+    idx = COUNTER(ibn)
     push!(ibn.intents, IntentDAG(idx, intent))
     push!(ibn.intentissuers, NetworkProvider())
     return idx
@@ -152,7 +152,7 @@ end
 "Add InterIBN-Intent as IBN2IBN, customer2provider"
 function addintent!(ibnc::IBNIssuer, ibns::IBN, intent::Intent)
     @warn("permissions not implemented")
-    idx = counter(ibns)
+    idx = COUNTER(ibns)
     push!(ibns.intents, IntentDAG(idx, intent))
     push!(ibns.intentissuers, ibnc)
     return idx

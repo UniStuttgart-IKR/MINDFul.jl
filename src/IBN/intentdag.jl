@@ -44,6 +44,7 @@ function setstate!(idn, dag, ibn::IBN, newstate::IntentState)
         setstate!(idn, dag, ibn, Val(failure))
     else
         idn.state = newstate
+        push!(idn.logstate, (IBNFPROPS.time, newstate))
     end
 end
 
@@ -53,6 +54,7 @@ end
 """
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
     idn.state = compiled
+    push!(idn.logstate, (IBNFPROPS.time, compiled))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
@@ -70,6 +72,7 @@ end
 
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{uncompiled})
     idn.state = uncompiled
+    push!(idn.logstate, (IBNFPROPS.time, uncompiled))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
@@ -85,6 +88,7 @@ end
 
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
     idn.state = installed
+    push!(idn.logstate, (IBNFPROPS.time, installed))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
@@ -102,6 +106,7 @@ end
 
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{failure})
     idn.state = failure
+    push!(idn.logstate, (IBNFPROPS.time, failure))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
@@ -117,8 +122,8 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{f
     end
 end
 
-setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing}) = (idn.state = installing)
-setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed}) = (idn.state = installfailed)
+setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing}) = (idn.state = installing; push!(idn.logstate, (IBNFPROPS.time, installing)))
+setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed}) = (idn.state = installfailed; push!(idn.logstate, (IBNFPROPS.time, installfailed)))
 
 """
 Checks all children of `idn` and if all are compiled, `idn` is getting in the compiled state also.

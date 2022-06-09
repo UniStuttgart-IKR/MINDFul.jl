@@ -12,14 +12,6 @@ end
 (o::Counter)() = o.states[0] += 1
 (o::Counter)(x) = haskey(o.states, x) ? o.states[x] += 1 : o.states[x] = 1
 
-"Save arguments to `recarglist` and evaluate function `funex`"
-macro recargs!(recarglist::Symbol, funex::Expr)
-    return quote
-        push!($(esc(recarglist)), [$(esc.(funex.args[2:end])...)] )
-        $(esc(funex))
-    end
-end
-
 function getfirst(p, itr)
     for el in itr
         p(el) && return el
