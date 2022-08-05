@@ -12,32 +12,32 @@ struct SDNdummy{T} <: SDN
     "network of SDN"
     gr::MetaDiGraph{T}
     "inter domain equipment(e.g. links)"
-    interprops::Dict{CompositeEdge, Dict{Symbol, Any}}
+    interprops::Dict{NestedEdge, Dict{Symbol, Any}}
 end
-SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{CompositeEdge, Dict{Symbol, Any}}())
+SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{NestedEdge, Dict{Symbol, Any}}())
 getid(sdnd::SDNdummy) = nothing
 
 """Return the graph SDN is responsible for"""
 getgraph(sdnd::SDNdummy) = sdnd.gr
-function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}}) where {T,R}
-    cg = CompositeGraph(getfield.(sdns, :gr), cedges; both_ways=true)
+function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}) where {T,R}
+    ng = NestedGraph(getfield.(sdns, :gr), cedges; both_ways=true)
     #TODO ask router and link values in PHY
     for ce in cedges
-        ed = edge(cg, ce)
+        ed = edge(ng, ce)
         #TODO choose properties
-        set_prop!(cg, ed, :link, Link(25 , 100) )
-        set_prop!(cg, reverse(ed), :link, Link(25 , 100) )
+        set_prop!(ng, ed, :link, Link(25 , 100) )
+        set_prop!(ng, reverse(ed), :link, Link(25 , 100) )
         # push interdomain values in sdns involved
         # shallow copy for bilateral modification
         for sdn in [sdns[ce.src[1]], sdns[ce.dst[1]]]
-            sdn.interprops[ce] = props(cg, ed)
-            sdn.interprops[reverse(ce)] = props(cg, reverse(ed))
+            sdn.interprops[ce] = props(ng, ed)
+            sdn.interprops[reverse(ce)] = props(ng, reverse(ed))
         end
     end
-    return cg
+    return ng
 end
 
-function connect!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}}, ds::Vector{Dict{Symbol, K}}) where {T,R,K}
+function connect!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}, ds::Vector{Dict{Symbol, K}}) where {T,R,K}
     for (ce,d) in zip(cedges, ds)
         for sdn in [sdns[ce.src[1]], sdns[ce.dst[1]]]
             sdn.interprops[ce] = d
@@ -45,7 +45,7 @@ function connect!(sdns::Vector{SDNdummy{R}}, cedges::Vector{CompositeEdge{T}}, d
     end
     return true
 end
-function connect!(sdn1::SDNdummy{R}, cedge::CompositeEdge{T}, d::Dict{Symbol, K}) where {T,R,K}
+function connect!(sdn1::SDNdummy{R}, cedge::NestedEdge{T}, d::Dict{Symbol, K}) where {T,R,K}
     sdn1.interprops[cedge] = d
     return true
 end
@@ -84,7 +84,7 @@ function free!(sdn::SDNdummy, e::Edge, capacity::Real)
     return true
 end
 
-function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, reserve_src::Bool)
+function isavailable_slots(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, reserve_src::Bool)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -98,7 +98,7 @@ function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int},
         return all(link.spectrum_dst[sr])
     end
 end
-function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int})
+function isavailable_slots(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int})
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -109,7 +109,7 @@ function isavailable_slots(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int})
     hasslots(link, sr)
 end
 
-function doesoperate_link(sdn::SDNdummy, ce::CompositeEdge)
+function doesoperate_link(sdn::SDNdummy, ce::NestedEdge)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -120,7 +120,7 @@ function doesoperate_link(sdn::SDNdummy, ce::CompositeEdge)
     doesoperate(link)
 end
 
-function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
+function reserve_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -131,7 +131,7 @@ function reserve_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, in
     return useslots!(link, sr, intidx, reserve_src)
 end
 
-function free_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
+function free_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -142,7 +142,7 @@ function free_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intid
     return freeslots!(link, sr, intidx, reserve_src)
 end
 
-function issatisfied_slots!(sdn::SDNdummy, ce::CompositeEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
+function issatisfied_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
         e = Edge(ce.src[2], ce.dst[2])
@@ -173,7 +173,7 @@ function isavailable(sdn::SDNdummy, p::Vector{<:Integer}, capacity::Real)
 end
 
 "reserve capacity on an interSDN edge"
-function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceintrasdn=nothing)
+function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real, ceintrasdn=nothing)
     ceintrasdn === nothing && (ceintrasdn = ce)
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)
@@ -190,7 +190,7 @@ function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Re
 end
 
 "free capacity on an interSDN edge"
-function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real)
+function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real)
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)
     rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ce.src[2], ce.dst[2]])]
@@ -202,7 +202,7 @@ function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real
 end
 
 "check capacity on an interSDN edge"
-function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, capacity::Real, ceintrasdn=nothing)
+function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real, ceintrasdn=nothing)
     ceintrasdn === nothing && (ceintrasdn = ce)
     # TODO: build an interface for IBNs
     mgr1 = getgraph(sdn1)
@@ -234,7 +234,7 @@ function reserve_fiber(sdn::SDNdummy, ibnintid::Tuple{Int,Int}, e::Edge, props::
     return false
 end
 
-function reserve_fiber(sdn1::SDNdummy, sdn2::SDNdummy, ce::CompositeEdge, ceintrasdn, props::OpticalTransProperties)
+function reserve_fiber(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, ceintrasdn, props::OpticalTransProperties)
     ceintra = ceintrasdn === nothing ? ce : ceintrasdn
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)

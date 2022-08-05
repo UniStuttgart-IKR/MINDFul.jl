@@ -17,7 +17,7 @@ begin
 	using Graphs, MetaGraphs, NetworkLayout
 	using EzXML, GraphIO
 	using IBNFramework
-	using CompositeGraphs
+	using NestedGraphs
 	using TestSetExtensions
 	using GraphMakie
 	using Logging
@@ -44,13 +44,13 @@ html"""
 
 # ╔═╡ 64452559-0692-4dcb-b54f-8007e12eb3b8
 begin
-	globalnet = loadgraph(open("../data/networksnest2.graphml"), GraphMLFormat(), CompositeGraphs.CompositeGraphFormat())
+	globalnet = loadgraph(open("../data/networksnest2.graphml"), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
 	globalnet = simgraph(globalnet)
 end
 
 
 # ╔═╡ 233fb4c2-e844-42da-bad5-ee702287567a
-myibns = compositeGraph2IBNs!(globalnet)
+myibns = nestedGraph2IBNs!(globalnet)
 
 # ╔═╡ 844534b2-ab28-4405-be3a-5debfa8541db
 let

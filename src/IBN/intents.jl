@@ -16,7 +16,7 @@ convert2global(ibn::IBN, lli::NodeRouterIntent{Int}) =
 "Return global intent index"
 function intentidx(ibn::IBN, dag::IntentDAG, idn::R=missing) where R <: Union{IntentDAGNode, Missing}
     ibnid = getid(ibn)
-    dagidx = getidx(dag)
+    dagidx = getid(dag)
     if idn === missing
         idnuid = getid(getroot(idn))
     else
@@ -43,31 +43,49 @@ function getsymmetricintent(nsi::R) where R<:NodeSpectrumIntent
     return NodeSpectrumIntent(nod, nsi.edge, nsi.slots, nsi.bandwidth)
 end
 
-function adjustNpropagate_constraints!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:PathIntent
+function adjustNpropagate_constraints!(ibn::IBN, dag::IntentDAG)
+    idn = getroot(dag)
     constraints = getconstraints(getintent(idn))
     propagete_constraints = Vector{IntentConstraint}()
     for (i,constr) in enumerate(constraints)
         if constr isa DelayConstraint
-            #readjust intent
-            mydelay = delay(distance(ibn, getintent(idn).path))
-            constraints[i] = DelayConstraint(mydelay)
-            
-            push!(propagete_constraints, DelayConstraint(constr.delay - mydelay))
+            pintdn = getfirst(x -> getintent(x) isa PathIntent, descendants(dag, idn))
+            if pintdn !== nothing
+                pintent = getintent(pintdn)
+                #readjust intent
+                mydelay = delay(distance(ibn, pintent.path))
+                push!(propagete_constraints, DelayConstraint(constr.delay - mydelay))
+            else
+                push!(propagete_constraints, constr)
+            end
+        elseif constr isa GoThroughConstraint
+            if localnode(ibn, constr.node) == nothing
+                push!(propagete_constraints, constr)
+            end
         else
             push!(propagete_constraints, constr)
         end
+
     end
     return propagete_constraints
 end
 
 function getcompliantintent(ibn::IBN, parint::I, ::Type{PathIntent}, path::Vector{Int}) where {I<:Intent}
+    # deal with DelayConstraint
     dc = getfirst(x -> x isa DelayConstraint, parint.constraints)
     if dc !== nothing
         if delay(distance(ibn, path)) > dc.delay
              return nothing
          end
     end
-    return PathIntent(path, filter(x -> !(x isa DelayConstraint), parint.constraints))
+    # deal with GoThroughConstraint
+    for gtc in filter(x -> x isa GoThroughConstraint{Missing} && x.layer == signalUknown, parint.constraints)
+        if localnode(ibn, gtc.node, subnetwork_view=false) ∉ path
+             return nothing
+        end
+    end
+
+    return PathIntent(path, filter(x -> !(x isa DelayConstraint || x isa GoThroughConstraint{Missing}), parint.constraints))
 end
 
 function getcompliantintent(ibn::IBN, parint::I, ::Type{SpectrumIntent}, path::Vector{Int}, drate::Float64, sr::UnitRange{Int}) where {I<:Intent}
@@ -110,12 +128,12 @@ function intent2constraint(intent::R, ibn::IBN) where R<:NodeSpectrumIntent
         if src(intent.edge) in transnodes(ibn, subnetwork_view=false)
             csrc = (ibnid, cnode[2])
             cdst = (getid(ibn), dst(intent.edge))
-            cedg = CompositeEdge(csrc, cdst)
+            cedg = NestedEdge(csrc, cdst)
             return Pair(ibnid, GoThroughConstraint((ibnid, cnode[2]), signalFiberOut, SpectrumRequirements(cedg, intent.slots, intent.bandwidth)))
         else
             cdst = (ibnid, cnode[2])
             csrc = (getid(ibn), src(intent.edge))
-            cedg = CompositeEdge(csrc, cdst)
+            cedg = NestedEdge(csrc, cdst)
             return Pair(ibnid, GoThroughConstraint((ibnid, cnode[2]), signalFiberIn, SpectrumRequirements(cedg, intent.slots, intent.bandwidth)))
         end
     end
@@ -143,7 +161,7 @@ function isavailable(ibn::IBN, dag::IntentDAG, pathint::T) where {T<:PathIntent}
     for edg in edgeify(path)
         sdn11 = controllerofnode(ibn, edg.src)
         sdn22 = controllerofnode(ibn, edg.dst)
-        ce = CompositeGraphs.compositeedge(ibn.cgr, edg)
+        ce = NestedGraphs.nestededge(ibn.cgr, edg)
         if sdn11 isa SDN
             doesoperate_link(sdn11, ce) || return false
         elseif sdn22 isa SDN
@@ -156,7 +174,7 @@ end
 function isavailable(ibn::IBN, dag::IntentDAG, speint::T) where {T<:SpectrumIntent}
     success = false
     for e in edgeify(speint.lightpath)
-        ce = CompositeGraphs.compositeedge(ibn.cgr, e)
+        ce = NestedGraphs.nestededge(ibn.cgr, e)
         sdn1 = controllerofnode(ibn, e.src)
         sdn2 = controllerofnode(ibn, e.dst)
         if sdn1 isa SDN && sdn2 isa SDN
@@ -180,7 +198,7 @@ function sdnspace(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode)
 end
 function intersdnspace(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode) 
     intent = getintent(idn)
-    ce = CompositeGraphs.compositeedge(ibn.cgr, intent.edge)
+    ce = NestedGraphs.nestededge(ibn.cgr, intent.edge)
     sdn1 = controllerofnode(ibn, intent.edge.src)
     sdn2 = controllerofnode(ibn, intent.edge.dst)
     return (intent, ce, sdn1, sdn2)
@@ -283,12 +301,7 @@ function recursive_children!(intents, intr::IntentDAG)
         end
     end
 end
-#function descendants(intr::IntentDAG)
-#    intents = Vector{Intent}()
-#    push!(intents, intr.data)
-#    push_extendedchildren!(intents, intr)
-#    return intents
-#end
+
 function family(ibn::IBN, intidx::Int; intraibn::Bool=false, ibnidfilter::Union{Nothing, Int}=nothing)
     intents = Vector{Intent}()
     if intraibn

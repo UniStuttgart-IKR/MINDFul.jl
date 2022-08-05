@@ -46,11 +46,25 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
             elseif (lli isa NodeSpectrumIntent && getnode(lli) == lli.edge.src == getnode(cs))
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
+            elseif lli isa RemoteLogicIntent && lli.intent isa EdgeIntent
+                constrs = getconstraints(lli.intent)
+                if constrs isa GoThroughConstraint{Missing} && 
+                            constrs.layer == signalElectrical && getnode(cs) == constrs.node
+                    deleteat!(globalIBNnlli, i)
+                    return (gibnl, ConnectionState(constrs.node , signalFiberIn))
+                end
             end
         elseif cs.signaloc == signalFiberOut
             if lli isa NodeSpectrumIntent && lli.edge.src == getnode(cs)
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(lli.edge.dst, signalFiberIn))
+            elseif lli isa RemoteLogicIntent && lli.intent isa EdgeIntent
+                constrs = getconstraints(lli.intent)
+                if constrs isa GoThroughConstraint{SpectrumRequirements} && 
+                            constrs.layer == signalFiberIn && getnode(cs) == constrs.req.cedge.src
+                    deleteat!(globalIBNnlli, i)
+                    return (gibnl, ConnectionState(constrs.req.cedge.dst , signalFiberIn))
+                end
             end
         elseif cs.signaloc == signalElectrical 
             if lli isa NodeRouterIntent && getnode(lli) == getnode(cs)
@@ -60,6 +74,10 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
         end
     end
     return (nothing,nothing)
+end
+
+function isnextLLI(sl::SignalLoc, lli::LowLevelIntent)
+    success = lli isa RemoteLogicIntent && ll
 end
 
 function isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{R}) where {R <: ConnectionState, C <: ConnectivityIntent}
@@ -79,7 +97,7 @@ issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, getint
 "check if the path makes sense and the constraints are satisfied"
 function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I <: Intent
     # get low level intents (resource reservations) in a logical order.
-    globalIBNnllis, vcs = logicalorderedintents(ibn, dag, idagn)
+    globalIBNnllis, vcs = logicalorderedintents(ibn, dag, idagn, true)
 
     # check if installed correctly
     for gibnl in globalIBNnllis
@@ -87,7 +105,10 @@ function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I 
     end
 
     # check general intent nature
-    isintentsatisfied(ibn, dag, idagn, globalIBNnllis, vcs) || return false
+    if !isintentsatisfied(ibn, dag, idagn, globalIBNnllis, vcs)
+        @info "General intent nature not satisfied"
+        return false
+    end
 
     # check specific constraints
     if applicable(iterate, getconstraints(idagn.intent))
@@ -97,11 +118,11 @@ function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I 
     end
 end
 
-logicalorderedintents(ibn::IBN, intid::Int) = logicalorderedintents(ibn, getintent(ibn, intid), getroot(getintent(ibn, intid)))
+logicalorderedintents(ibn::IBN, intid::Int, globalknow=false) = logicalorderedintents(ibn, getintent(ibn, intid), getroot(getintent(ibn, intid)), globalknow)
 
 "returns all lowlevelintents in no particular order"
-function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{I}) where I<:Intent
-    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn)
+function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{I}, globalknow=false) where I<:Intent
+    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn, globalknow)
     return globalIBNnlli_rest, fill(missing, length(globalIBNnlli_rest))
 end
 
@@ -113,13 +134,13 @@ Returns
 - The ordered logical role of each intent
 - The remaining intents of the tree that were not used
 """
-function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}) where C<:ConnectivityIntent
-    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn)
+function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, globalknow=false) where C<:ConnectivityIntent
+    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn, globalknow)
     vcs = Vector{ConnectionState}()
     globalIBNnlli = Vector{IBNnIntentGLLI}()
 
     # TODO maybe it starts from the fiber
-    #start with the src intent
+    # start with the src intent
     cs = ConnectionState(getsrc(idn.intent), signalElectrical)
     while true
         gibnlli, cs = findNupdate!(cs, globalIBNnlli_rest)
@@ -127,22 +148,41 @@ function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}) 
         push!(vcs, cs)
         push!(globalIBNnlli, gibnlli)
     end
+    if !globalknow
+        for (i,gibnl) in enumerate(globalIBNnlli_rest)
+            lli = gibnl.lli
+            if lli isa RemoteLogicIntent
+                deleteat!(globalIBNnlli_rest, i)
+                push!(vcs, ConnectionState(getnode(vcs[end]), signalUknown))
+                push!(globalIBNnlli, gibnl)
+            end
+        end
+    end
     length(globalIBNnlli_rest) > 0 && @warn("Some LowLevelIntents were not needed")
     return (globalIBNnlli, vcs)
 end
 
 "Returns a list of IBNnIntentGLLI"
-function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode)
+function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, globalknow=false)
     # need to transform node and edge to global values for interdomain satisfaction check
     globalIBNnlli = Vector{IBNnIntentGLLI}()
     for idn in descendants(dag, idn)
         if idn.intent isa RemoteIntent
-            ibnrem = getibn(ibn, idn.intent.ibnid)
-            intidx = idn.intent.intentidx
-            dagrem = getintent(ibnrem,intidx)
-            push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagrem, getroot(dagrem))...)
-            # get LowLevelIntent descendants of remote Intent
-            # search remote Intent recursively for other remote intents to get all concerning LowLevelIntent
+            if globalknow
+                ibnrem = getibn(ibn, idn.intent.ibnid)
+                intidx = idn.intent.intentidx
+                dagrem = getintent(ibnrem,intidx)
+                push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagrem, getroot(dagrem), globalknow)...)
+                # get LowLevelIntent descendants of remote Intent
+                # search remote Intent recursively for other remote intents to get all concerning LowLevelIntent
+            else
+                # get what I asked for as a remote intent (parent of RemoteIntent)
+                lliglobals = parents(dag, idn)
+                for lliglobal in lliglobals
+                    rli = RemoteLogicIntent(lliglobal.intent, idn.intent)
+                    push!(globalIBNnlli, IBNnIntentGLLI(ibn, dag, idn, rli))
+                end
+            end
         elseif idn.intent isa LowLevelIntent
             lliglobal = convert2global(ibn, idn.intent)
             push!(globalIBNnlli, IBNnIntentGLLI(ibn, dag, idn, lliglobal))
@@ -220,6 +260,12 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
                 if gbnl.lli.node == cc.node
                     return true
                 end
+            end
+        end
+    elseif cc.layer == signalUknown
+        for gbnl in globalIBNnllis
+            if gbnl.lli.node == cc.node
+                return true
             end
         end
     end

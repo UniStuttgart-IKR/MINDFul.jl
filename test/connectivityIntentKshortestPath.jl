@@ -3,98 +3,69 @@ using Test
 using Graphs, MetaGraphs, NetworkLayout
 using EzXML, GraphIO
 using IBNFramework
-using CompositeGraphs
+using NestedGraphs
 using TestSetExtensions
 using Logging
 
 using IBNFramework: uncompiled, compiled, installed
 IBNF = IBNFramework
 
-function testintentdeployment_nodeploy(conint, ibn)
-    intidx = addintent!(ibn, conint)
-    IBNFramework.deploy!(ibn, intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath_opt!)
-    @test getroot(ibn.intents[intidx]).state == uncompiled
-    IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!)
-    @test getroot(ibn.intents[intidx]).state == uncompiled
-end
-
-function testintentdeployment(conint, ibn)
-    intidx = addintent!(ibn, conint);
-    IBNFramework.deploy!(ibn,intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath_opt!);
-    @test getroot(ibn.intents[intidx]).state == compiled
-    IBNFramework.deploy!(ibn,intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!);
-    @test getroot(ibn.intents[intidx]).state == installed
-    @test issatisfied(ibn, intidx)
-end
-
+resetIBNF!()
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
-globalnet = loadgraph(open("../data/networksnest2.graphml"), GraphMLFormat(), CompositeGraphs.CompositeGraphFormat())
-globalnet = IBNFramework.simgraph(globalnet)
+testdir =  dirname(@__FILE__)
+globalnet = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
+globalnet2 = IBNFramework.simgraph(globalnet)
 
-myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
+myibns = IBNFramework.nestedGraph2IBNs!(globalnet2)
+
+function just_capacity(myibns, ibn1idx, ibn1node, ibn2idx, ibn2node, ibnIssueidx)
+    conint = ConnectivityIntent((myibns[ibn1idx].id, ibn1node), 
+                                (myibns[ibn2idx].id, ibn2node), [CapacityConstraint(5)]);
+    testintentdeployment(conint, myibns[ibnIssueidx])
+end
+
 
 @testset "connectivityIntentsKshortestPath.jl" begin
     with_logger(testlogger) do
         # across the same node. must be false
         conint = ConnectivityIntent((myibns[1].id,4), (myibns[1].id,4), [CapacityConstraint(5)])
-        testintentdeployment_nodeploy(conint, myibns[1])
+        testintentdeployment_nosatisfy(conint, myibns[1])
 
+        intenttuples = [
         # intra SDN, intra IBN intent
-        conint = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(5)]);
-        testintentdeployment(conint, myibns[1])
-
+        (1, 1, 1, 3, 1),
         # inter SDN, intra IBN intent
-        conint = ConnectivityIntent((myibns[1].id,2), (myibns[1].id,7), [CapacityConstraint(5)]);
-        testintentdeployment(conint, myibns[1])
-
+        (1, 2, 1, 7, 1),
         # inter IBN Intent: src the IBN, destination edge node known
-        conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,1), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (1, 2, 2, 1, 1),
         # inter IBN Intent: src the IBN, destination known
-        conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,3), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (1, 2, 2, 3, 1),
         # inter IBN Intent: src the IBN, destination unknown
-        conint = ConnectivityIntent((myibns[1].id,1), (myibns[3].id,1), [CapacityConstraint(5)]);#
-        testintentdeployment(conint, myibns[1])
-
+        (1, 1, 3, 1, 1),
         # inter IBN Intent: src known, destination the IBN
-        conint = ConnectivityIntent((myibns[2].id,3), (myibns[1].id,1), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (2, 3, 1, 1, 1),
         # inter IBN Intent: src known, destination edge node known
-        conint = ConnectivityIntent((myibns[2].id,3), (myibns[3].id,7), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (2, 3, 3, 7, 1),
         # inter IBN Intent: src known, destination edge node known (my)
-        conint = ConnectivityIntent((myibns[2].id,6), (myibns[1].id,6), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (2, 6, 1, 6, 1),
         # inter IBN Intent: src known, destination known (not passing through)
-        conint = ConnectivityIntent((myibns[2].id,3), (myibns[3].id,1), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (2, 3, 3, 1, 1),
         # inter IBN Intent: src known, destination known (passing through)
-        conint = ConnectivityIntent((myibns[1].id,3), (myibns[3].id,1), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[2])
-        
+        (1, 3, 3, 1, 2),
         # inter IBN Intent: src known, destination unknown
-        conint = ConnectivityIntent((myibns[2].id,3), (myibns[3].id,1), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-        
+        (2, 3, 3, 1, 1),
         # inter IBN Intent: src unknown, destination the IBN
-        conint = ConnectivityIntent((myibns[3].id,6), (myibns[1].id,1), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (3, 6, 1, 1, 1),
         # inter IBN Intent: src unknown, destination known 
-        conint = ConnectivityIntent((myibns[3].id,1), (myibns[2].id,3), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
-
+        (3, 1, 2, 3, 1),
         # inter IBN Intent: src unknown, destination unknown 
-        conint = ConnectivityIntent((myibns[3].id,1), (myibns[3].id,6), [CapacityConstraint(5)])
-        testintentdeployment(conint, myibns[1])
+        (3, 1, 3, 6, 1)
+        ]
+
+        for intenttuple in intenttuples
+            just_capacity(myibns, intenttuple...) 
+        end
         
         # uninstall all intents
         for ibn in myibns
@@ -113,6 +84,7 @@ myibns = IBNFramework.compositeGraph2IBNs!(globalnet)
             @test !any(==(IBNF.installed), allstates)
         end
 
+        # uncompile al intents
         for ibn in myibns
             while true
                 i = findfirst(x -> x[2] isa IBNFramework.NetworkProvider 

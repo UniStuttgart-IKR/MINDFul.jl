@@ -81,7 +81,7 @@ getsrcdomnode(i::Intent) = i.src[2]
 getdstdom(i::Intent) = i.dst[1]
 getdstdomnode(i::Intent) = i.dst[2]
 dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.constraints), $(ci.conditions))"
-ConnectivityIntent(ce::CompositeEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
+ConnectivityIntent(ce::NestedEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
 
 struct EdgeIntent{C,R} <: Intent
     constraints::C
@@ -133,7 +133,7 @@ dagtext(ci::NodeRouterIntent) = "NodeRouterIntent\nnode=$(ci.node)\nports=$(ci.p
 
 """
 R can be Int for local view or Tuple{Int, Int} for gloval view
-T can be Edge for local view or CompositeEdge for gloval view
+T can be Edge for local view or NestedEdge for gloval view
 """ 
 struct NodeSpectrumIntent{R,T} <: LowLevelIntent
     node::R
@@ -142,6 +142,11 @@ struct NodeSpectrumIntent{R,T} <: LowLevelIntent
     bandwidth::Float64
 end
 dagtext(ci::NodeSpectrumIntent) = "NodeSpectrumIntent\nnode=$(ci.node)\nedge=$(ci.edge)\nslots=$(ci.slots)\nbandwidth=$(ci.bandwidth)"
+
+struct RemoteLogicIntent{T} <: LowLevelIntent
+    intent::T
+    ri::RemoteIntent
+end
 
 """
 Intent for connecting 2 IBNs
@@ -160,7 +165,7 @@ struct DomainConnectivityIntent{R,T,C,D} <: Intent
     conditions::D
 end
 dagtext(ci::DomainConnectivityIntent) = "DomainConnectivityIntent($(ci.src), $(ci.dst), $(ci.constraints), $(ci.conditions))"
-DomainConnectivityIntent(ce::CompositeEdge, args...) = DomainConnectivityIntent(ce.src, ce.dst, args...)
+DomainConnectivityIntent(ce::NestedEdge, args...) = DomainConnectivityIntent(ce.src, ce.dst, args...)
 getsrcdom(i::DomainConnectivityIntent{Int, Tuple{Int,Int}}) = i.src
 getsrcdomnode(i::DomainConnectivityIntent{Int, Tuple{Int,Int}}) = error("$(typeof(i)) does not have a particular source node")
 getdstdom(i::DomainConnectivityIntent{Tuple{Int,Int}, Int}) = i.dst
@@ -186,3 +191,12 @@ struct GoThroughConstraint{R} <: IntentConstraint
     req::R
 end
 GoThroughConstraint(nd,l) = GoThroughConstraint(nd, l, missing)
+GoThroughConstraint(nd) = GoThroughConstraint(nd, signalUknown, missing)
+
+struct CompiledConnectivityIntent{T,R}
+    path::Vector{Tuple{Int, Int}}
+    spectrum::Vector{UnitRange{Int}}
+    electrical_path::Vector{Tuple{Int, Int}}
+    remote_intents::T
+    remote_intents_uuid::R
+end

@@ -44,13 +44,12 @@ struct IBN{T<:SDN}
     #TODO implement IBN-NBI
     "The collection of SDNs controlled from this IBN Framework and interacting IBNs (future should be IBN-NBIs)"
     controllers::Vector{Union{T, IBN}}
-    #TODO make R -> CompositeGraph directly
     """
-    Composite Graph consisting of the several SDNs
+    Nested Graph consisting of the several SDNs
     cgr is a shallow copy of the sdn graphs, 
     meaning all PHY information is available in the IBN
     """
-    cgr::CompositeGraph{MetaDiGraph,MetaDiGraph}
+    cgr::NestedGraph{Int,MetaDiGraph{Int,Float64},MetaDiGraph{Int,Float64}}
     "InterIBN interoperability with key being the IBN id"
     interprops::Dict{Int,IBNInterProps}
 end
@@ -61,16 +60,16 @@ IBN(c::Int, ::Type{T}) where {T<:SDN}  = IBN(c,
                                             Vector{IntentDAG}(), 
                                             Vector{IntentIssuer}(), 
                                             Vector{Union{T, IBN}}(), 
-                                            CompositeGraph(),
+                                            NestedGraph(),
                                             Dict{Int, IBNInterProps}())
 
-IBN(c::Int, controllers::Vector{T}) where {T<:Union{SDN,IBN}}  = IBN(c, controllers, CompositeGraph(getfield.(controllers, :gr)))
-IBN!(c::Int, controllers::Vector{T}, eds::Vector{CompositeEdge{R}}) where {T<:Union{SDN,IBN}, R}  = IBN(c, controllers, mergeSDNs!(controllers, eds))
-IBN(c::Int, controllers::Vector{T}, cg::CompositeGraph) where {T<:Union{SDN,IBN}}  = IBN(c, 
+IBN(c::Int, controllers::Vector{T}) where {T<:Union{SDN,IBN}}  = IBN(c, controllers, NestedGraph(getfield.(controllers, :gr)))
+IBN!(c::Int, controllers::Vector{T}, eds::Vector{NestedEdge{R}}) where {T<:Union{SDN,IBN}, R}  = IBN(c, controllers, mergeSDNs!(controllers, eds))
+IBN(c::Int, controllers::Vector{T}, ng::NestedGraph) where {T<:Union{SDN,IBN}}  = IBN(c, 
                                                             Vector{IntentDAG}(), 
                                                             Vector{IntentIssuer}(), 
                                                             Vector{Union{T, IBN}}(controllers), 
-                                                            cg,
+                                                            ng,
                                                             Dict{Int, IBNInterProps}())
 
 struct IBNnIntent{R}
@@ -86,9 +85,11 @@ struct IBNnIntentGLLI{R,T<:LowLevelIntent}
     "global low level intent"
     lli::T
     IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeSpectrumIntent{Tuple{Int, Int}, C}) where
-        {R <: Intent, C <: CompositeEdge} = new{R, NodeSpectrumIntent{Tuple{Int, Int}, C}}(ibn, dag, idn,lli)
+        {R <: Intent, C <: NestedEdge} = new{R, NodeSpectrumIntent{Tuple{Int, Int}, C}}(ibn, dag, idn,lli)
     IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeRouterIntent{Tuple{Int, Int}}) where
         R <: Intent = new{R, NodeRouterIntent{Tuple{Int, Int}}}(ibn, dag, idn,lli)
+    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::RemoteLogicIntent{C}) where 
+    {R<:Intent, C<:Intent}  = new{R, RemoteLogicIntent{C}}(ibn, dag, idn, lli)
 end
 
 getlli(giig::IBNnIntentGLLI) = giig.lli

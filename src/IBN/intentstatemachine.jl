@@ -35,7 +35,8 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::IntentState
         @info("Recompiling intent...")
     elseif ista == failure && itra == docompile
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
-    elseif ista == compiled && itra == douncompile
+    # TODO: uncompiled must be compiling state
+    elseif ista in [compiled, uncompiled] && itra == douncompile
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     else 
         @warn("illegal operation: Cannot "*string(itra)*" on "*string(ista))
@@ -90,6 +91,18 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::T, itra::Va
     return state
 end
 
+# TODO: code duplication
+function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{uncompiled}, itra::Val{douncompile}, intent_uncomp; algargs...)
+    state_prev = getstate(idagn)
+    state = uncompile!(ibn, dag, idagn, intent_uncomp; algargs...)
+    if state != state_prev
+        @info "Transitioned $(state_prev) to $(state): $(idagn.intent)"
+    else
+        @info "No possible Transition from $(state_prev): $(idagn.intent)"
+    end
+    return state
+end
+
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compiled}, itra::Val{douncompile}, intent_uncomp; algargs...)
     state_prev = getstate(idagn)
     state = uncompile!(ibn, dag, idagn, intent_uncomp; algargs...)
@@ -125,6 +138,7 @@ function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T
     while true
         # MGN is a little bit unstable. It reconfigures the structure everytime it gets deleted.
         nv(dag) > 1 || break
+        # get randomly an intent that is not the root
         idn = dag[MGN.label_for(dag, 2)]
         if idn.intent isa RemoteIntent
             remibn = getibn(ibn, idn.intent.ibnid)

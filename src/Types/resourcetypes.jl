@@ -1,5 +1,5 @@
 @enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalGroomingDown, signalGrooming, signalGroomingUp, 
-      signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd)
+      signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd, signalUknown)
 
 "R is Int for local mode and Tuple{Int, Int} for global"
 struct ConnectionState{R}
@@ -9,7 +9,7 @@ end
 getnode(cs::ConnectionState) = cs.node
 
 struct SpectrumRequirements
-    cedge::CompositeEdge
+    cedge::NestedEdge
     frslots::UnitRange{Int}
     "Gbps"
     bandwidth::Float64

@@ -17,7 +17,7 @@ begin
 	using IBNFramework
 	using GraphMakie
 	using CairoMakie
-	using CompositeGraphs
+	using NestedGraphs
 end
 
 # ╔═╡ d95a1c89-b634-4184-84b4-b8a8d6eb72fc
@@ -302,13 +302,13 @@ md"
 "
 
 # ╔═╡ 77ecd4fb-60d5-46b0-8e7a-b29a73d0bee7
-md"## Reading the `graphml` file as a `CompositeGraph`"
+md"## Reading the `graphml` file as a `NestedGraph`"
 
 # ╔═╡ c210bd2c-4dab-4ec8-a67b-1dd9613c25e8
-globalnet = loadgraph(open("../data/networksnest.graphml"), GraphMLFormat(), CompositeGraphs.CompositeGraphFormat())
+globalnet = loadgraph(open("../data/networksnest.graphml"), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
 
 # ╔═╡ 65d9f7b7-93c4-434e-a9a2-cd539961c5e1
-CompositeGraphs.cgraphplot(globalnet)
+NestedGraphs.cgraphplot(globalnet)
 
 # ╔═╡ fbc8c422-af17-46ba-8991-ca7b6ecc2bd9
 md"### Converting it to optical network graph and to IBNs"
@@ -320,14 +320,14 @@ md"Converting it to a optical network graph"
 globalnetsim = IBNFramework.simgraph(globalnet)
 
 # ╔═╡ 019656e7-1a8d-4efc-99be-bdc2d27ff577
-CompositeGraphs.cgraphplot(globalnetsim, layout=IBNFramework.coordlayout, 
+NestedGraphs.cgraphplot(globalnetsim, layout=IBNFramework.coordlayout, 
 	nlabels=repr.(globalnetsim.vmap))
 
 # ╔═╡ 5a5cb38f-9ce4-4c82-8de6-0c1ab39e1765
 md"Converting it to IBNs"
 
 # ╔═╡ 7eaeb91a-6466-4194-acd7-30d317987c03
-myibns = IBNFramework.compositeGraph2IBNs!(globalnetsim)
+myibns = IBNFramework.nestedGraph2IBNs!(globalnetsim)
 
 # ╔═╡ a81d1de4-70bc-4e5f-90f4-04fb3845e325
 md"IBN 1"
@@ -485,7 +485,7 @@ md"## Sum up"
 
 # ╔═╡ 4954447e-8abf-4346-ba51-dd8863706bf2
 md"The basic implementation is there:
-- CompositeGraphs functionality
+- NestedGraphs functionality
 - reproducability & easy scenario modifications with `graphml` format
 - Intent Tree to store intents in IBN
 - intra IBN inter SDN intent provision"

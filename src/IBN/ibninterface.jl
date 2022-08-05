@@ -61,10 +61,10 @@ function breakdown(ibn::IBN, e::Edge)
                 cedst = (getid(ibn), e.dst)
                 ibndst = ibn
             end
-            ce = CompositeEdge(cesrc, cedst)
+            ce = NestedEdge(cesrc, cedst)
             return ibns2sdns(ibnsrc, ibndst, ce)
         else
-            return ibns2sdns(controllerofnodesrc, controllerofnodedst, compositeedge(ibn.cgr, e))
+            return ibns2sdns(controllerofnodesrc, controllerofnodedst, nestededge(ibn.cgr, e))
         end
     end
 end
@@ -91,19 +91,19 @@ Check edge availability between 2 controllers:
 - capacity on edge
 - port in nodes
 """
-function isavailable(con1::IBN, con2::IBN, ce::CompositeEdge, capacity::Real)
+function isavailable(con1::IBN, con2::IBN, ce::NestedEdge, capacity::Real)
     isavailable(ibns2sdns(con1, con2, ce, capacity)...)
 end
 
 """
 Reserve resources between 2 controllers
 """
-function reserve(con1::IBN, con2::IBN, ce::CompositeEdge, capacity::Real)
+function reserve(con1::IBN, con2::IBN, ce::NestedEdge, capacity::Real)
     reserve(ibns2sdns(con1, con2, ce, capacity)...)
 end
 
 ibns2sdns(args...) = args
-function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::CompositeEdge)
+function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::NestedEdge)
     src = ce.src
     dst = ce.dst
 
@@ -117,8 +117,8 @@ function ibns2sdns(ibn1::IBN, ibn2::IBN, ce::CompositeEdge)
     sdn2 = controllerofnode(ibn2, ce.dst[2])
     dstintrasdn = ibn2.cgr.vmap[ce.dst[2]]
 
-    ce = CompositeEdge(src, dst)
-    ceintrasdn = CompositeEdge(srcintrasdn, dstintrasdn)
+    ce = NestedEdge(src, dst)
+    ceintrasdn = NestedEdge(srcintrasdn, dstintrasdn)
     return (;sdn1=sdn1, sdn2=sdn2, ce=ce, ceintra=ceintrasdn)
 end
 

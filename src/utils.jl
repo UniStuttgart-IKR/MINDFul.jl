@@ -1,16 +1,12 @@
-export edgeify, @recargs!
-
-"Converts a node path to a sequence of edges"
-edgeify(p) = map(Edge , zip(p, p[2:end]));
-
-#TODO compare pointers not values
-Base.@kwdef struct Counter
-    #TODO implemente as simple integer?
-    states::Dict{Any,Int} = Dict{Any,Int}(0 => 0)
+function resetIBNF!()
+    empty!(COUNTER.states)
+    COUNTER.states[0] = 0
+    resetIBNFtime!()
 end
 
-(o::Counter)() = o.states[0] += 1
-(o::Counter)(x) = haskey(o.states, x) ? o.states[x] += 1 : o.states[x] = 1
+"Converts a node path to a sequence of edges"
+edgeify(p::Vector{Int}) = map(Edge , zip(p, p[2:end]));
+edgeify(p::Vector{Tuple{Int, Int}}) = map(NestedEdge , zip(p, p[2:end]));
 
 function getfirst(p, itr)
     for el in itr
@@ -47,18 +43,18 @@ rate2slots(rt::Real) = round(Int, rt)
 
 delay(dist) = 3.0u"μs/km" * dist
 
-function compositeGraph2IBNs!(globalnet::CompositeGraph)
-    CompositeGraphs.removeemptygraphs_recursive!(globalnet)
+function nestedGraph2IBNs!(globalnet::NestedGraph)
+    NestedGraphs.removeemptygraphs_recursive!(globalnet)
     ibncounter = Counter()
 
     myibns = Vector{IBN{SDNdummy{Int}}}()
     for ibncgnet in globalnet.grv
         sdns = SDNdummy.(ibncgnet.grv)
-        connect!(sdns, ibncgnet.ceds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.ceds)])
+        connect!(sdns, ibncgnet.neds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.neds)])
         push!(myibns, IBN(ibncounter(), sdns, ibncgnet))
     end
-    for ce in globalnet.ceds
-        ed = CompositeGraphs.edge(globalnet, ce)
+    for ce in globalnet.neds
+        ed = NestedGraphs.edge(globalnet, ce)
         ibn1 = myibns[ce.src[1]]
         node1 = ce.src[2]
         ibn2 = myibns[ce.dst[1]]
@@ -70,16 +66,16 @@ function compositeGraph2IBNs!(globalnet::CompositeGraph)
             add_vertex!(ibn1.cgr, MetaDiGraph())
             push!(ibn1.controllers, ibn2)
             #add node
-            add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domain=length(ibn1.cgr.grv), targetnode=node2)
+            add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domains=length(ibn1.cgr.grv), targetnode=node2)
             idx = length(ibn1.cgr.grv)
         else
-            add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domain=idx, targetnode=node2)
+            add_vertex!(ibn1.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domains=idx, targetnode=node2)
         end
-        con1idx = CompositeGraphs.domain(ibn1.cgr, node1)
+        con1idx = NestedGraphs.domain(ibn1.cgr, node1)
         domainnode1 = ibn1.cgr.vmap[node1][2]
         con2idx = idx
         domainnode2 = node2
-        interibnedge = CompositeEdge(con1idx, domainnode1, con2idx, domainnode2)
+        interibnedge = NestedEdge(con1idx, domainnode1, con2idx, domainnode2)
         connect!(ibn1.controllers[con1idx], interibnedge, props(globalnet, ed))
         add_edge!(ibn1.cgr, node1, vertex(ibn1.cgr, con2idx, node2), props(globalnet, ed))
         #
@@ -91,16 +87,16 @@ function compositeGraph2IBNs!(globalnet::CompositeGraph)
             add_vertex!(ibn2.cgr, MetaDiGraph())
             push!(ibn2.controllers, ibn1)
             #add node
-            add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domain=length(ibn2.cgr.grv), targetnode=node1)
+            add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domains=length(ibn2.cgr.grv), targetnode=node1)
             idx = length(ibn2.cgr.grv)
         else
-            add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domain=idx, targetnode=node1)
+            add_vertex!(ibn2.cgr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domains=idx, targetnode=node1)
         end
         con1idx = idx
         domainnode1 = node1
-        con2idx = CompositeGraphs.domain(ibn2.cgr, node2)
+        con2idx = NestedGraphs.domain(ibn2.cgr, node2)
         domainnode2 = ibn2.cgr.vmap[node2][2]
-        interibnedge = CompositeEdge(con1idx, domainnode1, con2idx, domainnode2)
+        interibnedge = NestedEdge(con1idx, domainnode1, con2idx, domainnode2)
         connect!(ibn2.controllers[con2idx], interibnedge, props(globalnet, ed))
         add_edge!(ibn2.cgr, vertex(ibn2.cgr, con1idx, node1), node2, props(globalnet, ed))
     end
@@ -112,23 +108,6 @@ function myprint(ci, io::IO = stdout)
     tb = Term.TextBox(string(reduce(/, rts)), title = string(typeof(ci)), title_style="bold yellow")
     println(io, tb)
 end
-
-"""
-Similar to an One Hot Vector but with continuous 1s from `from` to `to`
-"""
-struct RangeHotVector <: AbstractArray{Bool,1}
-    from::Int
-    to::Int
-    size::Int
-    RangeHotVector(from::Int, to::Int, size::Int) = from <= to && to <= size ? new(from,to,size) : error("Out of index arguments")
-end
-Base.size(rh::RangeHotVector) = (rh.size, )
-Base.getindex(rh::RangeHotVector, i::Integer) = i in rh.from:rh.to
-Base.show(io::IO, rh::RangeHotVector) = print(io,"RangeHotVector($(rh.from), $(rh.to), $(rh.size))")
-Base.show(io::IO, ::MIME"text/plain", rh::RangeHotVector) = print(io,"RangeHotVector($(rh.from), $(rh.to), $(rh.size))")
-Base.one(rh::RangeHotVector) = RangeHotVector(1, length(rh), length(rh))
-rangesize(rhv::RangeHotVector) = rhv.to - rhv.from + 1
-
 
 "Get nodes from a MetaGraphNext graph"
 get_vertices(x) = Base.getindex.(values(x.vertex_properties), 2)

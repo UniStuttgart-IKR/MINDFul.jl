@@ -5,7 +5,7 @@ using Parameters
 using Graphs, MetaGraphs
 using DocStringExtensions
 using Unitful
-using CompositeGraphs
+using NestedGraphs
 using UUIDs
 import MetaGraphsNext as MGN
 import MetaGraphsNext: MetaGraph as MG
@@ -21,22 +21,24 @@ export Counter
 export SDN, SDNdummy
 export IBN, addintent!, deploy!, transnodes, issatisfied
 export RouterView, FiberView, distance
-export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
+export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
 export getroot, addchild!, children, descendants, getintent, getintentissuer
-export simgraph, compositeGraph2IBNs!, randomsimgraph! 
+export simgraph, nestedGraph2IBNs!, randomsimgraph! 
 export anyreservations, set_operation_status!
-export @at
+export @at, updateIBNFtime!, resetIBNF!
+export edgeify, @recargs!
 
-include("utils.jl")
-const COUNTER = Counter()
 const THours = typeof(1.0u"hr")
 
-include("types/types.jl")
+include("Types/types.jl")
+const COUNTER = Counter()
 const IBNFPROPS = IBNFProps(0.0u"hr")
 
 include("SDN/SDN.jl")
 include("IBN/IBN.jl")
 include("NetRes/NetRes.jl")
 include("macrosugar.jl")
+include("Metanalysis/metanalysis.jl")
+include("utils.jl")
 
 end

@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+	 http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+	<key attr.name="ycoord" attr.type="double" for="node" id="ycoord" />
+	<key attr.name="xcoord" attr.type="double" for="node" id="xcoord" />
+	<key attr.name="routerports" attr.type="int" for="node" id="ports" />
+    <key attr.name="fiberslots" attr.type="int" for="edge" id="slots">
+        <default>320</default>
+    </key>
+	<key attr.name="oxc" attr.type="boolean" for="node" id="oxc">
+        <default>true</default>
+    </key>
+    <graph id="global-network" edgedefault="directed">
+        <node id="ibn1">
+            <graph id="ibn1" edgedefault="directed">
+                <node id="ibn1:sdn1">
+                    <graph id="ibn1:sdn1" edgedefault="directed">
+                        <node id="ibn1:sdn1:N1">
+                            <data key="xcoord">0.0</data>
+                            <data key="ycoord">0.0</data>
+                            <data key="ports">11</data>
+                        </node>
+                        <node id="ibn1:sdn1:N2">
+                            <data key="xcoord">4.0</data>
+                            <data key="ycoord">5.0</data>
+                            <data key="ports">12</data>
+                        </node>
+                        <node id="ibn1:sdn1:N3">
+                            <data key="xcoord">10.0</data>
+                            <data key="ycoord">-2.0</data>
+                            <data key="ports">13</data>
+                        </node>
+                        <node id="ibn1:sdn1:N4">
+                            <data key="xcoord">5.0</data>
+                            <data key="ycoord">-10.0</data>
+                            <data key="ports">14</data>
+                        </node>
+                        <edge id="ibn1:sdn2:N1-ibn1:sdn2:N2" source="ibn1:sdn1:N1" target="ibn1:sdn1:N2"/>
+                        <edge id="ibn1:sdn2:N2-ibn1:sdn2:N1" source="ibn1:sdn1:N2" target="ibn1:sdn1:N1"/>
+
+                        <edge id="ibn1:sdn2:N2-ibn1:sdn2:N3" source="ibn1:sdn1:N2" target="ibn1:sdn1:N3"/>
+                        <edge id="ibn1:sdn2:N3-ibn1:sdn2:N2" source="ibn1:sdn1:N3" target="ibn1:sdn1:N2"/>
+
+                        <edge id="ibn1:sdn2:N1-ibn1:sdn2:N4" source="ibn1:sdn1:N1" target="ibn1:sdn1:N4"/>
+                        <edge id="ibn1:sdn2:N4-ibn1:sdn2:N1" source="ibn1:sdn1:N4" target="ibn1:sdn1:N1"/>
+
+                        <edge id="ibn1:sdn2:N2-ibn1:sdn2:N4" source="ibn1:sdn1:N2" target="ibn1:sdn1:N4"/>
+                        <edge id="ibn1:sdn2:N4-ibn1:sdn2:N2" source="ibn1:sdn1:N4" target="ibn1:sdn1:N2"/>
+
+                        <edge id="ibn1:sdn2:N3-ibn1:sdn2:N4" source="ibn1:sdn1:N3" target="ibn1:sdn1:N4"/>
+                        <edge id="ibn1:sdn2:N4-ibn1:sdn2:N3" source="ibn1:sdn1:N4" target="ibn1:sdn1:N3"/>
+                    </graph>
+                </node>
+                <node id="ibn1:sdn2">
+                    <graph id="ibn1:sdn2" edgedefault="directed">
+                        <node id="ibn1:sdn2:N1">
+                            <data key="xcoord">15.0</data>
+                            <data key="ycoord">2.0</data>
+                            <data key="ports">21</data>
+                        </node>
+                        <node id="ibn1:sdn2:N2">
+                            <data key="xcoord">20.0</data>
+                            <data key="ycoord">7.0</data>
+                            <data key="ports">22</data>
+                        </node>
+                        <node id="ibn1:sdn2:N3">
+                            <data key="xcoord">18.5</data>
+                            <data key="ycoord">-2.0</data>
+                            <data key="ports">23</data>
+                        </node>
+                        <node id="ibn1:sdn2:N4">
+                            <data key="xcoord">16.0</data>
+                            <data key="ycoord">-12.0</data>
+                            <data key="ports">24</data>
+                        </node>
+                        <node id="ibn1:sdn2:N5">
+                            <data key="xcoord">22.0</data>
+                            <data key="ycoord">-10.0</data>
+                            <data key="ports">25</data>
+                        </node>
+                        <edge id="ibn1:sdn2:N1-ibn1:sdn2:N2" source="ibn1:sdn2:N1" target="ibn1:sdn2:N2"/>
+                        <edge id="ibn1:sdn2:N2-ibn1:sdn2:N1" source="ibn1:sdn2:N2" target="ibn1:sdn2:N1"/>
+
+                        <edge id="ibn1:sdn2:N2-ibn1:sdn2:N3" source="ibn1:sdn2:N2" target="ibn1:sdn2:N3"/>
+                        <edge id="ibn1:sdn2:N3-ibn1:sdn2:N2" source="ibn1:sdn2:N3" target="ibn1:sdn2:N2"/>
+
+                        <edge id="ibn1:sdn2:N1-ibn1:sdn2:N4" source="ibn1:sdn2:N1" target="ibn1:sdn2:N4"/>
+                        <edge id="ibn1:sdn2:N4-ibn1:sdn2:N1" source="ibn1:sdn2:N4" target="ibn1:sdn2:N1"/>
+
+                        <edge id="ibn1:sdn2:N3-ibn1:sdn2:N4" source="ibn1:sdn2:N3" target="ibn1:sdn2:N4"/>
+                        <edge id="ibn1:sdn2:N4-ibn1:sdn2:N3" source="ibn1:sdn2:N4" target="ibn1:sdn2:N3"/>
+
+                        <edge id="ibn1:sdn2:N3-ibn1:sdn2:N5" source="ibn1:sdn2:N3" target="ibn1:sdn2:N5"/>
+                        <edge id="ibn1:sdn2:N5-ibn1:sdn2:N3" source="ibn1:sdn2:N5" target="ibn1:sdn2:N3"/>
+
+                        <edge id="ibn1:sdn2:N4-ibn1:sdn2:N5" source="ibn1:sdn2:N4" target="ibn1:sdn2:N5"/>
+                        <edge id="ibn1:sdn2:N5-ibn1:sdn2:N4" source="ibn1:sdn2:N5" target="ibn1:sdn2:N4"/>
+                    </graph>
+                </node>
+                <edge id="ibn1:sdn1:N3-ibn1:sdn2:N1" source="ibn1:sdn1:N3" target="ibn1:sdn2:N1"/>
+                <edge id="ibn1:sdn2:N1-ibn1:sdn1:N3" source="ibn1:sdn2:N1" target="ibn1:sdn1:N3"/>
+
+                <edge id="ibn1:sdn1:N4-ibn1:sdn2:N4" source="ibn1:sdn1:N4" target="ibn1:sdn2:N4"/>
+                <edge id="ibn1:sdn2:N4-ibn1:sdn1:N4" source="ibn1:sdn2:N4" target="ibn1:sdn1:N4"/>
+            </graph>
+        </node>
+        <node id="ibn2">
+            <graph id="ibn2" edgedefault="directed">
+                <node id="ibn2:sdn1">
+                    <graph id="ibn2-sdn1" edgedefault="directed">
+                        <node id="ibn2:sdn1:N1">
+                            <data key="xcoord">30.0</data>
+                            <data key="ycoord">2.0</data>
+                            <data key="ports">31</data>
+                        </node>
+                        <node id="ibn2:sdn1:N2">
+                            <data key="xcoord">32.0</data>
+                            <data key="ycoord">-5.0</data>
+                            <data key="ports">32</data>
+                        </node>
+                        <node id="ibn2:sdn1:N3">
+                            <data key="xcoord">35.5</data>
+                            <data key="ycoord">-2.0</data>
+                            <data key="ports">33</data>
+                        </node>
+                        <node id="ibn2:sdn1:N4">
+                            <data key="xcoord">35.0</data>
+                            <data key="ycoord">-12.0</data>
+                            <data key="ports">34</data>
+                        </node>
+                        <edge id="ibn2:sdn1:N1-ibn2:sdn1:N2" source="ibn2:sdn1:N1" target="ibn2:sdn1:N2"/>
+                        <edge id="ibn2:sdn1:N2-ibn2:sdn1:N1" source="ibn2:sdn1:N2" target="ibn2:sdn1:N1"/>
+
+                        <edge id="ibn2:sdn1:N1-ibn2:sdn1:N3" source="ibn2:sdn1:N1" target="ibn2:sdn1:N3"/>
+                        <edge id="ibn2:sdn1:N3-ibn2:sdn1:N1" source="ibn2:sdn1:N3" target="ibn2:sdn1:N1"/>
+
+                        <edge id="ibn2:sdn1:N2-ibn2:sdn1:N3" source="ibn2:sdn1:N2" target="ibn2:sdn1:N3"/>
+                        <edge id="ibn2:sdn1:N3-ibn2:sdn1:N2" source="ibn2:sdn1:N3" target="ibn2:sdn1:N2"/>
+
+                        <edge id="ibn2:sdn1:N2-ibn2:sdn1:N4" source="ibn2:sdn1:N2" target="ibn2:sdn1:N4"/>
+                        <edge id="ibn2:sdn1:N4-ibn2:sdn1:N2" source="ibn2:sdn1:N4" target="ibn2:sdn1:N2"/>
+
+                        <edge id="ibn2:sdn1:N3-ibn2:sdn1:N4" source="ibn2:sdn1:N3" target="ibn2:sdn1:N4"/>
+                        <edge id="ibn2:sdn1:N4-ibn2:sdn1:N3" source="ibn2:sdn1:N4" target="ibn2:sdn1:N3"/>
+                    </graph>
+                </node>
+                <node id="ibn2:sdn2">
+                    <graph id="ibn2:sdn2" edgedefault="directed">
+                        <node id="ibn2:sdn2:N1">
+                            <data key="xcoord">39.0</data>
+                            <data key="ycoord">-3.0</data>
+                            <data key="ports">41</data>
+                        </node>
+                        <node id="ibn2:sdn2:N2">
+                            <data key="xcoord">42.0</data>
+                            <data key="ycoord">-5.0</data>
+                            <data key="ports">42</data>
+                        </node>
+                        <node id="ibn2:sdn2:N3">
+                            <data key="xcoord">40.0</data>
+                            <data key="ycoord">-11.0</data>
+                            <data key="ports">43</data>
+                        </node>
+                        <edge id="ibn2:sdn2:N1-ibn2:sdn2:N2" source="ibn2:sdn2:N1" target="ibn2:sdn2:N2"/>
+                        <edge id="ibn2:sdn2:N2-ibn2:sdn2:N1" source="ibn2:sdn2:N2" target="ibn2:sdn2:N1"/>
+
+                        <edge id="ibn2:sdn2:N1-ibn2:sdn2:N3" source="ibn2:sdn2:N1" target="ibn2:sdn2:N3"/>
+                        <edge id="ibn2:sdn2:N3-ibn2:sdn2:N1" source="ibn2:sdn2:N3" target="ibn2:sdn2:N1"/>
+
+                        <edge id="ibn2:sdn2:N2-ibn2:sdn2:N3" source="ibn2:sdn2:N2" target="ibn2:sdn2:N3"/>
+                        <edge id="ibn2:sdn2:N3-ibn2:sdn2:N2" source="ibn2:sdn2:N3" target="ibn2:sdn2:N2"/>
+                    </graph>
+                </node>
+                <edge id="ibn2:sdn1:N3-ibn2:sdn2:N1" source="ibn2:sdn1:N3" target="ibn2:sdn2:N1"/>
+                <edge id="ibn2:sdn2:N1-ibn2:sdn1:N3" source="ibn2:sdn2:N1" target="ibn2:sdn1:N3"/>
+
+                <edge id="ibn2:sdn1:N4-ibn2:sdn2:N3" source="ibn2:sdn1:N4" target="ibn2:sdn2:N3"/>
+                <edge id="ibn2:sdn2:N3-ibn2:sdn1:N4" source="ibn2:sdn2:N3" target="ibn2:sdn1:N4"/>
+            </graph>
+        </node>
+        <node id="ibn3">
+            <graph id="ibn3" edgedefault="directed">
+                <node id="ibn3:sdn1">
+                    <graph id="ibn3:sdn1" edgedefault="directed">
+                        <node id="ibn3:sdn1:N1">
+                            <data key="xcoord">27.0</data>
+                            <data key="ycoord">-20.0</data>
+                            <data key="ports">51</data>
+                        </node>
+                        <node id="ibn3:sdn1:N2">
+                            <data key="xcoord">24.0</data>
+                            <data key="ycoord">-25.0</data>
+                            <data key="ports">52</data>
+                        </node>
+                        <node id="ibn3:sdn1:N3">
+                            <data key="xcoord">28.0</data>
+                            <data key="ycoord">-23.0</data>
+                            <data key="ports">53</data>
+                        </node>
+                        <edge id="ibn3:sdn1:N1-ibn3:sdn1:N2" source="ibn3:sdn1:N1" target="ibn3:sdn1:N2"/>
+                        <edge id="ibn3:sdn1:N2-ibn3:sdn1:N1" source="ibn3:sdn1:N2" target="ibn3:sdn1:N1"/>
+
+                        <edge id="ibn3:sdn1:N1-ibn3:sdn1:N3" source="ibn3:sdn1:N1" target="ibn3:sdn1:N3"/>
+                        <edge id="ibn3:sdn1:N3-ibn3:sdn1:N1" source="ibn3:sdn1:N3" target="ibn3:sdn1:N1"/>
+
+                        <edge id="ibn3:sdn1:N2-ibn3:sdn1:N3" source="ibn3:sdn1:N2" target="ibn3:sdn1:N3"/>
+                        <edge id="ibn3:sdn1:N3-ibn3:sdn1:N2" source="ibn3:sdn1:N3" target="ibn3:sdn1:N2"/>
+                    </graph>
+                </node>
+                <node id="ibn3:sdn2">
+                    <graph id="ibn3:sdn2" edgedefault="directed">
+                        <node id="ibn3:sdn2:N1">
+                            <data key="xcoord">34.0</data>
+                            <data key="ycoord">-23.0</data>
+                            <data key="ports">61</data>
+                        </node>
+                        <node id="ibn3:sdn2:N2">
+                            <data key="xcoord">35.0</data>
+                            <data key="ycoord">-26.0</data>
+                            <data key="ports">62</data>
+                        </node>
+                        <node id="ibn3:sdn2:N3">
+                            <data key="xcoord">40.0</data>
+                            <data key="ycoord">-24.0</data>
+                            <data key="ports">63</data>
+                        </node>
+                        <node id="ibn3:sdn2:N4">
+                            <data key="xcoord">40.0</data>
+                            <data key="ycoord">-20.0</data>
+                            <data key="ports">63</data>
+                        </node>
+                        <edge id="ibn3:sdn2:N1-ibn3:sdn2:N2" source="ibn3:sdn2:N1" target="ibn3:sdn2:N2"/>
+                        <edge id="ibn3:sdn2:N2-ibn3:sdn2:N1" source="ibn3:sdn2:N2" target="ibn3:sdn2:N1"/>
+
+                        <edge id="ibn3:sdn2:N1-ibn3:sdn2:N3" source="ibn3:sdn2:N1" target="ibn3:sdn2:N3"/>
+                        <edge id="ibn3:sdn2:N3-ibn3:sdn2:N1" source="ibn3:sdn2:N3" target="ibn3:sdn2:N1"/>
+
+                        <edge id="ibn3:sdn2:N2-ibn3:sdn2:N3" source="ibn3:sdn2:N2" target="ibn3:sdn2:N3"/>
+                        <edge id="ibn3:sdn2:N3-ibn3:sdn2:N2" source="ibn3:sdn2:N3" target="ibn3:sdn2:N2"/>
+
+                        <edge id="ibn3:sdn2:N1-ibn3:sdn2:N4" source="ibn3:sdn2:N1" target="ibn3:sdn2:N4"/>
+                        <edge id="ibn3:sdn2:N4-ibn3:sdn2:N1" source="ibn3:sdn2:N4" target="ibn3:sdn2:N1"/>
+
+                        <edge id="ibn3:sdn2:N3-ibn3:sdn2:N4" source="ibn3:sdn2:N3" target="ibn3:sdn2:N4"/>
+                        <edge id="ibn3:sdn2:N4-ibn3:sdn2:N3" source="ibn3:sdn2:N4" target="ibn3:sdn2:N3"/>
+                    </graph>
+                </node>
+                <edge id="ibn3:sdn1:N1-ibn3:sdn2:N1" source="ibn3:sdn1:N1" target="ibn3:sdn2:N1"/>
+                <edge id="ibn3:sdn2:N1-ibn3:sdn1:N1" source="ibn3:sdn2:N1" target="ibn3:sdn1:N1"/>
+
+                <edge id="ibn3:sdn1:N3-ibn3:sdn2:N1" source="ibn3:sdn1:N3" target="ibn3:sdn2:N1"/>
+                <edge id="ibn3:sdn2:N1-ibn3:sdn1:N3" source="ibn3:sdn2:N1" target="ibn3:sdn1:N3"/>
+
+                <edge id="ibn3:sdn1:N3-ibn3:sdn2:N2" source="ibn3:sdn1:N3" target="ibn3:sdn2:N2"/>
+                <edge id="ibn3:sdn2:N2-ibn3:sdn1:N3" source="ibn3:sdn2:N2" target="ibn3:sdn1:N3"/>
+            </graph>
+        </node>
+        <node id="ibn4">
+            <graph id="ibn4" edgedefault="directed">
+                <node id="ibn4:sdn1">
+                    <graph id="ibn4:sdn1" edgedefault="directed">
+                        <node id="ibn4:sdn1:N1">
+                            <data key="xcoord">21.0</data>
+                            <data key="ycoord">-16.0</data>
+                            <data key="ports">51</data>
+                        </node>
+                        <node id="ibn4:sdn1:N2">
+                            <data key="xcoord">22.0</data>
+                            <data key="ycoord">-20.0</data>
+                            <data key="ports">52</data>
+                        </node>
+                        <node id="ibn4:sdn1:N3">
+                            <data key="xcoord">15.0</data>
+                            <data key="ycoord">-17.0</data>
+                            <data key="ports">53</data>
+                        </node>
+                        <node id="ibn4:sdn1:N4">
+                            <data key="xcoord">16.0</data>
+                            <data key="ycoord">-22.0</data>
+                            <data key="ports">54</data>
+                        </node>
+                        <edge id="ibn4:sdn1:N1-ibn4:sdn1:N2" source="ibn4:sdn1:N1" target="ibn4:sdn1:N2"/>
+                        <edge id="ibn4:sdn1:N2-ibn4:sdn1:N1" source="ibn4:sdn1:N2" target="ibn4:sdn1:N1"/>
+
+                        <edge id="ibn4:sdn1:N1-ibn4:sdn1:N3" source="ibn4:sdn1:N1" target="ibn4:sdn1:N3"/>
+                        <edge id="ibn4:sdn1:N3-ibn4:sdn1:N1" source="ibn4:sdn1:N3" target="ibn4:sdn1:N1"/>
+
+                        <edge id="ibn4:sdn1:N2-ibn4:sdn1:N3" source="ibn4:sdn1:N2" target="ibn4:sdn1:N3"/>
+                        <edge id="ibn4:sdn1:N3-ibn4:sdn1:N2" source="ibn4:sdn1:N3" target="ibn4:sdn1:N2"/>
+
+                        <edge id="ibn4:sdn1:N3-ibn4:sdn1:N4" source="ibn4:sdn1:N3" target="ibn4:sdn1:N4"/>
+                        <edge id="ibn4:sdn1:N4-ibn4:sdn1:N3" source="ibn4:sdn1:N4" target="ibn4:sdn1:N3"/>
+
+                        <edge id="ibn4:sdn1:N2-ibn4:sdn1:N4" source="ibn4:sdn1:N2" target="ibn4:sdn1:N4"/>
+                        <edge id="ibn4:sdn1:N4-ibn4:sdn1:N2" source="ibn4:sdn1:N4" target="ibn4:sdn1:N2"/>
+                    </graph>
+                </node>
+            </graph>
+        </node>
+        <edge id="ibn1:sdn2:N2-ibn2:sdn1:N1" source="ibn1:sdn2:N2" target="ibn2:sdn1:N1"/>
+        <edge id="ibn2:sdn1:N1-ibn1:sdn2:N2" source="ibn2:sdn1:N1" target="ibn1:sdn2:N2"/>
+
+        <edge id="ibn1:sdn2:N5-ibn2:sdn1:N2" source="ibn1:sdn2:N5" target="ibn2:sdn1:N2"/>
+        <edge id="ibn2:sdn1:N2-ibn1:sdn2:N5" source="ibn2:sdn1:N2" target="ibn1:sdn2:N5"/>
+
+        <edge id="ibn1:sdn2:N5-ibn4:sdn1:N1" source="ibn1:sdn2:N5" target="ibn4:sdn1:N1"/>
+        <edge id="ibn4:sdn1:N1-ibn1:sdn2:N5" source="ibn4:sdn1:N1" target="ibn1:sdn2:N5"/>
+
+        <edge id="ibn1:sdn2:N4-ibn4:sdn1:N3" source="ibn1:sdn2:N4" target="ibn4:sdn1:N3"/>
+        <edge id="ibn4:sdn1:N3-ibn1:sdn2:N4" source="ibn4:sdn1:N3" target="ibn1:sdn2:N4"/>
+
+        <edge id="ibn4:sdn1:N2-ibn3:sdn1:N1" source="ibn4:sdn1:N2" target="ibn3:sdn1:N1"/>
+        <edge id="ibn3:sdn1:N1-ibn4:sdn1:N2" source="ibn3:sdn1:N1" target="ibn4:sdn1:N2"/>
+
+        <edge id="ibn4:sdn1:N2-ibn3:sdn1:N2" source="ibn4:sdn1:N2" target="ibn3:sdn1:N2"/>
+        <edge id="ibn3:sdn1:N2-ibn4:sdn1:N2" source="ibn3:sdn1:N2" target="ibn4:sdn1:N2"/>
+
+        <edge id="ibn2:sdn1:N4-ibn3:sdn2:N1" source="ibn2:sdn1:N4" target="ibn3:sdn2:N1"/>
+        <edge id="ibn3:sdn2:N1-ibn2:sdn1:N4" source="ibn3:sdn2:N1" target="ibn2:sdn1:N4"/>
+
+        <edge id="ibn2:sdn2:N3-ibn3:sdn2:N4" source="ibn2:sdn2:N3" target="ibn3:sdn2:N4"/>
+        <edge id="ibn3:sdn2:N4-ibn2:sdn2:N3" source="ibn3:sdn2:N4" target="ibn2:sdn2:N3"/>
+    </graph>
+</graphml>

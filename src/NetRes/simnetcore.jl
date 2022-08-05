@@ -95,17 +95,17 @@ function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
 end
 euclidean_dist(possrc, posdst) = sqrt(sum((possrc .- posdst) .^ 2))
 
-function simgraph(cg::CompositeGraph{MetaDiGraph, T}; distance_method=euclidean_dist) where {T<:AbstractGraph}
-    cgnew = CompositeGraph{MetaDiGraph, T}(nothing)
-    for gr in cg.grv
+function simgraph(ng::G; distance_method=euclidean_dist) where G<:NestedMetaGraph
+    cgnew = G()
+    for gr in ng.grv
         add_vertex!(cgnew, simgraph(gr; distance_method=distance_method))
     end
-    for interedgs in cg.ceds
+    for interedgs in ng.neds
         add_edge!(cgnew, interedgs)
         possrc = [get_prop(cgnew, vertex(cgnew, interedgs.src...), :xcoord), get_prop(cgnew, vertex(cgnew, interedgs.src...), :ycoord)]
         posdst = [get_prop(cgnew, vertex(cgnew, interedgs.dst...), :xcoord), get_prop(cgnew, vertex(cgnew, interedgs.dst...), :ycoord)]
         distance = distance_method(possrc, posdst)
-        set_prop!(cgnew, edge(cgnew, interedgs), :link, FiberView(Fiber(distance), frequency_slots=get_prop(cg, edge(cg, interedgs), :fiberslots)) )
+        set_prop!(cgnew, edge(cgnew, interedgs), :link, FiberView(Fiber(distance), frequency_slots=get_prop(ng, edge(ng, interedgs), :fiberslots)) )
     end
     return cgnew
 end

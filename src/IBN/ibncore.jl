@@ -57,18 +57,18 @@ function globalnode(ibn::IBN, node::Int)
     end
 end
 
-"convert a global CompositeEdge(ibn1id, srcid, ibn2id, dstid) to local ibn lingo"
-function localedge(ibn::IBN, cedge::CompositeEdge; subnetwork_view=true)
+"convert a global NestedEdge(ibn1id, srcid, ibn2id, dstid) to local ibn lingo"
+function localedge(ibn::IBN, cedge::NestedEdge; subnetwork_view=true)
     csrc = localnode(ibn, cedge.src; subnetwork_view = subnetwork_view)
     cdst = localnode(ibn, cedge.dst; subnetwork_view = subnetwork_view)
     if subnetwork_view
-        return CompositeEdge(csrc, cdst)
+        return NestedEdge(csrc, cdst)
     else
         return Edge(csrc, cdst)
     end
 end
 
-globaledge(ibn::IBN, ed::Edge) = CompositeEdge(globalnode(ibn, src(ed)), globalnode(ibn, dst(ed)))
+globaledge(ibn::IBN, ed::Edge) = NestedEdge(globalnode(ibn, src(ed)), globalnode(ibn, dst(ed)))
 #TODO implement a different method (Channels, Tasks, yield)
 
 
@@ -79,7 +79,7 @@ function connect(ibn1::IBN, ibn2::IBN, e::Edge)
     push!(ibn1.interprops)
 end
 
-function connectIBNs!(ibn::Vector{IBN}, cedges::Vector{CompositeEdge})
+function connectIBNs!(ibn::Vector{IBN}, cedges::Vector{NestedEdge})
     for ce in cedges
         if ce.src[1] != ce.dst[1]
             push!(ibn[ce.src[1]].interprops.nodge, ce)
@@ -89,7 +89,7 @@ function connectIBNs!(ibn::Vector{IBN}, cedges::Vector{CompositeEdge})
 end
 
 "add a provider IBN to the list of the customer IBN with `vlist` being the communication points"
-function connectIBNs!(ibn1::IBN, ibn2::IBN, cedges::Vector{CompositeEdge{T}}, dprops::Union{Vector{Dict{Symbol,R}}, Nothing}=nothing) where {T, R}
+function connectIBNs!(ibn1::IBN, ibn2::IBN, cedges::Vector{NestedEdge{T}}, dprops::Union{Vector{Dict{Symbol,R}}, Nothing}=nothing) where {T, R}
     if ibn1.id in getfield.(ibns(ibn2), :id) || ibn2.id in getfield.(ibns(ibn1), :id)
         @warn("IBN already listed")
         return false
@@ -119,15 +119,15 @@ function connectIBNs!(ibn1::IBN, ibn2::IBN, cedges::Vector{CompositeEdge{T}}, dp
     v1add = [vp for vp in v1list if !has_vertex(gr1, vp)]
     add_vertices!(gr1, ibn1.cgr, v1add)
     
-    CompositeGraphs.add_vertex!(ibn1.cgr, gr2, cedges, dprops; vmap=vcat(vmap2, v2add), both_ways=true)
+    NestedGraphs.add_vertex!(ibn1.cgr, gr2, cedges, dprops; vmap=vcat(vmap2, v2add), both_ways=true)
     #reverse cedges
-    CompositeGraphs.add_vertex!(ibn2.cgr, gr1, cedges, dprops; vmap=vcat(vmap1, v1add), both_ways=true, rev_cedges=true)
+    NestedGraphs.add_vertex!(ibn2.cgr, gr1, cedges, dprops; vmap=vcat(vmap1, v1add), both_ways=true, rev_cedges=true)
 end
 
 "Incorporate new SDN to the IBN structure"
 addSDN(ibn::IBN) = error("not implemented")
 "add interSDN edges"
-addinterSDNedges(ibn::IBN, ces::Vector{CompositeEdge}) = error("not implemented")
+addinterSDNedges(ibn::IBN, ces::Vector{NestedEdge}) = error("not implemented")
 
 "Add Intent as Network Operator"
 function addintent!(ibn::IBN, intent::Intent)

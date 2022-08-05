@@ -1,3 +1,4 @@
 /Manifest.toml
 *.html
 *.pdf
+.vscode/

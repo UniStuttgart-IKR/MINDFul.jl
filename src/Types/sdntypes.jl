@@ -9,5 +9,5 @@ reserve(sdn::SDN, path::Vector{Int}, cap::Real) = error("Interface not implement
 "Free `cap `resources among path `path`"
 free(sdm::SDN, path::Vector{Int}, capacity::Real) = error("Interface not implemented")
 
-isavailable(con1, con2, ce::CompositeEdge, capacity::Real) = error("Interface not implemented")
+isavailable(con1, con2, ce::NestedEdge, capacity::Real) = error("Interface not implemented")
 

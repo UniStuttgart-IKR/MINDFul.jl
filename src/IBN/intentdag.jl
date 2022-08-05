@@ -36,6 +36,7 @@ function isintraintent(ibn::IBN, intent::ConnectivityIntent)
 end
 
 function setstate!(idn, dag, ibn::IBN, newstate::IntentState)
+    idn.state == newstate && return
     if newstate == compiled
         setstate!(idn, dag, ibn, Val(compiled))
     elseif newstate == installed
@@ -53,6 +54,7 @@ end
 "compiled" and "installed" states start only from `LowLevelIntents` and propagte the tree up to the root
 """
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
+    idn.state == compiled && return
     idn.state = compiled
     push!(idn.logstate, (IBNFPROPS.time, compiled))
     if isroot(dag, idn)
@@ -71,6 +73,7 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{c
 end
 
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{uncompiled})
+    idn.state == uncompiled && return
     idn.state = uncompiled
     push!(idn.logstate, (IBNFPROPS.time, uncompiled))
     if isroot(dag, idn)
@@ -87,6 +90,7 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{u
 end
 
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
+    idn.state == installed && return
     idn.state = installed
     push!(idn.logstate, (IBNFPROPS.time, installed))
     if isroot(dag, idn)
@@ -105,6 +109,7 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{i
 end
 
 function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{failure})
+    idn.state == failure && return
     idn.state = failure
     push!(idn.logstate, (IBNFPROPS.time, failure))
     if isroot(dag, idn)
@@ -122,8 +127,22 @@ function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{f
     end
 end
 
-setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing}) = (idn.state = installing; push!(idn.logstate, (IBNFPROPS.time, installing)))
-setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed}) = (idn.state = installfailed; push!(idn.logstate, (IBNFPROPS.time, installfailed)))
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing})
+    idn.state == installing && return
+    idn.state = installing
+    push!(idn.logstate, (IBNFPROPS.time, installing))
+end
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed})
+    idn.state == installfailed && return
+    idn.state = installfailed; 
+    push!(idn.logstate, (IBNFPROPS.time, installfailed))
+end
+# TODO do i need to update parents ?
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{compiling})
+    idn.state == compiling && return
+    idn.state = compiling; 
+    push!(idn.logstate, (IBNFPROPS.time, compiling))
+end
 
 """
 Checks all children of `idn` and if all are compiled, `idn` is getting in the compiled state also.
