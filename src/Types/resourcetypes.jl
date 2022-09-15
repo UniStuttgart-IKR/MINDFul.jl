@@ -1,17 +1,22 @@
 @enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalGroomingDown, signalGrooming, signalGroomingUp, 
       signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd, signalUknown)
 
-"R is Int for local mode and Tuple{Int, Int} for global"
+"`R` is Int for local mode and `Tuple{Int, Int}` for global"
 struct ConnectionState{R}
     node::R
     signaloc::SignalLoc
 end
 getnode(cs::ConnectionState) = cs.node
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+Container of the spectrum requirements of a connection
+"""
 struct SpectrumRequirements
     cedge::NestedEdge
     frslots::UnitRange{Int}
-    "Gbps"
+    "Gbps (`Unitful` still doesn't support bits)"
     bandwidth::Float64
 end
 
@@ -51,10 +56,10 @@ RouterView(rt) = RouterView(rt, fill(true, rt.nports), Vector{Union{Missing,Tupl
 struct OTNView end
 struct OXCView end
 
-mutable struct FiberView{F}
+mutable struct FiberView{F,L<:LogState}
     fiber::F
     operates::Bool
-    logstate::LogState{Bool}
+    logstate::L
     "True if available"
     spectrum_src::Vector{Bool}
     "lists which intents are reserved the resources"

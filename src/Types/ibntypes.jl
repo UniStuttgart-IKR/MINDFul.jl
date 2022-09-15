@@ -2,6 +2,7 @@
 abstract type IBNModus end
 struct SimpleIBNModus <: IBNModus end 
 struct AdvancedIBNModus <: IBNModus end
+
 "Defines the entity issuing an intent"
 abstract type IntentIssuer end
 struct NetworkProvider <: IntentIssuer end
@@ -21,17 +22,23 @@ struct IntentBackward <: IntentDirection end
 struct InterIntent{R<:IntentDirection} <: IntentDomain end
 InterIntent() = InterIntent{IntentForward}()
 
-"Information needed for interacting IBN"
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+Information needed for interacting IBN.
+*still not used*
+"""
 struct IBNInterProps 
     "permissions of other IBN"
     permissions::BitVector
 end
 
 """
+$(TYPEDEF)
+$(TYPEDFIELDS)
 The Intent Framework
 The intent id is the vector index
-`controllers` must have same length with `cgr.grv`
-    $(TYPEDFIELDS)
+`controllers` must have same length with `ngr.grv`
 """
 struct IBN{T<:SDN}
     "id of IBN"
@@ -46,10 +53,10 @@ struct IBN{T<:SDN}
     controllers::Vector{Union{T, IBN}}
     """
     Nested Graph consisting of the several SDNs
-    cgr is a shallow copy of the sdn graphs, 
+    ngr is a shallow copy of the sdn graphs, 
     meaning all PHY information is available in the IBN
     """
-    cgr::NestedGraph{Int,MetaDiGraph{Int,Float64},MetaDiGraph{Int,Float64}}
+    ngr::NestedGraph{Int,MetaDiGraph{Int,Float64},MetaDiGraph{Int,Float64}}
     "InterIBN interoperability with key being the IBN id"
     interprops::Dict{Int,IBNInterProps}
 end
@@ -72,12 +79,18 @@ IBN(c::Int, controllers::Vector{T}, ng::NestedGraph) where {T<:Union{SDN,IBN}}  
                                                             ng,
                                                             Dict{Int, IBNInterProps}())
 
-struct IBNnIntent{R}
-    ibn::IBN
-    dag::IntentDAG
-    idn::IntentDAGNode{R}
-end
+# struct IBNnIntent{R}
+#     ibn::IBN
+#     dag::IntentDAG
+#     idn::IntentDAGNode{R}
+# end
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+A container of a low-level intent `lli` with a global view.
+The related `ibn`, `dag` and `idn` are also contained.
+"""
 struct IBNnIntentGLLI{R,T<:LowLevelIntent}
     ibn::IBN
     dag::IntentDAG
@@ -91,5 +104,4 @@ struct IBNnIntentGLLI{R,T<:LowLevelIntent}
     IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::RemoteLogicIntent{C}) where 
     {R<:Intent, C<:Intent}  = new{R, RemoteLogicIntent{C}}(ibn, dag, idn, lli)
 end
-
 getlli(giig::IBNnIntentGLLI) = giig.lli

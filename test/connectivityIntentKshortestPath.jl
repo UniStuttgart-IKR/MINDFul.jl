@@ -10,7 +10,6 @@ using Logging
 using IBNFramework: uncompiled, compiled, installed
 IBNF = IBNFramework
 
-resetIBNF!()
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
 testdir =  dirname(@__FILE__)
@@ -18,6 +17,9 @@ globalnet = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), Grap
 globalnet2 = IBNFramework.simgraph(globalnet)
 
 myibns = IBNFramework.nestedGraph2IBNs!(globalnet2)
+
+# useless
+ibnenv = IBNEnv(myibns, globalnet2)
 
 function just_capacity(myibns, ibn1idx, ibn1node, ibn2idx, ibn2node, ibnIssueidx)
     conint = ConnectivityIntent((myibns[ibn1idx].id, ibn1node), 
@@ -67,11 +69,12 @@ end
             just_capacity(myibns, intenttuple...) 
         end
         
+        freezetime = nexttime()
         # uninstall all intents
         for ibn in myibns
             for (i,iss) in enumerate(ibn.intentissuers)
                 if iss isa IBNFramework.NetworkProvider
-                    deploy!(ibn, i, IBNFramework.douninstall, IBNFramework.SimpleIBNModus(), IBNFramework.directuninstall!)
+                    deploy!(ibn, i, IBNFramework.douninstall, IBNFramework.SimpleIBNModus(), IBNFramework.directuninstall!; time=freezetime)
                 end
             end
         end
@@ -92,7 +95,7 @@ end
                               collect(enumerate(ibn.intentissuers)))
                 i === nothing && break
                 intentid = IBNF.getid(ibn.intents[i])
-                deploy!(ibn, intentid, IBNFramework.douncompile, IBNFramework.SimpleIBNModus(), () -> nothing)
+                deploy!(ibn, intentid, IBNFramework.douncompile, IBNFramework.SimpleIBNModus(); time = freezetime)
             end
         end
         # now test result

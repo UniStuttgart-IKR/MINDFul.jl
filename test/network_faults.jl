@@ -10,14 +10,16 @@ using Logging
 using IBNFramework: uncompiled, compiled, installed
 IBNF = IBNFramework
 
-resetIBNF!()
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
 testdir =  dirname(@__FILE__)
-globalnet = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
-globalnet = IBNFramework.simgraph(globalnet)
+globalnet0 = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
+globalnet = IBNFramework.simgraph(globalnet0)
 
 myibns = IBNFramework.nestedGraph2IBNs!(globalnet)
+
+# useless
+ibnenv = IBNEnv(myibns, globalnet2)
 
 @testset "network_faults.jl" begin
     with_logger(testlogger) do

@@ -1,24 +1,29 @@
-deploy!(ibnc::IBN, ibns::IBN, intentid::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
-        ; algargs...) = deploy!(ibnc, ibns, getintent(ibns,intentid), getroot(getintent(ibns,intentid)), itra, strategy, algmethod; algargs...)
+deploy!(ibnc::IBN, ibns::IBN, intentid::Int, args...; nargs...) = 
+    deploy!(ibnc, ibns, getintent(ibns,intentid), getroot(getintent(ibns,intentid)), args...; nargs...)
 
-deploy!(ibn::IBN, intentid::Int, itra::IntentTransition, strategy::IBNModus, algmethod 
-        ; algargs...) = deploy!(ibn, getintent(ibn,intentid), getroot(getintent(ibn,intentid)), itra, strategy, algmethod; algargs...)
+"Assume intent is root of DAG"
+deploy!(ibn::IBN, intentid::Int, args...; nargs...) = 
+    deploy!(ibn, getintent(ibn,intentid), getroot(getintent(ibn,intentid)), args...; nargs...)
 
-"Usually handle in the root of the DAG"
-deploy!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod
-        ; algargs...) = deploy!(ibn, ibn, dag, idagn, itra, strategy, algmethod; algargs...)
+"Assume intent comes from Network Operator"
+deploy!(ibn::IBN, dag::IntentDAG, args...; nargs...) = 
+    deploy!(ibn, ibn, dag, args...; nargs...)
+
+"No `algmethod` provided"
+deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus; nargs...) = 
+    deploy!(ibnc, ibns, dag, idagn, itra, strategy, () -> nothing; nargs...)
 
 "ibn-customer accesses the intent state machine of ibn-provider"
-function deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod; algargs...)
+function deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod;
+        time, algargs...)
     if getid(ibnc) == getid(ibns)
-        step!(ibns, dag, idagn, idagn.state, itra, strategy, algmethod; algargs...)
+        step!(ibns, dag, idagn, idagn.state, itra, strategy, algmethod; time, algargs...)
     else
         @warn("no permissions implemented")
-        step!(ibns, dag, idagn, idagn.state, itra, strategy, algmethod; algargs...)
+        step!(ibns, dag, idagn, idagn.state, itra, strategy, algmethod; time, algargs...)
     end
 end
 
-# TODO: replace inid with intent (for type inference)
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::IntentState, itra::IntentTransition, 
         strategy::SimpleIBNModus, algmethod; algargs...)
     if ista == compiled && itra == doinstall
@@ -134,7 +139,7 @@ end
 Delete all dag nodes except for the root
 If it has Remote Intent they need to be deleted also.
 """
-function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
+function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; time) where {T<:Function}
     while true
         # MGN is a little bit unstable. It reconfigures the structure everytime it gets deleted.
         nv(dag) > 1 || break
@@ -145,13 +150,13 @@ function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T
             ibnpissuer = IBNIssuer(getid(ibn), getid(dag), getid(idn))
             remint = idn.intent.intentidx
             # first uncompile them
-            deploy!(ibn, remibn, remint, douncompile, SimpleIBNModus(), () -> nothing)
+            deploy!(ibn, remibn, remint, douncompile, SimpleIBNModus(); time)
             # then delete them
             remintent!(ibnpissuer, remibn, remint)
         end
         rem_vertex!(dag, 2)
     end
-    setstate!(idagn, dag, ibn, Val(uncompiled))
+    setstate!(idagn, dag, ibn, Val(uncompiled); time)
     return getstate(idagn)
 end
 
@@ -164,7 +169,7 @@ function install!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; 
             deploy!(ibn, remibn, lidn.intent.intentidx, 
                   doinstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
         else
-            algmethod(ibn, dag, lidn)
+            algmethod(ibn, dag, lidn; algargs...)
         end
     end
     return getstate(idagn)
@@ -180,7 +185,7 @@ function uninstall!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T
             deploy!(ibn, remibn, lidn.intent.intentidx, 
                   douninstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
         else
-            algmethod(ibn, dag, lidn)
+            algmethod(ibn, dag, lidn; algargs...)
         end
     end
     return getstate(idagn)
@@ -196,25 +201,25 @@ end
 Realize the intent implementation by delegating tasks in the different responsible SDNs
 First check, then reserve
 """
-function directinstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:LowLevelIntent
+function directinstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}; time) where R<:LowLevelIntent
     if isavailable(ibn, dag, idn)
         if getstate(idn) != installed
             if reserve(ibn, dag, idn) 
-                setstate!(idn, dag, ibn, Val(installed))
+                setstate!(idn, dag, ibn, Val(installed); time)
                 return getstate(idn)
             end
         end
     end
-    setstate!(idn, dag, ibn, Val(installfailed))
+    setstate!(idn, dag, ibn, Val(installfailed); time)
     return getstate(idn)
 end
 
 """
 Uninstalls a low-level intent intent
 """
-function directuninstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}) where R<:LowLevelIntent
+function directuninstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}; time) where R<:LowLevelIntent
     if free!(ibn, dag, idn)
-        setstate!(idn, dag, ibn, Val(compiled))
+        setstate!(idn, dag, ibn, Val(compiled); time)
         return getstate(idn)
     end
 end

@@ -1,4 +1,8 @@
-"Save arguments to `recarglist` and evaluate function `funex`"
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+Save arguments to `recarglist` and evaluate function `funex`
+"""
 macro recargs!(recarglist::Symbol, funex::Expr)
     return quote
         push!($(esc(recarglist)), [$(esc.(funex.args[2:end])...)] )
@@ -7,7 +11,11 @@ macro recargs!(recarglist::Symbol, funex::Expr)
 end
 
 
-"Pass clock time and the function to evaluate"
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+Pass clock time and the function to evaluate
+"""
 macro at(time::Expr, funex::Expr)
     return quote
         updateIBNFtime!($(esc(time)))

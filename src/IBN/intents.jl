@@ -104,7 +104,7 @@ returns a Pair{neighbor ibn id, intent constraint}
 """
 function intent2constraint(intent::R, ibn::IBN) where R<:NodeRouterIntent
     if getnode(intent) in transnodes(ibn, subnetwork_view=false)
-        cnode = ibn.cgr.vmap[getnode(intent)]
+        cnode = ibn.ngr.vmap[getnode(intent)]
         contr = ibn.controllers[cnode[1]]
         if contr isa IBN
             ibnid = getid(contr)
@@ -118,7 +118,7 @@ end
 "assumes only one node is in another ibn"
 function intent2constraint(intent::R, ibn::IBN) where R<:NodeSpectrumIntent
     if getnode(intent) in transnodes(ibn, subnetwork_view=false)
-        cnode = ibn.cgr.vmap[getnode(intent)]
+        cnode = ibn.ngr.vmap[getnode(intent)]
         contr = ibn.controllers[cnode[1]]
         if contr isa IBN
             ibnid = getid(contr)
@@ -146,22 +146,22 @@ function isavailable(ibn::IBN, dag::IntentDAG, pathint::T) where {T<:PathIntent}
     sdn1 = controllerofnode(ibn, path[1])
     sdn2 = controllerofnode(ibn, path[end])
     if sdn1 isa SDN && sdn2 isa SDN
-        src = ibn.cgr.vmap[path[1]][2]
-        dst = ibn.cgr.vmap[path[end]][2]
+        src = ibn.ngr.vmap[path[1]][2]
+        dst = ibn.ngr.vmap[path[end]][2]
         isavailable_port(sdn1, src) && isavailable_port(sdn2, dst) || return false
     elseif sdn1 isa SDN
         # only consider intradomain knowledge. assume it's possible for the other domain
-        src = ibn.cgr.vmap[path[1]][2]
+        src = ibn.ngr.vmap[path[1]][2]
         isavailable_port(sdn1, src) || return false
     elseif sdn2 isa SDN
         # only consider intradomain knowledge. assume it's possible for the other domain
-        dst = ibn.cgr.vmap[path[end]][2]
+        dst = ibn.ngr.vmap[path[end]][2]
         isavailable_port(sdn2, dst) || return false
     end
     for edg in edgeify(path)
         sdn11 = controllerofnode(ibn, edg.src)
         sdn22 = controllerofnode(ibn, edg.dst)
-        ce = NestedGraphs.nestededge(ibn.cgr, edg)
+        ce = NestedGraphs.nestededge(ibn.ngr, edg)
         if sdn11 isa SDN
             doesoperate_link(sdn11, ce) || return false
         elseif sdn22 isa SDN
@@ -174,7 +174,7 @@ end
 function isavailable(ibn::IBN, dag::IntentDAG, speint::T) where {T<:SpectrumIntent}
     success = false
     for e in edgeify(speint.lightpath)
-        ce = NestedGraphs.nestededge(ibn.cgr, e)
+        ce = NestedGraphs.nestededge(ibn.ngr, e)
         sdn1 = controllerofnode(ibn, e.src)
         sdn2 = controllerofnode(ibn, e.dst)
         if sdn1 isa SDN && sdn2 isa SDN
@@ -193,12 +193,12 @@ end
 function sdnspace(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode) 
     intent = getintent(idn)
     sdn = controllerofnode(ibn, intent.node)
-    sdnode = ibn.cgr.vmap[intent.node][2]
+    sdnode = ibn.ngr.vmap[intent.node][2]
     return (intent, sdn, sdnode)
 end
 function intersdnspace(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode) 
     intent = getintent(idn)
-    ce = NestedGraphs.nestededge(ibn.cgr, intent.edge)
+    ce = NestedGraphs.nestededge(ibn.ngr, intent.edge)
     sdn1 = controllerofnode(ibn, intent.edge.src)
     sdn2 = controllerofnode(ibn, intent.edge.dst)
     return (intent, ce, sdn1, sdn2)
@@ -225,7 +225,7 @@ end
 
 function isavailable(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    reserve_src = ibn.ngr.vmap[intent.node] == ce.src ? true : false
     sdn = sdn1 isa SDN ? sdn1 : sdn2
     if sdn isa SDN
         return isavailable_slots(sdn, ce, intent.slots, reserve_src)
@@ -235,7 +235,7 @@ end
 
 function reserve(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    reserve_src = ibn.ngr.vmap[intent.node] == ce.src ? true : false
     sdn = sdn1 isa SDN ? sdn1 : sdn2
     if sdn isa SDN
         return reserve_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src)
@@ -244,7 +244,7 @@ function reserve(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:Node
 end
 function free!(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    reserve_src = ibn.ngr.vmap[intent.node] == ce.src ? true : false
     sdn = sdn1 isa SDN ? sdn1 : sdn2
     if sdn isa SDN
         return free_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src)
@@ -254,7 +254,7 @@ end
 
 function issatisfied(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, dag, nsi)
-    reserve_src = ibn.cgr.vmap[intent.node] == ce.src ? true : false
+    reserve_src = ibn.ngr.vmap[intent.node] == ce.src ? true : false
     sdn = sdn1 isa SDN ? sdn1 : sdn2
     if sdn isa SDN
         issatisfied_slots!(sdn, ce, intent.slots, (getid(ibn), getintentidx(dag), getid(nsi)), reserve_src) && return true

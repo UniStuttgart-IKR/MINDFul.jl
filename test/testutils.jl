@@ -1,16 +1,16 @@
 function testintentdeployment_nosatisfy(conint, ibn)
     intidx = addintent!(ibn, conint)
-    @at nexttime() IBNFramework.deploy!(ibn, intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!);
+    IBNFramework.deploy!(ibn, intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!; time=nexttime());
     @test getroot(ibn.intents[intidx]).state == uncompiled
-    @at nexttime() IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!)
+    IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!; time=nexttime())
     @test getroot(ibn.intents[intidx]).state == uncompiled
 end
 
 function testintentdeployment(conint, ibn)
     intidx = addintent!(ibn, conint);
-    @at nexttime() IBNFramework.deploy!(ibn,intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!);
+    IBNFramework.deploy!(ibn,intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!; time=nexttime());
     @test getroot(ibn.intents[intidx]).state == compiled
-    @at nexttime() IBNFramework.deploy!(ibn,intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!);
+    IBNFramework.deploy!(ibn,intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!; time=nexttime());
     @test getroot(ibn.intents[intidx]).state == installed
     @test issatisfied(ibn, intidx)
 end
@@ -21,11 +21,13 @@ function intentdeployandfault(conint, ibns, ibnidx, edgecontained)
     # let's take source (randomly)
     ibnofedge = ibns[edgecontained.src[1]]
     ibnedge = IBNF.localedge(ibnofedge, edgecontained, subnetwork_view=false)
-    linktofail = get_prop(ibnofedge.cgr, ibnedge.src, ibnedge.dst, :link)
+    linktofail = get_prop(ibnofedge.ngr, ibnedge.src, ibnedge.dst, :link)
 
     intidx = addintent!(ibn, conint);
-    @at nexttime() deploy!(ibn,intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!);
-    deploy!(ibn,intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!);
+    let time=nexttime()
+        deploy!(ibn,intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!; time);
+        deploy!(ibn,intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!; time);
+    end
 
     @test getroot(ibn.intents[intidx]).state == IBNF.installed
 
@@ -34,27 +36,30 @@ function intentdeployandfault(conint, ibns, ibnidx, edgecontained)
         getfield.(filter(x -> x isa IBNF.NodeSpectrumIntent, getfield.(glbs, :lli)), :edge)
     @test contains_edg
 
-    @at nexttime() set_operation_status!(ibnofedge, linktofail, false)
+    set_operation_status!(ibnofedge, linktofail, false; time=nexttime())
     @test getroot(ibn.intents[intidx]).state == IBNF.failure
 
-    @at nexttime() deploy!(ibn, intidx, IBNF.douninstall, IBNF.SimpleIBNModus(), IBNFramework.directuninstall!);
-    @test getroot(ibn.intents[intidx]).state == IBNF.compiled
+    let time=nexttime()
+        deploy!(ibn, intidx, IBNF.douninstall, IBNF.SimpleIBNModus(), IBNFramework.directuninstall!; time);
+        @test getroot(ibn.intents[intidx]).state == IBNF.compiled
 
-    deploy!(ibn, intidx, IBNF.douncompile, IBNF.SimpleIBNModus(), () -> nothing)
-    @test getroot(ibn.intents[intidx]).state == IBNF.uncompiled
+        deploy!(ibn, intidx, IBNF.douncompile, IBNF.SimpleIBNModus(); time);
+        @test getroot(ibn.intents[intidx]).state == IBNF.uncompiled
 
-    deploy!(ibn, intidx, IBNF.docompile, IBNF.SimpleIBNModus(), IBNF.shortestavailpath!)
-    @test getroot(ibn.intents[intidx]).state == IBNF.compiled
+        deploy!(ibn, intidx, IBNF.docompile, IBNF.SimpleIBNModus(), IBNF.shortestavailpath!; time)
+        @test getroot(ibn.intents[intidx]).state == IBNF.compiled
 
-    deploy!(ibn, intidx, IBNF.doinstall, IBNF.SimpleIBNModus(), IBNF.directinstall!)
-    @test getroot(ibn.intents[intidx]).state == IBNF.installed
+        deploy!(ibn, intidx, IBNF.doinstall, IBNF.SimpleIBNModus(), IBNF.directinstall!; time)
+        @test getroot(ibn.intents[intidx]).state == IBNF.installed
+    end
 
     glbs, _ = IBNF.logicalorderedintents(ibn, intidx, true);
     contains_edg = edgecontained in 
         getfield.(filter(x -> x isa IBNF.NodeSpectrumIntent, getfield.(glbs, :lli)), :edge)
     @test !contains_edg
 
-    @at nexttime() set_operation_status!(ibnofedge, linktofail, true)
+    set_operation_status!(ibnofedge, linktofail, true; time=nexttime())
 end
 
 nexttime() = IBNF.COUNTER("time")u"hr"
+emptyf() = nothing

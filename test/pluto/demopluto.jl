@@ -69,7 +69,7 @@ let
 end
 
 # ╔═╡ b1f27467-5df6-4c96-b709-c2fc23df3541
-myibns[1].cgr.vmap[10]
+myibns[1].ngr.vmap[10]
 
 # ╔═╡ 69636ed7-163a-4628-9747-a5ffcba64321
 getid(myibns[1].controllers[3])

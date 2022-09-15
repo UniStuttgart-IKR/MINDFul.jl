@@ -1,14 +1,7 @@
-mutable struct IBNFProps
-    time::THours
+struct LogState{T,R}
+    logtime::Vector{Tuple{T,R}}
 end
-updateIBNFtime!(ibnprops::IBNFProps, h::THours) = (ibnprops.time = h) 
-updateIBNFtime!(h) = (IBNFPROPS.time = h) 
-resetIBNFtime!() = (IBNFPROPS.time = 0.0u"hr") 
-
-struct LogState{T}
-    logtime::Vector{Tuple{THours, T}}
-end
-LogState{T}() where T = LogState{T}(Vector{Tuple{typeof(1u"s"), T}}())
+LogState{R}() where R = LogState(Vector{Tuple{typeof(1.0u"hr"), R}}())
 @inline Base.push!(ls::LogState, kw...) = push!(ls.logtime, kw...)
 
 #TODO compare pointers not values

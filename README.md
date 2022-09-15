@@ -48,3 +48,6 @@ When adding new permissions:
 
 When changing the intent state machine:
 - use a different `IBNMode`
+
+# TODO
+- Unitfull bits/bytes size

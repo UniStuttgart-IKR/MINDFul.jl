@@ -1,7 +1,7 @@
 function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::F; algargs...) where {R<:Union{ConnectivityIntent},F<:Function}
     iam(ibn, neibn) = getid(ibn) == getid(neibn)
-    firstforeignibnnode(ibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.domain(ibn.cgr,x)] isa IBN, [v for v in vertices(ibn.cgr)])
-    firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.domain(ibn.cgr,x)] == neibn, [v for v in vertices(ibn.cgr)])
+    firstforeignibnnode(ibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.domain(ibn.ngr,x)] isa IBN, [v for v in vertices(ibn.ngr)])
+    firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.domain(ibn.ngr,x)] == neibn, [v for v in vertices(ibn.ngr)])
 
     conint = idagn.intent
     if getsrc(conint) == getdst(conint)
@@ -25,7 +25,7 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::
                 for neibn in getibns(ibn)
                     algmethod(ibn, neibn, dag, idagn, InterIntent{IntentForward}(); algargs...)
                     idagn.state == compiled && break
-                    restartintent!(ibn, getid(dag))
+                    restartintent!(ibn, getid(dag); time=algargs[:time])
                 end
             else
                 state = delegateintent!(ibn, neibnsrc, dag, idagn, idagn.intent, algmethod; algargs...)
@@ -50,7 +50,7 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::
     return idagn.state
 end
 
-function compile!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, gtc::GoThroughConstraint)
+function compile!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, gtc::GoThroughConstraint; time)
     getid(ibn) != gtc.node[1] && (@warn "Cannot compile LowLevelIntent from another IBN"; return)
     node = gtc.node[2]
 
@@ -61,29 +61,29 @@ function compile!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, gtc::GoThroughCo
     elseif signalocreq in [signalFiberIn, signalFiberOut] && gtc.req isa SpectrumRequirements
         sreqs = gtc.req
         cedg = localedge(ibn, sreqs.cedge)
-        lli = NodeSpectrumIntent(node, NestedGraphs.edge(ibn.cgr, cedg), sreqs.frslots, sreqs.bandwidth)
+        lli = NodeSpectrumIntent(node, NestedGraphs.edge(ibn.ngr, cedg), sreqs.frslots, sreqs.bandwidth)
         addchild!(dag, getid(idn), lli)
     end
-    try2setstate!(idn, dag, ibn, Val(compiled))
+    try2setstate!(idn, dag, ibn, Val(compiled); time)
 end
 
 """
 To solve an EdgeIntent, we basically need to only satisfy the constraints
 """
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}) where {R<:EdgeIntent}
+function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}; time) where {R<:EdgeIntent}
     intent = getintent(idagnode)
     if applicable(iterate, getconstraints(intent))
         for constr in getconstraints(intent)
-            compile!(ibn, dag, idagnode, constr)
+            compile!(ibn, dag, idagnode, constr; time)
         end
     else
-        compile!(ibn, dag, idagnode, getconstraints(intent))
+        compile!(ibn, dag, idagnode, getconstraints(intent); time)
     end
 end
 
 "Handles interdomain connectivity intents"
 function shortestavailpath!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
-                k=5)  where {T<:ConnectivityIntent, R<:IntentDirection}
+                time, k=5)  where {T<:ConnectivityIntent, R<:IntentDirection}
     iidforward = R <: IntentForward
     conint = idagnode.intent
     if iidforward
@@ -92,7 +92,7 @@ function shortestavailpath!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::Inte
         myintent = DomainConnectivityIntent(getid(ibnc), getdst(conint) , getconstraints(conint), getconditions(conint))
     end
     domint = addchild!(dag, getid(idagnode), myintent)
-    state = compile!(ibnp, dag, domint, shortestavailpath!; k=k)
+    state = compile!(ibnp, dag, domint, shortestavailpath!; time, k)
 
     # create an intent for fellow ibn
     if state == compiled
@@ -101,14 +101,14 @@ function shortestavailpath!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::Inte
         pintent = getintent(pintdn)
         updatedconstraints = adjustNpropagate_constraints!(ibnp, dag)
         if iidforward
-            transnode = (getid(ibnc), ibnp.cgr.vmap[pintent.path[end]][2])
+            transnode = (getid(ibnc), ibnp.ngr.vmap[pintent.path[end]][2])
             # need to update constraints
             remintent = ConnectivityIntent(transnode, getdst(conint), updatedconstraints, getconditions(myintent))
         else
-            transnode = (getid(ibnc), ibnp.cgr.vmap[pintent.path[1]][2])
+            transnode = (getid(ibnc), ibnp.ngr.vmap[pintent.path[1]][2])
             remintent = ConnectivityIntent(getsrc(conint), transnode, updatedconstraints, getconditions(myintent))
         end
-        success = delegateintent!(ibnp, ibnc, dag, idagnode, remintent, shortestavailpath!; k=k)
+        success = delegateintent!(ibnp, ibnc, dag, idagnode, remintent, shortestavailpath!; time, k=k)
     end
 
     # deploy the intent to the fellow ibn
@@ -119,11 +119,11 @@ end
 Handles intra-domain connectivity intents.
 Delegates all constraints to a PathIntent
 """
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent; k = 5) where {R<:ConnectivityIntent}
+function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent; time, k = 5) where {R<:ConnectivityIntent}
     conint = idagnode.intent
     src = getsrcdom(conint) == getid(ibn) ? getsrcdomnode(conint) : localnode(ibn, getsrc(conint), subnetwork_view=false)
     dst = getdstdom(conint) == getid(ibn) ? getdstdomnode(conint) : localnode(ibn, getdst(conint), subnetwork_view=false)
-    paths = yen_k_shortest_paths(ibn.cgr.flatgr, src, dst, linklengthweights(ibn.cgr.flatgr), k).paths
+    paths = yen_k_shortest_paths(ibn.ngr.flatgr, src, dst, linklengthweights(ibn.ngr.flatgr), k).paths
 #    interconstraints = Dict{Int, Vector{IntentConstraint}}()
     for path in paths
         pint = getcompliantintent(ibn, conint, PathIntent, path)
@@ -134,15 +134,15 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
                 # if another's ibn node inside the path, issue remoteintent
                 if lli.node in transnodes(ibn, subnetwork_view = false)
                     pairconstr = intent2constraint(lli, ibn)
-                    delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!)
+                    delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
 #                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
                 else
                     addchild!(dag, childnode.id, lli)
                 end
             end
 #            push2dict!(interconstraints, shortestavailpath!(ibn, dag, childnode, IntraIntent()))
-            shortestavailpath!(ibn, dag, childnode, IntraIntent())
-            try2setstate!(idagnode, dag, ibn, Val(compiled))
+            shortestavailpath!(ibn, dag, childnode, IntraIntent(); time)
+            try2setstate!(idagnode, dag, ibn, Val(compiled); time)
             break
         end
     end
@@ -152,7 +152,7 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
 #    return interconstraints
 end
 
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent) where {R<:PathIntent}
+function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent; time) where {R<:PathIntent}
     pathint = idagnode.intent
     interconstraints = Dict{Int, Vector{IntentConstraint}}()
     cc = getfirst(x -> x isa CapacityConstraint, pathint.constraints)
@@ -164,7 +164,7 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
             if getoptreach(transp) < distance(ibn, pathint.path)
                 error("Regeneration needed. Still not implemented.")
             else
-                fs = [get_prop(ibn.cgr, e, :link) for e in edgeify(pathint.path)]
+                fs = [get_prop(ibn.ngr, e, :link) for e in edgeify(pathint.path)]
                 startingslot = firstfit(fs, getslots(transp))
                 speint = getcompliantintent(ibn, pathint, SpectrumIntent, pathint.path, getrate(transp), startingslot:startingslot+getslots(transp)-1)
                 if speint !== nothing && isavailable(ibn, dag, speint)
@@ -172,14 +172,14 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
                     for lli in lowlevelintents(ibn, childnode.intent)
                         if lli.node in transnodes(ibn, subnetwork_view = false)
                             pairconstr = intent2constraint(lli, ibn)
-                            delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!)
+                            delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
 #                            push2dict!(interconstraints, pairconstr.first, pairconstr.second)
                         else
                             addchild!(dag, childnode.id, lli)
                         end
                     end
-                    try2setstate!(childnode, dag, ibn, Val(compiled))
-                    try2setstate!(idagnode, dag, ibn, Val(compiled))
+                    try2setstate!(childnode, dag, ibn, Val(compiled); time)
+                    try2setstate!(idagnode, dag, ibn, Val(compiled); time)
                     break
                 end
             end
@@ -188,7 +188,7 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
 #    return interconstraints
 end
 
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}; k=5) where {R<:DomainConnectivityIntent}
+function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}; time, k=5) where {R<:DomainConnectivityIntent}
     intent = getintent(idagnode)
     neibn, yenstates = calc_kshortestpath(ibn, intent)
     paths = reduce(vcat, getfield.(yenstates, :paths))
@@ -204,14 +204,14 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
             for lli in lowlevelintents(ibn, childnode.intent)
                 if lli.node in transnodes(ibn, subnetwork_view = false)
                     pairconstr = intent2constraint(lli, ibn)
-                    delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!)
+                    delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
 #                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
                 else
                     addchild!(dag, childnode.id, lli)
                 end
             end
-            shortestavailpath!(ibn, dag, childnode, IntraIntent())
-            try2setstate!(idagnode, dag, ibn, Val(compiled))
+            shortestavailpath!(ibn, dag, childnode, IntraIntent(); time)
+            try2setstate!(idagnode, dag, ibn, Val(compiled); time)
             break
         end
     end
@@ -220,13 +220,13 @@ end
 
 function calc_kshortestpath(ibn::IBN, intent::DomainConnectivityIntent{Tuple{Int,Int}, Int}; k=5)
     neibn = getibn(ibn, getdst(intent))
-    yenstates = [yen_k_shortest_paths(ibn.cgr.flatgr, getsrc(intent)[2], transnode, linklengthweights(ibn.cgr.flatgr), k) 
+    yenstates = [yen_k_shortest_paths(ibn.ngr.flatgr, getsrc(intent)[2], transnode, linklengthweights(ibn.ngr.flatgr), k) 
                  for transnode in nodesofcontroller(ibn, getindex(ibn, neibn))]
     return (neibn, yenstates)
 end
 function calc_kshortestpath(ibn::IBN, intent::DomainConnectivityIntent{Int, Tuple{Int,Int}}; k=5)
     neibn = getibn(ibn, getsrc(intent))
-    yenstates = [yen_k_shortest_paths(ibn.cgr.flatgr, transnode, getdst(intent)[2], linklengthweights(ibn.cgr.flatgr), k) 
+    yenstates = [yen_k_shortest_paths(ibn.ngr.flatgr, transnode, getdst(intent)[2], linklengthweights(ibn.ngr.flatgr), k) 
                  for transnode in nodesofcontroller(ibn, getindex(ibn, neibn))]
     return (neibn, yenstates)
 end

@@ -18,7 +18,7 @@ import Term
 @reexport import AbstractTrees:isroot
 
 export Counter
-export SDN, SDNdummy
+export SDN, SDNdummy, IBNEnv, updatetime!, resettime!
 export IBN, addintent!, deploy!, transnodes, issatisfied
 export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
@@ -32,7 +32,6 @@ const THours = typeof(1.0u"hr")
 
 include("Types/types.jl")
 const COUNTER = Counter()
-const IBNFPROPS = IBNFProps(0.0u"hr")
 
 include("SDN/SDN.jl")
 include("IBN/IBN.jl")

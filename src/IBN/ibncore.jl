@@ -1,12 +1,12 @@
 #TODO not good minus 1
-getgraph(ibn::IBN) = ibn.cgr.flatgr
+getgraph(ibn::IBN) = ibn.ngr.flatgr
 getcontrollers(ibn::IBN) = ibn.controllers
 getid(ibn::IBN) = ibn.id
 getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
 getindex(ibn::IBN, c::R) where {R<:Intent} = findfirst(==(c), getfield.(ibn.intents, :data))
 getindex(ibn::IBN, c::R) where {R<:IntentDAG} = findfirst(==(c), ibn.intents)
-controllerofnode(ibn::IBN, node::Int) = ibn.controllers[domain(ibn.cgr, node)]
-nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.cgr.vmap) if nd[1] == ci]
+controllerofnode(ibn::IBN, node::Int) = ibn.controllers[domain(ibn.ngr, node)]
+nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.ngr.vmap) if nd[1] == ci]
 getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
 getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
 getibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, getibns(ibn))
@@ -16,9 +16,9 @@ getintentissuer(ibn::IBN, intid::Int) = let i = getintentindex(ibn, intid); i !=
 "returns trans nodes of the IBN in the format of (IBN id, node id)"
 function transnodes(ibn::IBN; subnetwork_view=true)
     if subnetwork_view 
-        [(getid(ibn.controllers[v[1]]), v[2]) for v in ibn.cgr.vmap if ibn.controllers[v[1]] isa IBN]
+        [(getid(ibn.controllers[v[1]]), v[2]) for v in ibn.ngr.vmap if ibn.controllers[v[1]] isa IBN]
     else
-        [v for v in vertices(ibn.cgr) if ibn.controllers[ibn.cgr.vmap[v][1]] isa IBN]
+        [v for v in vertices(ibn.ngr) if ibn.controllers[ibn.ngr.vmap[v][1]] isa IBN]
     end
 end
 
@@ -27,19 +27,19 @@ function localnode(ibn::IBN, domnod::Tuple{Int,Int}; subnetwork_view=true)
     #domnod[2] is the same as the local view. just have to find the internal representation of IBN domnode[1]
     if domnod[1] == getid(ibn)
         if subnetwork_view
-            return ibn.cgr.vmap[domnod[2]]
+            return ibn.ngr.vmap[domnod[2]]
         else
-            if ibn.cgr.vmap[domnod[2]] in ibn.cgr.vmap
+            if ibn.ngr.vmap[domnod[2]] in ibn.ngr.vmap
                 return domnod[2]
             end
         end
     else
         idx = findfirst(==(domnod[1]), getid.(getcontrollers(ibn)))
-        if (idx, domnod[2]) in ibn.cgr.vmap
+        if (idx, domnod[2]) in ibn.ngr.vmap
             if subnetwork_view
                 return (idx, domnod[2])
             else
-                return vertex(ibn.cgr, (idx, domnod[2]))
+                return vertex(ibn.ngr, (idx, domnod[2]))
             end
         else
             return nothing
@@ -51,7 +51,7 @@ end
 function globalnode(ibn::IBN, node::Int)
     contr = controllerofnode(ibn, node)
     if contr isa IBN
-        return (getid(contr), ibn.cgr.vmap[node][2])
+        return (getid(contr), ibn.ngr.vmap[node][2])
     else
         return (getid(ibn), node)
     end
@@ -72,8 +72,8 @@ globaledge(ibn::IBN, ed::Edge) = NestedEdge(globalnode(ibn, src(ed)), globalnode
 #TODO implement a different method (Channels, Tasks, yield)
 
 
-Base.show(io::IO, ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.cgr), $(ibn.interprops))")
-Base.show(io::IO, ::MIME"text/plain", ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.cgr), $(ibn.interprops))")
+Base.show(io::IO, ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.ngr), $(ibn.interprops))")
+Base.show(io::IO, ::MIME"text/plain", ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.ngr), $(ibn.interprops))")
 
 function connect(ibn1::IBN, ibn2::IBN, e::Edge)
     push!(ibn1.interprops)
@@ -113,15 +113,15 @@ function connectIBNs!(ibn1::IBN, ibn2::IBN, cedges::Vector{NestedEdge{T}}, dprop
     # build graph as prrovided from the other ibn
     gr2, vmap2 = subgraph(ibn2, ibn1)
     v2add = [vp for vp in v2list if !has_vertex(gr2, vp)]
-    add_vertices!(gr2, ibn2.cgr, v2add)
+    add_vertices!(gr2, ibn2.ngr, v2add)
 
     gr1, vmap1 = subgraph(ibn1, ibn2)
     v1add = [vp for vp in v1list if !has_vertex(gr1, vp)]
-    add_vertices!(gr1, ibn1.cgr, v1add)
+    add_vertices!(gr1, ibn1.ngr, v1add)
     
-    NestedGraphs.add_vertex!(ibn1.cgr, gr2, cedges, dprops; vmap=vcat(vmap2, v2add), both_ways=true)
+    NestedGraphs.add_vertex!(ibn1.ngr, gr2, cedges, dprops; vmap=vcat(vmap2, v2add), both_ways=true)
     #reverse cedges
-    NestedGraphs.add_vertex!(ibn2.cgr, gr1, cedges, dprops; vmap=vcat(vmap1, v1add), both_ways=true, rev_cedges=true)
+    NestedGraphs.add_vertex!(ibn2.ngr, gr1, cedges, dprops; vmap=vcat(vmap1, v1add), both_ways=true, rev_cedges=true)
 end
 
 "Incorporate new SDN to the IBN structure"

@@ -35,17 +35,17 @@ function isintraintent(ibn::IBN, intent::ConnectivityIntent)
     end
 end
 
-function setstate!(idn, dag, ibn::IBN, newstate::IntentState)
+function setstate!(idn, dag, ibn::IBN, newstate::IntentState; time)
     idn.state == newstate && return
     if newstate == compiled
-        setstate!(idn, dag, ibn, Val(compiled))
+        setstate!(idn, dag, ibn, Val(compiled); time)
     elseif newstate == installed
-        setstate!(idn, dag, ibn, Val(installed))
+        setstate!(idn, dag, ibn, Val(installed); time)
     elseif newstate == failure
-        setstate!(idn, dag, ibn, Val(failure))
+        setstate!(idn, dag, ibn, Val(failure); time)
     else
         idn.state = newstate
-        push!(idn.logstate, (IBNFPROPS.time, newstate))
+        push!(idn.logstate, (time, newstate))
     end
 end
 
@@ -53,107 +53,107 @@ end
 """propagate state in the DAG
 "compiled" and "installed" states start only from `LowLevelIntents` and propagte the tree up to the root
 """
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled}; time)
     idn.state == compiled && return
     idn.state = compiled
-    push!(idn.logstate, (IBNFPROPS.time, compiled))
+    push!(idn.logstate, (time, compiled))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), compiled)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), compiled; time)
         end
     else
         for par in parents(dag, idn)
-            try2setstate!(par, dag, ibn, Val(compiled))
+            try2setstate!(par, dag, ibn, Val(compiled); time)
         end
     end
 end
 
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{uncompiled})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{uncompiled}; time)
     idn.state == uncompiled && return
     idn.state = uncompiled
-    push!(idn.logstate, (IBNFPROPS.time, uncompiled))
+    push!(idn.logstate, (time, uncompiled))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), uncompiled)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), uncompiled; time)
         end
     else
         @warn("Uncompiled intent with parents")
     end
 end
 
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed}; time)
     idn.state == installed && return
     idn.state = installed
-    push!(idn.logstate, (IBNFPROPS.time, installed))
+    push!(idn.logstate, (time, installed))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), installed)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), installed; time)
         end
     else
         for par in parents(dag, idn)
-            try2setstate!(par, dag, ibn, Val(installed))
+            try2setstate!(par, dag, ibn, Val(installed); time)
         end
     end
 end
 
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{failure})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{failure}; time)
     idn.state == failure && return
     idn.state = failure
-    push!(idn.logstate, (IBNFPROPS.time, failure))
+    push!(idn.logstate, (time, failure))
     if isroot(dag, idn)
         intentissuer = getintentissuer(ibn, getid(dag))
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
             ibnid = intentissuer.ibnid
             ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), failure)
+            setstate!(ibncustomer, ibn, getid(ibn), getid(dag), failure; time)
         end
     else
         for par in parents(dag, idn)
-            setstate!(par, dag, ibn, Val(failure))
+            setstate!(par, dag, ibn, Val(failure); time)
         end
     end
 end
 
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installing}; time)
     idn.state == installing && return
     idn.state = installing
-    push!(idn.logstate, (IBNFPROPS.time, installing))
+    push!(idn.logstate, (time, installing))
 end
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{installfailed}; time)
     idn.state == installfailed && return
     idn.state = installfailed; 
-    push!(idn.logstate, (IBNFPROPS.time, installfailed))
+    push!(idn.logstate, (time, installfailed))
 end
 # TODO do i need to update parents ?
-function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{compiling})
+function setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn, newstate::Val{compiling}; time)
     idn.state == compiling && return
     idn.state = compiling; 
-    push!(idn.logstate, (IBNFPROPS.time, compiling))
+    push!(idn.logstate, (time, compiling))
 end
 
 """
 Checks all children of `idn` and if all are compiled, `idn` is getting in the compiled state also.
 If not, it gets in the `compiling` state.
 """
-function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled})
+function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{compiled}; time)
     descs = descendants(dag, idn)
     if all(x -> x.state in [compiled, installed, installing, installfailed], descs)
-        setstate!(idn, dag, ibn, Val(compiled))
+        setstate!(idn, dag, ibn, Val(compiled); time)
     elseif any(x -> x.state in [uncompiled, compiling], descs)
-        setstate!(idn, dag, ibn, Val(compiling))
+        setstate!(idn, dag, ibn, Val(compiling); time)
     end
 end
 
@@ -161,12 +161,12 @@ end
 Checks all children of `idn` and if all are installed, `idn` is getting in the installed state also.
 If not, it gets in the `installing` state.
 """
-function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed})
+function try2setstate!(idn::IntentDAGNode, dag::IntentDAG, ibn::IBN, newstate::Val{installed}; time)
     descs = descendants(dag, idn)
     if all(x -> x.state == installed, descs)
-        setstate!(idn, dag, ibn, Val(installed))
+        setstate!(idn, dag, ibn, Val(installed); time)
     else
-        setstate!(idn, dag, ibn, Val(installing))
+        setstate!(idn, dag, ibn, Val(installing); time)
     end
 end
 

@@ -396,16 +396,16 @@ getfield.(myibns[1].intents, :data)
 myibns[1]
 
 # ╔═╡ 14a2ea48-3299-4af0-a8ac-ceec9a39775c
-myibns[1].cgr.flatgr
+myibns[1].ngr.flatgr
 
 # ╔═╡ f684b147-d211-4d0e-8a38-9e47310d9d9a
-myibns[1].cgr.grv
+myibns[1].ngr.grv
 
 # ╔═╡ 8faf476c-4e2f-44f2-841a-d5a3a14bc4a2
-myibns[1].cgr.vmap
+myibns[1].ngr.vmap
 
 # ╔═╡ 9d1de2df-ab62-4d98-9968-57cbe18d05d4
-myibns[1].cgr.ceds
+myibns[1].ngr.ceds
 
 # ╔═╡ ae250b96-e5a1-4212-b747-a02e8c86df0e
 md"## Demonstrate Intent Tree functionality (manually)"

@@ -227,7 +227,7 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
         fibin.slots == fibout.slots || return false
         fibin.bandwidth == fibout.bandwidth || return false
         ledge = localedge(xin.ibn, fibin.edge; subnetwork_view=false)
-        sumkms += get_prop(xin.ibn.cgr, ledge, :link) |> distance
+        sumkms += get_prop(xin.ibn.ngr, ledge, :link) |> distance
     end
     delay(sumkms) <= cc.delay || return false
     return true
