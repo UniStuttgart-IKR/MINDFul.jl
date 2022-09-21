@@ -218,3 +218,24 @@ function _descendants_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::I
         _descendants_recu!(vidns, dag, chidn)
     end
 end
+
+
+
+getremoteintentsid(ibn::IBN, intentidx::Int) = getremoteintentsid(ibn, ibn.intents[intentidx])
+function getremoteintentsid(ibn::IBN, dag::IntentDAG)
+    ibnid_intentid = Vector{Tuple{Int, Int}}()
+    _getremoteintentsid_recu!(ibn, dag, ibnid_intentid)
+    ibnid_intentid
+end
+
+function _getremoteintentsid_recu!(ibn::IBN, dag::IntentDAG, ibnid_intentid)
+    for leaf in getleafs(dag)
+        intent = leaf.intent
+        if intent isa RemoteIntent
+            push!(ibnid_intentid, (intent.ibnid, intent.intentidx))
+            remibn = getibn(ibn, intent.ibnid)
+            remdag = getintent(remibn, intent.intentidx)
+            _getremoteintentsid_recu!(remibn, remdag, ibnid_intentid)
+        end
+    end
+end

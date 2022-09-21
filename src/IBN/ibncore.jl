@@ -177,3 +177,28 @@ function subgraph(ibnp::IBN, ibnc::IBN)
     return (MetaDiGraph(), Vector{Int}())
 end
 
+
+function getintentidxsfromissuer(ibn::IBN, ibnid::Int, intentidx::Int)
+    idxs = Vector{Int}()
+    for (i,iis) in enumerate(ibn.intentissuers) 
+        if iis isa IBNIssuer
+            iis.ibnid==ibnid && iis.intentidx == intentidx && push!(idxs, i)
+        else
+            ibn.id == ibnid && i == intentidx && push!(idxs, i)
+        end
+    end
+    idxs
+end
+
+function getintentidxsfromissuer(ibn::IBN, ibnid::Int)
+    idxs = Vector{Int}()
+    for (i,iis) in enumerate(ibn.intentissuers) 
+        if iis isa IBNIssuer
+            iis.ibnid==ibnid && push!(idxs, i)
+        else
+            ibn.id == ibnid && push!(idxs, i)
+        end
+    end
+    idxs
+end
+

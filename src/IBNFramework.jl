@@ -22,7 +22,7 @@ export SDN, SDNdummy, IBNEnv, updatetime!, resettime!
 export IBN, addintent!, deploy!, transnodes, issatisfied
 export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
-export getroot, addchild!, children, descendants, getintent, getintentissuer
+export getroot, addchild!, children, descendants, getintent, getintentissuer, getintentidxsfromissuer, getremoteintentsid
 export simgraph, nestedGraph2IBNs!, randomsimgraph! 
 export anyreservations, set_operation_status!
 export @at, updateIBNFtime!, resetIBNF!
