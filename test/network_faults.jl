@@ -2,21 +2,21 @@ using Chain, Parameters
 using Test
 using Graphs, MetaGraphs, NetworkLayout
 using EzXML, GraphIO
-using IBNFramework
+using MINDFul
 using NestedGraphs
 using TestSetExtensions
 using Logging
 
-using IBNFramework: uncompiled, compiled, installed
-IBNF = IBNFramework
+using MINDFul: uncompiled, compiled, installed
+MINDF = MINDFul
 
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
 testdir =  dirname(@__FILE__)
 globalnet0 = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
-globalnet = IBNFramework.simgraph(globalnet0)
+globalnet = MINDFul.simgraph(globalnet0)
 
-myibns = IBNFramework.nestedGraph2IBNs!(globalnet)
+myibns = MINDFul.nestedGraph2IBNs!(globalnet)
 
 # useless
 ibnenv = IBNEnv(myibns, globalnet2)

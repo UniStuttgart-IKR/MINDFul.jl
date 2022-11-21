@@ -2,21 +2,21 @@ using Chain, Parameters
 using Test
 using Graphs, MetaGraphs, NetworkLayout
 using EzXML, GraphIO
-using IBNFramework
+using MINDFul
 using NestedGraphs
 using TestSetExtensions
 using Logging
 
-using IBNFramework: uncompiled, compiled, installed
-IBNF = IBNFramework
+using MINDFul: uncompiled, compiled, installed
+MINDF = MINDFul
 
 resetIBNF!()
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
 globalnet = loadgraph(open("../data/networksnest2.graphml"), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
-globalnet = IBNFramework.simgraph(globalnet)
+globalnet = MINDFul.simgraph(globalnet)
 
-myibns = IBNFramework.nestedGraph2IBNs!(globalnet)
+myibns = MINDFul.nestedGraph2IBNs!(globalnet)
 
 
 function capacity_N_gothrough(myibns, ibn1idx, ibn1node, ibn2idx, ibn2node, ibnIssueidx, gothroughnode)

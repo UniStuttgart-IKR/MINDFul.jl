@@ -16,7 +16,7 @@ begin
 	using Test
 	using Graphs, MetaGraphs, NetworkLayout
 	using EzXML, GraphIO
-	using IBNFramework
+	using MINDFul
 	using NestedGraphs
 	using TestSetExtensions
 	using GraphMakie
@@ -55,16 +55,16 @@ myibns = nestedGraph2IBNs!(globalnet)
 # ╔═╡ 844534b2-ab28-4405-be3a-5debfa8541db
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1],myibns, layout=IBNFramework.coordlayout, curve_distance=0.2)
+	ibnplot(f[1,1],myibns, layout=MINDFul.coordlayout, curve_distance=0.2)
 	f
 end
 
 # ╔═╡ 3a2e6829-df5a-4fd5-8c51-7d67398fc619
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1], myibns[1], layout=IBNFramework.coordlayout, curve_distance=0.2, subnetwork_view=true)
-	ibnplot(f[1,2], myibns[2], layout=IBNFramework.coordlayout, curve_distance=0.2, subnetwork_view=true)
-	ibnplot(f[2,2], myibns[3], layout=IBNFramework.coordlayout, curve_distance=0.2, subnetwork_view=true)
+	ibnplot(f[1,1], myibns[1], layout=MINDFul.coordlayout, curve_distance=0.2, subnetwork_view=true)
+	ibnplot(f[1,2], myibns[2], layout=MINDFul.coordlayout, curve_distance=0.2, subnetwork_view=true)
+	ibnplot(f[2,2], myibns[3], layout=MINDFul.coordlayout, curve_distance=0.2, subnetwork_view=true)
 	f
 end
 
@@ -81,7 +81,7 @@ getid(myibns[1].controllers[3])
 md"# IBN Framework Progress
 1. Developed proof-of-concept methodology for ConnectivityIntents
 2. Intra-IBN, Inter-IBN, Intra-SDN, Inter-SDN intent deployment
-3. Worked towards an `IBNFramework` methodology interface
+3. Worked towards an `MINDFul` methodology interface
 4. Intent Tree partial automatization
 5. Effort on visualization methods"
 
@@ -95,8 +95,8 @@ md"# IBNConnectivityIntent
 let
 	conint = IBNConnectivityIntent((myibns[1].id,4), myibns[2].id, [CapacityConstraint(5)])
 	intidx = addintent!(myibns[1], conint)
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
-	f=IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!)
+	f=MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization)
 	(intidx,f)
 end
 
@@ -107,7 +107,7 @@ myibns[1].intents[1].data
 # ╔═╡ 8b535f02-2391-4e30-b9be-38e2bf55a198
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1],myibns[1], layout=IBNFramework.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, intentidx=1)
+	ibnplot(f[1,1],myibns[1], layout=MINDFul.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, intentidx=1)
 	f
 end
 
@@ -167,8 +167,8 @@ md"### across the same node. must be false"
 let
 	conint = ConnectivityIntent((myibns[1].id,4), (myibns[1].id,4), [CapacityConstraint(5)])
 	intidx = addintent!(myibns[1], conint)
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!)
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization)
 end
 
 
@@ -180,8 +180,8 @@ md"### intra SDN, intra IBN intent"
 let
 	conint = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(5)]);
 	intidx = addintent!(myibns[1], conint);
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!);
-	success = IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization);
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!);
+	success = MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization);
 	(intidx, success)
 end
 
@@ -189,7 +189,7 @@ end
 # ╔═╡ 27afca4e-5a09-466c-9e77-9abcbd1c570e
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1],myibns[1], layout=IBNFramework.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, intentidx=3)
+	ibnplot(f[1,1],myibns[1], layout=MINDFul.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, intentidx=3)
 	f
 end
 
@@ -201,8 +201,8 @@ md"### inter SDN, intra IBN intent"
 let
 	conint = ConnectivityIntent((myibns[1].id,2), (myibns[1].id,7), [CapacityConstraint(5)]);
 	intidx = addintent!(myibns[1], conint);
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!);
-	f=IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization);
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!);
+	f=MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization);
 	(intidx,f)
 end
 
@@ -210,7 +210,7 @@ end
 # ╔═╡ df5dfe5e-08e1-4b6f-a2e2-be951634e72a
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1], myibns[1], layout=IBNFramework.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, intentidx=4)
+	ibnplot(f[1,1], myibns[1], layout=MINDFul.coordlayout, show_routers=true, show_links=true, curve_distance=0.3, intentidx=4)
 	f
 end
 
@@ -221,8 +221,8 @@ md"### inter IBN Intent: src the IBN, destination known"
 let
 	conint = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,3), [CapacityConstraint(5)])
 	intidx = addintent!(myibns[1], conint)
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
-	f=IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!)
+	f=MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization)
 	(f, intidx)
 end
 
@@ -230,7 +230,7 @@ end
 # ╔═╡ dfc3982e-3da2-41d1-a085-ff4d1c4f9f3f
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1], myibns[1:2], intentidx=5,layout=IBNFramework.coordlayout, show_routers=true, show_links=false, curve_distance=0.5)
+	ibnplot(f[1,1], myibns[1:2], intentidx=5,layout=MINDFul.coordlayout, show_routers=true, show_links=false, curve_distance=0.5)
 	f
 end
 
@@ -240,7 +240,7 @@ print_tree_extended(myibns[1].intents[5])
 end
 
 # ╔═╡ d8d53d27-e41d-46a3-9a80-09ca582f08a9
-D3Tree(IBNFramework.ExtendedIntentTree(myibns[1], 5), svg_height=300)
+D3Tree(MINDFul.ExtendedIntentTree(myibns[1], 5), svg_height=300)
 
 # ╔═╡ ca459f61-bef2-458e-9aa8-cbf1aa5db361
 myibns[2].intentissuers[1]
@@ -252,8 +252,8 @@ md"### inter IBN Intent: src the IBN, destination unknown"
 let
 	conint = ConnectivityIntent((myibns[1].id,1), (myibns[3].id,1), [CapacityConstraint(5)]);
 	intidx = addintent!(myibns[1], conint);
-	IBNFramework.deploy!(myibns[1],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!);
-	f=IBNFramework.deploy!(myibns[1],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization);
+	MINDFul.deploy!(myibns[1],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!);
+	f=MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization);
 	(intidx,f)
 end
 
@@ -261,12 +261,12 @@ end
 # ╔═╡ 0f338b1a-29a9-47bb-a8ce-9f020657f74b
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1], myibns[1:3], intentidx=6,layout=IBNFramework.coordlayout, show_routers=false, show_links=false)
+	ibnplot(f[1,1], myibns[1:3], intentidx=6,layout=MINDFul.coordlayout, show_routers=false, show_links=false)
 	f
 end
 
 # ╔═╡ 92a80526-77f1-40a3-966f-2354c561a67c
-D3Tree(IBNFramework.ExtendedIntentTree(myibns[1], 6), svg_height=400)
+D3Tree(MINDFul.ExtendedIntentTree(myibns[1], 6), svg_height=400)
 
 # ╔═╡ a7f81724-4b81-423d-94e8-009943836640
 md"### inter IBN Intent: src known, destination known (passing through)"
@@ -275,8 +275,8 @@ md"### inter IBN Intent: src known, destination known (passing through)"
 let
 	conint = ConnectivityIntent((myibns[1].id,3), (myibns[3].id,1), [CapacityConstraint(5)])
 	intidx = addintent!(myibns[2], conint)
-	IBNFramework.deploy!(myibns[2],intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.kshortestpath!)
-	f=IBNFramework.deploy!(myibns[2],intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directrealization)
+	MINDFul.deploy!(myibns[2],intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.kshortestpath!)
+	f=MINDFul.deploy!(myibns[2],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directrealization)
 	(intidx,f)
 end
 
@@ -284,16 +284,16 @@ end
 # ╔═╡ 7ef6171a-1cc5-4253-8a21-033045a2e217
 let
 	f= Figure(resolution=(2000,1000))
-	ibnplot(f[1,1], myibns[[2,1,3]], intentidx=3,layout=IBNFramework.coordlayout, show_routers=false, show_links=false)
+	ibnplot(f[1,1], myibns[[2,1,3]], intentidx=3,layout=MINDFul.coordlayout, show_routers=false, show_links=false)
 	f
 end
 
 # ╔═╡ c8a1f62a-c6b1-423e-87c4-86175d688591
-t = D3Tree(IBNFramework.ExtendedIntentTree(myibns[2], 3), svg_height=400)
+t = D3Tree(MINDFul.ExtendedIntentTree(myibns[2], 3), svg_height=400)
 
 # ╔═╡ c9b63408-0224-4dd1-8796-33111f8c3f07
-md"# IBNFramework Plan
-The short term plans for the IBNFramework:
+md"# MINDFul Plan
+The short term plans for the MINDFul:
 ## 1. Check if intents are satisfied
 Important because it's part of the **intent lifetime**
 - Now there is not a detailed enough resource view:
@@ -316,7 +316,7 @@ Important because it's part of the **intent lifetime**
 ## 3. Resource collision detection
 - Upon an invalid compilation throw a collision event
 - Handle the collision event according to the compilation methodology given.
-- Integrate that as to the method interface of IBNFramework
+- Integrate that as to the method interface of MINDFul
 
 ## 4. Simulate a multi layer network
 - Now the network works on a full electrical layer
@@ -334,7 +334,7 @@ Important because it's part of the **intent lifetime**
 ## 7. Event-based simulation
 - Still not a requirement
 - Enables big scale and generic simulations
-- Need to wrap the `IBNFramework` package around the Event-based simulation library
+- Need to wrap the `MINDFul` package around the Event-based simulation library
 "
 
 # ╔═╡ b850abdf-0f8f-425b-94dd-80208f872d39
@@ -357,7 +357,7 @@ Last meeting we identified 3 research directions:
   - Partial Knoweledge Modeling
     - Bayesian Inference
 - Towards integration with ONOS
-   - Interface IBNFramework with ONOS
+   - Interface MINDFul with ONOS
 
 # Papers
 First try a conference proof-on-concept paper and then focus more on the above 3 aspects that could give more papers"
@@ -392,7 +392,7 @@ Paper objective:
 
 
 ## What needs to be done
-- Advancements on the IBNFramework
+- Advancements on the MINDFul
 - Develop an easy proof-of-concept methodology
 - showcase end-to-end QoS guarantee and responsibilities
 - Some more literature research

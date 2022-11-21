@@ -2,21 +2,21 @@ using Chain, Parameters
 using Test
 using Graphs, MetaGraphs, NetworkLayout
 using EzXML, GraphIO
-using IBNFramework
+using MINDFul
 using NestedGraphs
 using TestSetExtensions
 using Logging
 
-using IBNFramework: uncompiled, compiled, installed
-IBNF = IBNFramework
+using MINDFul: uncompiled, compiled, installed
+MINDF = MINDFul
 
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
 testdir =  dirname(@__FILE__)
 globalnet = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
-globalnet2 = IBNFramework.simgraph(globalnet)
+globalnet2 = MINDFul.simgraph(globalnet)
 
-myibns = IBNFramework.nestedGraph2IBNs!(globalnet2)
+myibns = MINDFul.nestedGraph2IBNs!(globalnet2)
 
 # useless
 ibnenv = IBNEnv(myibns, globalnet2)
@@ -73,8 +73,8 @@ end
         # uninstall all intents
         for ibn in myibns
             for (i,iss) in enumerate(ibn.intentissuers)
-                if iss isa IBNFramework.NetworkProvider
-                    deploy!(ibn, i, IBNFramework.douninstall, IBNFramework.SimpleIBNModus(), IBNFramework.directuninstall!; time=freezetime)
+                if iss isa MINDFul.NetworkProvider
+                    deploy!(ibn, i, MINDFul.douninstall, MINDFul.SimpleIBNModus(), MINDFul.directuninstall!; time=freezetime)
                 end
             end
         end
@@ -82,26 +82,26 @@ end
         for ibn in myibns
             @test !anyreservations(ibn)
 
-            allstates = vcat([getfield.(IBNF.get_vertices(ibn.intents[i]), :state) 
+            allstates = vcat([getfield.(MINDF.get_vertices(ibn.intents[i]), :state) 
                               for i in 1:length(ibn.intents)]...)
-            @test !any(==(IBNF.installed), allstates)
+            @test !any(==(MINDF.installed), allstates)
         end
 
         # uncompile al intents
         for ibn in myibns
             while true
-                i = findfirst(x -> x[2] isa IBNFramework.NetworkProvider 
-                              && getroot(ibn.intents[x[1]]).state != IBNFramework.uncompiled,
+                i = findfirst(x -> x[2] isa MINDFul.NetworkProvider 
+                              && getroot(ibn.intents[x[1]]).state != MINDFul.uncompiled,
                               collect(enumerate(ibn.intentissuers)))
                 i === nothing && break
-                intentid = IBNF.getid(ibn.intents[i])
-                deploy!(ibn, intentid, IBNFramework.douncompile, IBNFramework.SimpleIBNModus(); time = freezetime)
+                intentid = MINDF.getid(ibn.intents[i])
+                deploy!(ibn, intentid, MINDFul.douncompile, MINDFul.SimpleIBNModus(); time = freezetime)
             end
         end
         # now test result
         for ibn in myibns
             @test length(ibn.intents) == length(ibn.intentissuers)
-            @test all(x -> x isa IBNF.NetworkProvider, ibn.intentissuers)
+            @test all(x -> x isa MINDF.NetworkProvider, ibn.intentissuers)
             @test all(x -> length(x) == 1 , ibn.intents)
         end
 
@@ -109,8 +109,8 @@ end
         for ibn in myibns
             while true
                 length(ibn.intents) == 0 && break
-                idx = IBNF.getid(ibn.intents[1])
-                IBNF.remintent!(ibn, idx)
+                idx = MINDF.getid(ibn.intents[1])
+                MINDF.remintent!(ibn, idx)
             end
         end
         # and test the results

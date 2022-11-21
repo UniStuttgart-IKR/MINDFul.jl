@@ -1,4 +1,4 @@
-module IBNFramework
+module MINDFul
 
 using Reexport
 using Parameters

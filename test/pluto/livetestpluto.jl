@@ -14,7 +14,7 @@ using Revise
 begin
 	using Graphs, MetaGraphs, NetworkLayout
 	using EzXML, GraphIO
-	using IBNFramework
+	using MINDFul
 	using GraphMakie
 	using CairoMakie
 	using NestedGraphs
@@ -317,33 +317,33 @@ md"### Converting it to optical network graph and to IBNs"
 md"Converting it to a optical network graph"
 
 # ╔═╡ 9ce228f3-1bb5-43f6-90ff-18dc4573436d
-globalnetsim = IBNFramework.simgraph(globalnet)
+globalnetsim = MINDFul.simgraph(globalnet)
 
 # ╔═╡ 019656e7-1a8d-4efc-99be-bdc2d27ff577
-NestedGraphs.cgraphplot(globalnetsim, layout=IBNFramework.coordlayout, 
+NestedGraphs.cgraphplot(globalnetsim, layout=MINDFul.coordlayout, 
 	nlabels=repr.(globalnetsim.vmap))
 
 # ╔═╡ 5a5cb38f-9ce4-4c82-8de6-0c1ab39e1765
 md"Converting it to IBNs"
 
 # ╔═╡ 7eaeb91a-6466-4194-acd7-30d317987c03
-myibns = IBNFramework.nestedGraph2IBNs!(globalnetsim)
+myibns = MINDFul.nestedGraph2IBNs!(globalnetsim)
 
 # ╔═╡ a81d1de4-70bc-4e5f-90f4-04fb3845e325
 md"IBN 1"
 
 # ╔═╡ 09e623b2-cc63-41bc-b382-024917328f17
-IBNFramework.ibnplot(myibns[1], subnetwork_view=false, layout=IBNFramework.coordlayout, 
+MINDFul.ibnplot(myibns[1], subnetwork_view=false, layout=MINDFul.coordlayout, 
 	axis=(title="IBN1", limits = (nothing, 36, nothing, nothing)))
 
 # ╔═╡ e2d11e46-4304-4c72-8ee8-293592a76e24
-IBNFramework.ibnplot(myibns[2], subnetwork_view=true,
-	layout=IBNFramework.coordlayout, 
+MINDFul.ibnplot(myibns[2], subnetwork_view=true,
+	layout=MINDFul.coordlayout, 
 	axis=(title="IBN2", limits = (nothing, 45, nothing, nothing)))
 
 # ╔═╡ 082075a2-4626-4a9d-aff2-c683350c30f9
-IBNFramework.ibnplot(myibns[3], subnetwork_view=true,
-	layout=IBNFramework.coordlayout, 
+MINDFul.ibnplot(myibns[3], subnetwork_view=true,
+	layout=MINDFul.coordlayout, 
 	axis=(title="IBN3", limits = (nothing, 43, nothing, nothing)))
 
 # ╔═╡ fd4b9846-4e3c-4295-82ac-530cd7885615
@@ -353,7 +353,7 @@ md"### intra SDN, intra IBN intent"
 begin 
 	conint1 = ConnectivityIntent((myibns[1].id,1), (myibns[1].id,3), [CapacityConstraint(25)])
 	intidx1 = addintent(myibns[1], conint1)
-	IBNFramework.step!(myibns[1],intidx1, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus())
+	MINDFul.step!(myibns[1],intidx1, MINDFul.InstallIntent(), MINDFul.SimpleIBNModus())
 end
 
 
@@ -364,7 +364,7 @@ md"### inter SDN, intra IBN intent"
 begin
 	conint2 = ConnectivityIntent((myibns[1].id,2), (myibns[1].id,7), [CapacityConstraint(15)])
 	intidx2 = addintent(myibns[1], conint2)
-	s2 = IBNFramework.step!(myibns[1],intidx2, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus())
+	s2 = MINDFul.step!(myibns[1],intidx2, MINDFul.InstallIntent(), MINDFul.SimpleIBNModus())
 	
 end
 
@@ -375,14 +375,14 @@ md"### inter SDN, inter IBN intent (WIP)"
 begin
 	conint3 = ConnectivityIntent((myibns[1].id,2), (myibns[2].id,3), [CapacityConstraint(15)])
 	intidx3 = addintent(myibns[1], conint3)
-	s3 = IBNFramework.step!(myibns[1],intidx3, IBNFramework.InstallIntent(), IBNFramework.SimpleIBNModus())
+	s3 = MINDFul.step!(myibns[1],intidx3, MINDFul.InstallIntent(), MINDFul.SimpleIBNModus())
 	
 end
 
 # ╔═╡ b4143533-0f5c-48d5-ae1f-733f5126c4cb
 begin
 	fig = Figure(resolution=(1000,1000))
-	IBNFramework.ibnplot(fig[1,1],myibns[1], layout=IBNFramework.coordlayout,
+	MINDFul.ibnplot(fig[1,1],myibns[1], layout=MINDFul.coordlayout,
 	show_links=true, show_routers=true,
 	curve_distance_usage = false, elabels_rotation=nothing,
 	axis=(title="IBN1 resource allocations", limits = (nothing, 35, nothing, nothing)))
@@ -436,40 +436,40 @@ md"Add the intents to the tree"
 
 # ╔═╡ ddd22f79-a199-4f89-a0f8-58d0d1cddc63
 begin 
-	IBNFramework.addchild!(intree, intent12)
-	IBNFramework.addchild!(intree, intent23)
+	MINDFul.addchild!(intree, intent12)
+	MINDFul.addchild!(intree, intent23)
 end
 
 # ╔═╡ 315ef037-bb11-4a0c-a29f-1146d6d3afea
 md"Root Intent depends on the children"
 
 # ╔═╡ 1283cc5a-fda4-4958-a402-1d336e8ba466
-IBNFramework.setcompilation!(intree, IBNFramework.InheritIntentCompilation())
+MINDFul.setcompilation!(intree, MINDFul.InheritIntentCompilation())
 
 # ╔═╡ dbef7a78-3c9a-478e-a702-b303555ec9d4
 md"First child intent is handled internalyl in the IBN"
 
 # ╔═╡ 76dec0fa-b465-4561-83d5-a213e0dcbc03
-IBNFramework.setcompilation!(intree.children[1], IBNFramework.ConnectivityIntentCompilation([2,3,4,5,6,10], 50))
+MINDFul.setcompilation!(intree.children[1], MINDFul.ConnectivityIntentCompilation([2,3,4,5,6,10], 50))
 
 # ╔═╡ 1b7c7812-1ec2-4785-b176-21ee45e35819
 md"Second child intent is an external one"
 
 # ╔═╡ c00de4ac-3de5-42d9-9b58-62a4d173d1b9
-IBNFramework.setcompilation!(intree.children[2], IBNFramework.RemoteIntentCompilation())
+MINDFul.setcompilation!(intree.children[2], MINDFul.RemoteIntentCompilation())
 
 # ╔═╡ 4880903c-41e4-4923-ae2c-95a44e3030b4
 md"When child intents appear both as `InstalledIntent`, then the root intent can also be labeld as installed"
 
 # ╔═╡ 8470b675-a959-4585-9a87-32908802385d
-IBNFramework.setstate!(intree.children[1], IBNFramework.InstalledIntent())
+MINDFul.setstate!(intree.children[1], MINDFul.InstalledIntent())
 
 # ╔═╡ e1377d29-9670-4c12-9e21-d7549e71f24a
-IBNFramework.setstate!(intree.children[2], IBNFramework.InstalledIntent())
+MINDFul.setstate!(intree.children[2], MINDFul.InstalledIntent())
 
 # ╔═╡ 6ff336b8-bc87-45b1-85c1-1588c5477bbe
-if all(x -> x isa IBNFramework.InstalledIntent ,IBNFramework.state.(intree.children))
-	IBNFramework.setstate!(intree, IBNFramework.InstalledIntent())
+if all(x -> x isa MINDFul.InstalledIntent ,MINDFul.state.(intree.children))
+	MINDFul.setstate!(intree, MINDFul.InstalledIntent())
 end
 
 # ╔═╡ 353c3448-a855-49a2-a16a-0429cc78c6e8

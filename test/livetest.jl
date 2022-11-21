@@ -2,29 +2,29 @@ using Chain, Parameters
 using Test
 using Graphs, MetaGraphs, NetworkLayout
 using EzXML, GraphIO
-using IBNFramework
+using MINDFul
 using NestedGraphs
 using TestSetExtensions
 using Logging, Unitful
 
-using IBNFramework: uncompiled, compiled, installed
+using MINDFul: uncompiled, compiled, installed
 
-IBNF = IBNFramework
+MINDF = MINDFul
 
 testdir =  dirname(@__FILE__)
 globalnet = loadgraph(open(joinpath(testdir,"..", "data","4nets.graphml")), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
-globalnet = IBNFramework.simgraph(globalnet)
-myibns = IBNFramework.nestedGraph2IBNs!(globalnet)
+globalnet = MINDFul.simgraph(globalnet)
+myibns = MINDFul.nestedGraph2IBNs!(globalnet)
 
 conint = ConnectivityIntent((myibns[1].id, 1), (myibns[1].id, 5), [CapacityConstraint(5)]);
 
 ibn=myibns[1]
 intidx = addintent!(ibn, conint);
-IBNFramework.deploy!(ibn,intidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), IBNFramework.shortestavailpath!;
+MINDFul.deploy!(ibn,intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.shortestavailpath!;
     time= nexttime());
 @test getroot(ibn.intents[intidx]).state == compiled
 
-@at nexttime() IBNFramework.deploy!(ibn,intidx, IBNFramework.doinstall, IBNFramework.SimpleIBNModus(), IBNFramework.directinstall!;
+@at nexttime() MINDFul.deploy!(ibn,intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directinstall!;
     time = nexttime());
 
 @test getroot(ibn.intents[intidx]).state == installed

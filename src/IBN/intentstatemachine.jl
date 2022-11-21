@@ -167,7 +167,7 @@ function install!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; 
         if lidn.intent isa RemoteIntent
             remibn = getibn(ibn, lidn.intent.ibnid)
             deploy!(ibn, remibn, lidn.intent.intentidx, 
-                  doinstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
+                  doinstall, MINDFul.SimpleIBNModus(), algmethod; algargs...)
         else
             algmethod(ibn, dag, lidn; algargs...)
         end
@@ -183,7 +183,7 @@ function uninstall!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T
         if lidn.intent isa RemoteIntent
             remibn = getibn(ibn, lidn.intent.ibnid)
             deploy!(ibn, remibn, lidn.intent.intentidx, 
-                  douninstall, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
+                  douninstall, MINDFul.SimpleIBNModus(), algmethod; algargs...)
         else
             algmethod(ibn, dag, lidn; algargs...)
         end

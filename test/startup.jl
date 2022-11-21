@@ -1,5 +1,5 @@
 using Revise
-using DrawIBNFramework
-using IBNFramework
+using MINDFulMakie
+using MINDFul
 include("runtests.jl")
 ibnplot(myibns)

@@ -159,7 +159,7 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
     if cc !== nothing
         # choose transponder
         # TODO parametric
-        transponders = sort(filter(x -> getrate(x) >= cc.drate, transponderset()),  by = x -> IBNFramework.getoptreach(x), rev=true)
+        transponders = sort(filter(x -> getrate(x) >= cc.drate, transponderset()),  by = x -> MINDFul.getoptreach(x), rev=true)
         for transp in transponders
             if getoptreach(transp) < distance(ibn, pathint.path)
                 error("Regeneration needed. Still not implemented.")

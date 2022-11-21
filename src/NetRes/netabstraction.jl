@@ -116,8 +116,8 @@ end
 
 doesoperate(fv::FiberView) = fv.operates
 
-function set_operation_status!(ibn::IBN, device::FiberView, status::Bool; time)
-    if device.operates != status
+function set_operation_status!(ibn::IBN, device::FiberView, status::Bool; time, forcelog=false)
+    if device.operates != status || forcelog
         device.operates = status
         push!(device.logstate, (time, device.operates))
 

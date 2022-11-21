@@ -2,3 +2,6 @@
 *.html
 *.pdf
 .vscode/
+docs/build/
+*.cov
+mynotes.norg

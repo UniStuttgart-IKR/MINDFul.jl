@@ -128,7 +128,7 @@ function delegateintent!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idn::IntentDAGNod
     ibnpissuer = IBNIssuer(getid(ibnc), getid(dag), getid(idn))
     remidx = addintent!(ibnpissuer, ibns, getintent(remintr))
     addchild!(dag, getid(remintr), RemoteIntent(getid(ibns), remidx))
-    return deploy!(ibnc, ibns, remidx, IBNFramework.docompile, IBNFramework.SimpleIBNModus(), algmethod; algargs...)
+    return deploy!(ibnc, ibns, remidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), algmethod; algargs...)
 end
 
 function setstate!(ibnc::IBN, ibns::IBN, intentibnid::Int, intentidx::Int, state::IntentState; time)
