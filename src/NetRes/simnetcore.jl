@@ -94,9 +94,10 @@ function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
     return simgr
 end
 euclidean_dist(possrc, posdst) = sqrt(sum((possrc .- posdst) .^ 2))
+geodesic_dist(possrc, posdst) = haversine(possrc, posdst, EARTH_RADIUS)
 
 function simgraph(ng::G; distance_method=euclidean_dist) where G<:NestedMetaGraph
-    cgnew = G()
+    cgnew = G(;extrasubgraph=false)
     for gr in ng.grv
         add_vertex!(cgnew, simgraph(gr; distance_method=distance_method))
     end

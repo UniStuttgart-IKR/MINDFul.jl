@@ -1,6 +1,5 @@
 module MINDFul
 
-using Reexport
 using Parameters
 using Graphs, MetaGraphs
 using DocStringExtensions
@@ -11,11 +10,10 @@ import MetaGraphsNext as MGN
 import MetaGraphsNext: MetaGraph as MG
 import MetaGraphsNext: MetaDiGraph as MDG
 import IterTools: partition
+import Distances: haversine
+const EARTH_RADIUS = 6371
 
 import Term
-
-@reexport using AbstractTrees
-@reexport import AbstractTrees:isroot
 
 export Counter
 export SDN, SDNdummy, IBNEnv, updatetime!, resettime!

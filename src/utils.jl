@@ -5,7 +5,7 @@ function resetIBNF!()
 end
 
 "Converts a node path to a sequence of edges"
-edgeify(p::Vector{Int}) = map(Edge , zip(p, p[2:end]));
+edgeify(p) = map(Edge , zip(p, p[2:end]));
 edgeify(p::Vector{Tuple{Int, Int}}) = map(NestedEdge , zip(p, p[2:end]));
 
 "$(TYPEDSIGNATURES) Get first element or `nothing`"
@@ -67,12 +67,12 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
             add_vertex!(ibn1.ngr, MetaDiGraph())
             push!(ibn1.controllers, ibn2)
             #add node
-            add_vertex!(ibn1.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domains=length(ibn1.ngr.grv), targetnode=node2)
+            add_vertex!(ibn1.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), subgraphs=length(ibn1.ngr.grv), targetnode=node2)
             idx = length(ibn1.ngr.grv)
         else
-            add_vertex!(ibn1.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), domains=idx, targetnode=node2)
+            add_vertex!(ibn1.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), subgraphs=idx, targetnode=node2)
         end
-        con1idx = NestedGraphs.domain(ibn1.ngr, node1)
+        con1idx = NestedGraphs.subgraph(ibn1.ngr, node1)
         domainnode1 = ibn1.ngr.vmap[node1][2]
         con2idx = idx
         domainnode2 = node2
@@ -88,14 +88,14 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
             add_vertex!(ibn2.ngr, MetaDiGraph())
             push!(ibn2.controllers, ibn1)
             #add node
-            add_vertex!(ibn2.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domains=length(ibn2.ngr.grv), targetnode=node1)
+            add_vertex!(ibn2.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), subgraphs=length(ibn2.ngr.grv), targetnode=node1)
             idx = length(ibn2.ngr.grv)
         else
-            add_vertex!(ibn2.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), domains=idx, targetnode=node1)
+            add_vertex!(ibn2.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), subgraphs=idx, targetnode=node1)
         end
         con1idx = idx
         domainnode1 = node1
-        con2idx = NestedGraphs.domain(ibn2.ngr, node2)
+        con2idx = NestedGraphs.subgraph(ibn2.ngr, node2)
         domainnode2 = ibn2.ngr.vmap[node2][2]
         interibnedge = NestedEdge(con1idx, domainnode1, con2idx, domainnode2)
         connect!(ibn2.controllers[con2idx], interibnedge, props(globalnet, ed))

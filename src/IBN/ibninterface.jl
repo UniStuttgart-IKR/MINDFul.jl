@@ -43,7 +43,7 @@ function breakdown(ibn::IBN, e::Edge)
     controllerofnodedst = controllerofnode(ibn, e.dst)
     if controllerofnodesrc == controllerofnodedst
         #intradomain
-        return (;sdn1=controllerofnodesrc, sdn2=nothing, ce=domainedge(ibn.ngr, e), ceintra=nothing)
+        return (;sdn1=controllerofnodesrc, sdn2=nothing, ce=subgraphedge(ibn.ngr, e), ceintra=nothing)
     else
         #interdomain
         if controllerofnodesrc isa IBN || controllerofnodedst isa IBN

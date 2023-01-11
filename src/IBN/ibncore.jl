@@ -5,7 +5,7 @@ getid(ibn::IBN) = ibn.id
 getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
 getindex(ibn::IBN, c::R) where {R<:Intent} = findfirst(==(c), getfield.(ibn.intents, :data))
 getindex(ibn::IBN, c::R) where {R<:IntentDAG} = findfirst(==(c), ibn.intents)
-controllerofnode(ibn::IBN, node::Int) = ibn.controllers[domain(ibn.ngr, node)]
+controllerofnode(ibn::IBN, node::Int) = ibn.controllers[NestedGraphs.subgraph(ibn.ngr, node)]
 nodesofcontroller(ibn::IBN, ci::Int) = [i for (i,nd) in enumerate(ibn.ngr.vmap) if nd[1] == ci]
 getibns(ibn::IBN) = Iterators.filter(x -> isa(x, IBN),ibn.controllers)
 getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
@@ -111,11 +111,11 @@ function connectIBNs!(ibn1::IBN, ibn2::IBN, cedges::Vector{NestedEdge{T}}, dprop
     #add controllers 
     
     # build graph as prrovided from the other ibn
-    gr2, vmap2 = subgraph(ibn2, ibn1)
+    gr2, vmap2 = subgraphibn(ibn2, ibn1)
     v2add = [vp for vp in v2list if !has_vertex(gr2, vp)]
     add_vertices!(gr2, ibn2.ngr, v2add)
 
-    gr1, vmap1 = subgraph(ibn1, ibn2)
+    gr1, vmap1 = subgraphibn(ibn1, ibn2)
     v1add = [vp for vp in v1list if !has_vertex(gr1, vp)]
     add_vertices!(gr1, ibn1.ngr, v1add)
     
@@ -172,7 +172,7 @@ function remintent!(ibnc::IBNIssuer, ibns::IBN, intentid::Int)
 end
 
 "ibn-customer asks for the graph of ibn-provider"
-function subgraph(ibnp::IBN, ibnc::IBN)
+function subgraphibn(ibnp::IBN, ibnc::IBN)
     #check permissions
     return (MetaDiGraph(), Vector{Int}())
 end

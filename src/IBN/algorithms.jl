@@ -1,7 +1,7 @@
 function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::F; algargs...) where {R<:Union{ConnectivityIntent},F<:Function}
     iam(ibn, neibn) = getid(ibn) == getid(neibn)
-    firstforeignibnnode(ibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.domain(ibn.ngr,x)] isa IBN, [v for v in vertices(ibn.ngr)])
-    firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.domain(ibn.ngr,x)] == neibn, [v for v in vertices(ibn.ngr)])
+    firstforeignibnnode(ibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.subgraph(ibn.ngr,x)] isa IBN, [v for v in vertices(ibn.ngr)])
+    firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.subgraph(ibn.ngr,x)] == neibn, [v for v in vertices(ibn.ngr)])
 
     conint = idagn.intent
     if getsrc(conint) == getdst(conint)

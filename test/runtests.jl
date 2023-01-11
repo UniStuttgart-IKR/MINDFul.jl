@@ -12,8 +12,5 @@ include("testutils.jl")
 testdir =  dirname(@__FILE__)
 
 @testset ExtendedTestSet "MINDFul.jl" begin
-    # @includetests ["connectivityIntentKshortestPath"]
-#    @includetests ["connectivityIntentKshortestPath"]
-#    @includetests ["GoThroughConstraintsConnectivity"]
      @includetests ["connectivityIntentKshortestPath", "network_faults"]
 end
