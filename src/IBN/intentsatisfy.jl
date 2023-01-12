@@ -88,7 +88,7 @@ function isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnl
     end
 end
 
-isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {R <: ConnectionState, C <: EdgeIntent} = true
+isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: EdgeIntent} = true
 
 "onlylogic is WIP"
 issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, getintent(ibn,intentidx), getroot(getintent(ibn,intentidx)))

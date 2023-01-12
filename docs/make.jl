@@ -1,7 +1,5 @@
 using Documenter, MINDFul
 
-# using Graphs, , NestedGraphs, MetaGraphs
-
 makedocs(sitename="MINDFul.jl",
     pages = [
         "Introduction" => "index.md",
@@ -10,6 +8,6 @@ makedocs(sitename="MINDFul.jl",
         "API" => "API.md"
     ])
 
-# deploydocs(
-#     repo = "github.com/UniStuttgart-IKR/MINDFul.jl.git",
-# )
+ deploydocs(
+     repo = "github.com/UniStuttgart-IKR/MINDFul.jl.git",
+ )

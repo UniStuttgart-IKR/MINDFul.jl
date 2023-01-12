@@ -18,7 +18,7 @@ mutable struct IntentDAGNode{T<:Intent, L<:LogState}
     id::UUID
     logstate::L
 end
-IntentDAGNode(kw...) where {T<:Intent} = IntentDAGNode(kw..., LogState{IntentState}())
+IntentDAGNode(kw...) = IntentDAGNode(kw..., LogState{IntentState}())
 getstate(idagn::IntentDAGNode) = idagn.state
 getintent(idagn::IntentDAGNode) = idagn.intent
 getid(idagn::IntentDAGNode) = idagn.id
