@@ -10,6 +10,6 @@ makedocs(sitename="MINDFul.jl",
         "API" => "API.md"
     ])
 
-# deploydocs(
-#     repo = "github.com/UniStuttgart-IKR/MINDFul.jl.git",
-# )
+ deploydocs(
+     repo = "github.com/UniStuttgart-IKR/MINDFul.jl.git",
+ )

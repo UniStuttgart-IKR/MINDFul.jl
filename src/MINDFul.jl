@@ -1,11 +1,9 @@
 module MINDFul
 
-using Parameters
-using Graphs, MetaGraphs
+using Graphs, MetaGraphs, NestedGraphs
 using DocStringExtensions
-using Unitful
-using NestedGraphs
-using UUIDs
+using Unitful, UUIDs
+
 import MetaGraphsNext as MGN
 import MetaGraphsNext: MetaGraph as MG
 import MetaGraphsNext: MetaDiGraph as MDG
@@ -13,18 +11,13 @@ import IterTools: partition
 import Distances: haversine
 const EARTH_RADIUS = 6371
 
-import Term
-
-export Counter
-export SDN, SDNdummy, IBNEnv, updatetime!, resettime!
-export IBN, addintent!, deploy!, transnodes, issatisfied
+export SDN, SDNdummy, IBNEnv
+export IBN, addintent!, remintent!, deploy!, transnodes, issatisfied
 export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
-export getroot, addchild!, children, descendants, getintent, getintentissuer, getintentidxsfromissuer, getremoteintentsid
+export getroot, addchild!, children, descendants, getintent, getintentissuer, getintentidxsfromissuer, getremoteintentsid, getid
 export simgraph, nestedGraph2IBNs!, randomsimgraph! 
-export anyreservations, set_operation_status!
-export @at, updateIBNFtime!, resetIBNF!
-export edgeify, @recargs!
+export anyreservations, set_operation_status!, edgeify
 
 const THours = typeof(1.0u"hr")
 

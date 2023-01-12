@@ -71,10 +71,6 @@ end
 globaledge(ibn::IBN, ed::Edge) = NestedEdge(globalnode(ibn, src(ed)), globalnode(ibn, dst(ed)))
 #TODO implement a different method (Channels, Tasks, yield)
 
-
-Base.show(io::IO, ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.ngr), $(ibn.interprops))")
-Base.show(io::IO, ::MIME"text/plain", ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.ngr), $(ibn.interprops))")
-
 function connect(ibn1::IBN, ibn2::IBN, e::Edge)
     push!(ibn1.interprops)
 end
@@ -129,29 +125,38 @@ addSDN(ibn::IBN) = error("not implemented")
 "add interSDN edges"
 addinterSDNedges(ibn::IBN, ces::Vector{NestedEdge}) = error("not implemented")
 
-"Add Intent as Network Operator"
+"$(TYPEDSIGNATURES) Add `intent` to `ibn` as Network Operator. Returns the intent id."
 function addintent!(ibn::IBN, intent::Intent)
-    idx = COUNTER(ibn)
-    push!(ibn.intents, IntentDAG(idx, intent))
+    idi = COUNTER(ibn)
+    push!(ibn.intents, IntentDAG(idi, intent))
     push!(ibn.intentissuers, NetworkProvider())
-    return idx
+    return idi 
 end
 
-function remintent!(ibn::IBN, idx::Int)
-    if getroot(getintent(ibn,idx)).state in [installed, failure]
+remallintents!(ibn::IBN) = foreach(id -> remintent!(ibn, id) , getid.(ibn.intents))
+
+"$(TYPEDSIGNATURES) Remove intent with id `idi` from `ibn`. Returns `true` if successful."
+function remintent!(ibn::IBN, idi::Int)
+    idx = getintent(ibn,idi) 
+    idx === nothing && return false
+    if getroot(idx).state in [installed, failure]
         error("Cannot remove an installed or failure intent. Please uninstall first.")
         return false
     else
-        intindex = getintentindex(ibn, idx)
-        deleteat!(ibn.intents, intindex)
-        deleteat!(ibn.intentissuers, intindex)
-        return true
+        idx = getintentindex(ibn, idi)
+        if idx <= length(ibn.intents)
+            deleteat!(ibn.intents, idx)
+            deleteat!(ibn.intentissuers, idx)
+            return true
+        else
+            return false
+        end
     end
 end
 
 "Add InterIBN-Intent as IBN2IBN, customer2provider"
 function addintent!(ibnc::IBNIssuer, ibns::IBN, intent::Intent)
-    @warn("permissions not implemented")
+#    @warn("permissions not implemented")
     idx = COUNTER(ibns)
     push!(ibns.intents, IntentDAG(idx, intent))
     push!(ibns.intentissuers, ibnc)
@@ -165,9 +170,13 @@ function remintent!(ibnc::IBNIssuer, ibns::IBN, intentid::Int)
         return false
     else
         intindex = getintentindex(ibns, intentid)
-        deleteat!(ibns.intents, intindex)
-        deleteat!(ibns.intentissuers, intindex)
-        return true
+        if intindex <= length(ibns.intents)
+            deleteat!(ibns.intents, intindex)
+            deleteat!(ibns.intentissuers, intindex)
+            return true
+        else
+            return false
+        end
     end
 end
 

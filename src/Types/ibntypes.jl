@@ -60,6 +60,7 @@ struct IBN{T<:SDN}
     "InterIBN interoperability with key being the IBN id"
     interprops::Dict{Int,IBNInterProps}
 end
+#Base.show(io::IO, ::MIME"text/plain", ibn::IBN) = print(io,"IBN($(ibn.id), $(length(ibn.intents)) intents, $(length(ibn.controllers)) controllers, $(ibn.ngr), $(ibn.interprops))")
 IBN(counter::Counter, args...) = IBN(counter(), args...)
 IBN!(counter::Counter, args...) = IBN!(counter(), args...)
 "Empty constructor"

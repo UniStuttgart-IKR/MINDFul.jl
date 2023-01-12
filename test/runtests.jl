@@ -1,11 +1,13 @@
-using Chain, Parameters
 using Test
-using Graphs, MetaGraphs, NetworkLayout
-using EzXML, GraphIO
+using Graphs, MetaGraphs, NestedGraphs
+using GraphIO, NestedGraphsIO
 using MINDFul
-using NestedGraphs
 using TestSetExtensions
 using Unitful
+using Logging
+using MINDFul: uncompiled, compiled, installed
+MINDF = MINDFul
+testlogger = ConsoleLogger(stderr, Logging.Error)
 
 include("testutils.jl")
 
