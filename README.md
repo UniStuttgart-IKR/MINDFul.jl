@@ -20,3 +20,5 @@ This package is in an early development stage and might break often.
 Companion repositories:
 - [MINDFulMakie.jl](https://github.com/UniStuttgart-IKR/MINDFulMakie.jl) for visualization purposes
 - [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) for some examples in the form of [Pluto](https://github.com/fonsp/Pluto.jl) notebooks
+
+Currently, as you will find [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) there are some workflow dependencies on forked/unregistered packages due to pending PRs. These will be handled in time.
