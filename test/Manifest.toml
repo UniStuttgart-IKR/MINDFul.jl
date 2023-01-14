@@ -215,8 +215,6 @@ version = "2022.2.1"
 [[deps.NestedGraphs]]
 deps = ["AbstractTrees", "DocStringExtensions", "Graphs", "MetaGraphs"]
 git-tree-sha1 = "05039157c52ff19d517e2c21d1f9af033b453963"
-repo-rev = "main"
-repo-url = "https://github.com/UniStuttgart-IKR/NestedGraphs.jl"
 uuid = "03c36417-ddab-428a-818d-5359aee292ef"
 version = "0.1.0"
 

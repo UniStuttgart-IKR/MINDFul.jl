@@ -1,4 +1,3 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 MINDFul = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
-NestedGraphs = "03c36417-ddab-428a-818d-5359aee292ef"
