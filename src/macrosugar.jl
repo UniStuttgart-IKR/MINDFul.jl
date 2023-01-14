@@ -9,16 +9,3 @@ macro recargs!(recarglist::Symbol, funex::Expr)
         $(esc(funex))
     end
 end
-
-
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-Pass clock time and the function to evaluate
-"""
-macro at(time::Expr, funex::Expr)
-    return quote
-        updateIBNFtime!($(esc(time)))
-        $(esc(funex))
-    end
-end

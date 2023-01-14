@@ -1,40 +1,46 @@
+"$(TYPEDSIGNATURES) Add `intent` as to the DAG `idag` as a root."
 function addchild!(idag::IntentDAG, intent::I) where I<:Intent
     state = intent isa LowLevelIntent ? compiled : uncompiled
     childnode = IntentDAGNode(intent, state, uuidlast(idag))
     add_vertex!(idag, uuidlast(idag), childnode) || return false
-    uuidpp(idag)
+    uuidpp!(idag)
     return childnode
 end
 
+"$(TYPEDSIGNATURES) Add `intent` as to the DAG as a child to the intent with uuid `parent`."
 function addchild!(idag::IntentDAG, parent::UUID, child::I) where I<:Intent
     parentnode = idag[parent]
     state = child isa LowLevelIntent ? compiled : uncompiled
     childnode = IntentDAGNode(child, state, uuidlast(idag))
     add_vertex!(idag, uuidlast(idag), childnode) || return false
     add_edge!(idag, parent, uuidlast(idag), nothing) || return false
-    uuidpp(idag)
+    uuidpp!(idag)
     return childnode
 end
 
-function uuidpp(idag::IntentDAG)
+"$(TYPEDSIGNATURES) Increase the count of intent UUID."
+function uuidpp!(idag::IntentDAG)
     idag.graph_data.intentcounter += 1
     return UUID(idag.graph_data.intentcounter)
 end
 uuidlast(idag::IntentDAG) = UUID(idag.graph_data.intentcounter)
-getroot(idag::IntentDAG) = return idag[UUID(1)]
+"$(TYPEDSIGNATURES) Return the user intent"
+getuserintent(idag::IntentDAG) = return idag[UUID(1)]
 
+"$(TYPEDSIGNATURES) Return `true` if `intent` is an intra-domain intent"
 function isintraintent(ibn::IBN, intent::ConnectivityIntent)
     if getid(ibn) == getsrc(intent)[1] == getdst(intent)[1]
         return true
     elseif getid(ibn) == getsrcdom(intent)
-        return getdst(intent) in transnodes(ibn)
+        return getdst(intent) in bordernodes(ibn)
     elseif getid(ibn) == getdstdom(intent)
-        return getsrc(intent) in transnodes(ibn)
+        return getsrc(intent) in bordernodes(ibn)
     else
         return false
     end
 end
 
+"$(TYPEDSIGNATURES) Set the state of DAG node `idn` of DAG `dag` of `ibn` to `newstate` with logging time `time`"
 function setstate!(idn, dag, ibn::IBN, newstate::IntentState; time)
     idn.state == newstate && return
     if newstate == compiled
@@ -184,7 +190,8 @@ end
 isroot(dag::IntentDAG, idn::IntentDAGNode) = length(inneighbors(dag, MGN.code_for(dag, idn.id))) == 0
 haschildren(dag::IntentDAG, idn::IntentDAGNode) = length(outneighbors(dag, MGN.code_for(dag, idn.id))) > 0
 
-getleafs(dag::IntentDAG) = getleafs(dag, getroot(dag))
+getleafs(dag::IntentDAG) = getleafs(dag, getuserintent(dag))
+"$(TYPEDSIGNATURES) Get the leafs of DAG `dag` starting from node `idn`"
 function getleafs(dag::IntentDAG, idn::IntentDAGNode)
     idns = Vector{IntentDAGNode}()
     for chidn in children(dag, idn)
@@ -193,7 +200,8 @@ function getleafs(dag::IntentDAG, idn::IntentDAGNode)
     return idns
 end
 
-descendants(dag::IntentDAG) = descendants(dag, getroot(dag))
+descendants(dag::IntentDAG) = descendants(dag, getuserintent(dag))
+"$(TYPEDSIGNATURES) Get all descendants of DAG `dag` starting from node `idn`"
 function descendants(dag::IntentDAG, idn::IntentDAGNode)
     idns = Vector{IntentDAGNode}()
     for chidn in children(dag, idn)
@@ -222,6 +230,7 @@ end
 
 
 getremoteintentsid(ibn::IBN, intentidx::Int) = getremoteintentsid(ibn, ibn.intents[intentidx])
+"$(TYPEDSIGNATURES) Get all `RemoteIntent`s of `dag` of `ibn`"
 function getremoteintentsid(ibn::IBN, dag::IntentDAG)
     ibnid_intentid = Vector{Tuple{Int, Int}}()
     _getremoteintentsid_recu!(ibn, dag, ibnid_intentid)

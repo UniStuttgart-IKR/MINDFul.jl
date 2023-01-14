@@ -6,14 +6,17 @@
 
 </div>
 
-
 *A Framework for Intent-driven Multi-Domain Network coordination*
 
-`MINDFul.jl` is a young project that aims at research of coordination algorithms of intent-driven multi-domain (MD) networks.
-It offers interfaces for the development of resource-allocation algorithm and MD coordination mechanisms.
+`MINDFul.jl` is a young project aiming to research coordination algorithms of intent-driven multi-domain (MD) networks.
+It offers interfaces for the development of resource-allocation algorithms and MD coordination mechanisms.
 
-For now `MINDFul.jl` only supports simulation.
+For now, `MINDFul.jl` only supports simulation.
 
 Future work may bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers like [ODL](https://www.opendaylight.org/) or [ONOS](https://opennetworking.org/onos/) 
 
 This package is in an early development stage and might break often.
+
+Companion repositories:
+- [MINDFulMakie.jl](https://github.com/UniStuttgart-IKR/MINDFulMakie.jl) for visualization purposes
+- [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) for some examples in the form of [Pluto](https://github.com/fonsp/Pluto.jl) notebooks

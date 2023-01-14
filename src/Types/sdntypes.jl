@@ -4,7 +4,7 @@ abstract type SDN end
 graph(sdn::SDN) = error("Interface not implemented")
 
 "Reserve `cap` resources amonge path `path`"
-reserve(sdn::SDN, path::Vector{Int}, cap::Real) = error("Interface not implemented")
+reserve!(sdn::SDN, path::Vector{Int}, cap::Real) = error("Interface not implemented")
 
 "Free `cap `resources among path `path`"
 free(sdm::SDN, path::Vector{Int}, capacity::Real) = error("Interface not implemented")

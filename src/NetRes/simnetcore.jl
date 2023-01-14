@@ -47,6 +47,7 @@ usecapacity!(l::Link, cap::Real) = hascapacity(l, cap) ? l.rezcapacity += cap : 
 freecapacity!(l::Link, cap::Real) = l.rezcapacity - cap > 0 ? l.rezcapacity -= cap : l.rezcapacity = 0
 
 randomgraph(gr::DiGraph) = randomgraph(MetaDiGraph(gr))
+"$(TYPEDSIGNATURES) Get a random graph able to simulate"
 function randomsimgraph!(mgr::MetaDiGraph)
     for v in vertices(mgr)
         set_prop!(mgr, v, :router, Router(rand(10:20)) )
@@ -60,8 +61,10 @@ function randomsimgraph!(mgr::MetaDiGraph)
 end
 
 """
-Builds a simulated graph 
-Give in a `MetaGraph` having:
+$(TYPEDSIGNATURES) 
+
+Builds a graph from `mgr` able to simulate.
+Pass in `mgr` having:
 - `:routerports` as integer in every node
 - `:xcoord` as integer in every node
 - `:ycoord` as integer in every node
@@ -96,6 +99,11 @@ end
 euclidean_dist(possrc, posdst) = sqrt(sum((possrc .- posdst) .^ 2))
 geodesic_dist(possrc, posdst) = haversine(possrc, posdst, EARTH_RADIUS)
 
+"""
+$(TYPEDSIGNATURES) 
+
+Builds a nested graph from `ng` able to simulate.
+"""
 function simgraph(ng::G; distance_method=euclidean_dist) where G<:NestedMetaGraph
     cgnew = G(;extrasubgraph=false)
     for gr in ng.grv

@@ -28,17 +28,17 @@ $(TYPEDEF)
 $(TYPEDFIELDS)
 """
 mutable struct IntentDAGInfo
-    "The intent index as was set by the IBN"
-    idx::Int
+    "The intent id as was set by the IBN"
+    id::Int
     "The intent UUID index to be assigned next in the IntentDAG"
     intentcounter::Int
 end
-IntentDAGInfo(idx::Int) = IntentDAGInfo(idx, 1)
+IntentDAGInfo(id::Int) = IntentDAGInfo(id, 1)
 const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(0)))
-getid(dag::IntentDAG) = dag.graph_data.idx
+getid(dag::IntentDAG) = dag.graph_data.id
 
-function IntentDAG(idx::Int, intent::Intent)
-    mg = MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(idx))
+function IntentDAG(id::Int, intent::Intent)
+    mg = MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(id))
     addchild!(mg, intent)
     return mg
 end

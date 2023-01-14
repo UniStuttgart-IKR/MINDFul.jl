@@ -1,4 +1,7 @@
-"Defines the way the IBN Framework state machine will behave" 
+"""
+Defines the way the IBN Framework state machine will behave
+For now only a `SimpleIBNModus` strategy is implemented.
+"""
 abstract type IBNModus end
 struct SimpleIBNModus <: IBNModus end 
 struct AdvancedIBNModus <: IBNModus end
@@ -6,12 +9,20 @@ struct AdvancedIBNModus <: IBNModus end
 "Defines the entity issuing an intent"
 abstract type IntentIssuer end
 struct NetworkProvider <: IntentIssuer end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
 struct IBNIssuer <: IntentIssuer
+    "the id of the IBN issued an intent"
     ibnid::Int
-    intentidx::Int
-    subintent::UUID
+    "the id of the intent issued, i.e. id of the DAG"
+    dagid::Int
+    "the id of the intent node in the DAG"
+    dagnodeid::UUID
 end
-IBNIssuer(ibnid::Int, intentidx::Int) = IBNIssuer(ibnid, intentidx, UUID(1))
+IBNIssuer(ibnid::Int, intentid::Int) = IBNIssuer(ibnid, intentid, UUID(1))
 
 "Characterization of an Intent for algorithm dispatch"
 abstract type IntentDomain end

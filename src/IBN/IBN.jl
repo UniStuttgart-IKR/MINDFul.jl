@@ -1,4 +1,3 @@
-#include("intenttree.jl")
 include("intentdag.jl")
 include("ibncore.jl")
 include("intents.jl")

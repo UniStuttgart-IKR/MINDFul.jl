@@ -1,9 +1,9 @@
 deploy!(ibnc::IBN, ibns::IBN, intentid::Int, args...; nargs...) = 
-    deploy!(ibnc, ibns, getintent(ibns,intentid), getroot(getintent(ibns,intentid)), args...; nargs...)
+    deploy!(ibnc, ibns, getintent(ibns,intentid), getuserintent(getintent(ibns,intentid)), args...; nargs...)
 
 "Assume intent is root of DAG"
 deploy!(ibn::IBN, intentid::Int, args...; nargs...) = 
-    deploy!(ibn, getintent(ibn,intentid), getroot(getintent(ibn,intentid)), args...; nargs...)
+    deploy!(ibn, getintent(ibn,intentid), getuserintent(getintent(ibn,intentid)), args...; nargs...)
 
 "Assume intent comes from Network Operator"
 deploy!(ibn::IBN, dag::IntentDAG, args...; nargs...) = 
@@ -13,7 +13,13 @@ deploy!(ibn::IBN, dag::IntentDAG, args...; nargs...) =
 deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus; nargs...) = 
     deploy!(ibnc, ibns, dag, idagn, itra, strategy, () -> nothing; nargs...)
 
-"ibn-customer accesses the intent state machine of ibn-provider"
+"""
+"$(TYPEDSIGNATURES)
+
+The IBN customer `ibnc` accesses the intent state machine of IBN server `ibns` and 
+commands the `IntentTransition` `itra` for the intent DAG node `idagn` of DAG `dag` 
+following the state-machine strategy `IBNModus` and the transition methodology `algmethod`.
+"""
 function deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itra::IntentTransition, strategy::IBNModus, algmethod;
         time, algargs...)
     if getid(ibnc) == getid(ibns)
@@ -24,8 +30,16 @@ function deploy!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idagn::IntentDAGNode, itr
     end
 end
 
+"""
+"$(TYPEDSIGNATURES)
+
+Step the state machine of `ibn` for the intent DAG node `idagn` of DAG `dag` 
+with state `ista` following the transition `itra`, for state machine strategy 
+`SimpleIBNModus` following the methodology `algmethod`. If more parameters
+are needed for `algmethod`, pass them in the varargs `algargs`.
+"""
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::IntentState, itra::IntentTransition, 
-        strategy::SimpleIBNModus, algmethod; algargs...)
+        ::SimpleIBNModus, algmethod; algargs...)
     if ista == compiled && itra == doinstall
         step!(ibn, dag, idagn, Val(ista), Val(itra), algmethod; algargs...)
     elseif ista == installed && itra == doinstall
@@ -49,10 +63,10 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::IntentState
     end
 end
 
-"A somehow more complicated state machine"
+"$(TYPEDSIGNATURES) A somehow more complicated state machine"
 step!(ibn::IBN, inid::Int, ista::IntentState, itra::IntentTransition, strategy::AdvancedIBNModus) = error("notimplemented")
 
-"Compiles an intent"
+"$(TYPEDSIGNATURES) Compiles an intent"
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{uncompiled}, itra::Val{docompile}, intent_comp; algargs...)
     state_prev = getstate(idagn)
     state = compile!(ibn, dag, idagn, intent_comp; algargs...)
@@ -65,6 +79,8 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{uncompi
 end
 
 """
+$(TYPEDSIGNATURES) 
+
 Installs a single intent.
 It applies the intent implementation on the network
 """
@@ -83,7 +99,7 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compile
     return state
 end
 
-"Uninstalls a single intent"
+"$(TYPEDSIGNATURES) Uninstalls a single intent"
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::T, itra::Val{douninstall}, intent_uninst; algargs...) where 
         T <: Union{Val{installed}, Val{failure}}
     state_prev = getstate(idagn)
@@ -97,6 +113,7 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::T, itra::Va
 end
 
 # TODO: code duplication
+"$(TYPEDSIGNATURES)"
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{uncompiled}, itra::Val{douncompile}, intent_uncomp; algargs...)
     state_prev = getstate(idagn)
     state = uncompile!(ibn, dag, idagn, intent_uncomp; algargs...)
@@ -108,6 +125,7 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{uncompi
     return state
 end
 
+"$(TYPEDSIGNATURES)"
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compiled}, itra::Val{douncompile}, intent_uncomp; algargs...)
     state_prev = getstate(idagn)
     state = uncompile!(ibn, dag, idagn, intent_uncomp; algargs...)
@@ -119,6 +137,7 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{compile
     return state
 end
 
+"$(TYPEDSIGNATURES)"
 function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{failure}, itra::Val{docompile}, intent_recomp; algargs...)
     state_prev = getstate(idagn)
     state = recompile!(ibn, dag, idagn, intent_recomp; algargs...)
@@ -130,13 +149,16 @@ function step!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, ista::Val{failure
     return state
 end
 
+"$(TYPEDSIGNATURES) "
 function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     algmethod(ibn, dag, idagn; algargs...)
     return getstate(idagn)
 end
 
 """
-Delete all dag nodes except for the root
+$(TYPEDSIGNATURES)
+
+Delete all dag nodes except for the root.
 If it has Remote Intent they need to be deleted also.
 """
 function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; time) where {T<:Function}
@@ -160,6 +182,7 @@ function uncompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T
     return getstate(idagn)
 end
 
+"$(TYPEDSIGNATURES)"
 function install!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     leafidns = getleafs(dag, idagn)
     # aggregate low level intents (might be collisions ?)
@@ -176,6 +199,7 @@ function install!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; 
 end
 
 #same code as install! more or less: double code
+"$(TYPEDSIGNATURES)"
 function uninstall!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     leafidns = getleafs(dag, idagn)
     # aggregate low level intents (might be collisions ?)
@@ -192,19 +216,22 @@ function uninstall!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T
 end
 
 # double code
+"$(TYPEDSIGNATURES)"
 function recompile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode, algmethod::T; algargs...) where {T<:Function}
     # uninstall all
     # compile all
 end
 
 """
-Realize the intent implementation by delegating tasks in the different responsible SDNs
-First check, then reserve
+$(TYPEDSIGNATURES)
+
+Realize the intent implementation by delegating tasks in the different responsible SDNs.
+First check, then reserve.
 """
 function directinstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}; time) where R<:LowLevelIntent
     if isavailable(ibn, dag, idn)
         if getstate(idn) != installed
-            if reserve(ibn, dag, idn) 
+            if reserve!(ibn, dag, idn) 
                 setstate!(idn, dag, ibn, Val(installed); time)
                 return getstate(idn)
             end
@@ -215,6 +242,8 @@ function directinstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}; time) w
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Uninstalls a low-level intent intent
 """
 function directuninstall!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{R}; time) where R<:LowLevelIntent

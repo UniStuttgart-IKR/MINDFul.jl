@@ -25,7 +25,7 @@ function filternext(sd::Val{signalFiberOut}, cs::ConnectionState)
     end
 end
 
-"Pop new (LowLevelIntent, ConnectionState)"
+"$(TYPEDSIGNATURES) Find next logical low-level intent. Pop new (LowLevelIntent, ConnectionState)"
 function findNupdate!(cs::ConnectionState, globalIBNnlli)
     for (i,gibnl) in enumerate(globalIBNnlli)
         lli = gibnl.lli
@@ -76,10 +76,6 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
     return (nothing,nothing)
 end
 
-function isnextLLI(sl::SignalLoc, lli::LowLevelIntent)
-    success = lli isa RemoteLogicIntent && ll
-end
-
 function isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{R}) where {R <: ConnectionState, C <: ConnectivityIntent}
     if getnode(vcs[1]) != getsrc(idn.intent) || getnode(vcs[end]) != getdst(idn.intent)
         return false
@@ -91,10 +87,19 @@ end
 isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: EdgeIntent} = true
 
 "onlylogic is WIP"
-issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, getintent(ibn,intentidx), getroot(getintent(ibn,intentidx)))
+issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, getintent(ibn,intentidx), getuserintent(getintent(ibn,intentidx)))
 
 # TODO issatisfied(onlylogic = true) could be implemented with ML ?
-"check if the path makes sense and the constraints are satisfied"
+"""
+$(TYPEDSIGNATURES)
+
+Check if intent of `ibn`,`dag`,`idagn` is satisfied.
+It checks whether the implementation of the intent makes sense and if all constraints are satisfied.
+Internally it retrieves all low-level intents, assembles them, and decides whether or not they satisfy the intent.
+
+This function assumes global knowledge to reach a verdict.
+For this reason it is clearly a function used for simulation purposes.
+"""
 function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I <: Intent
     # get low level intents (resource reservations) in a logical order.
     globalIBNnllis, vcs = logicalorderedintents(ibn, dag, idagn, true)
@@ -118,23 +123,28 @@ function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I 
     end
 end
 
-logicalorderedintents(ibn::IBN, intid::Int, globalknow=false) = logicalorderedintents(ibn, getintent(ibn, intid), getroot(getintent(ibn, intid)), globalknow)
+logicalorderedintents(ibn::IBN, intid::Int, globalknow=false) = logicalorderedintents(ibn, getintent(ibn, intid), getuserintent(getintent(ibn, intid)), globalknow)
 
-"returns all lowlevelintents in no particular order"
+"""
+$(TYPEDSIGNATURES)
+
+Returns a tuple where the first element is a `Vector` of all low-level intents sorted 
+in a logical order as used in the data plane to satisfy the intent identified by `ibn`,`dag`, `idn`.
+
+The second element is the `Vector` of the logical states served by the equivalent low-level intent of the first `Vector`.
+Thus, the first and second `Vector` have the same length.
+
+Toggle `globalknowledge` depending on the scenario.
+"""
 function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{I}, globalknow=false) where I<:Intent
     globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn, globalknow)
     return globalIBNnlli_rest, fill(missing, length(globalIBNnlli_rest))
 end
 
-"""
-Returns the intents in an ordered as used in data plane in order to satisfy `idn`
-Is made to run for simulations and interdomain cases.
-Returns
-- The ordered IntentDAGNode as sequenced in tha data plane
-- The ordered logical role of each intent
-- The remaining intents of the tree that were not used
-"""
+"$(TYPEDSIGNATURES)"
 function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, globalknow=false) where C<:ConnectivityIntent
+    # the `Vector` of remaining low-level intents, which were not needed in the logical sequence.
+    # This vector might be seen as wasting of resources.
     globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn, globalknow)
     vcs = Vector{ConnectionState}()
     globalIBNnlli = Vector{IBNnIntentGLLI}()
@@ -162,7 +172,7 @@ function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, 
     return (globalIBNnlli, vcs)
 end
 
-"Returns a list of IBNnIntentGLLI"
+"$(TYPEDSIGNATURES) Get a list of global view low-level intents `IBNnIntentGLLI` for the intent `ibn, dag, idn`"
 function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, globalknow=false)
     # need to transform node and edge to global values for interdomain satisfaction check
     globalIBNnlli = Vector{IBNnIntentGLLI}()
@@ -172,7 +182,7 @@ function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAG
                 ibnrem = getibn(ibn, idn.intent.ibnid)
                 intidx = idn.intent.intentidx
                 dagrem = getintent(ibnrem,intidx)
-                push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagrem, getroot(dagrem), globalknow)...)
+                push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagrem, getuserintent(dagrem), globalknow)...)
                 # get LowLevelIntent descendants of remote Intent
                 # search remote Intent recursively for other remote intents to get all concerning LowLevelIntent
             else
@@ -191,7 +201,12 @@ function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAG
     return globalIBNnlli
 end
 
-"Low Level Intents are assumed to be installed now"
+"""
+$(TYPEDSIGNATURES) 
+
+Check whether the gloval low-level intents `globalIBNnllis` and their logical states `vcs` satisfy the capacity constraints `cc`.
+Low Level Intents are assumed to be installed now.
+"""
 function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc::CapacityConstraint) where {K <: Union{Missing, ConnectionState}}
     llis = getfield.(globalIBNnllis, :lli)
     #continuity and contiguity constraints
@@ -215,7 +230,12 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
     return true
 end
 
-"Low Level Intents are assumed to be installed now"
+"""
+$(TYPEDSIGNATURES) 
+
+Check whether the gloval low-level intents `globalIBNnllis` and their logical states `vcs` satisfy the constraints `cc`.
+Low Level Intents are assumed to be installed now.
+"""
 function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc::DelayConstraint) where {K <: Union{Missing, ConnectionState}}
     # TODO code duplication with issatisfied(::CapacityConstraint)
     sumkms = 0.0u"km"
@@ -233,6 +253,7 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
     return true
 end
 
+"$(TYPEDSIGNATURES)"
 function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc::GoThroughConstraint) where {K <: Union{Missing, ConnectionState}}
     if cc.layer == signalFiberIn
         for gbnl in globalIBNnllis

@@ -17,8 +17,10 @@ end
 SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{NestedEdge, Dict{Symbol, Any}}())
 getid(sdnd::SDNdummy) = nothing
 
-"""Return the graph SDN is responsible for"""
+"$(TYPEDSIGNATURES) Return the graph SDN is responsible for"
 getgraph(sdnd::SDNdummy) = sdnd.gr
+
+"$(TYPEDSIGNATURES) Merge SDN controllers `sdns` intro a `NestedGraph` using edges `cedges`"
 function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}) where {T,R}
     ng = NestedGraph(getfield.(sdns, :gr), cedges; both_ways=true)
     #TODO ask router and link values in PHY
@@ -37,6 +39,7 @@ function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}) wh
     return ng
 end
 
+"$(TYPEDSIGNATURES)"
 function connect!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}, ds::Vector{Dict{Symbol, K}}) where {T,R,K}
     for (ce,d) in zip(cedges, ds)
         for sdn in [sdns[ce.src[1]], sdns[ce.dst[1]]]
@@ -45,22 +48,27 @@ function connect!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}, ds::
     end
     return true
 end
+"$(TYPEDSIGNATURES)"
 function connect!(sdn1::SDNdummy{R}, cedge::NestedEdge{T}, d::Dict{Symbol, K}) where {T,R,K}
     sdn1.interprops[cedge] = d
     return true
 end
 
+"$(TYPEDSIGNATURES) Check if `sdn` has any port at node `v`"
 isavailable_port(sdn::SDNdummy, v::Int) = hasport(get_prop(getgraph(sdn), v, :router))
+"$(TYPEDSIGNATURES) Reserve a port at node `v` of the SDN controller `sdn` and log the intent id `intidx` done for"
 reserve_port!(sdn::SDNdummy, v::Int, intidx) = useport!(get_prop(getgraph(sdn), v, :router), intidx)
+"$(TYPEDSIGNATURES) Free the port at node `v` of the SDN controller `sdn` used for the intent with id `intidx`"
 free_port!(sdn::SDNdummy, v::Int, intidx) = freeport!(get_prop(getgraph(sdn), v, :router), intidx)
 
+"$(TYPEDSIGNATURES) Check if a port is allocated at node `v` of `sdn `in the name of the intent `intidx`."
 function issatisfied_port(sdn::SDNdummy, v::Int, intidx)
     rtview = get_prop(getgraph(sdn), v, :router)
     return intidx in skipmissing(rtview.reservations)
 end
 
-"reserve capacity on an intraSDN edge"
-function reserve(sdn::SDNdummy, e::Edge, capacity::Real)
+"$(TYPEDSIGNATURES) Reserve capacity `capacity` on an intra-SDN edge `e` for SDN `sdn`"
+function reserve!(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = getgraph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
     l = get_prop(mgr, e.src, e.dst, :link)
@@ -73,7 +81,7 @@ function reserve(sdn::SDNdummy, e::Edge, capacity::Real)
     return false
 end
 
-"free capacity on an intraSDN edge"
+"$(TYPEDSIGNATURES) Free `capacity` on an intra-SDN edge `e` of SDN `sdn`"
 function free!(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = getgraph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
@@ -84,6 +92,11 @@ function free!(sdn::SDNdummy, e::Edge, capacity::Real)
     return true
 end
 
+"""$(TYPEDSIGNATURES) 
+
+Check if edge `ce`, connecting to SDNs one of which is `sdn`, has available frequency slots `sr`.
+If `reserve_src=true` check the `src` node of the edge `ce`, otherwise check the `dst`.
+"""
 function isavailable_slots(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, reserve_src::Bool)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -98,6 +111,11 @@ function isavailable_slots(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, re
         return all(link.spectrum_dst[sr])
     end
 end
+
+"""$(TYPEDSIGNATURES) 
+
+Check if edge `ce`, connecting to SDNs one of which is `sdn`, has available frequency slots `sr`.
+"""
 function isavailable_slots(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int})
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -109,6 +127,7 @@ function isavailable_slots(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int})
     hasslots(link, sr)
 end
 
+"$(TYPEDSIGNATURES) Check if edge `ce` of `sdn` operates correctly."
 function doesoperate_link(sdn::SDNdummy, ce::NestedEdge)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -120,6 +139,11 @@ function doesoperate_link(sdn::SDNdummy, ce::NestedEdge)
     doesoperate(link)
 end
 
+"""$(TYPEDSIGNATURES) 
+
+Reserve frequency slots `sr` at edge `ce`, connecting to SDNs one of which is `sdn`.
+If `reserve_src=true` reserve the `src` node of the edge `ce`, otherwise reserve the `dst`.
+"""
 function reserve_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -131,6 +155,11 @@ function reserve_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intid
     return useslots!(link, sr, intidx, reserve_src)
 end
 
+"""$(TYPEDSIGNATURES) 
+
+Free frequency slots `sr` at edge `ce`, connecting to SDNs one of which is `sdn`.
+If `reserve_src=true` free the `src` node of the edge `ce`, otherwise free the `dst`.
+"""
 function free_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -142,6 +171,11 @@ function free_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, 
     return freeslots!(link, sr, intidx, reserve_src)
 end
 
+"""$(TYPEDSIGNATURES) 
+
+Check if edge `ce`, connecting to SDNs one of which is `sdn`, has reserved frequency slots `sr` and stisfies `intidx`.
+If `reserve_src=true` check the `src` node of the edge `ce`, otherwise check the `dst`.
+"""
 function issatisfied_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, intidx, reserve_src=true)
     gr = getgraph(sdn)
     if ce.src[1] == ce.dst[1]
@@ -160,7 +194,7 @@ function issatisfied_slots!(sdn::SDNdummy, ce::NestedEdge, sr::UnitRange{Int}, i
     return res
 end
 
-"check capacity on an intraSDN edge"
+"$(TYPEDSIGNATURES) Check `capacity` on an intra-SDN edge `e` of SDN `sdn`"
 function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
     mgr = getgraph(sdn)
     rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
@@ -168,12 +202,13 @@ function isavailable(sdn::SDNdummy, e::Edge, capacity::Real)
     return hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
 end
 
+"$(TYPEDSIGNATURES) Check whether path `p` in SDN `sdn` with capacity requirements `capacity` is available."
 function isavailable(sdn::SDNdummy, p::Vector{<:Integer}, capacity::Real)
     all(isavailable(sdn, e, capacity) for e in edgeify(p))
 end
 
-"reserve capacity on an interSDN edge"
-function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real, ceintrasdn=nothing)
+"$(TYPEDSIGNATURES) Reserve capacity `capacity` on an inter-SDN edge `ce` between `sdn1` and `sdn2`"
+function reserve!(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real, ceintrasdn=nothing)
     ceintrasdn === nothing && (ceintrasdn = ce)
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)
@@ -189,7 +224,7 @@ function reserve(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real,
     return false
 end
 
-"free capacity on an interSDN edge"
+"$(TYPEDSIGNATURES) Free capacity `capacity` on an inter-SDN edge `ce` between `sdn1` and `sdn2`"
 function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real)
     mgr1 = getgraph(sdn1)
     mgr2 = getgraph(sdn2)
@@ -201,7 +236,7 @@ function free!(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real)
     return true
 end
 
-"check capacity on an interSDN edge"
+"$(TYPEDSIGNATURES) Check if available capacity `capacity` on an inter-SDN edge `ce` between `sdn1` and `sdn2`"
 function isavailable(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, capacity::Real, ceintrasdn=nothing)
     ceintrasdn === nothing && (ceintrasdn = ce)
     # TODO: build an interface for IBNs
@@ -215,42 +250,15 @@ end
 
 ##---------Multilayer-------------#
 
+"$(TYPEDSIGNATURES)"
 function reserve_routerport(sdnd::SDNdummy, ibnintid::Tuple{Int, Int}, node::Int)
     mgr = getgraph(sdnd)
     rt = get_prop(mgr, node, :router)
     return useport!(rt, ibnintid)
 end
 
-function reserve_fiber(sdn::SDNdummy, ibnintid::Tuple{Int,Int}, e::Edge, props::OpticalTransProperties)
-    mgr = getgraph(sdn)
-    rts = [get_prop(mgr, v, :router) for v in [e.src, e.dst]]
-    l = get_prop(mgr, e.src, e.dst, :link)
-    if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
-        useport!(rts[1])
-        useport!(rts[2])
-        usecapacity!(l, capacity)
-        return true
-    end
-    return false
-end
-
-function reserve_fiber(sdn1::SDNdummy, sdn2::SDNdummy, ce::NestedEdge, ceintrasdn, props::OpticalTransProperties)
-    ceintra = ceintrasdn === nothing ? ce : ceintrasdn
-    mgr1 = getgraph(sdn1)
-    mgr2 = getgraph(sdn2)
-
-    rts = [get_prop(mgr, v, :router) for (mgr,v) in zip([mgr1, mgr2],[ceintra.src[2], ceintra.dst[2]])]
-    l = sdn1.interprops[ce][:link]
-    if hasport(rts[1]) && hasport(rts[2]) && hascapacity(l, capacity)
-        useport!(rts[1])
-        useport!(rts[2])
-        usecapacity!(l, capacity)
-        return true
-    end
-    return false
-end
-
-function reserve(reservemethod::F, ibnintid::Tuple{Int,Int}, args...; sdn1=nothing, sdn2=nothing, ce=nothing, ceintra=nothing) where F <: Function
+"$(TYPEDSIGNATURES)"
+function reserve!(reservemethod::F, ibnintid::Tuple{Int,Int}, args...; sdn1=nothing, sdn2=nothing, ce=nothing, ceintra=nothing) where F <: Function
     if sdn2 === nothing
         reservemethod(sdn1, ibnintid, ce, args...)
     else

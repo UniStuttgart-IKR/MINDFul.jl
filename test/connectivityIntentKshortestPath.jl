@@ -78,7 +78,7 @@ end
         for ibn in myibns
             while true
                 i = findfirst(x -> x[2] isa MINDFul.NetworkProvider 
-                              && getroot(ibn.intents[x[1]]).state != MINDFul.uncompiled,
+                              && getuserintent(ibn.intents[x[1]]).state != MINDFul.uncompiled,
                               collect(enumerate(ibn.intentissuers)))
                 i === nothing && break
                 intentid = MINDF.getid(ibn.intents[i])

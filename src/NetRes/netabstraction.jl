@@ -1,5 +1,11 @@
 hasport(rt::RouterView) = any(rt.portavailability)
 availableports(rt::RouterView) = count(rt.portavailability)
+
+"""
+$(TYPEDSIGNATURES)
+
+Use a port in Router `rt` to serve an intent described by the `Tuple` `ibnintid`.
+"""
 function useport!(rt::RouterView, ibnintid::Tuple{Int,Int,UUID})
     ff = findfirst(==(true), rt.portavailability)
     if ff !==nothing
@@ -10,6 +16,11 @@ function useport!(rt::RouterView, ibnintid::Tuple{Int,Int,UUID})
     return false
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Free a port in Router `rt` from serving an intent described by the `Tuple` `ibnintid`.
+"""
 function freeport!(rt::RouterView, ibnintid::Tuple{Int, Int,UUID})
     fall = findall(==(ibnintid), skipmissing(rt.reservations))
     for ff in fall
@@ -19,14 +30,26 @@ function freeport!(rt::RouterView, ibnintid::Tuple{Int, Int,UUID})
     return true
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Free the port `portidx` in Router `rt` from serving an intent `intidx`.
+"""
 function freeport!(rt::RouterView, portidx::Int, intidx)
     rt.portavailability[portidx] = true
     rt.reservations[portidx] = missing
     return true
 end
 
+"$(TYPEDSIGNATURES) Get length of the fiber `fv`"
 distance(fv::F) where {F<:FiberView} = distance(fv.fiber)
 delay(fv::FiberView) = 5u"ns/km" * distance(fv)
+
+"""
+$(TYPEDSIGNATURES)
+
+Check if there are `nslots` available slots in `f`.
+"""
 function hasslots(f::FiberView, nslots::Int)
     freeslots = 0
     for (slots_av_src, slots_av_dst) in zip(f.spectrum_src, f.spectrum_dst)
@@ -43,6 +66,12 @@ function hasslots(f::FiberView, nslots::Int)
 end
 hasslots(f::FiberView, sr::UnitRange{Int}) = all(vcat(f.spectrum_src[sr], f.spectrum_dst[sr]))
 
+"""
+$(TYPEDSIGNATURES)
+
+Use slots `channel` in fiber `f` for serving intent `ibnintid`.
+If `reserve_src=true` use the slots in the `src`. Else in the `dst`.
+"""
 function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID}, reserve_src::Bool)
     for i in channel
         if reserve_src
@@ -70,6 +99,12 @@ function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,In
     return true
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Free slots `channel` in fiber `f` for serving intent `ibnintid`.
+If `reserve_src=true` free the slots in the `src`. Else in the `dst`.
+"""
 function freeslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID}, reserve_src::Bool)
     for i in channel
         if reserve_src
@@ -100,6 +135,7 @@ function firstfit(spec, nslots::Int)
     return nothing
 end
 
+"$(TYPEDSIGNATURES) Using the first fit algorithm find `nslots` consequitive slots in `f`"
 firstfit(f::FiberView, nslots::Int) = firstfit(f.spectrum_src .& f.spectrum_dst, nslots)
 
 function firstfit(fs::Vector{F}, nslots::Int) where {F<:FiberView}
@@ -114,8 +150,10 @@ end
 #-------------------- Network Faults ----------------------
 #
 
+"$(TYPEDSIGNATURES) Check if `fc` operates correctly."
 doesoperate(fv::FiberView) = fv.operates
 
+"$(TYPEDSIGNATURES) Set fiber `device` of `ibn` at status `status` in time `time`. Use `forcelog` to force or not a logging."
 function set_operation_status!(ibn::IBN, device::FiberView, status::Bool; time, forcelog=false)
     if device.operates != status || forcelog
         device.operates = status

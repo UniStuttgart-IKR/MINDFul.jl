@@ -1,17 +1,17 @@
 function testintentdeployment_nosatisfy(conint, ibn)
     intidx = addintent!(ibn, conint)
     MINDFul.deploy!(ibn, intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.shortestavailpath!; time=nexttime());
-    @test getroot(ibn.intents[intidx]).state == uncompiled
+    @test getuserintent(ibn.intents[intidx]).state == uncompiled
     MINDFul.deploy!(myibns[1],intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directinstall!; time=nexttime())
-    @test getroot(ibn.intents[intidx]).state == uncompiled
+    @test getuserintent(ibn.intents[intidx]).state == uncompiled
 end
 
 function testintentdeployment(conint, ibn)
     intidx = addintent!(ibn, conint);
     MINDFul.deploy!(ibn,intidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), MINDFul.shortestavailpath!; time=nexttime());
-    @test getroot(ibn.intents[intidx]).state == compiled
+    @test getuserintent(ibn.intents[intidx]).state == compiled
     MINDFul.deploy!(ibn,intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directinstall!; time=nexttime());
-    @test getroot(ibn.intents[intidx]).state == installed
+    @test getuserintent(ibn.intents[intidx]).state == installed
     @test issatisfied(ibn, intidx)
 end
 
@@ -29,7 +29,7 @@ function intentdeployandfault(conint, ibns, ibnidx, edgecontained)
         deploy!(ibn,intidx, MINDFul.doinstall, MINDFul.SimpleIBNModus(), MINDFul.directinstall!; time);
     end
 
-    @test getroot(ibn.intents[intidx]).state == MINDF.installed
+    @test getuserintent(ibn.intents[intidx]).state == MINDF.installed
 
     glbs, _ = MINDF.logicalorderedintents(ibn, intidx, true);
     contains_edg = edgecontained in 
@@ -37,20 +37,20 @@ function intentdeployandfault(conint, ibns, ibnidx, edgecontained)
     @test contains_edg
 
     set_operation_status!(ibnofedge, linktofail, false; time=nexttime())
-    @test getroot(ibn.intents[intidx]).state == MINDF.failure
+    @test getuserintent(ibn.intents[intidx]).state == MINDF.failure
 
     let time=nexttime()
         deploy!(ibn, intidx, MINDF.douninstall, MINDF.SimpleIBNModus(), MINDFul.directuninstall!; time);
-        @test getroot(ibn.intents[intidx]).state == MINDF.compiled
+        @test getuserintent(ibn.intents[intidx]).state == MINDF.compiled
 
         deploy!(ibn, intidx, MINDF.douncompile, MINDF.SimpleIBNModus(); time);
-        @test getroot(ibn.intents[intidx]).state == MINDF.uncompiled
+        @test getuserintent(ibn.intents[intidx]).state == MINDF.uncompiled
 
         deploy!(ibn, intidx, MINDF.docompile, MINDF.SimpleIBNModus(), MINDF.shortestavailpath!; time)
-        @test getroot(ibn.intents[intidx]).state == MINDF.compiled
+        @test getuserintent(ibn.intents[intidx]).state == MINDF.compiled
 
         deploy!(ibn, intidx, MINDF.doinstall, MINDF.SimpleIBNModus(), MINDF.directinstall!; time)
-        @test getroot(ibn.intents[intidx]).state == MINDF.installed
+        @test getuserintent(ibn.intents[intidx]).state == MINDF.installed
     end
 
     glbs, _ = MINDF.logicalorderedintents(ibn, intidx, true);

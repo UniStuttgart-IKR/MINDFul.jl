@@ -1,9 +1,3 @@
-function resetIBNF!()
-    empty!(COUNTER.states)
-    COUNTER.states[0] = 0
-    resetIBNFtime!()
-end
-
 "Converts a node path to a sequence of edges"
 edgeify(p) = map(Edge , zip(p, p[2:end]));
 edgeify(p::Vector{Tuple{Int, Int}}) = map(NestedEdge , zip(p, p[2:end]));
@@ -44,6 +38,7 @@ rate2slots(rt::Real) = round(Int, rt)
 
 delay(dist) = 3.0u"μs/km" * dist
 
+"$(TYPEDSIGNATURES) Convert `globalnet` to a `NestedGraph` using `IBN` framework instances and `SDN` controllers."
 function nestedGraph2IBNs!(globalnet::NestedGraph)
     NestedGraphs.removeemptygraphs_recursive!(globalnet)
     ibncounter = Counter()
@@ -102,12 +97,6 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
         add_edge!(ibn2.ngr, vertex(ibn2.ngr, con1idx, node1), node2, props(globalnet, ed))
     end
     return myibns
-end
-
-function myprint(ci, io::IO = stdout)
-    rts = [Term.RenderableText("[bold white]" * string(fname) * ": [/bold white]" * Term.escape_brackets(string(getfield(ci, fname)))) for fname in fieldnames(typeof(ci))]
-    tb = Term.TextBox(string(reduce(/, rts)), title = string(typeof(ci)), title_style="bold yellow")
-    println(io, tb)
 end
 
 "Get nodes from a MetaGraphNext graph"

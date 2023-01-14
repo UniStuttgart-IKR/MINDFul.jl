@@ -12,10 +12,10 @@ import Distances: haversine
 const EARTH_RADIUS = 6371
 
 export SDN, SDNdummy, IBNEnv
-export IBN, addintent!, remintent!, deploy!, transnodes, issatisfied
+export IBN, addintent!, remintent!, deploy!, bordernodes, issatisfied
 export RouterView, FiberView, distance
 export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
-export getroot, addchild!, children, descendants, getintent, getintentissuer, getintentidxsfromissuer, getremoteintentsid, getid
+export getuserintent, addchild!, children, descendants, getintent, getintentissuer, getintentidxsfromissuer, getremoteintentsid, getid
 export simgraph, nestedGraph2IBNs!, randomsimgraph! 
 export anyreservations, set_operation_status!, edgeify
 
