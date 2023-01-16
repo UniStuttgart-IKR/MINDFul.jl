@@ -13,7 +13,7 @@ It offers interfaces for the development of resource-allocation algorithms and M
 
 For now, `MINDFul.jl` only supports simulation.
 
-Future work may bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers like [ODL](https://www.opendaylight.org/) or [ONOS](https://opennetworking.org/onos/) 
+[Future work](https://unistuttgart-ikr.github.io/MINDFul.jl/dev/roadmap/) may bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers like [ODL](https://www.opendaylight.org/) or [ONOS](https://opennetworking.org/onos/) 
 
 This package is in an early development stage and might break often.
 
