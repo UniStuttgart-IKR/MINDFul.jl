@@ -1,7 +1,7 @@
 getintentidx(idag::IntentDAG) = idag.graph_data.id
 "$(TYPEDSIGNATURES) Get all intents from the intent DAG `dag`"
 getintentdagnodes(dag::IntentDAG) = Base.getindex.(values(dag.vertex_properties), 2)
-getnode(i::NodeRouterIntent) = i.node
+getnode(i::NodeRouterPortIntent) = i.node
 getnode(i::NodeSpectrumIntent) = i.node
 
 "$(TYPEDSIGNATURES) Converts to a global view."
@@ -9,8 +9,12 @@ convert2global(ibn::IBN, lli::NodeSpectrumIntent{Int, E}) where
     E<:Edge = NodeSpectrumIntent(globalnode(ibn, lli.node), globaledge(ibn, lli.edge), lli.slots, lli.bandwidth)
 
 "$(TYPEDSIGNATURES) Converts to a global view."
-convert2global(ibn::IBN, lli::NodeRouterIntent{Int}) = 
-    NodeRouterIntent(globalnode(ibn, lli.node), lli.ports)
+convert2global(ibn::IBN, lli::NodeRouterPortIntent{Int}) = 
+    NodeRouterPortIntent(globalnode(ibn, lli.node), lli.rate)
+
+"$(TYPEDSIGNATURES) Converts to a global view."
+convert2global(ibn::IBN, lli::NodeTransmoduleIntent{Int}) = 
+    NodeTransmoduleIntent(globalnode(ibn, lli.node), lli.tm)
 
 "$(TYPEDSIGNATURES) Get a tuple of globally identifying the intent of DAG node `idn` of DAG `dag` of `ibn`."
 function globalintent(ibn::IBN, dag::IntentDAG, idn::R=missing) where R <: Union{IntentDAGNode, Missing}
@@ -48,7 +52,7 @@ function adjustNpropagate_constraints!(ibn::IBN, dag::IntentDAG)
             if pintdn !== nothing
                 pintent = getintent(pintdn)
                 #readjust intent
-                mydelay = delay(distance(ibn, pintent.path))
+                mydelay = delay(getdistance(ibn, pintent.path))
                 push!(propagete_constraints, DelayConstraint(constr.delay - mydelay))
             else
                 push!(propagete_constraints, constr)
@@ -74,7 +78,7 @@ function getcompliantintent(ibn::IBN, parint::I, ::Type{PathIntent}, path::Vecto
     # deal with DelayConstraint
     dc = getfirst(x -> x isa DelayConstraint, parint.constraints)
     if dc !== nothing
-        if delay(distance(ibn, path)) > dc.delay
+        if delay(getdistance(ibn, path)) > dc.delay
              return nothing
          end
     end
@@ -110,7 +114,7 @@ Convert a `NodeRouterIntent` `intent` from `ibn` to constraint for the neighbor 
 The node concenring the `NodeRouterIntent` should be a border node for `ibn`.
 Return a `Pair{NEIGHBOR_IBN_ID, GoThroughConstraint}`
 """
-function intent2constraint(intent::R, ibn::IBN) where R<:NodeRouterIntent
+function intent2constraint(intent::R, ibn::IBN) where R<:NodeRouterPortIntent
     if getnode(intent) in bordernodes(ibn, subnetwork_view=false)
         cnode = ibn.ngr.vmap[getnode(intent)]
         contr = ibn.controllers[cnode[1]]
@@ -179,11 +183,64 @@ function isavailable(ibn::IBN, dag::IntentDAG, pathint::T) where {T<:PathIntent}
         if sdn11 isa SDN
             doesoperate_link(sdn11, ce) || return false
         elseif sdn22 isa SDN
-            doesoperate = doesoperate_link(sdn22, ce) || return false
+            doesoperate_link(sdn22, ce) || return false
         end
     end
     return true
 end
+
+# TODO Code duplication with PathIntent
+"$(TYPEDSIGNATURES)"
+function isavailable(ibn::IBN, dag::IntentDAG, lpint::T) where {T<:LightpathIntent}
+    path = lpint.path
+    sdn1 = controllerofnode(ibn, path[1])
+    sdn2 = controllerofnode(ibn, path[end])
+    if sdn1 isa SDN && sdn2 isa SDN
+        src = ibn.ngr.vmap[path[1]][2]
+        dst = ibn.ngr.vmap[path[end]][2]
+        isavailable_port(sdn1, src) && isavailable_port(sdn2, dst) || return false
+        isavailable_transmissionmodule(sdn1, src, lpint.transmodl) && isavailable_transmissionmodule(sdn2, dst, lpint.transmodl) || return false
+    elseif sdn1 isa SDN
+        # only consider intradomain knowledge. assume it's possible for the other domain
+        src = ibn.ngr.vmap[path[1]][2]
+        isavailable_port(sdn1, src) || return false
+        isavailable_transmissionmodule(sdn1, src, lpint.transmodl) || return false
+    elseif sdn2 isa SDN
+        # only consider intradomain knowledge. assume it's possible for the other domain
+        dst = ibn.ngr.vmap[path[end]][2]
+        isavailable_port(sdn2, dst) || return false 
+        isavailable_transmissionmodule(sdn2, dst, lpint.transmodl) || return false
+    end
+    for edg in edgeify(path)
+        sdn11 = controllerofnode(ibn, edg.src)
+        sdn22 = controllerofnode(ibn, edg.dst)
+        ce = NestedGraphs.nestededge(ibn.ngr, edg)
+        if sdn11 isa SDN
+            doesoperate_link(sdn11, ce) || return false
+        elseif sdn22 isa SDN
+            doesoperate_link(sdn22, ce) || return false
+        end
+    end
+    return true
+end
+"$(TYPEDSIGNATURES)"
+function isavailable(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R<:NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return isavailable_transmissionmodule(sdn, sdnode, intent.tm)
+end
+
+"$(TYPEDSIGNATURES)"
+function reserve!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <: NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return reserve_transmissionmodule!(sdn, sdnode, intent.tm, (getid(ibn), getintentidx(dag), getid(nri)))
+end
+
+"$(TYPEDSIGNATURES)"
+function free!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <: NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return free_tramsnissionmodule!(sdn, sdnode, intent.tm, (getid(ibn), getintentidx(dag), getid(nri)))
+end
+
 
 "$(TYPEDSIGNATURES) Checks if resources to deploy a `SpectrumIntent` `speint` of `dag` in `ibn` are enough."
 function isavailable(ibn::IBN, dag::IntentDAG, speint::T) where {T<:SpectrumIntent}
@@ -206,7 +263,7 @@ function isavailable(ibn::IBN, dag::IntentDAG, speint::T) where {T<:SpectrumInte
 end
 
 "$(TYPEDSIGNATURES) Checks if resources to deploy a `NodeRouterIntent` `nri` of `dag` in `ibn` are enough."
-function isavailable(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
+function isavailable(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
     return isavailable_port(sdn, sdnode)
 end
@@ -220,6 +277,23 @@ function isavailable(ibn::IBN, dag::IntentDAG, nsi::IntentDAGNode{R}) where R <:
         return isavailable_slots(sdn, ce, intent.slots, reserve_src)
     end
     return false
+end
+"$(TYPEDSIGNATURES)"
+function isavailable(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R<:NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return isavailable_transmissionmodule(sdn, sdnode, intent.tm)
+end
+
+"$(TYPEDSIGNATURES)"
+function reserve!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <: NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return reserve_transmissionmodule!(sdn, sdnode, intent.tm, (getid(ibn), getintentidx(dag), getid(nri)))
+end
+
+"$(TYPEDSIGNATURES)"
+function free!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <: NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return free_transmissionmodule!(sdn, sdnode, intent.tm, (getid(ibn), getintentidx(dag), getid(nri)))
 end
 
 """
@@ -250,20 +324,26 @@ function intersdnspace(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode)
 end
 
 "$(TYPEDSIGNATURES) Reserve the `NodeRouterIntent` `nri` of `dag` in `ibn`. Return `false` if impossible."
-function reserve!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
+function reserve!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
-    return reserve_port!(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
+    return reserve_port!(sdn, sdnode, intent.rate, (getid(ibn), getintentidx(dag), getid(nri)))
 end
 "$(TYPEDSIGNATURES) Free the `NodeRouterIntent` `nri` of `dag` in `ibn`"
-function free!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
+function free!(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
     return free_port!(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
 end
 
 "$(TYPEDSIGNATURES) Check if the `NodeRouterIntent` `nri` of `dag` is satisfied in `ibn`."
-function issatisfied(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterIntent
+function issatisfied(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
     intent, sdn, sdnode = sdnspace(ibn, dag, nri)
-    return issatisfied_port(sdn, sdnode, (getid(ibn), getintentidx(dag), getid(nri)))
+    return issatisfied_port(sdn, sdnode, intent.rate, (getid(ibn), getintentidx(dag), getid(nri)))
+end
+
+"$(TYPEDSIGNATURES) Check if the `NodeRouterIntent` `nri` of `dag` is satisfied in `ibn`."
+function issatisfied(ibn::IBN, dag::IntentDAG, nri::IntentDAGNode{R}) where R <:NodeTransmoduleIntent
+    intent, sdn, sdnode = sdnspace(ibn, dag, nri)
+    return issatisfied_transmissionmodule(sdn, sdnode, intent.tm, (getid(ibn), getintentidx(dag), getid(nri)))
 end
 
 "$(TYPEDSIGNATURES) Reserve the `NodeSpectrumIntent` `nsi` of `dag` in `ibn`. Return `false` if impossible."

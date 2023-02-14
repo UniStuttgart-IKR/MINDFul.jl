@@ -27,8 +27,8 @@ function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}) wh
     for ce in cedges
         ed = edge(ng, ce)
         #TODO choose properties
-        set_prop!(ng, ed, :link, Link(25 , 100) )
-        set_prop!(ng, reverse(ed), :link, Link(25 , 100) )
+        set_prop!(ng, ed, :link, LinkDummy(25 , 100) )
+        set_prop!(ng, reverse(ed), :link, LinkDummy(25 , 100) )
         # push interdomain values in sdns involved
         # shallow copy for bilateral modification
         for sdn in [sdns[ce.src[1]], sdns[ce.dst[1]]]
@@ -55,16 +55,30 @@ function connect!(sdn1::SDNdummy{R}, cedge::NestedEdge{T}, d::Dict{Symbol, K}) w
 end
 
 "$(TYPEDSIGNATURES) Check if `sdn` has any port at node `v`"
-isavailable_port(sdn::SDNdummy, v::Int) = hasport(get_prop(getgraph(sdn), v, :router))
+isavailable_port(sdn::SDNdummy, v::Int) = hasport(getrouter(sdn, v))
 "$(TYPEDSIGNATURES) Reserve a port at node `v` of the SDN controller `sdn` and log the intent id `intidx` done for"
-reserve_port!(sdn::SDNdummy, v::Int, intidx) = useport!(get_prop(getgraph(sdn), v, :router), intidx)
+reserve_port!(sdn::SDNdummy, v::Int, rate::Real, intidx) = useport!(getrouter(sdn, v), rate, intidx)
 "$(TYPEDSIGNATURES) Free the port at node `v` of the SDN controller `sdn` used for the intent with id `intidx`"
-free_port!(sdn::SDNdummy, v::Int, intidx) = freeport!(get_prop(getgraph(sdn), v, :router), intidx)
 
-"$(TYPEDSIGNATURES) Check if a port is allocated at node `v` of `sdn `in the name of the intent `intidx`."
-function issatisfied_port(sdn::SDNdummy, v::Int, intidx)
-    rtview = get_prop(getgraph(sdn), v, :router)
-    return intidx in skipmissing(rtview.reservations)
+free_port!(sdn::SDNdummy, v::Int, intidx) = freeport!(getrouter(sdn, v), intidx)
+"$(TYPEDSIGNATURES) Reserve a port at node `v` of the SDN controller `sdn` and log the intent id `intidx` done for"
+isavailable_transmissionmodule(sdn::SDNdummy, v::Integer, tm::TransmissionModuleView) = hastransmissionmodule(getmlnode(sdn, v), tm)
+reserve_transmissionmodule!(sdn::SDNdummy, v::Integer, tm::TransmissionModuleView, intidx) = usetransmissionmodule!(getmlnode(sdn, v), tm, intidx)
+free_transmissionmodule!(sdn::SDNdummy, v::Integer, tm::TransmissionModuleView, intidx) = freetransmissionmodule!(getmlnode(sdn, v), tm, intidx)
+
+"$(TYPEDSIGNATURES) Check if a port is allocated at node `v` of `sdn `in the name of the intent `intidx` and satisfies rate `rate`"
+function issatisfied_port(sdn::SDNdummy, v::Int, rate::Number, intidx)
+    rtview = getrouter(sdn, v)
+    ff = findfirst(==(intidx), skipmissing(rtview.reservations))
+    ff !== nothing || return false
+    return getportrate(rtview, ff) > rate
+end
+
+"$(TYPEDSIGNATURES)"
+function issatisfied_transmissionmodule(sdn::SDNdummy, v::Int, tm::TransmissionModuleView, intidx)
+    mlnode = getmlnode(sdn, v)
+    ff = findfirst(==((tm, intidx)), skipmissing(mlnode.transmodreservations))
+    ff === nothing ? false : true
 end
 
 "$(TYPEDSIGNATURES) Reserve capacity `capacity` on an intra-SDN edge `e` for SDN `sdn`"

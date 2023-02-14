@@ -1,5 +1,32 @@
+getmlnode(sdn::SDN, i::Integer) = getmlnode(getgraph(sdn), i)
+getmlnode(ibn::IBN, i::Integer) = getmlnode(ibn.ngr, i)
+getmlnode(graph, i::Integer) = get_prop(graph, i, :mlnode)
+getrouter(graph, i::Integer) = getrouter(getmlnode(graph,i))
+
+getlink(x, e::Edge) = getlink(x, src(e), dst(e))
+getlink(ibn::IBN, i::Integer, j::Integer) = getlink(ibn.ngr, i, j)
+getlink(sdn::SDN, i::Integer, j::Integer) = getlink(getgraph(sdn), i, j)
+getlink(graph, i::Integer, j::Integer) = get_prop(graph, i, j, :link)
+
 hasport(rt::RouterView) = any(rt.portavailability)
 availableports(rt::RouterView) = count(rt.portavailability)
+
+hastransmissionmodule(mln::MLNode, transmodl::TransmissionModuleView) = any(x -> issimilar(x,transmodl), mln.transmodulespool)
+usetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,Int,UUID}) = let; push!(mln.transmodreservations, (transmodl, ibnintid)); return true; end
+function freetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,Int,UUID})
+    num = length(mln.transmodreservations)
+    filter!(!=((transmodl, ibnintid)), mln.transmodreservations)
+    length(mln.transmodreservations) < num ? true : false
+end
+
+"""
+$(TYPEDSIGNATURES) Checks wether `rt` has a port with rate bigger or equal to `rate`
+"""
+function hasport(rt::RouterView, rate::Float64)
+    any(enumerate(rt.portavailability)) do (portidx, portavail)
+        portavail && rate <= getportrate(rt, portidx)
+    end
+end
 
 """
 $(TYPEDSIGNATURES)
@@ -11,6 +38,20 @@ function useport!(rt::RouterView, ibnintid::Tuple{Int,Int,UUID})
     if ff !==nothing
         rt.portavailability[ff] = false
         rt.reservations[ff] = ibnintid
+        return true
+    end
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Use a port in Router `rt` to serve an intent described by the `Tuple` `ibnintid`.
+"""
+function useport!(rt::RouterView, portidx::Int, ibnintid::Tuple{Int,Int,UUID})
+    if rt.portavailability[portidx] == true
+        rt.portavailability[portidx] = false
+        rt.reservations[portidx] = ibnintid
         return true
     end
     return false
@@ -42,8 +83,9 @@ function freeport!(rt::RouterView, portidx::Int, intidx)
 end
 
 "$(TYPEDSIGNATURES) Get length of the fiber `fv`"
-distance(fv::F) where {F<:FiberView} = distance(fv.fiber)
-delay(fv::FiberView) = 5u"ns/km" * distance(fv)
+getdistance(fv::F) where {F<:FiberView} = getdistance(fv.fiber)
+getspectrumslots(fv::F) where {F<:FiberView} = fv.spectrum_src .& fv.spectrum_dst
+delay(fv::FiberView) = 5u"ns/km" * getdistance(fv)
 
 """
 $(TYPEDSIGNATURES)

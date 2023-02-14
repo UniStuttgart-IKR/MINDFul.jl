@@ -109,11 +109,11 @@ struct IBNnIntentGLLI{R,T<:LowLevelIntent}
     idn::IntentDAGNode{R}
     "global low level intent"
     lli::T
-    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeSpectrumIntent{Tuple{Int, Int}, C}) where
-        {R <: Intent, C <: NestedEdge} = new{R, NodeSpectrumIntent{Tuple{Int, Int}, C}}(ibn, dag, idn,lli)
-    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeRouterIntent{Tuple{Int, Int}}) where
-        R <: Intent = new{R, NodeRouterIntent{Tuple{Int, Int}}}(ibn, dag, idn,lli)
-    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::RemoteLogicIntent{C}) where 
-    {R<:Intent, C<:Intent}  = new{R, RemoteLogicIntent{C}}(ibn, dag, idn, lli)
+#    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeSpectrumIntent{Tuple{Int, Int}, C}) where
+#        {R <: Intent, C <: NestedEdge} = new{R, NodeSpectrumIntent{Tuple{Int, Int}, C}}(ibn, dag, idn,lli)
+#    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::NodeRouterPortIntent{Tuple{Int, Int}}) where
+#        R <: Intent = new{R, NodeRouterPortIntent{Tuple{Int, Int}}}(ibn, dag, idn,lli)
+#    IBNnIntentGLLI(ibn,dag,idn::IntentDAGNode{R}, lli::RemoteLogicIntent{C}) where 
+#    {R<:Intent, C<:Intent}  = new{R, RemoteLogicIntent{C}}(ibn, dag, idn, lli)
 end
 getlli(giig::IBNnIntentGLLI) = giig.lli

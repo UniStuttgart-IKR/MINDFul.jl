@@ -28,13 +28,11 @@ $(TYPEDEF)
 $(TYPEDFIELDS)
 """
 mutable struct IntentDAGInfo
-    "The intent id as was set by the IBN"
-    id::Int
     "The intent UUID index to be assigned next in the IntentDAG"
     intentcounter::Int
 end
-IntentDAGInfo(id::Int) = IntentDAGInfo(id, 1)
-const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(0)))
+IntentDAGInfo() = IntentDAGInfo(1)
+const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo()))
 getid(dag::IntentDAG) = dag.graph_data.id
 
 function IntentDAG(id::Int, intent::Intent)
@@ -107,7 +105,23 @@ struct PathIntent{C} <: Intent
     path::Vector{Int}
     constraints::C
 end
+getpath(pin::PathIntent) = pin.path
 dagtext(ci::PathIntent) = "PathIntent($(ci.path), $(ci.constraints))"
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+struct LightpathIntent{T,C} <: Intent
+    "Flow path"
+    path::Vector{Int}
+    transmodl::T
+    constraints::C
+end
+getpath(lpi::LightpathIntent) = lpi.path
+gettransmodl(lpi::LightpathIntent) = lpi.transmodl
+dagtext(ci::LightpathIntent) = "LightpathIntent\npath=$(ci.path)"
+
 
 """
 $(TYPEDEF)
@@ -144,12 +158,24 @@ $(TYPEDEF)
 $(TYPEDFIELDS)
 `R` can be `Int` for local view or `Tuple{Int, Int}` for gloval view
 """
-struct NodeRouterIntent{R} <: LowLevelIntent
+struct NodeRouterPortIntent{R} <: LowLevelIntent
     node::R
-    ports::Int
+    rate::Float64
 end
-NodeRouterIntent(nd) = NodeRouterIntent(nd, 1)
-dagtext(ci::NodeRouterIntent) = "NodeRouterIntent\nnode=$(ci.node)\nports=$(ci.ports)"
+NodeRouterPortIntent(nd) = NodeRouterPortIntent(nd, 100.0)
+dagtext(ci::NodeRouterPortIntent) = "NodeRouterPortIntent\nnode=$(ci.node)\nrate=$(ci.rate)"
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+struct NodeTransmoduleIntent{R,T<:TransmissionModuleView} <: LowLevelIntent
+    "which node this low-level intent targets"
+    node::R
+    "the transmission module that must be allocated (or similar for dissagregated networks)"
+    tm::T
+end
+dagtext(ci::NodeTransmoduleIntent) = "NodeTransmoduleIntent\nnode=$(ci.node)\ntransmodl=$(ci.tm)"
 
 """
 $(TYPEDEF)

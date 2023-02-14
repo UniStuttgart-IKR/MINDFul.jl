@@ -1,5 +1,4 @@
-@enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalGroomingDown, signalGrooming, signalGroomingUp, 
-      signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd, signalUknown)
+@enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalTransmissionModuleDown, signalTransmissionModuleUp ,signalGroomingDown, signalGrooming, signalGroomingUp, signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd, signalUknown)
 
 "`R` is Int for local mode and `Tuple{Int, Int}` for global"
 struct ConnectionState{R}
@@ -19,30 +18,68 @@ struct SpectrumRequirements
     "Gbps (`Unitful` still doesn't support bits)"
     bandwidth::Float64
 end
+"""
+$(TYPEDEF)
 
-struct Transponder
+Represents a transmission mode.
+A Transponder, if flexible, might support many of such
+
+$(TYPEDFIELDS)
+"""
+struct TransmissionProps
+    "Optical reach in kilometers"
     optreach::typeof(1.0u"km")
-    rate::Float64
-    frslots::Int
+    "Gbps"
+     rate::Float64  
+    "Number of 12.5 GHz frequency slots needed"
+    freqslots::Int
 end
-getrate(tr::Transponder) = tr.rate
-getoptreach(tr::Transponder) = tr.optreach
-getslots(tr::Transponder) = tr.frslots
-transponderset() = Vector{Transponder}([
-            Transponder(5080.0u"km", 300, 8),
-            Transponder(4400.0u"km", 400, 8),
-            Transponder(2800.0u"km", 500, 8),
-            Transponder(1200.0u"km", 600, 8),
-            Transponder(700.0u"km", 700, 10),
-            Transponder(400.0u"km", 800, 10),
-           ])
+getrate(trp::TransmissionProps) = trp.rate
+getoptreach(trp::TransmissionProps) = trp.optreach
+getfreqslots(trp::TransmissionProps) = trp.freqslots
 
-struct MLNode{R,T,O}
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Could be either a traditional transponder or a Coherent Pluggable Tranceiver.
+"""
+mutable struct TransmissionModuleView{T}
+    "descriptive name of the transmission module"
+    name::String
+    "The Transmission module to use"
+    transp::T
+end
+getrate(tr::TransmissionModuleView) = getrate(tr.transp)
+getoptreach(tr::TransmissionModuleView) = getoptreach(tr.transp)
+getfreqslots(tr::TransmissionModuleView) = getfreqslots(tr.transp)
+getcost(tr::TransmissionModuleView) = getcost(tr.transp)
+gettransmissionmodes(tr::T) where T<:TransmissionModuleView = gettransmissionmodes(tr.transp)
+getselection(tr::TransmissionModuleView) = getselection(tr.transp)
+setselection!(tr::TransmissionModuleView, s::Int) = setselection!(tr.transp, s)
+issimilar(tr1::TransmissionModuleView, tr2::TransmissionModuleView) = Base.isequal(tr1.name, tr2.name) && issimilar(tr1.transp, tr2.transp)
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Integrated multilayer node; all inclusive.
+"""
+struct MLNode{R,T,O,D}
     router::R
     otn::T
     oxc::O
-    transmodulespool::Vector{Transponder}
+    transmodulespool::Vector{TransmissionModuleView{D}}
+    transmodreservations::Vector{Tuple{TransmissionModuleView{D}, Tuple{Int, Int, UUID}}}
 end
+
+MLNode(r,otn, oxc, tmp) = MLNode(r, otn, oxc, tmp, Vector{Tuple{TransmissionModuleView{TransmissionModuleDummy}, Tuple{Int, Int, UUID}}}())
+getrouter(mln::MLNode) = mln.router
+getotn(mln::MLNode) = mln.otn
+getoxc(mln::MLNode) = mln.oxc
+gettransmodulespoll(mln::MLNode) = mln.transmodulespool
+gettransmodreservations(mln::MLNode) = mln.transmodreservations
 
 struct RouterView{R}
     router::R
@@ -51,7 +88,20 @@ struct RouterView{R}
     "lists which intents are reserved the resources"
     reservations::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
 end
-RouterView(rt) = RouterView(rt, fill(true, rt.nports), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, rt.nports)))
+#RouterView(rt::RouterDummy) = RouterView(rt, fill(true, rt.nports), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, rt.nports)))
+RouterView(rt) = RouterView(rt, Vector{Bool}(), Vector{Union{Missing,Tuple{Int,Int,UUID}}}())
+getportrate(rv::RouterView, p::Int) = getportrate(rv.router, p)
+getportcost(rv::RouterView, p::Int) = getportcost(rv.router, p)
+newlinecardcost(rv::RouterView, rt::Float64, lcs, lcc) = newlinecardcost(rv.router, rt, lcs, lcc)
+function addlinecard!(rv::RouterView, lc)
+    portnum = addlinecard!(rv.router, lc)
+    if !isnothing(portnum)
+        push!(rv.portavailability, fill(true, portnum)...)
+        push!(rv.reservations, fill(missing, portnum)...)
+        return true
+    end
+    return false
+end
 
 struct OTNView end
 struct OXCView end

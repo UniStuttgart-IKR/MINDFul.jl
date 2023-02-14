@@ -13,11 +13,12 @@ const EARTH_RADIUS = 6371
 
 export SDN, SDNdummy, IBNEnv
 export IBN, addintent!, remintent!, deploy!, bordernodes, issatisfied
-export RouterView, FiberView, distance
-export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState
+export RouterView, FiberView, getdistance
+export Intent, IntentConstraint, CapacityConstraint, DelayConstraint, GoThroughConstraint,ConnectivityIntent, IntentDAG, IntentDAGNode, IntentTransition, IntentState, LightpathIntent
 export getuserintent, addchild!, children, descendants, getintent, getintentissuer, getintentidxsfromissuer, getremoteintentsid, getid
 export simgraph, nestedGraph2IBNs!, randomsimgraph! 
 export anyreservations, set_operation_status!, edgeify
+export getrate, getfreqslots, getoptreach
 
 const THours = typeof(1.0u"hr")
 

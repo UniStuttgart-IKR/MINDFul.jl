@@ -1,6 +1,6 @@
 function filternext(sd::Val{signalElectrical}, cs::ConnectionState)
     function nextelectricaldown(lli::LowLevelIntent)
-        lli isa NodeRouterIntent && getnode(lli) == getnode(cs)
+        lli isa NodeRouterPortIntent && getnode(lli) == getnode(cs)
     end
 end
 function filternext(sd::Val{signalElectricalDown}, cs::ConnectionState)
@@ -15,7 +15,7 @@ function filternext(sd::Val{signalElectricalUp}, cs::ConnectionState)
 end
 function filternext(sd::Val{signalFiberIn}, cs::ConnectionState)
     function nextfiberin(lli::LowLevelIntent)
-        (lli isa NodeRouterIntent && getnode(lli) == getnode(cs)) ||
+        (lli isa NodeRouterPortIntent && getnode(lli) == getnode(cs)) ||
         (lli isa NodeSpectrumIntent && getnode(lli) == getnode(cs))
     end
 end
@@ -30,19 +30,29 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
     for (i,gibnl) in enumerate(globalIBNnlli)
         lli = gibnl.lli
         if cs.signaloc == signalElectricalDown
+            if lli isa NodeTransmoduleIntent && getnode(lli) == getnode(cs)
+                deleteat!(globalIBNnlli, i)
+                return (gibnl, ConnectionState(getnode(cs), signalTransmissionModuleDown))
+            end
+        elseif cs.signaloc == signalElectricalUp
+            if lli isa NodeRouterPortIntent && getnode(lli) == getnode(cs)
+                deleteat!(globalIBNnlli, i)
+                return (gibnl, ConnectionState(getnode(cs), signalElectricalDown))
+            end
+        elseif cs.signaloc == signalTransmissionModuleDown
             if lli isa NodeSpectrumIntent && getnode(lli) == getnode(cs)
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
             end
-        elseif cs.signaloc == signalElectricalUp
-            if lli isa NodeRouterIntent && getnode(lli) == getnode(cs)
-                deleteat!(globalIBNnlli, i)
-                return (gibnl, ConnectionState(getnode(cs), signalElectricalDown))
-            end
-        elseif cs.signaloc == signalFiberIn
-            if (lli isa NodeRouterIntent && getnode(lli) == getnode(cs))
+        elseif cs.signaloc == signalTransmissionModuleUp
+            if lli isa NodeRouterPortIntent && getnode(lli) == getnode(cs)
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalElectricalUp))
+            end
+        elseif cs.signaloc == signalFiberIn
+            if (lli isa NodeTransmoduleIntent && getnode(lli) == getnode(cs))
+                deleteat!(globalIBNnlli, i)
+                return (gibnl, ConnectionState(getnode(cs), signalTransmissionModuleUp))
             elseif (lli isa NodeSpectrumIntent && getnode(lli) == lli.edge.src == getnode(cs))
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
@@ -67,7 +77,7 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
                 end
             end
         elseif cs.signaloc == signalElectrical 
-            if lli isa NodeRouterIntent && getnode(lli) == getnode(cs)
+            if lli isa NodeRouterPortIntent && getnode(lli) == getnode(cs)
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalElectricalDown))
             end
@@ -106,7 +116,10 @@ function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I 
 
     # check if installed correctly
     for gibnl in globalIBNnllis
-        issatisfied(gibnl.ibn, gibnl.dag, gibnl.idn) || (@info "$(intentidx(gibnl.ibn, gibnl.dag, gibnl.idn)) is not satisfied"; return false)
+        if !issatisfied(gibnl.ibn, gibnl.dag, gibnl.idn)
+            @info "$(intentidx(gibnl.ibn, gibnl.dag, gibnl.idn)) is not satisfied"
+            return false
+        end
     end
 
     # check general intent nature
@@ -173,10 +186,10 @@ function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, 
 end
 
 "$(TYPEDSIGNATURES) Get a list of global view low-level intents `IBNnIntentGLLI` for the intent `ibn, dag, idn`"
-function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, globalknow=false)
+function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idna::IntentDAGNode, globalknow=false)
     # need to transform node and edge to global values for interdomain satisfaction check
     globalIBNnlli = Vector{IBNnIntentGLLI}()
-    for idn in descendants(dag, idn)
+    for idn in descendants(dag, idna)
         if idn.intent isa RemoteIntent
             if globalknow
                 ibnrem = getibn(ibn, idn.intent.ibnid)
@@ -247,7 +260,7 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
         fibin.slots == fibout.slots || return false
         fibin.bandwidth == fibout.bandwidth || return false
         ledge = localedge(xin.ibn, fibin.edge; subnetwork_view=false)
-        sumkms += get_prop(xin.ibn.ngr, ledge, :link) |> distance
+        sumkms += get_prop(xin.ibn.ngr, ledge, :link) |> getdistance
     end
     delay(sumkms) <= cc.delay || return false
     return true
@@ -277,7 +290,7 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
         end
     elseif cc.layer in [signalElectrical]
         for gbnl in globalIBNnllis
-            if gbnl.lli isa NodeRouterIntent
+            if gbnl.lli isa NodeRouterPortIntent
                 if gbnl.lli.node == cc.node
                     return true
                 end

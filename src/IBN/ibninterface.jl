@@ -181,26 +181,3 @@ function delegate_edgeintent(ibn, dag, idn, kvpair, compmethod; time)
     ibnserver = getibn(ibn, kvpair.first)
     delegateintent!(ibn, ibnserver, dag, idn, ei, compmethod; time)
 end
-
-"$(TYPEDSIGNATURES) Checks if `ibn` has reserved something due to an intent or not"
-function anyreservations(ibn)
-    routers = [get_prop(ibn.ngr, v, :router) for v in vertices(ibn.ngr) if has_prop(ibn.ngr, v, :router)]
-    portreservations = getfield.(routers, :reservations)
-    totalavailable = all(ismissing, reduce(vcat, portreservations))
-    totalavailable || return true
-
-    portavailables = getfield.(routers, :portavailability)
-    totalavailable = all(==(true), reduce(vcat, portavailables))
-    totalavailable || return true
-
-    links = [get_prop(ibn.ngr, e.src, e.dst, :link) for e in edges(ibn.ngr) if has_prop(ibn.ngr, e.src, e.dst, :link)]
-    slotreservations = vcat(getfield.(links, :reservations_src), getfield.(links, :reservations_dst))
-    totalavailable = all(ismissing, reduce(vcat, slotreservations))
-    totalavailable || return true
-
-    slotavailables = vcat(getfield.(links, :spectrum_src), getfield.(links, :spectrum_dst))
-    totalavailable = all(==(true), reduce(vcat, slotavailables))
-    totalavailable || return true
-
-    return false
-end

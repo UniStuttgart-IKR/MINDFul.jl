@@ -27,6 +27,15 @@ getsdns(ibn::IBN) = Iterators.filter(x -> isa(x, SDN),ibn.controllers)
 "$(TYPEDSIGNATURES) Get IBN with id `id`. This could either self-refence to `ibn` or provide a neighboring IBN of `ibn`"
 getibn(ibn::IBN, id) = id == ibn.id ? ibn : getfirst(x -> getfield(x,:id) == id, getibns(ibn))
 
+"$(TYPEDSIGNATURES) Get nodes of IBN that are contained locally without border nodes."
+function getmynodes(ibn::IBN; subnetwork_view::Bool=false)
+    if subnetwork_view 
+        [(v[1], v[2]) for v in ibn.ngr.vmap if ibn.controllers[v[1]] isa SDN]
+    else
+        [v for v in vertices(ibn.ngr) if ibn.controllers[ibn.ngr.vmap[v][1]] isa SDN]
+    end
+end
+
 """
 $(TYPEDSIGNATURES) 
 

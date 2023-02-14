@@ -34,6 +34,21 @@ function push2dict!(d::Dict{K,Vector{V}}, d2::Dict{K, Vector{V}}) where {K,V}
     end
 end
 
+function longestconsecutiveblock(fun, v::AbstractVector)
+    counter = 0
+    maxcounter = 0
+    for e in v
+        if fun(e)
+            counter += 1
+        else
+            counter >= maxcounter && (maxcounter = counter)
+            counter = 0
+        end
+    end
+    counter >= maxcounter && (maxcounter = counter)
+    return maxcounter
+end
+
 rate2slots(rt::Real) = round(Int, rt)
 
 delay(dist) = 3.0u"μs/km" * dist

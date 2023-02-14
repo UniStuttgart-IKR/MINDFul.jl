@@ -58,7 +58,7 @@ function compile!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, gtc::GoThroughCo
 
     signalocreq = gtc.layer
     if signalocreq == signalElectrical
-        lli = NodeRouterIntent(node)
+        lli = NodeRouterPortIntent(node)
         addchild!(dag, getid(idn), lli)
     elseif signalocreq in [signalFiberIn, signalFiberOut] && gtc.req isa SpectrumRequirements
         sreqs = gtc.req
@@ -168,7 +168,7 @@ function firstfitpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::I
         # TODO parametric
         transponders = sort(filter(x -> getrate(x) >= cc.drate, transponderset()),  by = x -> MINDFul.getoptreach(x), rev=true)
         for transp in transponders
-            if getoptreach(transp) < distance(ibn, pathint.path)
+            if getoptreach(transp) < getdistance(ibn, pathint.path)
                 error("Regeneration needed. Still not implemented.")
             else
                 fs = [get_prop(ibn.ngr, e, :link) for e in edgeify(pathint.path)]

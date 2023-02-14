@@ -31,7 +31,7 @@ function getcompiledintent(ibn::IBN, intentidx::Int, globalknow=false)
     fr_slots = Vector{UnitRange{Int}}()
     electric_reg = Vector{Tuple{Int,Int}}()
     for (i,lli) in enumerate(llis)
-        if lli isa NodeRouterIntent
+        if lli isa NodeRouterPortIntent
             push!(electric_reg, lli.node)
         elseif lli isa NodeSpectrumIntent
             if length(path) == 0 
