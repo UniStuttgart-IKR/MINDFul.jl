@@ -12,8 +12,8 @@ hasport(rt::RouterView) = any(rt.portavailability)
 availableports(rt::RouterView) = count(rt.portavailability)
 
 hastransmissionmodule(mln::MLNode, transmodl::TransmissionModuleView) = any(x -> issimilar(x,transmodl), mln.transmodulespool)
-usetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,Int,UUID}) = let; push!(mln.transmodreservations, (transmodl, ibnintid)); return true; end
-function freetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,Int,UUID})
+usetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,UUID}) = let; push!(mln.transmodreservations, (transmodl, ibnintid)); return true; end
+function freetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,UUID})
     num = length(mln.transmodreservations)
     filter!(!=((transmodl, ibnintid)), mln.transmodreservations)
     length(mln.transmodreservations) < num ? true : false
@@ -33,7 +33,7 @@ $(TYPEDSIGNATURES)
 
 Use a port in Router `rt` to serve an intent described by the `Tuple` `ibnintid`.
 """
-function useport!(rt::RouterView, ibnintid::Tuple{Int,Int,UUID})
+function useport!(rt::RouterView, ibnintid::Tuple{Int,UUID})
     ff = findfirst(==(true), rt.portavailability)
     if ff !==nothing
         rt.portavailability[ff] = false
@@ -48,7 +48,7 @@ $(TYPEDSIGNATURES)
 
 Use a port in Router `rt` to serve an intent described by the `Tuple` `ibnintid`.
 """
-function useport!(rt::RouterView, portidx::Int, ibnintid::Tuple{Int,Int,UUID})
+function useport!(rt::RouterView, portidx::Int, ibnintid::Tuple{Int,UUID})
     if rt.portavailability[portidx] == true
         rt.portavailability[portidx] = false
         rt.reservations[portidx] = ibnintid
@@ -62,7 +62,7 @@ $(TYPEDSIGNATURES)
 
 Free a port in Router `rt` from serving an intent described by the `Tuple` `ibnintid`.
 """
-function freeport!(rt::RouterView, ibnintid::Tuple{Int, Int,UUID})
+function freeport!(rt::RouterView, ibnintid::Tuple{Int,UUID})
     fall = findall(==(ibnintid), skipmissing(rt.reservations))
     for ff in fall
         rt.portavailability[ff] = true
@@ -114,7 +114,7 @@ $(TYPEDSIGNATURES)
 Use slots `channel` in fiber `f` for serving intent `ibnintid`.
 If `reserve_src=true` use the slots in the `src`. Else in the `dst`.
 """
-function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID}, reserve_src::Bool)
+function useslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,UUID}, reserve_src::Bool)
     for i in channel
         if reserve_src
             if !f.spectrum_src[i]
@@ -147,7 +147,7 @@ $(TYPEDSIGNATURES)
 Free slots `channel` in fiber `f` for serving intent `ibnintid`.
 If `reserve_src=true` free the slots in the `src`. Else in the `dst`.
 """
-function freeslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,Int,UUID}, reserve_src::Bool)
+function freeslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,UUID}, reserve_src::Bool)
     for i in channel
         if reserve_src
             f.spectrum_src[i] && @warn("Some slots are already unused")

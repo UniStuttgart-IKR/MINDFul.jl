@@ -86,7 +86,7 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
     return (nothing,nothing)
 end
 
-function isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{R}) where {R <: ConnectionState, C <: ConnectivityIntent}
+function isintentsatisfied(ibn::IBN, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{R}) where {R <: ConnectionState, C <: ConnectivityIntent}
     if getnode(vcs[1]) != getsrc(idn.intent) || getnode(vcs[end]) != getdst(idn.intent)
         return false
     else
@@ -94,36 +94,36 @@ function isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnl
     end
 end
 
-isintentsatisfied(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: EdgeIntent} = true
+isintentsatisfied(ibn::IBN, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: EdgeIntent} = true
 
 "onlylogic is WIP"
-issatisfied(ibn::IBN, intentidx::Int; onlylogic=false) = issatisfied(ibn, getintent(ibn,intentidx), getuserintent(getintent(ibn,intentidx)))
+issatisfied(ibn::IBN, intentid::UUID; onlylogic=false) = issatisfied(ibn, getintentnode(ibn,intentid))
 
 # TODO issatisfied(onlylogic = true) could be implemented with ML ?
 """
 $(TYPEDSIGNATURES)
 
-Check if intent of `ibn`,`dag`,`idagn` is satisfied.
+Check if intent of `ibn`,`idagn` is satisfied.
 It checks whether the implementation of the intent makes sense and if all constraints are satisfied.
 Internally it retrieves all low-level intents, assembles them, and decides whether or not they satisfy the intent.
 
 This function assumes global knowledge to reach a verdict.
 For this reason it is clearly a function used for simulation purposes.
 """
-function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I <: Intent
+function issatisfied(ibn::IBN, idagn::IntentDAGNode{I}) where I <: Intent
     # get low level intents (resource reservations) in a logical order.
-    globalIBNnllis, vcs = logicalorderedintents(ibn, dag, idagn, true)
+    globalIBNnllis, vcs = logicalorderedintents(ibn, idagn, true)
 
     # check if installed correctly
     for gibnl in globalIBNnllis
-        if !issatisfied(gibnl.ibn, gibnl.dag, gibnl.idn)
-            @info "$(intentidx(gibnl.ibn, gibnl.dag, gibnl.idn)) is not satisfied"
+        if !issatisfied(gibnl.ibn, gibnl.idn)
+            @info "$(intentidx(gibnl.ibn, getid(gibnl.idn))) is not satisfied"
             return false
         end
     end
 
     # check general intent nature
-    if !isintentsatisfied(ibn, dag, idagn, globalIBNnllis, vcs)
+    if !isintentsatisfied(ibn, idagn, globalIBNnllis, vcs)
         @info "General intent nature not satisfied"
         return false
     end
@@ -136,29 +136,29 @@ function issatisfied(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{I}) where I 
     end
 end
 
-logicalorderedintents(ibn::IBN, intid::Int, globalknow=false) = logicalorderedintents(ibn, getintent(ibn, intid), getuserintent(getintent(ibn, intid)), globalknow)
+logicalorderedintents(ibn::IBN, intid::UUID, globalknow=false) = logicalorderedintents(ibn, getintentnode(ibn, intid), globalknow)
 
 """
 $(TYPEDSIGNATURES)
 
 Returns a tuple where the first element is a `Vector` of all low-level intents sorted 
-in a logical order as used in the data plane to satisfy the intent identified by `ibn`,`dag`, `idn`.
+in a logical order as used in the data plane to satisfy the intent identified by `ibn`, `idn`.
 
 The second element is the `Vector` of the logical states served by the equivalent low-level intent of the first `Vector`.
 Thus, the first and second `Vector` have the same length.
 
 Toggle `globalknowledge` depending on the scenario.
 """
-function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{I}, globalknow=false) where I<:Intent
-    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn, globalknow)
+function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{I}, globalknow=false) where I<:Intent
+    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, idn, globalknow)
     return globalIBNnlli_rest, fill(missing, length(globalIBNnlli_rest))
 end
 
 "$(TYPEDSIGNATURES)"
-function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, globalknow=false) where C<:ConnectivityIntent
+function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false) where C<:ConnectivityIntent
     # the `Vector` of remaining low-level intents, which were not needed in the logical sequence.
     # This vector might be seen as wasting of resources.
-    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, dag, idn, globalknow)
+    globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, idn, globalknow)
     vcs = Vector{ConnectionState}()
     globalIBNnlli = Vector{IBNnIntentGLLI}()
 
@@ -185,17 +185,18 @@ function logicalorderedintents(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode{C}, 
     return (globalIBNnlli, vcs)
 end
 
-"$(TYPEDSIGNATURES) Get a list of global view low-level intents `IBNnIntentGLLI` for the intent `ibn, dag, idn`"
-function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idna::IntentDAGNode, globalknow=false)
+"$(TYPEDSIGNATURES) Get a list of global view low-level intents `IBNnIntentGLLI` for the intent `ibn, idn`"
+function getinterdomain_lowlevelintents(ibn::IBN, idna::IntentDAGNode, globalknow=false)
     # need to transform node and edge to global values for interdomain satisfaction check
+    dag = getintentdag(ibn)
     globalIBNnlli = Vector{IBNnIntentGLLI}()
     for idn in descendants(dag, idna)
         if idn.intent isa RemoteIntent
             if globalknow
                 ibnrem = getibn(ibn, idn.intent.ibnid)
                 intidx = idn.intent.intentidx
-                dagrem = getintent(ibnrem,intidx)
-                push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagrem, getuserintent(dagrem), globalknow)...)
+                dagnrem = getintentnode(ibnrem,intidx)
+                push!(globalIBNnlli, getinterdomain_lowlevelintents(ibnrem, dagnrem, globalknow)...)
                 # get LowLevelIntent descendants of remote Intent
                 # search remote Intent recursively for other remote intents to get all concerning LowLevelIntent
             else
@@ -203,12 +204,12 @@ function getinterdomain_lowlevelintents(ibn::IBN, dag::IntentDAG, idna::IntentDA
                 lliglobals = parents(dag, idn)
                 for lliglobal in lliglobals
                     rli = RemoteLogicIntent(lliglobal.intent, idn.intent)
-                    push!(globalIBNnlli, IBNnIntentGLLI(ibn, dag, idn, rli))
+                    push!(globalIBNnlli, IBNnIntentGLLI(ibn, idn, rli))
                 end
             end
         elseif idn.intent isa LowLevelIntent
             lliglobal = convert2global(ibn, idn.intent)
-            push!(globalIBNnlli, IBNnIntentGLLI(ibn, dag, idn, lliglobal))
+            push!(globalIBNnlli, IBNnIntentGLLI(ibn, idn, lliglobal))
         end
     end
     return globalIBNnlli

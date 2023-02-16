@@ -1,5 +1,5 @@
 "$(TYPEDSIGNATURES)"
-function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::F; algargs...) where {R<:Union{ConnectivityIntent},F<:Function}
+function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) where {R<:Union{ConnectivityIntent},F<:Function}
     iam(ibn, neibn) = getid(ibn) == getid(neibn)
     firstforeignibnnode(ibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.subgraph(ibn.ngr,x)] isa IBN, [v for v in vertices(ibn.ngr)])
     firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.subgraph(ibn.ngr,x)] == neibn, [v for v in vertices(ibn.ngr)])
@@ -10,39 +10,39 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::
         return getstate(idagn)
     end
     if isintraintent(ibn, conint)
-        state = algmethod(ibn, dag, idagn, IntraIntent(); algargs...)
+        state = algmethod(ibn, idagn, IntraIntent(); algargs...)
     else
         neibnsrc = getibn(ibn, getsrcdom(conint))
         neibndst = getibn(ibn, getdstdom(conint))
         if neibnsrc === nothing && neibndst !== nothing
             if iam(ibn,neibndst)
                 neibn = first(getibns(ibn))
-                state = algmethod(ibn, neibn, dag, idagn, InterIntent{IntentBackward}(); algargs...)
+                state = algmethod(ibn, neibn, idagn, InterIntent{IntentBackward}(); algargs...)
             else
-                state = delegateintent!(ibn, neibndst, dag, idagn, idagn.intent, algmethod; algargs...)
+                state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst === nothing
             if iam(ibn,neibnsrc)
                 for neibn in getibns(ibn)
-                    algmethod(ibn, neibn, dag, idagn, InterIntent{IntentForward}(); algargs...)
+                    algmethod(ibn, neibn, idagn, InterIntent{IntentForward}(); algargs...)
                     idagn.state == compiled && break
-                    restartintent!(ibn, getid(dag); time=algargs[:time])
+                    restartintent!(ibn, getid(idagn); time=algargs[:time])
                 end
             else
-                state = delegateintent!(ibn, neibnsrc, dag, idagn, idagn.intent, algmethod; algargs...)
+                state = delegateintent!(ibn, neibnsrc, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst !== nothing
             if iam(ibn,neibnsrc)
-                state = algmethod(ibn, neibndst, dag, idagn, InterIntent{IntentForward}(); algargs...)
+                state = algmethod(ibn, neibndst, idagn, InterIntent{IntentForward}(); algargs...)
             elseif iam(ibn, neibndst)
-                state = algmethod(ibn, neibnsrc, dag, idagn, InterIntent{IntentBackward}(); algargs...)
+                state = algmethod(ibn, neibnsrc, idagn, InterIntent{IntentBackward}(); algargs...)
             else
-                state = delegateintent!(ibn, neibnsrc, dag, idagn, idagn.intent, algmethod; algargs...)
+                state = delegateintent!(ibn, neibnsrc, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc == nothing && neibndst == nothing
             # talk to random IBN (this is where fun begins!)
             for neibn in getibns(ibn)
-                delegateintent!(ibn, neibn, dag, idagn, idagn.intent, algmethod; algargs...)
+                delegateintent!(ibn, neibn, idagn, idagn.intent, algmethod; algargs...)
                 idagn.state == compiled && break
             end
             return false
@@ -52,7 +52,8 @@ function compile!(ibn::IBN, dag::IntentDAG, idagn::IntentDAGNode{R}, algmethod::
 end
 
 "$(TYPEDSIGNATURES)"
-function compile!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, gtc::GoThroughConstraint; time)
+function compile!(ibn::IBN, idn::IntentDAGNode, gtc::GoThroughConstraint; time)
+    dag = getintentdag(ibn)
     getid(ibn) != gtc.node[1] && (@warn "Cannot compile LowLevelIntent from another IBN"; return)
     node = gtc.node[2]
 
@@ -66,7 +67,7 @@ function compile!(ibn::IBN, dag::IntentDAG, idn::IntentDAGNode, gtc::GoThroughCo
         lli = NodeSpectrumIntent(node, NestedGraphs.edge(ibn.ngr, cedg), sreqs.frslots, sreqs.bandwidth)
         addchild!(dag, getid(idn), lli)
     end
-    try2setstate!(idn, dag, ibn, Val(compiled); time)
+    try2setstate!(idn, ibn, Val(compiled); time)
 end
 
 """
@@ -74,7 +75,8 @@ $(TYPEDSIGNATURES)
 
 To solve an EdgeIntent, we basically need to only satisfy the constraints
 """
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}; time) where {R<:EdgeIntent}
+function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time) where {R<:EdgeIntent}
+    dag = getintentdag(ibn)
     intent = getintent(idagnode)
     if applicable(iterate, getconstraints(intent))
         for constr in getconstraints(intent)
@@ -86,8 +88,9 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
 end
 
 "$(TYPEDSIGNATURES) Handles interdomain connectivity intents"
-function shortestavailpath!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
+function shortestavailpath!(ibnp::IBN, ibnc::IBN, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
                 time, k=5)  where {T<:ConnectivityIntent, R<:IntentDirection}
+    dag = getintentdag(ibnp)
     iidforward = R <: IntentForward
     conint = idagnode.intent
     if iidforward
@@ -112,7 +115,7 @@ function shortestavailpath!(ibnp::IBN, ibnc::IBN, dag::IntentDAG, idagnode::Inte
             transnode = (getid(ibnc), ibnp.ngr.vmap[pintent.path[1]][2])
             remintent = ConnectivityIntent(getsrc(conint), transnode, updatedconstraints, getconditions(myintent))
         end
-        success = delegateintent!(ibnp, ibnc, dag, idagnode, remintent, shortestavailpath!; time, k=k)
+        success = delegateintent!(ibnp, ibnc, idagnode, remintent, shortestavailpath!; time, k=k)
     end
 
     # deploy the intent to the fellow ibn
@@ -125,7 +128,8 @@ $(TYPEDSIGNATURES)
 Handles intra-domain connectivity intents.
 Delegates all constraints to a PathIntent
 """
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent; time, k = 5) where {R<:ConnectivityIntent}
+function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent; time, k = 5) where {R<:ConnectivityIntent}
+    dag = getintentdag(ibn)
     conint = idagnode.intent
     src = getsrcdom(conint) == getid(ibn) ? getsrcdomnode(conint) : localnode(ibn, getsrc(conint), subnetwork_view=false)
     dst = getdstdom(conint) == getid(ibn) ? getdstdomnode(conint) : localnode(ibn, getdst(conint), subnetwork_view=false)
@@ -159,7 +163,8 @@ function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}
 end
 
 "$(TYPEDSIGNATURES) "
-function firstfitpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::IntraIntent; time) where {R<:PathIntent}
+function firstfitpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent; time) where {R<:PathIntent}
+    dag = getintentdag(ibn)
     pathint = idagnode.intent
     interconstraints = Dict{Int, Vector{IntentConstraint}}()
     cc = getfirst(x -> x isa CapacityConstraint, pathint.constraints)
@@ -196,7 +201,8 @@ function firstfitpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}, ::I
 end
 
 "$(TYPEDSIGNATURES)"
-function shortestavailpath!(ibn::IBN, dag::IntentDAG, idagnode::IntentDAGNode{R}; time, k=5) where {R<:DomainConnectivityIntent}
+function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time, k=5) where {R<:DomainConnectivityIntent}
+    dag = getintentdag(ibn)
     intent = getintent(idagnode)
     neibn, yenstates = calc_kshortestpath(ibn, intent)
     paths = reduce(vcat, getfield.(yenstates, :paths))

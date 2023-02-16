@@ -9,7 +9,7 @@ function purgeintent!(ibn::IBN, intentidx::Int; time)
 end
 
 "$(TYPEDSIGNATURES) Uninstall and uncompile intent `intentidx` in `ibn`"
-function restartintent!(ibn::IBN, intentidx::Int; time)
+function restartintent!(ibn::IBN, intentid::UUID; time)
     deploy!(ibn, intentidx, MINDFul.douninstall, MINDFul.SimpleIBNModus(), MINDFul.directuninstall!; time)
     deploy!(ibn, intentidx, MINDFul.douncompile, MINDFul.SimpleIBNModus(); time)
 end

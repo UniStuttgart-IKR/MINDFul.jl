@@ -136,12 +136,13 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Delegates remote intent `remintent` `dag`, `idn` from IBN customer `ibnc` to IBN server `ibns` and triggers its compilation
+Delegates remote intent `remintent`, `idn` from IBN customer `ibnc` to IBN server `ibns` and triggers its compilation
 Once added to `ibns`, compilation is requested using `algmethod` and `algargs` if any.
 """
-function delegateintent!(ibnc::IBN, ibns::IBN, dag::IntentDAG, idn::IntentDAGNode, remintent::Intent, algmethod; algargs...)
+function delegateintent!(ibnc::IBN, ibns::IBN, idn::IntentDAGNode, remintent::Intent, algmethod; algargs...)
+    dag = getintentdag(ibns)
     remintr = addchild!(dag, getid(idn), remintent)
-    ibnpissuer = IBNIssuer(getid(ibnc), getid(dag), getid(idn))
+    ibnpissuer = IBNIssuer(getid(ibnc), getid(idn))
     remidx = addintent!(ibnpissuer, ibns, getintent(remintr))
     addchild!(dag, getid(remintr), RemoteIntent(getid(ibns), remidx))
     return deploy!(ibnc, ibns, remidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), algmethod; algargs...)
@@ -150,9 +151,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-`ibnc` asks `ibns` to change state of the intent `intentibnid`, `intentidx` to `state` at time `time`.
+`ibnc` asks `ibns` to change state of the intent `intentidx` to `state` at time `time`.
 """
-function setstate!(ibnc::IBN, ibns::IBN, intentibnid::Int, intentidx::Int, state::IntentState; time)
+function setstate!(ibnc::IBN, ibns::IBN, intentidx::UUID, state::IntentState; time)
     #check all intents of all dags if there is a RemoteIntent(intentibnid, intentidx)
     # TODO just use IntentIssuer ?
     rmintent = RemoteIntent(intentibnid, intentidx)

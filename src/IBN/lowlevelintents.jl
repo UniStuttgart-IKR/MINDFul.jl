@@ -5,7 +5,7 @@ end
 
 "$(TYPEDSIGNATURES) Get low level intents for `SpectrumIntent` `si`"
 function lowlevelintents(si::SpectrumIntent)
-    [NodeSpectrumIntent(nd, e, si.spectrumalloc, si.drate) for e in edgeify(si.lightpath) for nd in [e.src, e.dst]]
+    [NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [e.src, e.dst]]
 end
 
 "$(TYPEDSIGNATURES) Get low level intents for `LightpathIntent` `lpi`"

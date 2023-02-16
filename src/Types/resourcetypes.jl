@@ -71,10 +71,10 @@ struct MLNode{R,T,O,D}
     otn::T
     oxc::O
     transmodulespool::Vector{TransmissionModuleView{D}}
-    transmodreservations::Vector{Tuple{TransmissionModuleView{D}, Tuple{Int, Int, UUID}}}
+    transmodreservations::Vector{Tuple{TransmissionModuleView{D}, Tuple{Int, UUID}}}
 end
 
-MLNode(r,otn, oxc, tmp) = MLNode(r, otn, oxc, tmp, Vector{Tuple{TransmissionModuleView{TransmissionModuleDummy}, Tuple{Int, Int, UUID}}}())
+MLNode(r,otn, oxc, tmp) = MLNode(r, otn, oxc, tmp, Vector{Tuple{TransmissionModuleView{TransmissionModuleDummy}, Tuple{Int, UUID}}}())
 getrouter(mln::MLNode) = mln.router
 getotn(mln::MLNode) = mln.otn
 getoxc(mln::MLNode) = mln.oxc
@@ -86,10 +86,10 @@ struct RouterView{R}
     "lists which ports are available"
     portavailability::Vector{Bool}
     "lists which intents are reserved the resources"
-    reservations::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
+    reservations::Vector{Union{Missing,Tuple{Int, UUID}}}
 end
 #RouterView(rt::RouterDummy) = RouterView(rt, fill(true, rt.nports), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, rt.nports)))
-RouterView(rt) = RouterView(rt, Vector{Bool}(), Vector{Union{Missing,Tuple{Int,Int,UUID}}}())
+RouterView(rt) = RouterView(rt, Vector{Bool}(), Vector{Union{Missing,Tuple{Int,UUID}}}())
 getportrate(rv::RouterView, p::Int) = getportrate(rv.router, p)
 getportcost(rv::RouterView, p::Int) = getportcost(rv.router, p)
 newlinecardcost(rv::RouterView, rt::Float64, lcs, lcc) = newlinecardcost(rv.router, rt, lcs, lcc)
@@ -113,12 +113,12 @@ mutable struct FiberView{F,L<:LogState}
     "True if available"
     spectrum_src::Vector{Bool}
     "lists which intents are reserved the resources"
-    reservations_src::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
+    reservations_src::Vector{Union{Missing,Tuple{Int, UUID}}}
 
     spectrum_dst::Vector{Bool}
-    reservations_dst::Vector{Union{Missing,Tuple{Int, Int, UUID}}}
+    reservations_dst::Vector{Union{Missing,Tuple{Int, UUID}}}
 end
-FiberView(fiber; frequency_slots=320) = FiberView(fiber, true, LogState{Bool}(),fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,Int,UUID}}}(fill(missing, frequency_slots)))
+FiberView(fiber; frequency_slots=320) = FiberView(fiber, true, LogState{Bool}(),fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,UUID}}}(fill(missing, frequency_slots)), fill(true, frequency_slots), Vector{Union{Missing,Tuple{Int,UUID}}}(fill(missing, frequency_slots)))
 
 struct OpticalRequirements
     "frequency slots allocation"

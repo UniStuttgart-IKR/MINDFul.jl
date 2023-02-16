@@ -110,7 +110,7 @@ function getportusagecost(rv::RouterView{RouterModularDummy}, r::Number; availab
 end
 
 "$(TYPEDSIGNATURES) Finds port with cheapest alternative"
-function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple{Int,Int,UUID}; availablelinecards=availablelinecards(), availablelinecardchassis=availablelinecardchassis())
+function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple{Int,UUID}; availablelinecards=availablelinecards(), availablelinecardchassis=availablelinecardchassis())
     ff = findfirst(k -> rv.portavailability[k] && getportrate(rv,k) > r, keys(rv.portavailability))
     if ff !== nothing
         rv.portavailability[ff] = false

@@ -8,19 +8,37 @@ abstract type IntentCondition end
 @enum IntentState installed installing installfailed uninstalled compiled compiling uncompiled failure
 @enum IntentTransition doinstall douninstall docompile douncompile
 
+"Defines the entity issuing an intent"
+abstract type IntentIssuer end
+struct NetworkProvider <: IntentIssuer end
+struct MachineGenerated <: IntentIssuer end
+
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-mutable struct IntentDAGNode{T<:Intent, L<:LogState}
+struct IBNIssuer <: IntentIssuer
+    "the id of the IBN issued an intent"
+    ibnid::Int
+    "the id of the intent node in the DAG"
+    dagnodeid::UUID
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+mutable struct IntentDAGNode{T<:Intent, I<:IntentIssuer, L<:LogState}
     intent::T
     state::IntentState
     id::UUID
+    issuer::I
     logstate::L
 end
 IntentDAGNode(kw...) = IntentDAGNode(kw..., LogState{IntentState}())
 getstate(idagn::IntentDAGNode) = idagn.state
 getintent(idagn::IntentDAGNode) = idagn.intent
+getissuer(idagn::IntentDAGNode) = idagn.issuer
 getid(idagn::IntentDAGNode) = idagn.id
 
 """
@@ -35,8 +53,12 @@ IntentDAGInfo() = IntentDAGInfo(1)
 const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo()))
 getid(dag::IntentDAG) = dag.graph_data.id
 
-function IntentDAG(id::Int, intent::Intent)
-    mg = MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo(id))
+function IntentDAG()
+    MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
+end
+
+function IntentDAG(intent::Intent)
+    mg = MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
     addchild!(mg, intent)
     return mg
 end
@@ -55,15 +77,12 @@ mutable struct RemoteIntent <: Intent
     "remote IBN"
     ibnid::Int
     "Intent index in the remote IBN"
-    intentidx::Union{Int,Missing}
+    intentidx::UUID
 end
 #Base.show(io::IO, ric::RemoteIntent) = print(io,"RemoteIntent(ibnid=$(ric.ibnid)), idx = $(ric.intentidx)))")
 dagtext(ci::RemoteIntent) = "RemoteIntent($(ci.ibnid), $(ci.intentidx))"
 Base.:(==)(rm1::RemoteIntent, rm2::RemoteIntent) = (rm1.ibnid == rm2.ibnid) && (rm1.intentidx == rm2.intentidx)
-
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
+""" $(TYPEDEF) $(TYPEDFIELDS)
 
 Intent for connecting 2 nodes
 """
@@ -73,20 +92,23 @@ struct ConnectivityIntent{C,R} <: Intent
     "Destination node as (IBN.id, node-id)"
     dst::Tuple{Int,Int}
     #TODO constrs is array of abstract, so not performant (Union Splitting, or Tuple in the future ?)
+    "Rate in Gbps"
+    rate::Float64
     "Intents constraints"
     constraints::C
     "Intents conditions"
     conditions::R
-    ConnectivityIntent(src::Tuple{Int,Int}, dst::Tuple{Int,Int}, constraints::C, conditions::R=missing) where {C,R} =
-        new{C,R}(src, dst, constraints, conditions)
+    ConnectivityIntent(src::Tuple{Int,Int}, dst::Tuple{Int,Int}, r, constraints::C=Vector{Missing}(), conditions::R=Vector{Missing}()) where {C,R} = 
+        new{C,R}(src, dst, Float64(r), constraints, conditions)
 end
+getrate(lpi::Intent) = lpi.rate
 getsrc(i::Intent) = i.src
 getdst(i::Intent) = i.dst
 getsrcdom(i::Intent) = i.src[1]
 getsrcdomnode(i::Intent) = i.src[2]
 getdstdom(i::Intent) = i.dst[1]
 getdstdomnode(i::Intent) = i.dst[2]
-dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.constraints), $(ci.conditions))"
+dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.rate), $(ci.constraints), $(ci.conditions))"
 ConnectivityIntent(ce::NestedEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
 
 struct EdgeIntent{C,R} <: Intent
@@ -115,9 +137,12 @@ $(TYPEDFIELDS)
 struct LightpathIntent{T,C} <: Intent
     "Flow path"
     path::Vector{Int}
+    "Rate in Gbps"
+    rate::Float64
     transmodl::T
     constraints::C
 end
+LightpathIntent(p,r,t) = LightpathIntent(p, Float64(r), t, Vector{Missing}())
 getpath(lpi::LightpathIntent) = lpi.path
 gettransmodl(lpi::LightpathIntent) = lpi.transmodl
 dagtext(ci::LightpathIntent) = "LightpathIntent\npath=$(ci.path)"
@@ -131,11 +156,12 @@ Termination points for the optical circuits. If middle of vector is termination 
 struct SpectrumIntent{C} <: Intent
     "Flow path"
     lightpath::Vector{Int}
-    drate::Float64
+    rate::Float64
     spectrumalloc::UnitRange{Int}
     constraints::C
 end
-dagtext(ci::SpectrumIntent) = "SpectrumIntent($(ci.lightpath), $(ci.drate), $(ci.spectrumalloc), $(ci.constraints))"
+getpath(lpi::SpectrumIntent) = lpi.lightpath
+dagtext(ci::SpectrumIntent) = "SpectrumIntent($(ci.lightpath), $(ci.rate), $(ci.spectrumalloc), $(ci.constraints))"
 
 struct RegenerationIntent{C} <: Intent
     constraints::C

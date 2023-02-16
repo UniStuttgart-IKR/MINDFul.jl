@@ -22,8 +22,8 @@ end
 
 # break it down to 2 local-global functions for type stability
 "$(TYPEDSIGNATURES) Get the compilation of the intent `intentidx` in `ibn` by assembling the low-level intents."
-function getcompiledintent(ibn::IBN, intentidx::Int, globalknow=false)
-    glbns, _ = logicalorderedintents(ibn, intentidx, globalknow)
+function getcompiledintent(ibn::IBN, intentid::UUID, globalknow=false)
+    glbns, _ = logicalorderedintents(ibn, intentid, globalknow)
     llis = getfield.(glbns, :lli)
     
     # create path
@@ -55,7 +55,7 @@ function getcompiledintent(ibn::IBN, intentidx::Int, globalknow=false)
     rem_intent_uuid = Base.getindex.(rem_intents_uuid, 2)
 
     # constraints
-    constrs = getconstraints(getuserintent(getintent(ibn, intentidx)).intent)
+    constrs = getconstraints(getintent(ibn, intentidx))
 
     compiledintent = CompiledConnectivityIntent(path, fr_slots, electric_reg, 
                                                 length(rem_intents) > 0 ? rem_intents : missing,

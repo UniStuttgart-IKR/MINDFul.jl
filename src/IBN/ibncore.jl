@@ -6,11 +6,8 @@ getcontrollers(ibn::IBN) = ibn.controllers
 
 getid(ibn::IBN) = ibn.id
 
-getindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
-
-getindex(ibn::IBN, c::R) where {R<:Intent} = findfirst(==(c), getfield.(ibn.intents, :data))
-
-getindex(ibn::IBN, c::R) where {R<:IntentDAG} = findfirst(==(c), ibn.intents)
+getintentdag(ibn::IBN) = ibn.intents
+getallintentnodes(ibn::IBN) = getindex.(values(getintentdag(ibn).vertex_properties), 2)
 
 "$(TYPEDSIGNATURES) Get the controller responsible for `node`"
 controllerofnode(ibn::IBN, node::Int) = ibn.controllers[NestedGraphs.subgraph(ibn.ngr, node)]
@@ -36,20 +33,15 @@ function getmynodes(ibn::IBN; subnetwork_view::Bool=false)
     end
 end
 
-"""
-$(TYPEDSIGNATURES) 
 
-Get index of intent with id `intid` in IBN `ibn`. The index corresponds to the location in the `ibn.intents` field.
-The index and the id of an intent might be different due to potential removal of some intents.
-The id will always identify an intent through its lifetime, thus it should be preferred for operations.
-"""
-getintentindex(ibn::IBN, intid::Int) = findfirst(x -> getid(x) == intid, ibn.intents)
+"$(TYPEDSIGNATURES)"
+getintent(ibn::IBN, uuid::UUID) = getintent(Base.getindex(getintentdag(ibn), uuid))
 
-"$(TYPEDSIGNATURES) Get intent of `ibn` with id `intid`"
-getintent(ibn::IBN, intid::Int) = let i = getintentindex(ibn, intid); i !== nothing ? ibn.intents[i] : nothing end
+"$(TYPEDSIGNATURES)"
+getintentnode(ibn::IBN, uuid::UUID) = Base.getindex(getintentdag(ibn), uuid)
 
 "$(TYPEDSIGNATURES) Get the issuer of the intent with id `intid` in `ibn`"
-getintentissuer(ibn::IBN, intid::Int) = let i = getintentindex(ibn, intid); i !== nothing ? ibn.intentissuers[i] : nothing end
+getintentissuer(ibn::IBN, uuid::Int) = getissuer(getintent(ibn, uuid))
 
 """$(TYPEDSIGNATURES) 
 
@@ -133,69 +125,29 @@ globaledge(ibn::IBN, ed::Edge) = NestedEdge(globalnode(ibn, src(ed)), globalnode
 
 "$(TYPEDSIGNATURES) Add `intent` to `ibn` as Network Operator. Returns the intent id."
 function addintent!(ibn::IBN, intent::Intent)
-    idi = COUNTER(ibn)
-    push!(ibn.intents, IntentDAG(idi, intent))
-    push!(ibn.intentissuers, NetworkProvider())
-    return idi 
+    idn = addchild!(getintentdag(ibn), intent, NetworkProvider())
+    return getid(idn)
 end
 
-remallintents!(ibn::IBN) = foreach(id -> remintent!(ibn, id) , getid.(ibn.intents))
-
 "$(TYPEDSIGNATURES) Remove intent with id `idi` from `ibn`. Returns `true` if successful."
-function remintent!(ibn::IBN, idi::Int)
-    idx = getintent(ibn,idi) 
-    idx === nothing && return false
-    if getuserintent(idx).state in [installed, failure]
+function remintent!(ibn::IBN, uuid::UUID)
+    intn = getintentnode(ibn,uuid) 
+    if getstate(intn).state in [installed, failure, compiled]
         error("Cannot remove an installed or failure intent. Please uninstall first.")
         return false
     else
-        idx = getintentindex(ibn, idi)
-        if idx <= length(ibn.intents)
-            deleteat!(ibn.intents, idx)
-            deleteat!(ibn.intentissuers, idx)
-            return true
-        else
-            return false
-        end
+        rem_vertex!(getintentdag(ibn), uuid)
     end
 end
 
 "$(TYPEDSIGNATURES) The IBN client `ibnc` asks to add intent `intent` to provider `ibnp`"
 function addintent!(ibnc::IBNIssuer, ibnp::IBN, intent::Intent)
-#    @warn("permissions not implemented")
-    idx = COUNTER(ibnp)
-    push!(ibnp.intents, IntentDAG(idx, intent))
-    push!(ibnp.intentissuers, ibnc)
-    return idx
+    addintent!(ibnp, intent)
 end
 
 "$(TYPEDSIGNATURES) The IBN client `ibnc` asks to remove intent with id `intentid` to provider `ibnp`"
-function remintent!(ibnc::IBNIssuer, ibns::IBN, intentid::Int)
-    if getuserintent(getintent(ibns, intentid)).state in [installed, failure]
-        error("Cannot remove an installed or failure intent. Please uninstall first.")
-        return false
-    else
-        intindex = getintentindex(ibns, intentid)
-        if intindex <= length(ibns.intents)
-            deleteat!(ibns.intents, intindex)
-            deleteat!(ibns.intentissuers, intindex)
-            return true
-        else
-            return false
-        end
-    end
-end
-
-"""$(TYPEDSIGNATURES)
-
-The ibn in the roll of customer `ibnc` asks for the graph of the the ibn in the roll of provider `ibnp`
-Such an operation is not commonly permitted in decentralized scenarios and special permissions should be established.
-
-TODO: permissions not implemented.
-"""
-function subgraphibn(ibnp::IBN, ibnc::IBN)
-    #check permissions
-    return (MetaDiGraph(), Vector{Int}())
+function remintent!(ibnc::IBNIssuer, ibns::IBN, uuid::UUID)
+    remintent!(ibns, uuid)
 end
 
 
