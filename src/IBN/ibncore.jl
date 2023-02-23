@@ -9,6 +9,9 @@ getid(ibn::IBN) = ibn.id
 getintentdag(ibn::IBN) = ibn.intents
 getallintentnodes(ibn::IBN) = getindex.(values(getintentdag(ibn).vertex_properties), 2)
 
+getcontrollerindex(ibn::IBN, c::R) where {R<:Union{IBN,SDN}} = findfirst(==(c), ibn.controllers)
+getlocalibnindex(ibn::IBN, remibnid) = findfirst(x -> x isa IBN && getid(x) == remibnid, getcontrollers(ibn))
+
 "$(TYPEDSIGNATURES) Get the controller responsible for `node`"
 controllerofnode(ibn::IBN, node::Int) = ibn.controllers[NestedGraphs.subgraph(ibn.ngr, node)]
 
@@ -132,18 +135,21 @@ end
 "$(TYPEDSIGNATURES) Remove intent with id `idi` from `ibn`. Returns `true` if successful."
 function remintent!(ibn::IBN, uuid::UUID)
     intn = getintentnode(ibn,uuid) 
-    if getstate(intn).state in [installed, failure, compiled]
+    if getstate(intn) in [installed, failure, compiled]
         error("Cannot remove an installed or failure intent. Please uninstall first.")
         return false
     else
-        rem_vertex!(getintentdag(ibn), uuid)
+        rem_vertex!(getintentdag(ibn), MGN.code_for(getintentdag(ibn), uuid))
     end
 end
 
 "$(TYPEDSIGNATURES) The IBN client `ibnc` asks to add intent `intent` to provider `ibnp`"
-function addintent!(ibnc::IBNIssuer, ibnp::IBN, intent::Intent)
-    addintent!(ibnp, intent)
+function addintent!(ibnissuer::IBNIssuer, ibnp::IBN, intent::Intent)
+    idn = addchild!(getintentdag(ibnp), intent, ibnissuer)
+    return getid(idn)
 end
+
+getnextintentuuid(ibn::IBN) = nextuuid(getintentdag(ibn))
 
 "$(TYPEDSIGNATURES) The IBN client `ibnc` asks to remove intent with id `intentid` to provider `ibnp`"
 function remintent!(ibnc::IBNIssuer, ibns::IBN, uuid::UUID)

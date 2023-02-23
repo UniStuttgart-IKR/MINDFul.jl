@@ -139,12 +139,13 @@ $(TYPEDSIGNATURES)
 Delegates remote intent `remintent`, `idn` from IBN customer `ibnc` to IBN server `ibns` and triggers its compilation
 Once added to `ibns`, compilation is requested using `algmethod` and `algargs` if any.
 """
-function delegateintent!(ibnc::IBN, ibns::IBN, idn::IntentDAGNode, remintent::Intent, algmethod; algargs...)
-    dag = getintentdag(ibns)
+function delegateintent!(ibnc::IBN, ibns::IBN, idn::IntentDAGNode, remintent::Intent, algmethod = () -> nothing ; algargs...)
+    dag = getintentdag(ibnc)
     remintr = addchild!(dag, getid(idn), remintent)
-    ibnpissuer = IBNIssuer(getid(ibnc), getid(idn))
+    remintuuid = nextuuid(dag)
+    ibnpissuer = IBNIssuer(getid(ibnc), remintuuid)
     remidx = addintent!(ibnpissuer, ibns, getintent(remintr))
-    addchild!(dag, getid(remintr), RemoteIntent(getid(ibns), remidx))
+    remintnode = addchild!(dag, getid(remintr), RemoteIntent(getid(ibns), remidx))
     return deploy!(ibnc, ibns, remidx, MINDFul.docompile, MINDFul.SimpleIBNModus(), algmethod; algargs...)
 end
 
@@ -153,32 +154,39 @@ $(TYPEDSIGNATURES)
 
 `ibnc` asks `ibns` to change state of the intent `intentidx` to `state` at time `time`.
 """
-function setstate!(ibnc::IBN, ibns::IBN, intentidx::UUID, state::IntentState; time)
-    #check all intents of all dags if there is a RemoteIntent(intentibnid, intentidx)
-    # TODO just use IntentIssuer ?
-    rmintent = RemoteIntent(intentibnid, intentidx)
-    for dag in ibnc.intents
-        # TODO don't search all but only what's on IBNIssuer
-        rmis = filter(x -> x.intent==rmintent, descendants(dag))
-        for rmi in rmis
-            setstate!(rmi, dag, ibnc, state; time)
-        end
-    end
+function setstate!(ibnreq::IBN, ibnwork::IBN, intentidx::UUID, state::IntentState; time)
+    intentnode = getintentnode(ibnwork, intentidx)
+    setstate!(intentnode, ibnwork, state; time)
+#    #check all intents of all dags if there is a RemoteIntent(intentibnid, intentidx)
+#    # TODO just use IntentIssuer ? yes
+#    ibnis = getissuer(getintentnode(ibns, intentidx))
+#    rmintent = RemoteIntent(getid(ibns), intentidx)
+#    for dag in ibnc.intents
+#        # TODO don't search all but only what's on IBNIssuer
+#        rmis = filter(x -> x.intent==rmintent, descendants(dag))
+#        for rmi in rmis
+#            setstate!(rmi, dag, ibnc, state; time)
+#        end
+#    end
 end
 
 "$(TYPEDSIGNATURES)"
-function delegate_edgeintents(ibn, dag, idn, interconstraints, compmethod)
+function delegate_borderintents(ibn, idn, interconstraints, compmethod)
     length(interconstraints) > 1 && @warn "Intent issues multiple EdgeIntents"
     for kvpair in interconstraints
-        ei = EdgeIntent(kvpair.second)
+        ei = BorderIntent(kvpair.second)
         ibnserver = getibn(ibn, kvpair.first)
-        delegateintent!(ibn, ibnserver, dag, idn, ei, compmethod)
+        delegateintent!(ibn, ibnserver, idn, ei, compmethod)
     end
 end
 
-"$(TYPEDSIGNATURES)"
-function delegate_edgeintent(ibn, dag, idn, kvpair, compmethod; time)
-    ei = EdgeIntent(kvpair.second)
-    ibnserver = getibn(ibn, kvpair.first)
-    delegateintent!(ibn, ibnserver, dag, idn, ei, compmethod; time)
+"$(TYPEDSIGNATURES)
+
+`glintent` must describe a global intent with node beeing a tuple (Int, Int)"
+function delegate_borderintent(ibn, idn, glintent; time)
+    node = getnode(glintent)
+    ei = BorderIntent(glintent)
+    ibnserver = getibn(ibn, node[1])
+    isnothing(ibnserver) && error("could not find neighborinh ibn")
+    delegateintent!(ibn, ibnserver, idn, ei; time)
 end

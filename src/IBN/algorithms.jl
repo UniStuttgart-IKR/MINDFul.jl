@@ -5,10 +5,10 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
     firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.subgraph(ibn.ngr,x)] == neibn, [v for v in vertices(ibn.ngr)])
 
     conint = idagn.intent
-    if getsrc(conint) == getdst(conint)
-        @info "Cannot compile a connectivity intent between the same node"
-        return getstate(idagn)
-    end
+#    if getsrc(conint) == getdst(conint)
+#        @info "Cannot compile a connectivity intent between the same node"
+#        return getstate(idagn)
+#    end
     if isintraintent(ibn, conint)
         state = algmethod(ibn, idagn, IntraIntent(); algargs...)
     else
@@ -70,20 +70,30 @@ function compile!(ibn::IBN, idn::IntentDAGNode, gtc::GoThroughConstraint; time)
     try2setstate!(idn, ibn, Val(compiled); time)
 end
 
+"$(TYPEDSIGNATURES)"
+function _dev_compile!(ibn::IBN, idn::IntentDAGNode{T}, f::Function; time) where T<:BorderIntent
+    dag = getintentdag(ibn)
+    getid(ibn) != first(getnode(getintent(idn))) && (@warn "Cannot compile LowLevelIntent from another IBN"; return)
+    node = getnode(getintent(idn))[2]
+
+    # TODO considering constraints and conditions
+    addchild!(dag, getid(idn), getlowlevelintent(getintent(idn)))
+    try2setstate!(idn, ibn, Val(compiled); time)
+end
+
 """
 $(TYPEDSIGNATURES)
 
-To solve an EdgeIntent, we basically need to only satisfy the constraints
+To solve an BorderIntent, we basically need to only satisfy the constraints
 """
-function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time) where {R<:EdgeIntent}
-    dag = getintentdag(ibn)
+function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time) where {R<:BorderIntent}
     intent = getintent(idagnode)
     if applicable(iterate, getconstraints(intent))
         for constr in getconstraints(intent)
-            compile!(ibn, dag, idagnode, constr; time)
+            compile!(ibn, idagnode, constr; time)
         end
     else
-        compile!(ibn, dag, idagnode, getconstraints(intent); time)
+        compile!(ibn, idagnode, getconstraints(intent); time)
     end
 end
 
@@ -144,7 +154,7 @@ function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent;
                 # if another's ibn node inside the path, issue remoteintent
                 if lli.node in bordernodes(ibn, subnetwork_view = false)
                     pairconstr = intent2constraint(lli, ibn)
-                    delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
+                    delegate_borderintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
 #                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
                 else
                     addchild!(dag, childnode.id, lli)
@@ -184,7 +194,7 @@ function firstfitpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent; time
                     for lli in lowlevelintents(childnode.intent)
                         if lli.node in bordernodes(ibn, subnetwork_view = false)
                             pairconstr = intent2constraint(lli, ibn)
-                            delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
+                            delegate_borderintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
 #                            push2dict!(interconstraints, pairconstr.first, pairconstr.second)
                         else
                             addchild!(dag, childnode.id, lli)
@@ -218,7 +228,7 @@ function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time, k=5) whe
             for lli in lowlevelintents(childnode.intent)
                 if lli.node in bordernodes(ibn, subnetwork_view = false)
                     pairconstr = intent2constraint(lli, ibn)
-                    delegate_edgeintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
+                    delegate_borderintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
 #                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
                 else
                     addchild!(dag, childnode.id, lli)

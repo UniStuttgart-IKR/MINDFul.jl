@@ -164,12 +164,12 @@ function uncompile!(ibn::IBN, idagn::IntentDAGNode, algmethod::T; time) where {T
     for idn in nodes2dlt
         getstate(idn) == installed && error("cannot directly uncompiled installed intent. Reached corrupted state.")
         if idn.intent isa RemoteIntent
-            remibn = getibn(ibn, idn.intent.ibnid)
-            ibnpissuer = IBNIssuer(getid(ibn), getid(dag), getid(idn))
-            remint = idn.intent.intentidx
+            remibn = getibn(ibn,  getremibnid(getintent(idn)))
+            remint = getremintentid(getintent(idn))
             # first uncompile them
             deploy!(ibn, remibn, remint, douncompile, SimpleIBNModus(); time)
             # then delete them
+            ibnpissuer = IBNIssuer(getid(ibn), getid(idn))
             remintent!(ibnpissuer, remibn, remint)
         end
         rem_vertex!(dag, MGN.code_for(dag, getid(idn)))

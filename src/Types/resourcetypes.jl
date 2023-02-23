@@ -1,4 +1,6 @@
-@enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalTransmissionModuleDown, signalTransmissionModuleUp ,signalGroomingDown, signalGrooming, signalGroomingUp, signalOXCAdd, signalOXCDrop, signalOXCbypass, signalFiberIn, signalFiberOut, signalEnd, signalUknown)
+@enum(SignalLoc, signalElectrical, signalElectricalDown, signalElectricalUp, signalTransmissionModuleDown, signalTransmissionModuleUp ,signalGroomingDown, signalGrooming, signalGroomingUp, signalOXCAdd, signalOXCDrop, signalOXCbypass, signalHalfFiberIn, signalFiberIn, signalFiberOut, signalEnd, signalUknown)
+
+@enum(LightpathType, borderinitiatelightpath, borderterminatelightpath, fulllightpath, border2borderlightpath)
 
 "`R` is Int for local mode and `Tuple{Int, Int}` for global"
 struct ConnectionState{R}
@@ -6,6 +8,7 @@ struct ConnectionState{R}
     signaloc::SignalLoc
 end
 getnode(cs::ConnectionState) = cs.node
+getsignalloc(cs::ConnectionState) = cs.signaloc
 
 """
 $(TYPEDEF)
@@ -18,6 +21,14 @@ struct SpectrumRequirements
     "Gbps (`Unitful` still doesn't support bits)"
     bandwidth::Float64
 end
+
+struct LightpathRequirements
+    spslots::UnitRange{Int}
+    optreach::typeof(1.0u"km")
+    dist::typeof(1.0u"km")
+    rate::Float64
+end
+
 """
 $(TYPEDEF)
 
@@ -59,6 +70,8 @@ gettransmissionmodes(tr::T) where T<:TransmissionModuleView = gettransmissionmod
 getselection(tr::TransmissionModuleView) = getselection(tr.transp)
 setselection!(tr::TransmissionModuleView, s::Int) = setselection!(tr.transp, s)
 issimilar(tr1::TransmissionModuleView, tr2::TransmissionModuleView) = Base.isequal(tr1.name, tr2.name) && issimilar(tr1.transp, tr2.transp)
+"$(TYPEDSIGNATURES) Check if `tr1` is compatible with `tr2`'s selected mode"
+iscompatible(tr1::TransmissionModuleView, tr2::TransmissionModuleView) = iscompatible(tr1.transp, tr2.transp)
 
 """
 $(TYPEDEF)
@@ -144,11 +157,3 @@ struct OpticalCircuit
     "frequency slots allocation"
     props::OpticalTransProperties
 end
-
-"""
-1 is OXC bypass, 2 is regeneration (back2back transponders), 3 is grooming (OTN switch), 4 is router
-3 and 4 could be the same if no OTN switch
-2 and 3 and 4 could be the same if only pluggables
-1 and 2 and 3 and 4 could be the same if no OXC
-"""
-@enum DataLayer oxcLayer regenLayer groomLayer routerLayer

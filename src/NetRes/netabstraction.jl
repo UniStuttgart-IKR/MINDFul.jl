@@ -11,7 +11,7 @@ getlink(graph, i::Integer, j::Integer) = get_prop(graph, i, j, :link)
 hasport(rt::RouterView) = any(rt.portavailability)
 availableports(rt::RouterView) = count(rt.portavailability)
 
-hastransmissionmodule(mln::MLNode, transmodl::TransmissionModuleView) = any(x -> issimilar(x,transmodl), mln.transmodulespool)
+hastransmissionmodule(mln::MLNode, transmodl::TransmissionModuleView) = any(x -> iscompatible(transmodl, x), mln.transmodulespool)
 usetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,UUID}) = let; push!(mln.transmodreservations, (transmodl, ibnintid)); return true; end
 function freetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView, ibnintid::Tuple{Int,UUID})
     num = length(mln.transmodreservations)

@@ -56,7 +56,7 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
             elseif (lli isa NodeSpectrumIntent && getnode(lli) == lli.edge.src == getnode(cs))
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
-            elseif lli isa RemoteLogicIntent && lli.intent isa EdgeIntent
+            elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
                 constrs = getconstraints(lli.intent)
                 if constrs isa GoThroughConstraint{Missing} && 
                             constrs.layer == signalElectrical && getnode(cs) == constrs.node
@@ -68,7 +68,7 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
             if lli isa NodeSpectrumIntent && lli.edge.src == getnode(cs)
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(lli.edge.dst, signalFiberIn))
-            elseif lli isa RemoteLogicIntent && lli.intent isa EdgeIntent
+            elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
                 constrs = getconstraints(lli.intent)
                 if constrs isa GoThroughConstraint{SpectrumRequirements} && 
                             constrs.layer == signalFiberIn && getnode(cs) == constrs.req.cedge.src
@@ -94,7 +94,7 @@ function isintentsatisfied(ibn::IBN, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIn
     end
 end
 
-isintentsatisfied(ibn::IBN, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: EdgeIntent} = true
+isintentsatisfied(ibn::IBN, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: BorderIntent} = true
 
 "onlylogic is WIP"
 issatisfied(ibn::IBN, intentid::UUID; onlylogic=false) = issatisfied(ibn, getintentnode(ibn,intentid))
@@ -155,7 +155,7 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{I}, globalknow=false
 end
 
 "$(TYPEDSIGNATURES)"
-function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false) where C<:ConnectivityIntent
+function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false) where C<:Union{ConnectivityIntent, DomainConnectivityIntent}
     # the `Vector` of remaining low-level intents, which were not needed in the logical sequence.
     # This vector might be seen as wasting of resources.
     globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, idn, globalknow)
@@ -164,7 +164,8 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false
 
     # TODO maybe it starts from the fiber
     # start with the src intent
-    cs = ConnectionState(getsrc(idn.intent), signalElectrical)
+#    cs = ConnectionState(getsrc(idn.intent), signalElectrical)
+    cs = getstartingconnectionstate(ibn, getintent(idn))
     while true
         gibnlli, cs = findNupdate!(cs, globalIBNnlli_rest)
         gibnlli === nothing && break
@@ -213,6 +214,15 @@ function getinterdomain_lowlevelintents(ibn::IBN, idna::IntentDAGNode, globalkno
         end
     end
     return globalIBNnlli
+end
+
+function getstartingconnectionstate(ibn::IBN, intent::I) where I<:Intent
+    bic = getfirst(c->c isa BorderInitiateConstraint, getconstraints(intent))
+    if isnothing(bic)
+        ConnectionState(getsrc(intent), signalElectrical)
+    else
+        ConnectionState(src(bic.edg), signalFiberOut)
+    end
 end
 
 """

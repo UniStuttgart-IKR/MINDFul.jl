@@ -1,6 +1,3 @@
-"$(TYPEDSIGNATURES) Get total distance of `path` in `ibn`"
-getdistance(ibn::IBN, path::Vector{Int}) = sum(getdistance(get_prop(ibn.ngr, l, :link)) for l in edgeify(path))
-
 "$(TYPEDSIGNATURES) Uninstall, uncompile and delete all intents of `ibn`"
 function purgeintent!(ibn::IBN, intentidx::Int; time)
     deploy!(ibn, intentidx, MINDFul.douninstall, MINDFul.SimpleIBNModus(), MINDFul.directuninstall!; time)
@@ -47,4 +44,5 @@ function anyreservations(ibn)
     return false
 end
 
+"$(TYPEDSIGNATURES) Get total distance of `path` in `ibn`"
 getdistance(ibn::IBN, path::Vector{T}) where T<:Integer = sum([getdistance(getlink(ibn, e)) for e in edgeify(path) if has_edge(ibn.ngr, e)])

@@ -1,8 +1,8 @@
 "$(TYPEDSIGNATURES) Add `intent` as to the DAG `idag` as a root."
 function addchild!(idag::IntentDAG, intent::I, ii::IntentIssuer=MachineGenerated()) where I<:Intent
     state = intent isa LowLevelIntent ? compiled : uncompiled
-    childnode = IntentDAGNode(intent, state, uuidlast(idag), ii)
-    add_vertex!(idag, uuidlast(idag), childnode) || return false
+    childnode = IntentDAGNode(intent, state, nextuuid(idag), ii)
+    add_vertex!(idag, nextuuid(idag), childnode) || return false
     uuidpp!(idag)
     return childnode
 end
@@ -11,9 +11,9 @@ end
 function addchild!(idag::IntentDAG, parent::UUID, child::I, ii::IntentIssuer=MachineGenerated()) where I<:Intent
     parentnode = idag[parent]
     state = child isa LowLevelIntent ? compiled : uncompiled
-    childnode = IntentDAGNode(child, state, uuidlast(idag), ii)
-    add_vertex!(idag, uuidlast(idag), childnode) || return false
-    add_edge!(idag, parent, uuidlast(idag), nothing) || return false
+    childnode = IntentDAGNode(child, state, nextuuid(idag), ii)
+    add_vertex!(idag, nextuuid(idag), childnode) || return false
+    add_edge!(idag, parent, nextuuid(idag), nothing) || return false
     uuidpp!(idag)
     return childnode
 end
@@ -23,19 +23,14 @@ function uuidpp!(idag::IntentDAG)
     idag.graph_data.intentcounter += 1
     return UUID(idag.graph_data.intentcounter)
 end
-uuidlast(idag::IntentDAG) = UUID(idag.graph_data.intentcounter)
+nextuuid(idag::IntentDAG) = UUID(idag.graph_data.intentcounter)
 
 "$(TYPEDSIGNATURES) Return `true` if `intent` is an intra-domain intent"
-function isintraintent(ibn::IBN, intent::ConnectivityIntent)
-    if getid(ibn) == getsrc(intent)[1] == getdst(intent)[1]
-        return true
-    elseif getid(ibn) == getsrcdom(intent)
-        return getdst(intent) in bordernodes(ibn)
-    elseif getid(ibn) == getdstdom(intent)
-        return getsrc(intent) in bordernodes(ibn)
-    else
-        return false
-    end
+function isintraintent(ibn::IBN, intent::I) where I<:ConnectivityIntent
+    getid(ibn) == getsrc(intent)[1] == getdst(intent)[1] && return true
+    getdst(intent) ∈ globalnode.([ibn], bordernodes(ibn; subnetwork_view=false)) &&
+        any(c -> c isa BorderTerminateConstraint, getconstraints(intent)) && return true
+    return false
 end
 
 "$(TYPEDSIGNATURES) Set the state of DAG node `idn` of DAG of `ibn` to `newstate` with logging time `time`"
@@ -66,9 +61,9 @@ function setstate!(idn::IntentDAGNode, ibn::IBN, newstate::Val{compiled}; time)
         intentissuer = getissuer(idn)
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
-            ibnid = intentissuer.ibnid
-            ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(idn), compiled; time)
+            ibnid = getibnid(intentissuer)
+            ibnrem = getibn(ibn, ibnid)
+            setstate!(ibn, ibnrem, getintentid(intentissuer), compiled; time)
         end
     else
         for par in parents(dag, idn)
@@ -86,9 +81,9 @@ function setstate!(idn::IntentDAGNode, ibn::IBN, newstate::Val{uncompiled}; time
         intentissuer = getissuer(idn)
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
-            ibnid = intentissuer.ibnid
-            ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(idn), uncompiled; time)
+            ibnid = getibnid(intentissuer)
+            ibnrem = getibn(ibn, ibnid)
+            setstate!(ibn, ibnrem, getintentid(intentissuer), uncompiled; time)
         end
     else
         @warn("Uncompiled intent with parents")
@@ -104,9 +99,9 @@ function setstate!(idn::IntentDAGNode, ibn::IBN, newstate::Val{installed}; time)
         intentissuer = getissuer(idn)
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
-            ibnid = intentissuer.ibnid
-            ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(idn), installed; time)
+            ibnid = getibnid(intentissuer)
+            ibnrem = getibn(ibn, ibnid)
+            setstate!(ibn, ibnrem, getintentid(intentissuer), installed; time)
         end
     else
         for par in parents(dag, idn)
@@ -124,9 +119,9 @@ function setstate!(idn::IntentDAGNode, ibn::IBN, newstate::Val{failure}; time)
         intentissuer = getissuer(idn)
         # if product of RemoteIntent
         if intentissuer isa IBNIssuer
-            ibnid = intentissuer.ibnid
-            ibncustomer = getibn(ibn, ibnid)
-            setstate!(ibncustomer, ibn, getid(idn), failure; time)
+            ibnid = getibnid(intentissuer)
+            ibnrem = getibn(ibn, ibnid)
+            setstate!(ibn, ibnrem, getintentid(intentissuer), failure; time)
         end
     else
         for par in parents(dag, idn)

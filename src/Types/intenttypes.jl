@@ -23,6 +23,8 @@ struct IBNIssuer <: IntentIssuer
     "the id of the intent node in the DAG"
     dagnodeid::UUID
 end
+getibnid(ibnis::IBNIssuer) = ibnis.ibnid
+getintentid(ibnis::IBNIssuer) = ibnis.dagnodeid
 
 """
 $(TYPEDEF)
@@ -51,7 +53,6 @@ mutable struct IntentDAGInfo
 end
 IntentDAGInfo() = IntentDAGInfo(1)
 const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo()))
-getid(dag::IntentDAG) = dag.graph_data.id
 
 function IntentDAG()
     MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
@@ -79,6 +80,8 @@ mutable struct RemoteIntent <: Intent
     "Intent index in the remote IBN"
     intentidx::UUID
 end
+getremibnid(ri::RemoteIntent) = ri.ibnid
+getremintentid(ri::RemoteIntent) = ri.intentidx
 #Base.show(io::IO, ric::RemoteIntent) = print(io,"RemoteIntent(ibnid=$(ric.ibnid)), idx = $(ric.intentidx)))")
 dagtext(ci::RemoteIntent) = "RemoteIntent($(ci.ibnid), $(ci.intentidx))"
 Base.:(==)(rm1::RemoteIntent, rm2::RemoteIntent) = (rm1.ibnid == rm2.ibnid) && (rm1.intentidx == rm2.intentidx)
@@ -111,12 +114,14 @@ getdstdomnode(i::Intent) = i.dst[2]
 dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.rate), $(ci.constraints), $(ci.conditions))"
 ConnectivityIntent(ce::NestedEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
 
-struct EdgeIntent{C,R} <: Intent
+struct BorderIntent{L<:LowLevelIntent,C,R} <: Intent
+    lli::L
     constraints::C
     conditions::R
 end
-EdgeIntent(constraints) = EdgeIntent(constraints, missing)
-dagtext(ci::EdgeIntent) = "EdgeIntent($(ci.constraints), $(ci.conditions))"
+getlowlevelintent(bi::BorderIntent) = bi.lli
+BorderIntent(lli::LowLevelIntent) = BorderIntent(lli, Missing[], Missing[])
+dagtext(ci::BorderIntent) = "BorderIntent($(ci.constraints), $(ci.conditions))"
 
 """
 $(TYPEDEF)
@@ -145,7 +150,7 @@ end
 LightpathIntent(p,r,t) = LightpathIntent(p, Float64(r), t, Vector{Missing}())
 getpath(lpi::LightpathIntent) = lpi.path
 gettransmodl(lpi::LightpathIntent) = lpi.transmodl
-dagtext(ci::LightpathIntent) = "LightpathIntent\npath=$(ci.path)"
+dagtext(ci::LightpathIntent) = "LightpathIntent\npath=$(ci.path), $(ci.constraints)"
 
 
 """
@@ -162,15 +167,6 @@ struct SpectrumIntent{C} <: Intent
 end
 getpath(lpi::SpectrumIntent) = lpi.lightpath
 dagtext(ci::SpectrumIntent) = "SpectrumIntent($(ci.lightpath), $(ci.rate), $(ci.spectrumalloc), $(ci.constraints))"
-
-struct RegenerationIntent{C} <: Intent
-    constraints::C
-end
-
-struct GroomingIntent{C} <: Intent
-    termlayer::DataLayer
-    constraints::C
-end
 
 #    transponders::T
 #transponders configuration
@@ -202,6 +198,7 @@ struct NodeTransmoduleIntent{R,T<:TransmissionModuleView} <: LowLevelIntent
     tm::T
 end
 dagtext(ci::NodeTransmoduleIntent) = "NodeTransmoduleIntent\nnode=$(ci.node)\ntransmodl=$(ci.tm)"
+gettransmodl(ntmi::NodeTransmoduleIntent) = ntmi.tm
 
 """
 $(TYPEDEF)
@@ -232,6 +229,8 @@ struct DomainConnectivityIntent{R,T,C,D} <: Intent
     src::R
     "Destination node as (IBN.id, node-id)"
     dst::T
+    "Rate in Gbps"
+    rate::Float64
     #TODO constrs is array of abstract, so not performant (Union Splitting, or Tuple in the future ?)
     "Intents constraints"
     constraints::C
@@ -244,6 +243,8 @@ getsrcdom(i::DomainConnectivityIntent{Int,Tuple{Int,Int}}) = i.src
 getsrcdomnode(i::DomainConnectivityIntent{Int,Tuple{Int,Int}}) = error("$(typeof(i)) does not have a particular source node")
 getdstdom(i::DomainConnectivityIntent{Tuple{Int,Int},Int}) = i.dst
 getdstdomnode(i::DomainConnectivityIntent{Tuple{Int,Int},Int}) = error("$(typeof(i)) does not have a particular destination node")
+
+struct ReverseConstraint <: IntentConstraint end
 
 struct CapacityConstraint <: IntentConstraint
     #TODO intergrate with Unitful once PR is pushed
@@ -259,13 +260,44 @@ end
 
 struct AvailabilityConstraint <: IntentConstraint end
 
-struct GoThroughConstraint{R} <: IntentConstraint
+getreqlayer(ic::IntentConstraint) = ic.layer
+getreqs(ic::IntentConstraint) = ic.reqs
+
+struct GoThroughConstraint <: IntentConstraint
     node::Tuple{Int,Int}
     layer::SignalLoc
-    req::R
 end
-GoThroughConstraint(nd, l) = GoThroughConstraint(nd, l, missing)
-GoThroughConstraint(nd) = GoThroughConstraint(nd, signalUknown, missing)
+GoThroughConstraint(nd) = GoThroughConstraint(nd, signalUknown)
+struct NotGoThroughConstraint <: IntentConstraint
+    node::Tuple{Int,Int}
+    layer::SignalLoc
+end
+NotGoThroughConstraint(nd) = GoThroughConstraint(nd, signalUknown)
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Special intent that specifies the handover of a connectivity intent.
+Basically ignores the first node as it's a border.
+`edg` is indexing by global indexing and represents the edge that the new intent should start from
+`reqs` are the requirements that must be followed for a seamless transition.
+"""
+struct BorderInitiateConstraint{R} <: IntentConstraint
+    edg::NestedEdge{Int}
+    reqs::R
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Special intent that specifies the handover of a connectivity intent.
+Basically ignores the last node as it's a border.
+Usually a `BorderTerminateConstraint` is combined with a `BorderInitiateConstraint`.
+"""
+struct BorderTerminateConstraint <: IntentConstraint end
+
 
 struct CompiledConnectivityIntent{T,R}
     path::Vector{Tuple{Int,Int}}

@@ -159,9 +159,11 @@ mutable struct TransmissionModuleDummy
     cost::Float64
 end
 issimilar(tmd1::TransmissionModuleDummy, tmd2::TransmissionModuleDummy) = Base.isequal(tmd1.transmodes, tmd2.transmodes) && Base.isequal(tmd1.cost, tmd2.cost)
+iscompatible(tmd1::TransmissionModuleDummy, tmd2::TransmissionModuleDummy) = getmode(tmd1) in tmd2.transmodes
 getrate(tr::TransmissionModuleDummy) = tr.transmodes[tr.selected].rate
 getoptreach(tr::TransmissionModuleDummy) = tr.transmodes[tr.selected].optreach
 getfreqslots(tr::TransmissionModuleDummy) = tr.transmodes[tr.selected].freqslots
+getmode(tr::TransmissionModuleDummy) = tr.transmodes[tr.selected]
 getcost(tr::TransmissionModuleDummy) = tr.cost
 gettransmissionmodes(tr::TransmissionModuleDummy) = tr.transmodes
 getselection(tr::TransmissionModuleDummy) = tr.selected

@@ -39,11 +39,11 @@ function adjustNpropagate_constraints!(ibn::IBN, idn::IntentDAGNode)
     propagete_constraints = Vector{IntentConstraint}()
     for (i,constr) in enumerate(constraints)
         if constr isa DelayConstraint
-            pintdn = getfirst(x -> getintent(x) isa PathIntent, descendants(getintentdag(ibn), idn))
-            if pintdn !== nothing
-                pintent = getintent(pintdn)
+            globalviewpath = getcompiledintent(ibn, getid(idn))
+            if !isempty(globalviewpath)!
+                localpath = localnode.(ibn, globalviewpath; subnetwork_view=false)
                 #readjust intent
-                mydelay = delay(getdistance(ibn, pintent.path))
+                mydelay = delay(getdistance(ibn, localpath))
                 push!(propagete_constraints, DelayConstraint(constr.delay - mydelay))
             else
                 push!(propagete_constraints, constr)
@@ -52,6 +52,8 @@ function adjustNpropagate_constraints!(ibn::IBN, idn::IntentDAGNode)
             if localnode(ibn, constr.node) == nothing
                 push!(propagete_constraints, constr)
             end
+        elseif constr isa BorderInitiateConstraint|| constr isa BorderTerminateConstraint
+            continue
         else
             push!(propagete_constraints, constr)
         end
@@ -85,6 +87,36 @@ end
 
 """$(TYPEDSIGNATURES)
 
+Return a `PathIntent` implementing `path` in `ibn` if it is compliant with the constraints of the intent `parint`
+In case it's not compliant, return `nothing`.
+"""
+function getcompliantintent(ibn::IBN, parint::I, ::Type{LightpathIntent}, path::Vector{Int}, tmdl, lptype) where I<:Intent
+    # deal with DelayConstraint
+    dc = getfirst(x -> x isa DelayConstraint, parint.constraints)
+    if dc !== nothing
+        if delay(getdistance(ibn, path)) > dc.delay
+             return nothing
+         end
+    end
+    # deal with GoThroughConstraint
+    for gtc in filter(x -> x isa GoThroughConstraint && x.layer == signalUknown, getconstraints(parint))
+        if localnode(ibn, gtc.node, subnetwork_view=false) ∉ path
+             return nothing
+        end
+    end
+
+    if lptype == borderinitiatelightpath
+        constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderTerminateConstraint])), parint.constraints)
+    elseif lptype == borderterminatelightpath
+        constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderInitiateConstraint])), parint.constraints)
+    else
+        constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderInitiateConstraint, BorderTerminateConstraint])), parint.constraints)
+    end
+    return LightpathIntent(path, getrate(parint), tmdl, constrs)
+end
+
+"""$(TYPEDSIGNATURES)
+
 Return a `SpectrumIntent` implementing `path`, data rate `drate` and spectrum allocation `sr` in `ibn`
 if it is compliant with the constraints of the intent `parint`.
 In case it's not compliant, return `nothing`.
@@ -112,7 +144,7 @@ function intent2constraint(intent::R, ibn::IBN) where R<:NodeRouterPortIntent
         if contr isa IBN
             ibnid = getid(contr)
         else
-            error("Transode has not an IBN controller")
+            error("Border node has not an IBN controller")
         end
         return Pair(ibnid, GoThroughConstraint((ibnid, cnode[2]), signalElectrical))
     end

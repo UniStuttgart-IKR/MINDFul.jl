@@ -43,7 +43,7 @@ function getcompiledintent(ibn::IBN, intentid::UUID, globalknow=false)
                     push!(fr_slots, lli.slots)
                 end
             end
-        elseif lli isa RemoteLogicIntent && lli.intent isa EdgeIntent
+        elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
             constrs = getconstraints(lli.intent)
             if constrs isa GoThroughConstraint{Missing} && constrs.layer == signalElectrical
                 push!(electric_reg, constrs.node)
@@ -61,4 +61,57 @@ function getcompiledintent(ibn::IBN, intentid::UUID, globalknow=false)
                                                 length(rem_intents) > 0 ? rem_intents : missing,
                                                 length(rem_intent_uuid) >0 ? rem_intent_uuid : missing )
     return compiledintent
+end
+
+"$(TYPEDSIGNATURES) Get the compiled pathof the intent `intentidx` in `ibn` by assembling the low-level intents."
+function getcompiledintentpath(ibn::IBN, intentid::UUID, globalknow=false)
+    glbns, _ = logicalorderedintents(ibn, intentid, globalknow)
+    llis = getfield.(glbns, :lli)
+    
+    # create path
+    path = Vector{Tuple{Int, Int}}()
+    for lli in llis
+        if lli isa NodeSpectrumIntent
+            if length(path) == 0 
+                push!(path, lli.edge.src, lli.edge.dst)
+            else
+                if path[end] !== lli.edge.dst
+                    push!(path, lli.edge.dst)
+                end
+            end
+        end
+    end
+    return path
+end
+
+"$(TYPEDSIGNATURES) Uses local knowledge"
+function getlastlightpathrequirements(ibn::IBN, intentid::UUID)
+    glbns, logics = logicalorderedintents(ibn, intentid, false)
+    llis = getfield.(glbns, :lli)
+    
+    # create path
+    lasttransmodidx = findlast(l -> !isnothing(l) && getsignalloc(l) == signalTransmissionModuleDown, logics)
+    rate = getrate(gettransmodl(llis[lasttransmodidx]))
+    optreach = getoptreach(gettransmodl(llis[lasttransmodidx]))
+    freqslots = getfreqslots(gettransmodl(llis[lasttransmodidx]))
+
+
+    path = Vector{Tuple{Int, Int}}()
+    spslots = 0:0 # random initialize
+    for lli in llis[lasttransmodidx:end]
+        if lli isa NodeSpectrumIntent
+            if isempty(path)
+                spslots = lli.slots
+                push!(path, lli.edge.src, lli.edge.dst)
+            else
+                @assert spslots == lli.slots
+                if path[end] !== lli.edge.dst
+                    push!(path, lli.edge.dst)
+                end
+            end
+        end
+    end
+    localpath = localnode.([ibn], path; subnetwork_view=false)
+    dist = getdistance(ibn, localpath)
+    LightpathRequirements(spslots, optreach, dist, rate)
 end
