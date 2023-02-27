@@ -10,11 +10,11 @@ struct SDNdummy{T} <: SDN
     #TODO add SDN NBI
     #TODO how to assure that it is unique per IBN group?
     "network of SDN"
-    gr::MetaDiGraph{T}
+    gr::MG.MetaDiGraph{T}
     "inter domain equipment(e.g. links)"
     interprops::Dict{NestedEdge, Dict{Symbol, Any}}
 end
-SDNdummy(gr::MetaDiGraph) = SDNdummy(gr, Dict{NestedEdge, Dict{Symbol, Any}}())
+SDNdummy(gr::MG.MetaDiGraph) = SDNdummy(gr, Dict{NestedEdge, Dict{Symbol, Any}}())
 getid(sdnd::SDNdummy) = nothing
 
 "$(TYPEDSIGNATURES) Return the graph SDN is responsible for"
@@ -27,8 +27,8 @@ function mergeSDNs!(sdns::Vector{SDNdummy{R}}, cedges::Vector{NestedEdge{T}}) wh
     for ce in cedges
         ed = edge(ng, ce)
         #TODO choose properties
-        set_prop!(ng, ed, :link, LinkDummy(25 , 100) )
-        set_prop!(ng, reverse(ed), :link, LinkDummy(25 , 100) )
+        MG.set_prop!(ng, ed, :link, LinkDummy(25 , 100) )
+        MG.set_prop!(ng, reverse(ed), :link, LinkDummy(25 , 100) )
         # push interdomain values in sdns involved
         # shallow copy for bilateral modification
         for sdn in [sdns[ce.src[1]], sdns[ce.dst[1]]]

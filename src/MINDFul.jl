@@ -1,12 +1,12 @@
 module MINDFul
 
-using Graphs, MetaGraphs, NestedGraphs
+using Graphs, NestedGraphs
 using DocStringExtensions
 using Unitful, UUIDs
 
+import MetaGraphs as MG
+import MetaGraphs: set_prop!, get_prop, has_prop, props
 import MetaGraphsNext as MGN
-import MetaGraphsNext: MetaGraph as MG
-import MetaGraphsNext: MetaDiGraph as MDG
 import IterTools: partition
 import Distances: haversine
 const EARTH_RADIUS = 6371

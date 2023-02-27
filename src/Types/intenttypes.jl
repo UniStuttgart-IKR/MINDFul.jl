@@ -52,10 +52,10 @@ mutable struct IntentDAGInfo
     intentcounter::Int
 end
 IntentDAGInfo() = IntentDAGInfo(1)
-const IntentDAG = typeof(MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo()))
+const IntentDAG = typeof(MGN.MetaGraph(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo()))
 
 function IntentDAG()
-    MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
+    MGN.MetaGraph(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
 end
 
 function IntentDAG(intent::Intent)
@@ -268,6 +268,8 @@ struct GoThroughConstraint <: IntentConstraint
     layer::SignalLoc
 end
 GoThroughConstraint(nd) = GoThroughConstraint(nd, signalUknown)
+getnode(gtc::GoThroughConstraint) = gtc.node
+
 struct NotGoThroughConstraint <: IntentConstraint
     node::Tuple{Int,Int}
     layer::SignalLoc

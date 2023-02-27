@@ -270,6 +270,7 @@ end
 "$(TYPEDSIGNATURES) Checks if resources to deploy a `NodeRouterIntent` `nri` in `ibn` are enough."
 function isavailable(ibn::IBN, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
     intent, sdn, sdnode = sdnspace(ibn, nri)
+    sdn isa IBN && error("No control of this resource")
     return isavailable_port(sdn, sdnode)
 end
 

@@ -48,7 +48,7 @@ struct IBN{T<:SDN}
     ngr is a shallow copy of the sdn graphs, 
     meaning all PHY information is available in the IBN
     """
-    ngr::NestedGraph{Int,MetaDiGraph{Int,Float64},MetaDiGraph{Int,Float64}}
+    ngr::NestedGraph{Int,MG.MetaDiGraph{Int,Float64},MG.MetaDiGraph{Int,Float64}}
     "InterIBN interoperability with key being the IBN id"
     interprops::Dict{Int,IBNInterProps}
 end

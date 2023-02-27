@@ -87,11 +87,11 @@ struct MLNode{R,T,O,D}
     transmodreservations::Vector{Tuple{TransmissionModuleView{D}, Tuple{Int, UUID}}}
 end
 
-MLNode(r,otn, oxc, tmp) = MLNode(r, otn, oxc, tmp, Vector{Tuple{TransmissionModuleView{TransmissionModuleDummy}, Tuple{Int, UUID}}}())
+MLNode(r, otn, oxc, tmp) = MLNode(r, otn, oxc, tmp, Vector{Tuple{TransmissionModuleView{TransmissionModuleDummy}, Tuple{Int, UUID}}}())
 getrouter(mln::MLNode) = mln.router
 getotn(mln::MLNode) = mln.otn
 getoxc(mln::MLNode) = mln.oxc
-gettransmodulespoll(mln::MLNode) = mln.transmodulespool
+gettransmodulespool(mln::MLNode) = mln.transmodulespool
 gettransmodreservations(mln::MLNode) = mln.transmodreservations
 
 struct RouterView{R}

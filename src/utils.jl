@@ -61,6 +61,7 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
     myibns = Vector{IBN{SDNdummy{Int}}}()
     for ibncgnet in globalnet.grv
         sdns = SDNdummy.(ibncgnet.grv)
+        @show typeof(ibncgnet)
         connect!(sdns, ibncgnet.neds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.neds)])
         push!(myibns, IBN(ibncounter(), sdns, ibncgnet))
     end
@@ -74,7 +75,7 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
         idx = findfirst(x -> isa(x, IBN) && getfield(x,:id)==ibn2.id, ibn1.controllers)
         if isnothing(idx)
             #create new graph and controller
-            add_vertex!(ibn1.ngr, MetaDiGraph())
+            add_vertex!(ibn1.ngr, MG.MetaDiGraph())
             push!(ibn1.controllers, ibn2)
             #add node
             add_vertex!(ibn1.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.dst)), subgraphs=length(ibn1.ngr.grv), targetnode=node2)
@@ -95,7 +96,7 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
         idx = findfirst(x -> isa(x, IBN) && getfield(x,:id)==ibn1.id, ibn2.controllers)
         if isnothing(idx)
             #create new graph and controller
-            add_vertex!(ibn2.ngr, MetaDiGraph())
+            add_vertex!(ibn2.ngr, MG.MetaDiGraph())
             push!(ibn2.controllers, ibn1)
             #add node
             add_vertex!(ibn2.ngr, filter(x -> first(x) in [:xcoord, :ycoord] , props(globalnet, ed.src)), subgraphs=length(ibn2.ngr.grv), targetnode=node1)

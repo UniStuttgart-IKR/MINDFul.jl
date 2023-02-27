@@ -17,7 +17,12 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
         if neibnsrc === nothing && neibndst !== nothing
             if iam(ibn,neibndst)
                 neibn = first(getibns(ibn))
-                state = algmethod(ibn, neibn, idagn, InterIntent{IntentBackward}(); algargs...)
+#                state = algmethod(ibn, neibn, idagn, InterIntent{IntentBackward}(); algargs...)
+                #state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
+                for neibn in getibns(ibn)
+                    state = delegateintent!(ibn, neibn, idagn, idagn.intent, algmethod; algargs...)
+                    state == compiled && break
+                end
             else
                 state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
             end
@@ -35,9 +40,10 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
             if iam(ibn,neibnsrc)
                 state = algmethod(ibn, neibndst, idagn, InterIntent{IntentForward}(); algargs...)
             elseif iam(ibn, neibndst)
-                state = algmethod(ibn, neibnsrc, idagn, InterIntent{IntentBackward}(); algargs...)
+                # state = algmethod(ibn, neibnsrc, idagn, InterIntent{IntentBackward}(); algargs...)
+                state = delegateintent!(ibn, neibnsrc, idagn, getintent(idagn), algmethod; algargs...)
             else
-                state = delegateintent!(ibn, neibnsrc, idagn, idagn.intent, algmethod; algargs...)
+                state = delegateintent!(ibn, neibnsrc, idagn, getintent(idagn), algmethod; algargs...)
             end
         elseif neibnsrc == nothing && neibndst == nothing
             # talk to random IBN (this is where fun begins!)
@@ -52,208 +58,247 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
 end
 
 "$(TYPEDSIGNATURES)"
-function compile!(ibn::IBN, idn::IntentDAGNode, gtc::GoThroughConstraint; time)
+function compile!(ibn::IBN, idagn::IntentDAGNode, ::Type{LightpathIntent}, path, transmodl, lightpathtype; algargs...)
     dag = getintentdag(ibn)
-    getid(ibn) != gtc.node[1] && (@warn "Cannot compile LowLevelIntent from another IBN"; return)
-    node = gtc.node[2]
-
-    signalocreq = gtc.layer
-    if signalocreq == signalElectrical
-        lli = NodeRouterPortIntent(node)
-        addchild!(dag, getid(idn), lli)
-    elseif signalocreq in [signalFiberIn, signalFiberOut] && gtc.req isa SpectrumRequirements
-        sreqs = gtc.req
-        cedg = localedge(ibn, sreqs.cedge)
-        lli = NodeSpectrumIntent(node, NestedGraphs.edge(ibn.ngr, cedg), sreqs.frslots, sreqs.bandwidth)
-        addchild!(dag, getid(idn), lli)
+    lpint = getcompliantintent(ibn, getintent(idagn), LightpathIntent, path, transmodl, lightpathtype)
+    isnothing(lpint) && error("Could not create a LightpathIntent")
+    isavailable(ibn, lpint) || error("intent resources are not available")
+    lpintnode = addchild!(dag, getid(idagn), lpint)
+    for lli in lowlevelintents(lpintnode.intent)
+        addchild!(dag, lpintnode.id, lli)
     end
-    try2setstate!(idn, ibn, Val(compiled); time)
+    return lpintnode
 end
 
 "$(TYPEDSIGNATURES)"
-function _dev_compile!(ibn::IBN, idn::IntentDAGNode{T}, f::Function; time) where T<:BorderIntent
+function compile!(ibn::IBN, lpintnode::IntentDAGNode{<:LightpathIntent}, ::Type{<:SpectrumIntent}, lightpathtype, spallocfun=firstfit)
     dag = getintentdag(ibn)
-    getid(ibn) != first(getnode(getintent(idn))) && (@warn "Cannot compile LowLevelIntent from another IBN"; return)
-    node = getnode(getintent(idn))[2]
 
-    # TODO considering constraints and conditions
-    addchild!(dag, getid(idn), getlowlevelintent(getintent(idn)))
-    try2setstate!(idn, ibn, Val(compiled); time)
+    if lightpathtype in [borderinitiatelightpath, border2borderlightpath]
+        bicidx = findfirst(c-> c isa BorderInitiateConstraint, getconstraints(getintent(lpintnode)))
+        lpr = getreqs(getconstraints(getintent(lpintnode))[bicidx])
+        spslots = lpr.spslots
+    else
+        fs = [getlink(ibn, e) for e in edgeify(getpath(getintent(lpintnode)))]
+        trmdlslots = getfreqslots(gettransmodl(getintent(lpintnode)))
+        startingslot = spallocfun(fs, trmdlslots)
+        startingslot === nothing && error("Not enough slots for transmission module chosen")
+        spslots = startingslot:startingslot+trmdlslots-1
+    end
+    speint = getcompliantintent(ibn, getintent(lpintnode), SpectrumIntent, getpath(getintent(lpintnode)), getrate(getintent(lpintnode)), spslots)
+    speint === nothing && error("Could not create a SpectrumAllocationIntent")
+
+    if isavailable(ibn, speint)
+        speintnode = addchild!(dag, getid(lpintnode), speint)
+        for lli in lowlevelintents(speintnode.intent)
+            addchild!(dag, speintnode.id, lli)
+        end
+        return speintnode
+#        try2setstate!(speintnode, ibn, Val(compiled); time)
+#        try2setstate!(idagnode, ibn, Val(compiled); time)
+    else
+        return nothing
+    end
+end
+
+#---- following a short example `algmethod` ----
+#
+"""
+$(TYPEDSIGNATURES) 
+
+Handles intra-domain connectivity intents.
+If path can be reached with a transmission module, it selects the one with lowest cost and mode with lowest slots.
+If it cannot be reached, it breaks it down in the middle to 2 connectivity intents.
+Intent source and destination are always finishing up in the router.
+No grooming is supported.
+"""
+function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent; time, k = 100) where {R<:ConnectivityIntent}
+    conint = getintent(idagnode)
+    source = localnode(ibn, getsrc(conint); subnetwork_view=false)
+    dest = localnode(ibn, getdst(conint); subnetwork_view=false)
+
+    yenpaths = yen_k_shortest_paths(getgraph(ibn), source, dest, linklengthweights(ibn), k)
+    deployfirstavailablepath!(ibn, idagnode, yenpaths.paths, yenpaths.dists; time)
+    return getstate(idagnode)
 end
 
 """
 $(TYPEDSIGNATURES)
 
-To solve an BorderIntent, we basically need to only satisfy the constraints
+`paths` have the paths and `dists` the corresponding distances in km
+Every time allocates new transmission modules, i.e., no grooming supported.
 """
-function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time) where {R<:BorderIntent}
-    intent = getintent(idagnode)
-    if applicable(iterate, getconstraints(intent))
-        for constr in getconstraints(intent)
-            compile!(ibn, idagnode, constr; time)
+function deployfirstavailablepath!(ibn::IBN, idagnode::IntentDAGNode, paths, dists; time)
+    conint = getintent(idagnode)
+    for (path,dist) in zip(paths, dists)
+        bicidx = findfirst(c -> c isa BorderInitiateConstraint, getconstraints(conint))
+        if !isnothing(bicidx)
+            bic = getconstraints(conint)[bicidx]
+            # Trivially compile the border connectivity intent right here right now
+            # get compatible transmission module from LightpathRequirements in destination path[1]
+            transmodl = pickcheapesttransmodl(ibn, bic.reqs, path[1])
+            realsource = localnode(ibn, src(bic.edg); subnetwork_view=false)
+            lptype1 = borderinitiatelightpath
+            lpintnode = compile!(ibn, idagnode, LightpathIntent, [realsource, path[1]], transmodl, lptype1)
+            speintnode = compile!(ibn, lpintnode, SpectrumIntent, lptype1)
+#            deleteat!(getconstraints(conint), bicidx)
+            try2setstate!(speintnode, ibn, Val(compiled); time)
+            path[end] == path[1] && break
         end
-    else
-        compile!(ibn, idagnode, getconstraints(intent); time)
+        lptype = fulllightpath
+        if any(c -> c isa BorderTerminateConstraint, getconstraints(conint))
+            lptype = borderterminatelightpath
+        end
+
+        breakandcontinue = false
+        for gtc in filter(c -> c isa GoThroughConstraint ,getconstraints(conint))
+            if getnode(gtc)[1] == getid(ibn)
+                if localnode(ibn, getnode(gtc); subnetwork_view=false) ∉ path
+                    breakandcontinue = true
+                    break;
+                end
+            end
+        end
+        breakandcontinue && continue
+
+        transmodl = pickcheapesttransmodl(ibn, dist, path[1])
+        if isnothing(transmodl) # break up path in 2 connectivity intents
+            error("Appropriate transmission module doesn't exist. Need to break up connectivity intent in 2. Still not implemented.")
+        else
+            consavailspslots = reduce(.&, [getspectrumslots(getlink(ibn, e)) for e in edgeify(path)])
+            longestconsecutiveblock(==(true), consavailspslots) >= getfreqslots(transmodl) || continue
+            lpintnode = compile!(ibn, idagnode, LightpathIntent, path, transmodl, lptype)
+            speintnode = compile!(ibn, lpintnode, SpectrumIntent, lptype, firstfit)
+            try2setstate!(speintnode, ibn, Val(compiled); time)
+            break
+        end
     end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return transmission module and mode to use.
+If none is appropriate, return `nothing`
+"""
+function pickcheapesttransmodl(ibn::IBN, optreachreq::Real, source::Int)
+    sortedtransmodls = sort(gettransmodulespool(getmlnode(ibn, source)), by=trmdl->getcost(trmdl))
+    for transmodl in sortedtransmodls
+        toselect = findmin(x -> ustrip(getoptreach(x)) >= optreachreq ? getfreqslots(x) : +Inf, gettransmissionmodes(transmodl))
+        if !isnothing(toselect)
+            copied = deepcopy(transmodl)
+            setselection!(copied, toselect[2])
+            return copied
+        end
+    end
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+If none is appropriate, return `nothing`
+"""
+function pickcheapesttransmodl(ibn::IBN, lpr::LightpathRequirements, source::Int)
+    sortedtransmodls = sort(gettransmodulespool(getmlnode(ibn, source)), by=trmdl->getcost(trmdl))
+    for transmodl in sortedtransmodls
+        ff = findfirst(gettransmissionmodes(transmodl)) do transprop 
+            length(lpr.spslots) == getfreqslots(transprop) && lpr.optreach <= getoptreach(transprop) &&
+            lpr.rate <= getrate(transprop)
+        end
+        if !isnothing(ff)
+            copied = deepcopy(transmodl)
+            setselection!(copied, ff)
+            return copied
+        end
+    end
+    return nothing
 end
 
 "$(TYPEDSIGNATURES) Handles interdomain connectivity intents"
-function shortestavailpath!(ibnp::IBN, ibnc::IBN, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
+function shortestavailpath!(myibn::IBN, neibn::IBN, idagnode::IntentDAGNode{T}, iid::InterIntent{R} ;
                 time, k=5)  where {T<:ConnectivityIntent, R<:IntentDirection}
-    dag = getintentdag(ibnp)
+    dag = getintentdag(myibn)
     iidforward = R <: IntentForward
-    conint = idagnode.intent
+    conint = getintent(idagnode)
+
+    globalizedbordernodes = globalnode.([myibn], bordernodes(myibn; subnetwork_view=false))
+    bordergtc = getfirst(gtc -> getnode(gtc) in globalizedbordernodes ,filter(c -> c isa GoThroughConstraint, getconstraints(conint)))
+
     if iidforward
-        myintent = DomainConnectivityIntent(getsrc(conint), getid(ibnc), getconstraints(conint), getconditions(conint))
+        if getdst(conint) in globalizedbordernodes
+            myintent = ConnectivityIntent(getsrc(conint), getdst(conint), getrate(conint),
+                                          vcat(BorderTerminateConstraint() , getconstraints(conint)), getconditions(conint))
+        elseif !isnothing(bordergtc)
+            myintent = ConnectivityIntent(getsrc(conint), getnode(bordergtc), getrate(conint),
+                                          vcat(BorderTerminateConstraint() , getconstraints(conint)), getconditions(conint))
+        else
+            myintent = DomainConnectivityIntent(getsrc(conint), getid(neibn), getrate(conint),
+                                          vcat(BorderTerminateConstraint() , getconstraints(conint)), getconditions(conint))
+        end
     else
-        myintent = DomainConnectivityIntent(getid(ibnc), getdst(conint) , getconstraints(conint), getconditions(conint))
+        if getsrc(conint) in globalizedbordernodes
+            myintent = ConnectivityIntent(getdst(conint), getsrc(conint), getrate(conint),
+                          vcat(ReverseConstraint(), BorderTerminateConstraint() , getconstraints(conint)), getconditions(conint))
+        elseif !isnothing(bordergtc)
+            myintent = ConnectivityIntent(getdst(conint), getnode(bordergtc), getrate(conint),
+                                          vcat(BorderTerminateConstraint() , getconstraints(conint)), getconditions(conint))
+        else
+            myintent = DomainConnectivityIntent(getdst(conint), getid(neibn), getrate(conint),
+                                  vcat(ReverseConstraint(), BorderTerminateConstraint() , getconstraints(conint)), getconditions(conint))
+        end
     end
     domint = addchild!(dag, getid(idagnode), myintent)
-    state = compile!(ibnp, dag, domint, shortestavailpath!; time, k)
+    state = compile!(myibn,  domint, shortestavailpath!; time)
 
     # create an intent for fellow ibn
     if state == compiled
-
-        pintdn = getfirst(x -> getintent(x) isa PathIntent, children(dag, domint))
-        pintent = getintent(pintdn)
-        updatedconstraints = adjustNpropagate_constraints!(ibnp, dag)
+        globalviewpath = getcompiledintentpath(myibn, getid(domint))
+        updatedconstraints = adjustNpropagate_constraints!(myibn, idagnode)
+        transnode = globalviewpath[end]
+        lpr = getlastlightpathrequirements(myibn, getid(domint))
+        initconstr = BorderInitiateConstraint(NestedEdge(globalviewpath[end-1:end]...), lpr)
         if iidforward
-            transnode = (getid(ibnc), ibnp.ngr.vmap[pintent.path[end]][2])
-            # need to update constraints
-            remintent = ConnectivityIntent(transnode, getdst(conint), updatedconstraints, getconditions(myintent))
+            remintent = ConnectivityIntent(transnode, getdst(conint), getrate(conint),
+                                           vcat(initconstr, updatedconstraints), getconditions(myintent))
         else
-            transnode = (getid(ibnc), ibnp.ngr.vmap[pintent.path[1]][2])
-            remintent = ConnectivityIntent(getsrc(conint), transnode, updatedconstraints, getconditions(myintent))
+            remintent = ConnectivityIntent(transnode, getsrc(conint), getrate(conint),
+                           vcat(ReverseConstraint() , initconstr, updatedconstraints), getconditions(myintent))
         end
-        success = delegateintent!(ibnp, ibnc, idagnode, remintent, shortestavailpath!; time, k=k)
+        success = delegateintent!(myibn, neibn, idagnode, remintent, shortestavailpath!; time)
     end
-
-    # deploy the intent to the fellow ibn
+    try2setstate!(idagnode, myibn, Val(compiled); time)
     return getstate(idagnode)
 end
 
-"""
-$(TYPEDSIGNATURES) 
-
-Handles intra-domain connectivity intents.
-Delegates all constraints to a PathIntent
-"""
-function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent; time, k = 5) where {R<:ConnectivityIntent}
-    dag = getintentdag(ibn)
-    conint = idagnode.intent
-    src = getsrcdom(conint) == getid(ibn) ? getsrcdomnode(conint) : localnode(ibn, getsrc(conint), subnetwork_view=false)
-    dst = getdstdom(conint) == getid(ibn) ? getdstdomnode(conint) : localnode(ibn, getdst(conint), subnetwork_view=false)
-    paths = yen_k_shortest_paths(ibn.ngr.flatgr, src, dst, linklengthweights(ibn.ngr.flatgr), k).paths
-#    interconstraints = Dict{Int, Vector{IntentConstraint}}()
-    for path in paths
-        pint = getcompliantintent(ibn, conint, PathIntent, path)
-        if pint !== nothing && isavailable(ibn, dag, pint)
-            childnode = addchild!(dag, idagnode.id, pint)
-            #create a lowlevel intent for port allocation in the start and end node
-            for lli in lowlevelintents(childnode.intent)
-                # if another's ibn node inside the path, issue remoteintent
-                if lli.node in bordernodes(ibn, subnetwork_view = false)
-                    pairconstr = intent2constraint(lli, ibn)
-                    delegate_borderintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
-#                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
-                else
-                    addchild!(dag, childnode.id, lli)
-                end
-            end
-#            push2dict!(interconstraints, shortestavailpath!(ibn, dag, childnode, IntraIntent()))
-            firstfitpath!(ibn, dag, childnode, IntraIntent(); time)
-            try2setstate!(idagnode, dag, ibn, Val(compiled); time)
-            break
-        end
-    end
-    # Delegate edge intents if no parent to push
-#    isroot(dag, idagnode) &&  delegate_edgeintents(ibn, dag, idagnode, interconstraints, shortestavailpath!)
-
-#    return interconstraints
-end
-
-"$(TYPEDSIGNATURES) "
-function firstfitpath!(ibn::IBN, idagnode::IntentDAGNode{R}, ::IntraIntent; time) where {R<:PathIntent}
-    dag = getintentdag(ibn)
-    pathint = idagnode.intent
-    interconstraints = Dict{Int, Vector{IntentConstraint}}()
-    cc = getfirst(x -> x isa CapacityConstraint, pathint.constraints)
-    if cc !== nothing
-        # choose transponder
-        # TODO parametric
-        transponders = sort(filter(x -> getrate(x) >= cc.drate, transponderset()),  by = x -> MINDFul.getoptreach(x), rev=true)
-        for transp in transponders
-            if getoptreach(transp) < getdistance(ibn, pathint.path)
-                error("Regeneration needed. Still not implemented.")
-            else
-                fs = [get_prop(ibn.ngr, e, :link) for e in edgeify(pathint.path)]
-                startingslot = firstfit(fs, getslots(transp))
-                speint = getcompliantintent(ibn, pathint, SpectrumIntent, pathint.path, getrate(transp), startingslot:startingslot+getslots(transp)-1)
-                if speint !== nothing && isavailable(ibn, dag, speint)
-                    childnode = addchild!(dag, idagnode.id, speint)
-                    for lli in lowlevelintents(childnode.intent)
-                        if lli.node in bordernodes(ibn, subnetwork_view = false)
-                            pairconstr = intent2constraint(lli, ibn)
-                            delegate_borderintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
-#                            push2dict!(interconstraints, pairconstr.first, pairconstr.second)
-                        else
-                            addchild!(dag, childnode.id, lli)
-                        end
-                    end
-                    try2setstate!(childnode, dag, ibn, Val(compiled); time)
-                    try2setstate!(idagnode, dag, ibn, Val(compiled); time)
-                    break
-                end
-            end
-        end
-    end
-#    return interconstraints
-end
-
 "$(TYPEDSIGNATURES)"
-function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time, k=5) where {R<:DomainConnectivityIntent}
+function shortestavailpath!(ibn::IBN, idagnode::IntentDAGNode{R}; time, k=100) where {R<:DomainConnectivityIntent}
     dag = getintentdag(ibn)
     intent = getintent(idagnode)
-    neibn, yenstates = calc_kshortestpath(ibn, intent)
-    paths = reduce(vcat, getfield.(yenstates, :paths))
-    dists = reduce(vcat, getfield.(yenstates, :dists))
-    sortidx = sortperm(dists)
-    dists .= dists[sortidx]
-    paths .= paths[sortidx]
-    for path in paths
-        pint = getcompliantintent(ibn, intent, PathIntent, path)
-        if pint !== nothing && isavailable(ibn, dag, pint)
-            childnode = addchild!(dag, idagnode.id, pint)
-            #create a lowlevel intent for port allocation in the start and end node
-            for lli in lowlevelintents(childnode.intent)
-                if lli.node in bordernodes(ibn, subnetwork_view = false)
-                    pairconstr = intent2constraint(lli, ibn)
-                    delegate_borderintent(ibn, dag, childnode, pairconstr, shortestavailpath!; time)
-#                    push2dict!(interconstraints, pairconstr.first, pairconstr.second)
-                else
-                    addchild!(dag, childnode.id, lli)
-                end
-            end
-            firstfitpath!(ibn, dag, childnode, IntraIntent(); time)
-            try2setstate!(idagnode, dag, ibn, Val(compiled); time)
-            break
-        end
-    end
+
+    srcdsts = getintrasrcdst(ibn, getintent(idagnode))
+
+    yenpaths = [psds  for (source,dest) in srcdsts for psds in 
+        let yenpaths = yen_k_shortest_paths(getgraph(ibn), source, dest, linklengthweights(ibn), k);
+            zip(yenpaths.paths, yenpaths.dists)
+        end]
+
+    sort!(yenpaths; by = yp -> yp[2])
+    deployfirstavailablepath!(ibn, idagnode, getfield.(yenpaths, 1), getfield.(yenpaths, 2); time)
+
     return getstate(idagnode)
 end
 
-"$(TYPEDSIGNATURES)"
-function calc_kshortestpath(ibn::IBN, intent::DomainConnectivityIntent{Tuple{Int,Int}, Int}; k=5)
-    neibn = getibn(ibn, getdst(intent))
-    yenstates = [yen_k_shortest_paths(ibn.ngr.flatgr, getsrc(intent)[2], transnode, linklengthweights(ibn.ngr.flatgr), k) 
-                 for transnode in nodesofcontroller(ibn, getindex(ibn, neibn))]
-    return (neibn, yenstates)
+"$(TYPEDSIGNATURES) Return a collection of valid sources and destinations combinations in the intranet"
+function getintrasrcdst(ibn::IBN, intent::DomainConnectivityIntent{Tuple{Int,Int}, Int})
+    neibnidx = getlocalibnindex(ibn, getdst(intent))
+    dests = nodesofcontroller(ibn, neibnidx)
+    [(localnode(ibn, getsrc(intent); subnetwork_view=false),d) for d in dests]
 end
 
-"$(TYPEDSIGNATURES)"
-function calc_kshortestpath(ibn::IBN, intent::DomainConnectivityIntent{Int, Tuple{Int,Int}}; k=5)
-    neibn = getibn(ibn, getsrc(intent))
-    yenstates = [yen_k_shortest_paths(ibn.ngr.flatgr, transnode, getdst(intent)[2], linklengthweights(ibn.ngr.flatgr), k) 
-                 for transnode in nodesofcontroller(ibn, getindex(ibn, neibn))]
-    return (neibn, yenstates)
+"$(TYPEDSIGNATURES) Return a collection of valid sources and destinations combinations in the intranet"
+function getintrasrcdst(ibn::IBN, intent::DomainConnectivityIntent{Int, Tuple{Int,Int}})
+    neibnidx = getlocalibnindex(ibn, getsrc(intent))
+    sours = nodesofcontroller(ibn, neibnidx)
+    [(s, localnode(ibn, getdst(intent); subnetwork_view=false)) for s in sours]
 end

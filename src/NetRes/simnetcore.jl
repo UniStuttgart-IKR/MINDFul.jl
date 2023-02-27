@@ -26,11 +26,6 @@ struct LineCardDummy
     cost::Float64
 end
 
-defaultlinecard1() = LineCardDummy(10, 100, 26.72)
-defaultlinecard2() = LineCardDummy(2, 400, 29.36)
-defaultlinecard3() = LineCardDummy(1, 1000, 31.99)
-availablelinecards() = [defaultlinecard1(), defaultlinecard2(), defaultlinecard3()]
-
 """ $(TYPEDEF)
 $(TYPEDFIELDS)
 """
@@ -39,8 +34,6 @@ struct LineCardChassisDummy
     cost::Float64
     lcscap::Int
 end
-defaultlinecardchassis() = LineCardChassisDummy(Vector{LineCardDummy}(), 4.7, 16)
-availablelinecardchassis() = [defaultlinecardchassis()]
 
 """
 $(TYPEDEF)
@@ -50,6 +43,8 @@ struct RouterModularDummy
     lccs::Vector{LineCardChassisDummy}
     "maps sequence of ports a specific port of a specific linecard of a specific line card chassis"
     portmap::Vector{Tuple{Int, Int, Int}}
+    linecardpool::Vector{LineCardDummy}
+    linecardchassispool::Vector{LineCardChassisDummy}
     lcccap::Int
 end
 
@@ -59,12 +54,16 @@ isrouterfull(rmd::RouterModularDummy) = length(rmd.lccs) == rmd.lcccap
 "$(TYPEDSIGNATURES) RouterModularDummy increamentally adds up infinite ports"
 hasport(rv::RouterView{RouterModularDummy}) = any(rv.portavailability) || !islinecardchassisfull(rv.router) || !isrouterfull(rv.router)
 
-RouterModularDummy() = RouterModularDummy(Vector{LineCardChassisDummy}(), Vector{Tuple{Int, Int, Int}}(), 3)
+RouterModularDummy(lcpool, lccpool, lcccap=3) = RouterModularDummy(Vector{LineCardChassisDummy}(), Vector{Tuple{Int, Int, Int}}(), lcpool, lccpool, lcccap)
 
 "$(TYPEDSIGNATURES) Add default line card chassis  on router `rmd`"
-function addlinecardchassis!(rmd::RouterModularDummy)
+function addlinecardchassis!(rmd::RouterModularDummy, lcc=nothing)
     if length(rmd.lccs) < rmd.lcccap
-        push!(rmd.lccs, defaultlinecardchassis())
+        if isnothing(lcc)
+            push!(rmd.lccs, first(rmd.linecardchassispool))
+        else
+            push!(rmd.lccs, first(rmd.linecardchassispool))
+        end
     else
         nothing
     end
@@ -99,18 +98,18 @@ end
 getportrate(rmd::RouterModularDummy, p::Int) = rmd.lccs[rmd.portmap[p][1]].lcs[rmd.portmap[p][2]].rate
 
 "$(TYPEDSIGNATURES) Calculates cheapest alternative"
-function getportusagecost(rv::RouterView{RouterModularDummy}, r::Number; availablelinecards=availablelinecards(), availablelinecardchassis=availablelinecardchassis())
+function getportusagecost(rv::RouterView{RouterModularDummy}, r::Number)
     cost = zero(r)
     hasport(rv, r) && return cost
     if islinecardchassisfull(rv.router)
-        cost += minimum(lcc -> lcc.cost,availablelinecardchassis)
+        cost += minimum(lcc -> lcc.cost,rv.router.linecardchassispool)
     end
-    cost += minimum(lc -> lc.cost ,filter(lc -> lc.rate > r,availablelinecards))
+    cost += minimum(lc -> lc.cost ,filter(lc -> lc.rate > r,rv.router.linecardpool))
     return cost
 end
 
 "$(TYPEDSIGNATURES) Finds port with cheapest alternative"
-function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple{Int,UUID}; availablelinecards=availablelinecards(), availablelinecardchassis=availablelinecardchassis())
+function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple{Int,UUID}) 
     ff = findfirst(k -> rv.portavailability[k] && getportrate(rv,k) > r, keys(rv.portavailability))
     if ff !== nothing
         rv.portavailability[ff] = false
@@ -120,10 +119,10 @@ function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple
         if isrouterfull(rv.router)
             return false
         else
-            compliantlcs = filter(lc -> lc.rate > r,availablelinecards)
+            compliantlcs = filter(lc -> lc.rate > r, rv.router.linecardpool)
             chosenlinecardidx = findmin(lc -> lc.cost , compliantlcs)[2]
             addlinecard!(rv, compliantlcs[chosenlinecardidx])
-            useport!(rv, r, ibnintid; availablelinecards, availablelinecardchassis)
+            useport!(rv, r, ibnintid)
         end
     end
 end
@@ -169,21 +168,6 @@ gettransmissionmodes(tr::TransmissionModuleDummy) = tr.transmodes
 getselection(tr::TransmissionModuleDummy) = tr.selected
 setselection!(tr::TransmissionModuleDummy, s::Int) = setfield!(tr, :selected, s)
  
-# tdlt
-transponderset() = [TransmissionModuleView("DummyFlexibleTransponder",
-            TransmissionModuleDummy([TransmissionProps(5080.0u"km", 300, 8),
-            TransmissionProps(4400.0u"km", 400, 8),
-            TransmissionProps(2800.0u"km", 500, 8),
-            TransmissionProps(1200.0u"km", 600, 8),
-            TransmissionProps(700.0u"km", 700, 10),
-            TransmissionProps(400.0u"km", 800, 10)],0,20)),
-                                            TransmissionModuleView("DummyFlexiblePluggables",
-            TransmissionModuleDummy([TransmissionProps(5840.0u"km", 100, 4),
-            TransmissionProps(2880.0u"km", 200, 6),
-            TransmissionProps(1600.0u"km", 300, 6),
-            TransmissionProps(480.0u"km", 400, 6)],0,8))
-           ]
- 
 """
 Fiber link connecting routers
 
@@ -217,20 +201,6 @@ hascapacity(l::LinkDummy, cap::Real) = l.capacity - l.rezcapacity > cap
 usecapacity!(l::LinkDummy, cap::Real) = hascapacity(l, cap) ? l.rezcapacity += cap : error("No more capacity on the Link ", l)
 freecapacity!(l::LinkDummy, cap::Real) = l.rezcapacity - cap > 0 ? l.rezcapacity -= cap : l.rezcapacity = 0
 
-randomgraph(gr::DiGraph) = randomgraph(MetaDiGraph(gr))
-"$(TYPEDSIGNATURES) Get a random graph able to simulate"
-function randomsimgraph!(mgr::MetaDiGraph)
-    for v in vertices(mgr)
-        set_prop!(mgr, v, :router, RouterDummy(rand(10:20)) )
-    end
-    for e in edges(MetaGraph(mgr))
-        ralength = rand(50:200)
-        set_prop!(mgr, e, :link, LinkDummy(ralength , 100) )
-        set_prop!(mgr, reverse(e), :link, LinkDummy(ralength , 100) )
-    end
-    return mgr
-end
-
 """
 $(TYPEDSIGNATURES) 
 
@@ -248,17 +218,17 @@ Get as an output a `MetaGraph` having:
 - `:router` as `RouterView` in every node
 - `:link` as `FiberView` in every edge
 """
-function simgraph(mgr::MetaDiGraph; distance_method=euclidean_dist)
-    simgr = MetaDiGraph(mgr)
+function simgraph(mgr::MG.MetaDiGraph; router_lcpool, router_lccpool, router_lcccap, transponderset, distance_method=euclidean_dist)
+    simgr = MG.MetaDiGraph(mgr)
     for v in vertices(mgr)
         set_prop!(simgr, v, :mlnode, 
 #                  MLNode(RouterView(RouterDummy(get_prop(mgr, v, :routerports))), OTNView(), OXCView(), transponderset(), 0))
-                  MLNode(RouterView(RouterModularDummy()), OTNView(), OXCView(), transponderset()))
+                  MLNode(RouterView(RouterModularDummy(router_lcpool, router_lccpool, router_lcccap)), OTNView(), OXCView(), transponderset ))
         set_prop!(simgr, v, :xcoord, get_prop(mgr, v, :xcoord))
         set_prop!(simgr, v, :ycoord, get_prop(mgr, v, :ycoord))
         has_prop(mgr, v, :name) && set_prop!(simgr, v, :name, get_prop(mgr, v, :name))
     end
-    for e in edges(MetaGraph(mgr))
+    for e in edges(MG.MetaGraph(mgr))
         #calculate distance
         possrc = [get_prop(mgr, e.src, :xcoord), get_prop(mgr, e.src, :ycoord)]
         posdst = [get_prop(mgr, e.dst, :xcoord), get_prop(mgr, e.dst, :ycoord)]
@@ -277,10 +247,10 @@ $(TYPEDSIGNATURES)
 
 Builds a nested graph from `ng` able to simulate.
 """
-function simgraph(ng::G; distance_method=euclidean_dist) where G<:NestedMetaGraph
+function simgraph(ng::G; router_lcpool, router_lccpool, router_lcccap, transponderset, distance_method=euclidean_dist) where G<:NestedMetaGraph
     cgnew = G(;extrasubgraph=false)
     for gr in ng.grv
-        add_vertex!(cgnew, simgraph(gr; distance_method=distance_method))
+        add_vertex!(cgnew, simgraph(gr; router_lcpool, router_lccpool, router_lcccap, transponderset ,distance_method))
     end
     for interedgs in ng.neds
         add_edge!(cgnew, interedgs)
@@ -293,7 +263,8 @@ function simgraph(ng::G; distance_method=euclidean_dist) where G<:NestedMetaGrap
     return cgnew
 end
 
-function linklengthweights(mgr::AbstractMetaGraph)
+linklengthweights(ibn::IBN) = linklengthweights(getgraph(ibn))
+function linklengthweights(mgr::MG.AbstractMetaGraph)
     ws = zeros(Float64 ,nv(mgr),nv(mgr))
     for e in edges(mgr)
         ws[e.src, e.dst] = uconvert(u"km", getdistance(get_prop(mgr, e, :link))) |> ustrip

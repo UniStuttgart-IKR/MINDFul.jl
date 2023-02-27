@@ -117,7 +117,7 @@ function issatisfied(ibn::IBN, idagn::IntentDAGNode{I}) where I <: Intent
     # check if installed correctly
     for gibnl in globalIBNnllis
         if !issatisfied(gibnl.ibn, gibnl.idn)
-            @info "$(intentidx(gibnl.ibn, getid(gibnl.idn))) is not satisfied"
+            @info "intent IBN $(getid(ibn)), $(getid(gibnl.idn)) is not satisfied"
             return false
         end
     end
@@ -130,7 +130,7 @@ function issatisfied(ibn::IBN, idagn::IntentDAGNode{I}) where I <: Intent
 
     # check specific constraints
     if applicable(iterate, getconstraints(idagn.intent))
-        all(issatisfied(globalIBNnllis, vcs, constr) for constr in getconstraints(idagn.intent))
+        return all(issatisfied(globalIBNnllis, vcs, constr) for constr in getconstraints(idagn.intent))
     else
         return issatisfied(globalIBNnllis, vcs, getconstraints(idagn.intent))
     end
@@ -247,7 +247,6 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
             fibin.edge == fibout.edge || return false
             fibin.slots == fibout.slots || return false
             fibin.bandwidth == fibout.bandwidth || return false
-#            @show (fibin.bandwidth, cc.drate)
             fibin.bandwidth >= cc.drate || return false
         end
     end
@@ -276,6 +275,7 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
     delay(sumkms) <= cc.delay || return false
     return true
 end
+
 
 "$(TYPEDSIGNATURES)"
 function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc::GoThroughConstraint) where {K <: Union{Missing, ConnectionState}}
@@ -307,6 +307,19 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
                 end
             end
         end
+    elseif cc.layer in [signalOXCbypass]
+        for gbnl in globalIBNnllis
+            if gbnl.lli isa NodeRouterPortIntent
+                if gbnl.lli.node == cc.node
+                    return false
+                end
+            end
+        end
+        for gbnl in globalIBNnllis
+            if gbnl.lli.node == cc.node
+                return true
+            end
+        end
     elseif cc.layer == signalUknown
         for gbnl in globalIBNnllis
             if gbnl.lli.node == cc.node
@@ -315,4 +328,12 @@ function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc:
         end
     end
     return false
+end
+
+"$(TYPEDSIGNATURES)"
+issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc::ReverseConstraint) where {K <: Union{Missing, ConnectionState}} = true
+
+"$(TYPEDSIGNATURES)"
+function issatisfied(globalIBNnllis::Vector{IBNnIntentGLLI}, vcs::Vector{K}, cc::BorderInitiateConstraint) where {K <: Union{Missing, ConnectionState}}
+    error("still didn't implement issatisfied for BorderInitiateConstraint")
 end

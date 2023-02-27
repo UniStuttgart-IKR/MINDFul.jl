@@ -6,7 +6,11 @@ end
 # Terminate for HalfFiberIn ?
 "$(TYPEDSIGNATURES) Get low level intents for `SpectrumIntent` `si`"
 function lowlevelintents(si::SpectrumIntent)
-    llis = [NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
+#    if any(c -> c isa ReverseConstraint,getconstraints(si))
+#        llis = [NodeSpectrumIntent(nd, reverse(e), si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
+#    else
+        llis = [NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
+#    end
     if any(c -> c isa BorderInitiateConstraint,getconstraints(si))
         llis[2:end]
     elseif any(c -> c isa BorderTerminateConstraint,getconstraints(si))
