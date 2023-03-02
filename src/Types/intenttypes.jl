@@ -111,7 +111,7 @@ getsrcdom(i::Intent) = i.src[1]
 getsrcdomnode(i::Intent) = i.src[2]
 getdstdom(i::Intent) = i.dst[1]
 getdstdomnode(i::Intent) = i.dst[2]
-dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.rate), $(ci.constraints), $(ci.conditions))"
+dagtext(ci::ConnectivityIntent) = "ConnectivityIntent($(ci.src), $(ci.dst), $(ci.rate)\n $(ci.constraints), $(ci.conditions))"
 ConnectivityIntent(ce::NestedEdge, args...) = ConnectivityIntent(ce.src, ce.dst, args...)
 
 struct BorderIntent{L<:LowLevelIntent,C,R} <: Intent
@@ -150,7 +150,13 @@ end
 LightpathIntent(p,r,t) = LightpathIntent(p, Float64(r), t, Vector{Missing}())
 getpath(lpi::LightpathIntent) = lpi.path
 gettransmodl(lpi::LightpathIntent) = lpi.transmodl
-dagtext(ci::LightpathIntent) = "LightpathIntent\npath=$(ci.path), $(ci.constraints)"
+dagtext(ci::LightpathIntent) = "LightpathIntent\npath=$(ci.path)\n $(ci.constraints)"
+
+function hassameborderinitiateconstraints(lpi1::LightpathIntent, lpi2::LightpathIntent)
+    lpr1 = getfirst(c->c isa BorderInitiateConstraint, lpi1.constraints)
+    lpr2 = getfirst(c->c isa BorderInitiateConstraint, lpi2.constraints)
+    !isnothing(lpr1) && !isnothing(lpr2) && lpr1.reqs == lpr2.reqs
+end
 
 
 """
@@ -166,7 +172,7 @@ struct SpectrumIntent{C} <: Intent
     constraints::C
 end
 getpath(lpi::SpectrumIntent) = lpi.lightpath
-dagtext(ci::SpectrumIntent) = "SpectrumIntent($(ci.lightpath), $(ci.rate), $(ci.spectrumalloc), $(ci.constraints))"
+dagtext(ci::SpectrumIntent) = "SpectrumIntent($(ci.lightpath), $(ci.rate), $(ci.spectrumalloc)\n $(ci.constraints))"
 
 #    transponders::T
 #transponders configuration
@@ -237,7 +243,7 @@ struct DomainConnectivityIntent{R,T,C,D} <: Intent
     "Intents conditions"
     conditions::D
 end
-dagtext(ci::DomainConnectivityIntent) = "DomainConnectivityIntent($(ci.src), $(ci.dst), $(ci.constraints), $(ci.conditions))"
+dagtext(ci::DomainConnectivityIntent) = "DomainConnectivityIntent($(ci.src), $(ci.dst)\n $(ci.constraints), $(ci.conditions))"
 DomainConnectivityIntent(ce::NestedEdge, args...) = DomainConnectivityIntent(ce.src, ce.dst, args...)
 getsrcdom(i::DomainConnectivityIntent{Int,Tuple{Int,Int}}) = i.src
 getsrcdomnode(i::DomainConnectivityIntent{Int,Tuple{Int,Int}}) = error("$(typeof(i)) does not have a particular source node")

@@ -6,30 +6,19 @@ end
 # Terminate for HalfFiberIn ?
 "$(TYPEDSIGNATURES) Get low level intents for `SpectrumIntent` `si`"
 function lowlevelintents(si::SpectrumIntent)
-#    if any(c -> c isa ReverseConstraint,getconstraints(si))
-#        llis = [NodeSpectrumIntent(nd, reverse(e), si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
-#    else
-        llis = [NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
-#    end
-    if any(c -> c isa BorderInitiateConstraint,getconstraints(si))
-        llis[2:end]
-    elseif any(c -> c isa BorderTerminateConstraint,getconstraints(si))
-        llis[1:end-1]
-    else any(c -> c isa BorderInitiateConstraint,getconstraints(si))
-        llis
-    end
+    llis = [NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
+    any(c -> c isa BorderInitiateConstraint,getconstraints(si)) && deleteat!(llis, 1)
+    any(c -> c isa BorderTerminateConstraint,getconstraints(si)) && deleteat!(llis, length(llis))
+    return llis
 end
 
 # multilayer GoThrough intents could be added here
 "$(TYPEDSIGNATURES) Get low level intents for `LightpathIntent` `lpi`"
 function lowlevelintents(lpi::LightpathIntent)
-    if any(c -> c isa BorderInitiateConstraint,getconstraints(lpi))
-        [NodeRouterPortIntent(lpi.path[end], 1getrate(lpi.transmodl)), NodeTransmoduleIntent(lpi.path[end], lpi.transmodl)]
-    elseif any(c -> c isa BorderTerminateConstraint, getconstraints(lpi))
-        [NodeRouterPortIntent(lpi.path[1], getrate(lpi.transmodl)), NodeTransmoduleIntent(lpi.path[1], lpi.transmodl)]
-    else
-        [NodeRouterPortIntent(lpi.path[1], getrate(lpi.transmodl)), NodeRouterPortIntent(lpi.path[end], 1getrate(lpi.transmodl)), 
-         NodeTransmoduleIntent(lpi.path[1], lpi.transmodl), NodeTransmoduleIntent(lpi.path[end], lpi.transmodl)]
-    end
+    llis = [NodeRouterPortIntent(lpi.path[1], getrate(lpi.transmodl)), NodeTransmoduleIntent(lpi.path[1], lpi.transmodl), 
+            NodeTransmoduleIntent(lpi.path[end], lpi.transmodl), NodeRouterPortIntent(lpi.path[end], getrate(lpi.transmodl)),]
+    any(c -> c isa BorderTerminateConstraint, getconstraints(lpi)) && deleteat!(llis, [3,4])
+    any(c -> c isa BorderInitiateConstraint,getconstraints(lpi)) && deleteat!(llis, [1,2])
+    return llis
 end
 

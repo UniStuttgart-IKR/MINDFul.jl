@@ -195,6 +195,7 @@ function install!(ibn::IBN, idagn::IntentDAGNode, algmethod::T; algargs...) wher
             algmethod(ibn, lidn; algargs...)
         end
     end
+    try2setstate!(idagn, ibn, Val(installed); time=algargs[:time]) # in case all low level intents were already installed
     return getstate(idagn)
 end
 

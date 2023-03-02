@@ -162,6 +162,16 @@ function freeslots!(f::FiberView, channel::UnitRange{Int}, ibnintid::Tuple{Int,U
     return true
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Return number of reserved slots
+"""
+function reservedslots(f::FiberView)
+    @assert all(.!ismissing(f.reservations_src) .== .!ismissing(f.reservations_dst))
+    count(!ismissing ,f.reservations_src)
+end
+
 function firstfit(spec, nslots::Int)
     freeslots = 0
     for (i, slotsava) in enumerate(spec)

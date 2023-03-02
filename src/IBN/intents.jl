@@ -109,6 +109,8 @@ function getcompliantintent(ibn::IBN, parint::I, ::Type{LightpathIntent}, path::
         constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderTerminateConstraint])), parint.constraints)
     elseif lptype == borderterminatelightpath
         constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderInitiateConstraint])), parint.constraints)
+    elseif lptype == border2borderlightpath
+        constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint])), parint.constraints)
     else
         constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderInitiateConstraint, BorderTerminateConstraint])), parint.constraints)
     end

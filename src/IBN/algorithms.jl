@@ -19,20 +19,18 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
                 neibn = first(getibns(ibn))
 #                state = algmethod(ibn, neibn, idagn, InterIntent{IntentBackward}(); algargs...)
                 #state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
-                for neibn in getibns(ibn)
+                for neibn in getibns(ibn) #it's logical so I don't really care whom I ask
                     state = delegateintent!(ibn, neibn, idagn, idagn.intent, algmethod; algargs...)
                     state == compiled && break
                 end
             else
-                state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
+                error("Connectivity intent involves source and destination irrelevant to me: IBN $(getid(ibn))")
+#                state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst === nothing
             if iam(ibn,neibnsrc)
-                for neibn in getibns(ibn)
-                    algmethod(ibn, neibn, idagn, InterIntent{IntentForward}(); algargs...)
-                    idagn.state == compiled && break
-                    restartintent!(ibn, getid(idagn); time=algargs[:time])
-                end
+                neibn = pickupneighboringdomain(ibn, conint)
+                algmethod(ibn, neibn, idagn, InterIntent{IntentForward}(); algargs...)
             else
                 state = delegateintent!(ibn, neibnsrc, idagn, idagn.intent, algmethod; algargs...)
             end
@@ -46,15 +44,34 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
                 state = delegateintent!(ibn, neibnsrc, idagn, getintent(idagn), algmethod; algargs...)
             end
         elseif neibnsrc == nothing && neibndst == nothing
-            # talk to random IBN (this is where fun begins!)
-            for neibn in getibns(ibn)
-                delegateintent!(ibn, neibn, idagn, idagn.intent, algmethod; algargs...)
-                idagn.state == compiled && break
-            end
-            return false
+            error("Connectivity intent involves source and destination unknown to me: IBN $(getid(ibn))")
+#            # talk to random IBN (this is where fun begins!)
+#            for neibn in getibns(ibn)
+#                delegateintent!(ibn, neibn, idagn, idagn.intent, algmethod; algargs...)
+#                idagn.state == compiled && break
+#            end
+#            return false
         end
     end
     return idagn.state
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+The connectivity intent has source node inside `ibn` but destination node unknown.
+Decide whom to delegate the intent to.
+"""
+function pickupneighboringdomain(ibn::IBN, conint::ConnectivityIntent)
+    neibns = collect(getibns(ibn))
+    for neibn in neibns
+        if any(gtc -> getnode(gtc)[1] == getid(neibn), filter(c -> c isa GoThroughConstraint, getconstraints(conint)))
+            return neibn
+        end
+    end
+    # otherwise randomly select one
+    # return neibns[rand(eachindex(neibns))]
+    return first(neibns)
 end
 
 "$(TYPEDSIGNATURES)"
@@ -62,6 +79,14 @@ function compile!(ibn::IBN, idagn::IntentDAGNode, ::Type{LightpathIntent}, path,
     dag = getintentdag(ibn)
     lpint = getcompliantintent(ibn, getintent(idagn), LightpathIntent, path, transmodl, lightpathtype)
     isnothing(lpint) && error("Could not create a LightpathIntent")
+    # see if there is already such a lightpath; if yes, groom it in.
+    if lightpathtype ∈ [borderinitiatelightpath, border2borderlightpath]
+        uuidlp = searchforlightpathsameinitialreqs(dag, lpint)
+        if !isnothing(uuidlp)
+            add_edge!(dag, getid(idagn), uuidlp, nothing)
+            return getintentnode(ibn, uuidlp)
+        end
+    end
     isavailable(ibn, lpint) || error("intent resources are not available")
     lpintnode = addchild!(dag, getid(idagn), lpint)
     for lli in lowlevelintents(lpintnode.intent)

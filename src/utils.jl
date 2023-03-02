@@ -61,7 +61,6 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
     myibns = Vector{IBN{SDNdummy{Int}}}()
     for ibncgnet in globalnet.grv
         sdns = SDNdummy.(ibncgnet.grv)
-        @show typeof(ibncgnet)
         connect!(sdns, ibncgnet.neds, [props(ibncgnet, e) for e in edge.([ibncgnet], ibncgnet.neds)])
         push!(myibns, IBN(ibncounter(), sdns, ibncgnet))
     end

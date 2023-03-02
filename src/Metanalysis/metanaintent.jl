@@ -91,27 +91,39 @@ function getlastlightpathrequirements(ibn::IBN, intentid::UUID)
     
     # create path
     lasttransmodidx = findlast(l -> !isnothing(l) && getsignalloc(l) == signalTransmissionModuleDown, logics)
-    rate = getrate(gettransmodl(llis[lasttransmodidx]))
-    optreach = getoptreach(gettransmodl(llis[lasttransmodidx]))
-    freqslots = getfreqslots(gettransmodl(llis[lasttransmodidx]))
+    if !isnothing(lasttransmodidx)
+        rate = getrate(gettransmodl(llis[lasttransmodidx]))
+        optreach = getoptreach(gettransmodl(llis[lasttransmodidx]))
+        freqslots = getfreqslots(gettransmodl(llis[lasttransmodidx]))
 
 
-    path = Vector{Tuple{Int, Int}}()
-    spslots = 0:0 # random initialize
-    for lli in llis[lasttransmodidx:end]
-        if lli isa NodeSpectrumIntent
-            if isempty(path)
-                spslots = lli.slots
-                push!(path, lli.edge.src, lli.edge.dst)
-            else
-                @assert spslots == lli.slots
-                if path[end] !== lli.edge.dst
-                    push!(path, lli.edge.dst)
+        dist, spslots = getdistanceNspslotsfromllis(ibn, llis[lasttransmodidx:end])
+        return LightpathRequirements(spslots, optreach, dist, rate)
+    else # there is only one border2borderlightpath (given that it doesn't terminate)
+        lpin = getfirst(idn -> getintent(idn) isa LightpathIntent ,descendants(getintentdag(ibn), getintentnode(ibn, intentid)))
+        lpr = getfirst(c -> c isa BorderInitiateConstraint, getconstraints(getintent(lpin))).reqs
+        dist, spslots = getdistanceNspslotsfromllis(ibn, llis)
+        return LightpathRequirements(spslots, lpr.optreach, lpr.dist + dist, lpr.rate)
+    end
+end
+
+function getdistanceNspslotsfromllis(ibn, llis)
+        path = Vector{Tuple{Int, Int}}()
+        spslots = 0:0 # random initialize
+        for lli in llis
+            if lli isa NodeSpectrumIntent
+                if isempty(path)
+                    spslots = lli.slots
+                    push!(path, lli.edge.src, lli.edge.dst)
+                else
+                    @assert spslots == lli.slots
+                    if path[end] !== lli.edge.dst
+                        push!(path, lli.edge.dst)
+                    end
                 end
             end
         end
-    end
-    localpath = localnode.([ibn], path; subnetwork_view=false)
-    dist = getdistance(ibn, localpath)
-    LightpathRequirements(spslots, optreach, dist, rate)
+        localpath = localnode.([ibn], path; subnetwork_view=false)
+        dist = getdistance(ibn, localpath)
+        dist, spslots
 end

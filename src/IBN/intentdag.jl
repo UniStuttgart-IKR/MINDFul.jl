@@ -278,3 +278,18 @@ function _getconnectednodes_rec!(cns, examinednodes, dag, v)
         end
     end
 end
+
+getallintentnodes(dag::IntentDAG) = getindex.(values(dag.vertex_properties), 2)
+
+function getallroots(dag::IntentDAG)
+    filter(i -> isroot(dag, i), getallintentnodes(dag))
+end
+
+function searchforlightpathsameinitialreqs(dag::IntentDAG, lpi::LightpathIntent)
+    for idn in filter(i -> getintent(i) isa LightpathIntent, getallintentnodes(dag))
+        if hassameborderinitiateconstraints(getintent(idn), lpi)
+            return getid(idn)
+        end
+    end
+    return nothing
+end

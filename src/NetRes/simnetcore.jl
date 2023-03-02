@@ -50,6 +50,8 @@ end
 
 islinecardchassisfull(rmd::RouterModularDummy) = all(lcc -> length(lcc.lcs)==lcc.lcscap,rmd.lccs)
 isrouterfull(rmd::RouterModularDummy) = length(rmd.lccs) == rmd.lcccap
+isrouterlinecardfull(rmd::RouterModularDummy) = all([length(lcc.lcs) == lcc.lcscap for lcc in rmd.lccs]) && isrouterfull(rmd)
+getlinecardnum(rmd::RouterModularDummy) = sum([length(lcc.lcs) for lcc in rmd.lccs] ;init=0)
 
 "$(TYPEDSIGNATURES) RouterModularDummy increamentally adds up infinite ports"
 hasport(rv::RouterView{RouterModularDummy}) = any(rv.portavailability) || !islinecardchassisfull(rv.router) || !isrouterfull(rv.router)
@@ -60,9 +62,9 @@ RouterModularDummy(lcpool, lccpool, lcccap=3) = RouterModularDummy(Vector{LineCa
 function addlinecardchassis!(rmd::RouterModularDummy, lcc=nothing)
     if length(rmd.lccs) < rmd.lcccap
         if isnothing(lcc)
-            push!(rmd.lccs, first(rmd.linecardchassispool))
+            push!(rmd.lccs, deepcopy(first(rmd.linecardchassispool)))
         else
-            push!(rmd.lccs, first(rmd.linecardchassispool))
+            push!(rmd.lccs, lcc)
         end
     else
         nothing
@@ -73,7 +75,7 @@ end
 function addlinecard!(rmd::RouterModularDummy, lcci::Int, lc::LineCardDummy)
     lcc = rmd.lccs[lcci]
     if length(lcc.lcs) < lcc.lcscap
-        push!(lcc.lcs, lc)
+        push!(lcc.lcs, deepcopy(lc))
         push!(rmd.portmap, [(lcci, length(lcc.lcs), i) for i in 1:lc.ports]...)
         return lc.ports
     else
@@ -85,7 +87,7 @@ end
 function addlinecard!(rmd::RouterModularDummy, lc::LineCardDummy)
     for (lcci,lcc) in enumerate(rmd.lccs)
         if length(lcc.lcs) < lcc.lcscap
-            push!(lcc.lcs, lc)
+            push!(lcc.lcs, deepcopy(lc))
             push!(rmd.portmap, [(lcci, length(lcc.lcs), i) for i in 1:lc.ports]...)
             return lc.ports
         end
@@ -116,7 +118,7 @@ function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple
         rv.reservations[ff] = ibnintid
         return true
     else
-        if isrouterfull(rv.router)
+        if isrouterlinecardfull(rv.router)
             return false
         else
             compliantlcs = filter(lc -> lc.rate > r, rv.router.linecardpool)
