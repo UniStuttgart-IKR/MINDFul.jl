@@ -5,7 +5,13 @@ getnode(i::NodeSpectrumIntent) = i.node
 
 "$(TYPEDSIGNATURES) Converts to a global view."
 convert2global(ibn::IBN, lli::NodeSpectrumIntent{Int, E}) where 
-    E<:Edge = NodeSpectrumIntent(globalnode(ibn, lli.node), globaledge(ibn, lli.edge), lli.slots, lli.bandwidth)
+    E<:Edge = NodeSpectrumIntent(globalnode(ibn, lli.node), globaledge(ibn, lli.edge), lli.slots, lli.bandwidth, lli.sptype)
+
+"$(TYPEDSIGNATURES) Converts to a global view."
+convert2global(ibn::IBN, lli::NodeROADMIntent) = NodeROADMIntent(globalnode(ibn, lli.node), 
+                                                                 ismissing(lli.inedge) ? missing : globaledge(ibn, lli.inedge), 
+                                                                 ismissing(lli.outedge) ? missing : globaledge(ibn, lli.outedge),
+                                                                           lli.slots)
 
 "$(TYPEDSIGNATURES) Converts to a global view."
 convert2global(ibn::IBN, lli::NodeRouterPortIntent{Int}) = 
@@ -286,16 +292,28 @@ function isavailable(ibn::IBN, nsi::IntentDAGNode{R}) where R <:NodeSpectrumInte
     end
     return false
 end
+
+
 "$(TYPEDSIGNATURES)"
 function isavailable(ibn::IBN, nri::IntentDAGNode{R}) where R<:NodeTransmoduleIntent
     intent, sdn, sdnode = sdnspace(ibn, nri)
     return isavailable_transmissionmodule(sdn, sdnode, intent.tm)
 end
 
+function isavailable(ibn::IBN, nrmi::IntentDAGNode{R}) where R <:NodeROADMIntent
+    intent, sdn, sdnode = sdnspace(ibn, nrmi)
+    return isavailable_roadmswitch(sdn, sdnode, intent.inedge, intent.outedge, intent.slots)
+end
+
 "$(TYPEDSIGNATURES)"
 function free!(ibn::IBN, nri::IntentDAGNode{R}) where R <: NodeTransmoduleIntent
     intent, sdn, sdnode = sdnspace(ibn, nri)
     return free_transmissionmodule!(sdn, sdnode, intent.tm, (getid(ibn), getid(nri)))
+end
+
+function free!(ibn::IBN, nrmi::IntentDAGNode{R}) where R <:NodeROADMIntent
+    intent, sdn, sdnode = sdnspace(ibn, nrmi)
+    return free_roadmswitch!(sdn, sdnode, intent.inedge, intent.outedge, intent.slots, (getid(ibn), getid(nrmi)))
 end
 
 """
@@ -336,11 +354,18 @@ function reserve!(ibn::IBN, nri::IntentDAGNode{R}) where R <:NodeRouterPortInten
     intent, sdn, sdnode = sdnspace(ibn, nri)
     return reserve_port!(sdn, sdnode, intent.rate, (getid(ibn), getid(nri)))
 end
+
+function reserve!(ibn::IBN, nrmi::IntentDAGNode{R}) where R <:NodeROADMIntent
+    intent, sdn, sdnode = sdnspace(ibn, nrmi)
+    return reserve_roadmswitch!(sdn, sdnode, intent.inedge, intent.outedge, intent.slots, (getid(ibn), getid(nrmi)))
+end
+
 "$(TYPEDSIGNATURES) Free the `NodeRouterIntent` `nri` of in `ibn`"
 function free!(ibn::IBN, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
     intent, sdn, sdnode = sdnspace(ibn, nri)
     return free_port!(sdn, sdnode, (getid(ibn), getid(nri)))
 end
+
 
 "$(TYPEDSIGNATURES) Check if the `NodeRouterIntent` `nri` of is satisfied in `ibn`."
 function issatisfied(ibn::IBN, nri::IntentDAGNode{R}) where R <:NodeRouterPortIntent
@@ -354,6 +379,11 @@ function issatisfied(ibn::IBN, nri::IntentDAGNode{R}) where R <:NodeTransmoduleI
     return issatisfied_transmissionmodule(sdn, sdnode, intent.tm, (getid(ibn), getid(nri)))
 end
 
+function issatisfied(ibn::IBN, nrmi::IntentDAGNode{R}) where R <:NodeROADMIntent
+    intent, sdn, sdnode = sdnspace(ibn, nrmi)
+    return issatisfied_roadmswitch(sdn, sdnode, intent.inedge, intent.outedge, intent.slots, (getid(ibn), getid(nrmi)))
+end
+
 "$(TYPEDSIGNATURES) Reserve the `NodeSpectrumIntent` `nsi` of `ibn`. Return `false` if impossible."
 function reserve!(ibn::IBN, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, nsi)
@@ -364,6 +394,8 @@ function reserve!(ibn::IBN, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     end
     return false
 end
+
+
 "$(TYPEDSIGNATURES) Free the `NodeSpectrumIntent` `nsi` of in `ibn`"
 function free!(ibn::IBN, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     intent, ce, sdn1, sdn2 = intersdnspace(ibn, nsi)
@@ -374,6 +406,7 @@ function free!(ibn::IBN, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent
     end
     return false
 end
+
 
 "$(TYPEDSIGNATURES) Check if the `NodeSpectrumIntent` `nsi` is satisfied in `ibn`."
 function issatisfied(ibn::IBN, nsi::IntentDAGNode{R}) where R <:NodeSpectrumIntent

@@ -58,6 +58,21 @@ hasport(rv::RouterView{RouterModularDummy}) = any(rv.portavailability) || !islin
 
 RouterModularDummy(lcpool, lccpool, lcccap=3) = RouterModularDummy(Vector{LineCardChassisDummy}(), Vector{Tuple{Int, Int, Int}}(), lcpool, lccpool, lcccap)
 
+function gettotalcost(rmd::RouterModularDummy)
+    lcccost = sum([lcc.cost for lcc in rmd.lccs]; init=0)
+    lccost = sum([lc.cost for lcc in rmd.lccs for lc in lcc.lcs]; init=0)
+    return lcccost + lccost
+end
+
+function getportcost(rmd::RouterModularDummy, p::Integer)
+    lcc = rmd.lccs[rmd.portmap[p][1]]
+    lc = lcc.lcs[rmd.portmap[p][2]]
+    linecardcost = lc.cost / lc.ports
+    linecardchassiscost = lcc.cost / lcc.lcscap
+    return linecardcost + linecardchassiscost
+end
+
+
 "$(TYPEDSIGNATURES) Add default line card chassis  on router `rmd`"
 function addlinecardchassis!(rmd::RouterModularDummy, lcc=nothing)
     if length(rmd.lccs) < rmd.lcccap
@@ -112,7 +127,7 @@ end
 
 "$(TYPEDSIGNATURES) Finds port with cheapest alternative"
 function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple{Int,UUID}) 
-    ff = findfirst(k -> rv.portavailability[k] && getportrate(rv,k) > r, keys(rv.portavailability))
+    ff = findfirst(k -> rv.portavailability[k] && getportrate(rv,k) >= r, keys(rv.portavailability))
     if ff !== nothing
         rv.portavailability[ff] = false
         rv.reservations[ff] = ibnintid
@@ -121,7 +136,7 @@ function useport!(rv::RouterView{RouterModularDummy}, r::Number, ibnintid::Tuple
         if isrouterlinecardfull(rv.router)
             return false
         else
-            compliantlcs = filter(lc -> lc.rate > r, rv.router.linecardpool)
+            compliantlcs = filter(lc -> lc.rate >= r, rv.router.linecardpool)
             chosenlinecardidx = findmin(lc -> lc.cost , compliantlcs)[2]
             addlinecard!(rv, compliantlcs[chosenlinecardidx])
             useport!(rv, r, ibnintid)

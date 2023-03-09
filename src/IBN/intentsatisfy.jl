@@ -25,8 +25,9 @@ function filternext(sd::Val{signalFiberOut}, cs::ConnectionState)
     end
 end
 
+# TODO check port rate and intent rate
 "$(TYPEDSIGNATURES) Find next logical low-level intent. Pop new (LowLevelIntent, ConnectionState)"
-function findNupdate!(cs::ConnectionState, globalIBNnlli)
+function findNupdate!(cs::ConnectionState, prelli, globalIBNnlli)
     for (i,gibnl) in enumerate(globalIBNnlli)
         lli = gibnl.lli
         if cs.signaloc == signalElectricalDown
@@ -40,7 +41,12 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
                 return (gibnl, ConnectionState(getnode(cs), signalElectricalDown))
             end
         elseif cs.signaloc == signalTransmissionModuleDown
-            if lli isa NodeSpectrumIntent && getnode(lli) == getnode(cs)
+            if lli isa NodeROADMIntent && getnode(lli) == getnode(cs) && ismissing(lli.inedge) && getfreqslots(gettransmodl(prelli)) <= length(lli.slots)
+                deleteat!(globalIBNnlli, i)
+                return (gibnl, ConnectionState(getnode(cs), signalOXCAdd))
+            end
+        elseif cs.signaloc == signalOXCAdd
+            if lli isa NodeSpectrumIntent && getnode(lli) == getnode(cs) && lli.sptype == signalOXCAdd && !ismissing(prelli.outedge) && prelli.outedge == lli.edge && prelli.slots == lli.slots
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
             end
@@ -50,32 +56,45 @@ function findNupdate!(cs::ConnectionState, globalIBNnlli)
                 return (gibnl, ConnectionState(getnode(cs), signalElectricalUp))
             end
         elseif cs.signaloc == signalFiberIn
-            if (lli isa NodeTransmoduleIntent && getnode(lli) == getnode(cs))
+            if lli isa NodeROADMIntent && getnode(lli) == getnode(cs) && !ismissing(lli.inedge) && prelli.edge == lli.inedge && prelli.slots == lli.slots
                 deleteat!(globalIBNnlli, i)
-                return (gibnl, ConnectionState(getnode(cs), signalTransmissionModuleUp))
-            elseif (lli isa NodeSpectrumIntent && getnode(lli) == lli.edge.src == getnode(cs))
+                if ismissing(lli.outedge)
+                    return (gibnl, ConnectionState(getnode(cs), signalOXCDrop))
+                else
+                    return (gibnl, ConnectionState(getnode(cs), signalOXCbypass))
+                end
+            end
+            # elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
+            #     constrs = getconstraints(lli.intent)
+            #     if constrs isa GoThroughConstraint{Missing} && 
+            #                 constrs.layer == signalElectrical && getnode(cs) == constrs.node
+            #         deleteat!(globalIBNnlli, i)
+            #         return (gibnl, ConnectionState(constrs.node , signalFiberIn))
+            #     end
+            # end
+        elseif cs.signaloc == signalOXCbypass
+            if (lli isa NodeSpectrumIntent && getnode(lli) == lli.edge.src == getnode(cs)) && lli.sptype == signalOXCbypass && lli.slots == prelli.slots && !ismissing(prelli.outedge) && prelli.outedge == lli.edge
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(getnode(cs), signalFiberOut))
-            elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
-                constrs = getconstraints(lli.intent)
-                if constrs isa GoThroughConstraint{Missing} && 
-                            constrs.layer == signalElectrical && getnode(cs) == constrs.node
-                    deleteat!(globalIBNnlli, i)
-                    return (gibnl, ConnectionState(constrs.node , signalFiberIn))
-                end
+            end
+        elseif cs.signaloc == signalOXCDrop
+            if (lli isa NodeTransmoduleIntent && getnode(lli) == getnode(cs)) && ismissing(prelli.outedge)
+                deleteat!(globalIBNnlli, i)
+                return (gibnl, ConnectionState(getnode(cs), signalTransmissionModuleUp))
             end
         elseif cs.signaloc == signalFiberOut
-            if lli isa NodeSpectrumIntent && lli.edge.src == getnode(cs)
+            if lli isa NodeSpectrumIntent && lli.edge == prelli.edge && lli.slots == prelli.slots
                 deleteat!(globalIBNnlli, i)
                 return (gibnl, ConnectionState(lli.edge.dst, signalFiberIn))
-            elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
-                constrs = getconstraints(lli.intent)
-                if constrs isa GoThroughConstraint{SpectrumRequirements} && 
-                            constrs.layer == signalFiberIn && getnode(cs) == constrs.req.cedge.src
-                    deleteat!(globalIBNnlli, i)
-                    return (gibnl, ConnectionState(constrs.req.cedge.dst , signalFiberIn))
-                end
             end
+            # elseif lli isa RemoteLogicIntent && lli.intent isa BorderIntent
+            #     constrs = getconstraints(lli.intent)
+            #     if constrs isa GoThroughConstraint{SpectrumRequirements} && 
+            #                 constrs.layer == signalFiberIn && getnode(cs) == constrs.req.cedge.src
+            #         deleteat!(globalIBNnlli, i)
+            #         return (gibnl, ConnectionState(constrs.req.cedge.dst , signalFiberIn))
+            #     end
+            # end
         elseif cs.signaloc == signalElectrical 
             if lli isa NodeRouterPortIntent && getnode(lli) == getnode(cs)
                 deleteat!(globalIBNnlli, i)
@@ -97,7 +116,7 @@ end
 isintentsatisfied(ibn::IBN, idn::IntentDAGNode{C}, gbnls::Vector{IBNnIntentGLLI}, vcs::Vector{Missing}) where {C <: BorderIntent} = true
 
 "onlylogic is WIP"
-issatisfied(ibn::IBN, intentid::UUID; onlylogic=false) = issatisfied(ibn, getintentnode(ibn,intentid))
+issatisfied(ibn::IBN, intentid::UUID; exactly=false) = issatisfied(ibn, getintentnode(ibn,intentid))
 
 # TODO issatisfied(onlylogic = true) could be implemented with ML ?
 """
@@ -110,9 +129,10 @@ Internally it retrieves all low-level intents, assembles them, and decides wheth
 This function assumes global knowledge to reach a verdict.
 For this reason it is clearly a function used for simulation purposes.
 """
-function issatisfied(ibn::IBN, idagn::IntentDAGNode{I}) where I <: Intent
+function issatisfied(ibn::IBN, idagn::IntentDAGNode{I}; exactly=false) where I <: Intent
     # get low level intents (resource reservations) in a logical order.
-    globalIBNnllis, vcs = logicalorderedintents(ibn, idagn, true)
+    globalIBNnllis, vcs, glllirest = logicalorderedintents(ibn, idagn, true; rest=true)
+    exactly && length(glllirest) > 0 && return false
 
     # check if installed correctly
     for gibnl in globalIBNnllis
@@ -155,7 +175,7 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{I}, globalknow=false
 end
 
 "$(TYPEDSIGNATURES)"
-function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false) where C<:Union{ConnectivityIntent, DomainConnectivityIntent}
+function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false; rest=false) where C<:Union{ConnectivityIntent, DomainConnectivityIntent}
     # the `Vector` of remaining low-level intents, which were not needed in the logical sequence.
     # This vector might be seen as wasting of resources.
     globalIBNnlli_rest = getinterdomain_lowlevelintents(ibn, idn, globalknow)
@@ -166,12 +186,13 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false
     # start with the src intent
 #    cs = ConnectionState(getsrc(idn.intent), signalElectrical)
     cs = getstartingconnectionstate(ibn, getintent(idn))
-    while true
-        gibnlli, cs = findNupdate!(cs, globalIBNnlli_rest)
-        gibnlli === nothing && break
-        push!(vcs, cs)
-        push!(globalIBNnlli, gibnlli)
-    end
+    _logicalorderedintents_rec!(cs, nothing, globalIBNnlli_rest, globalIBNnlli, vcs)
+#    while true
+#        gibnlli, cs = findNupdate!(cs, globalIBNnlli_rest)
+#        gibnlli === nothing && break
+#        push!(vcs, cs)
+#        push!(globalIBNnlli, gibnlli)
+#    end
     if !globalknow
         for (i,gibnl) in enumerate(globalIBNnlli_rest)
             lli = gibnl.lli
@@ -182,8 +203,20 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false
             end
         end
     end
-    length(globalIBNnlli_rest) > 0 && @warn("Some LowLevelIntents were not needed")
-    return (globalIBNnlli, vcs)
+    if rest
+        return (globalIBNnlli, vcs, globalIBNnlli_rest)
+    else
+        length(globalIBNnlli_rest) > 0 && @warn("Some LowLevelIntents were not needed")
+        return (globalIBNnlli, vcs)
+    end
+end
+
+function _logicalorderedintents_rec!(cs, prelli, globalIBNnlli_rest, globalIBNnlli, vcs)
+        gibnlli, cs = findNupdate!(cs, prelli, globalIBNnlli_rest)
+        gibnlli === nothing && return nothing
+        push!(vcs, cs)
+        push!(globalIBNnlli, gibnlli)
+        _logicalorderedintents_rec!(cs, getlli(gibnlli), globalIBNnlli_rest, globalIBNnlli, vcs)
 end
 
 "$(TYPEDSIGNATURES) Get a list of global view low-level intents `IBNnIntentGLLI` for the intent `ibn, idn`"

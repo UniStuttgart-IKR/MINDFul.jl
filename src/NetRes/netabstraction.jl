@@ -2,6 +2,7 @@ getmlnode(sdn::SDN, i::Integer) = getmlnode(getgraph(sdn), i)
 getmlnode(ibn::IBN, i::Integer) = getmlnode(ibn.ngr, i)
 getmlnode(graph, i::Integer) = get_prop(graph, i, :mlnode)
 getrouter(graph, i::Integer) = getrouter(getmlnode(graph,i))
+getoxc(graph, i::Integer) = getoxc(getmlnode(graph,i))
 
 getlink(x, e::Edge) = getlink(x, src(e), dst(e))
 getlink(ibn::IBN, i::Integer, j::Integer) = getlink(ibn.ngr, i, j)
@@ -17,6 +18,49 @@ function freetransmissionmodule!(mln::MLNode, transmodl::TransmissionModuleView,
     num = length(mln.transmodreservations)
     filter!(!=((transmodl, ibnintid)), mln.transmodreservations)
     length(mln.transmodreservations) < num ? true : false
+end
+
+function reserveroadmswitch!(oxc::OXCView, inedge::Union{Edge,Missing}, outedge::Union{Edge,Missing}, slots::UnitRange{Int}, intidx::Tuple{Int, UUID})
+    inedidx = ismissing(inedge) ? 0 : findfirst(==(inedge), oxc.inedges)
+    outedidx = ismissing(outedge) ? 0 : findfirst(==(outedge), oxc.outedges)
+    (isnothing(inedidx) || isnothing(outedidx)) && error("Did not find edge in OXC")
+    _isavailableroadmswitch(oxc, inedidx, outedidx, slots) || error("not available slots in OXC")
+    push!(oxc.switchconf, (inedidx, outedidx, slots))
+    push!(oxc.reservations, intidx)
+    return true
+end
+
+function isavailableroadmswitch(oxc::OXCView, inedge::Union{Edge,Missing} ,outedge::Union{Edge,Missing}, slots::UnitRange{Int})
+    inedidx = ismissing(inedge) ? 0 : findfirst(==(inedge), oxc.inedges)
+    outedidx = ismissing(outedge) ? 0 : findfirst(==(outedge), oxc.outedges)
+    (isnothing(inedidx) || isnothing(outedidx)) && error("Did not find edge in OXC")
+    isav =  _isavailableroadmswitch(oxc, inedidx, outedidx, slots)
+    return isav
+end
+
+function _isavailableroadmswitch(oxc::OXCView, inedidx::Int, outedidx::Int, slots::UnitRange{Int})
+    isavailable = true
+    for sc in oxc.switchconf
+        doublebreak = false
+        for (i,edgidx) = enumerate([inedidx, outedidx])
+            if edgidx == sc[i] !== 0
+                if any(slots .∈ [sc[3]])
+                    isavailable = false
+                    doublebreak = true
+                    break
+                end
+            end
+        end
+        doublebreak && break
+    end
+    return isavailable
+end
+
+function freeroadmswitch!(oxc::OXCView, intidx::Tuple{Int, UUID})
+    ff = findfirst(==(intidx), oxc.reservations)
+    isnothing(ff) && error("Intent in OXC is not found")
+    deleteat!(oxc.switchconf, ff)
+    deleteat!(oxc.reservations, ff)
 end
 
 """
@@ -84,7 +128,10 @@ end
 
 "$(TYPEDSIGNATURES) Get length of the fiber `fv`"
 getdistance(fv::F) where {F<:FiberView} = getdistance(fv.fiber)
-getspectrumslots(fv::F) where {F<:FiberView} = fv.spectrum_src .& fv.spectrum_dst
+function getspectrumslots(fv::F) where {F<:FiberView}
+    @assert fv.spectrum_src == fv.spectrum_dst
+    fv.spectrum_src .& fv.spectrum_dst
+end
 delay(fv::FiberView) = 5u"ns/km" * getdistance(fv)
 
 """

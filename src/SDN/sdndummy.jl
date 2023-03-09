@@ -59,19 +59,23 @@ isavailable_port(sdn::SDNdummy, v::Int) = hasport(getrouter(sdn, v))
 "$(TYPEDSIGNATURES) Reserve a port at node `v` of the SDN controller `sdn` and log the intent id `intidx` done for"
 reserve_port!(sdn::SDNdummy, v::Int, rate::Real, intidx) = useport!(getrouter(sdn, v), rate, intidx)
 "$(TYPEDSIGNATURES) Free the port at node `v` of the SDN controller `sdn` used for the intent with id `intidx`"
-
 free_port!(sdn::SDNdummy, v::Int, intidx) = freeport!(getrouter(sdn, v), intidx)
+
 "$(TYPEDSIGNATURES) Reserve a port at node `v` of the SDN controller `sdn` and log the intent id `intidx` done for"
 isavailable_transmissionmodule(sdn::SDNdummy, v::Integer, tm::TransmissionModuleView) = hastransmissionmodule(getmlnode(sdn, v), tm)
 reserve_transmissionmodule!(sdn::SDNdummy, v::Integer, tm::TransmissionModuleView, intidx) = usetransmissionmodule!(getmlnode(sdn, v), tm, intidx)
 free_transmissionmodule!(sdn::SDNdummy, v::Integer, tm::TransmissionModuleView, intidx) = freetransmissionmodule!(getmlnode(sdn, v), tm, intidx)
+
+reserve_roadmswitch!(sdn::SDNdummy, v::Integer, inedge, outedge, slots, intidx) = reserveroadmswitch!(getoxc(sdn, v), inedge, outedge, slots, intidx)
+isavailable_roadmswitch(sdn::SDNdummy, v::Integer, inedge, outedge, slots) = isavailableroadmswitch(getoxc(sdn, v), inedge, outedge, slots)
+free_roadmswitch!(sdn::SDNdummy, v::Integer, intidx) = freeroadmswitch!(getoxc(sdn, v), intidx)
 
 "$(TYPEDSIGNATURES) Check if a port is allocated at node `v` of `sdn `in the name of the intent `intidx` and satisfies rate `rate`"
 function issatisfied_port(sdn::SDNdummy, v::Int, rate::Number, intidx)
     rtview = getrouter(sdn, v)
     ff = findfirst(==(intidx), skipmissing(rtview.reservations))
     ff !== nothing || return false
-    return getportrate(rtview, ff) > rate
+    return getportrate(rtview, ff) >= rate
 end
 
 "$(TYPEDSIGNATURES)"
@@ -79,6 +83,19 @@ function issatisfied_transmissionmodule(sdn::SDNdummy, v::Int, tm::TransmissionM
     mlnode = getmlnode(sdn, v)
     ff = findfirst(==((tm, intidx)), skipmissing(mlnode.transmodreservations))
     ff === nothing ? false : true
+end
+
+"$(TYPEDSIGNATURES)"
+function issatisfied_roadmswitch(sdn::SDNdummy, v::Int, inedge, outedge, slots, intidx)
+    oxc = getoxc(sdn, v)
+    inedidx = ismissing(inedge) ? 0 : findfirst(==(inedge), oxc.inedges)
+    outedidx = ismissing(outedge) ? 0 : findfirst(==(outedge), oxc.outedges)
+    (isnothing(inedidx) || isnothing(outedidx)) && error("Did not find edge in OXC")
+
+    ff = findfirst(==(intidx), oxc.reservations)
+    isnothing(ff) && error("Intent in OXC is not found")
+
+    return oxc.switchconf[ff] == (inedidx, outedidx, slots)
 end
 
 "$(TYPEDSIGNATURES) Reserve capacity `capacity` on an intra-SDN edge `e` for SDN `sdn`"

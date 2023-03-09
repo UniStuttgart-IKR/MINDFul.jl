@@ -6,10 +6,50 @@ end
 # Terminate for HalfFiberIn ?
 "$(TYPEDSIGNATURES) Get low level intents for `SpectrumIntent` `si`"
 function lowlevelintents(si::SpectrumIntent)
-    llis = [NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si)) for e in edgeify(si.lightpath) for nd in [src(e), dst(e)]]
-    any(c -> c isa BorderInitiateConstraint,getconstraints(si)) && deleteat!(llis, 1)
-    any(c -> c isa BorderTerminateConstraint,getconstraints(si)) && deleteat!(llis, length(llis))
-    return llis
+    # TODO 06.03.2023
+    lightpathedges = edgeify(si.lightpath)
+    spllis = [let
+                ind = (il-1)*2 + iv
+                if ind == 1
+                    NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si), signalOXCAdd) 
+                elseif ind == length(lightpathedges) * 2
+                    NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si), signalOXCDrop) 
+                else
+                    NodeSpectrumIntent(nd, e, si.spectrumalloc, getrate(si), signalOXCbypass) 
+                end
+            end
+            for (il,e) in enumerate(lightpathedges) for (iv,nd) in enumerate([src(e), dst(e)])]
+
+    rmllis = generateroadmllis(spllis)
+
+    if any(c -> c isa BorderInitiateConstraint,getconstraints(si))
+        deleteat!(spllis, 1)
+        deleteat!(rmllis, 1)
+    end
+    if any(c -> c isa BorderTerminateConstraint,getconstraints(si))
+        deleteat!(spllis, length(spllis))
+        deleteat!(rmllis, length(rmllis))
+    end
+    return vcat(spllis, rmllis)
+end
+
+function generateroadmllis(spllis::Vector{<:NodeSpectrumIntent})
+    [ let
+        if sp.sptype == signalOXCAdd
+            NodeROADMIntent(getnode(sp), missing, sp.edge, sp.slots)
+        elseif sp.sptype == signalOXCDrop
+            NodeROADMIntent(getnode(sp), sp.edge, missing, sp.slots)
+        elseif sp.sptype == signalOXCbypass
+            prsp = spllis[i-1]
+            if prsp.sptype == signalOXCbypass && getnode(prsp) == getnode(sp) && prsp.slots == sp.slots
+                NodeROADMIntent(getnode(sp), prsp.edge, sp.edge, sp.slots)
+            else
+                missing
+            end
+        else
+            missing
+        end
+     end for (i,sp) in enumerate(spllis)] |> skipmissing |> collect
 end
 
 # multilayer GoThrough intents could be added here

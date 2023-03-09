@@ -84,6 +84,10 @@ function getcompiledintentpath(ibn::IBN, intentid::UUID, globalknow=false)
     return path
 end
 
+function getcompiledintentpathdistance(ibn, intentid::UUID, globalknow=false)
+    getdistance(ibn, localnode.([ibn], getcompiledintentpath(ibn, intentid, globalknow); subnetwork_view=false))
+end
+
 "$(TYPEDSIGNATURES) Uses local knowledge"
 function getlastlightpathrequirements(ibn::IBN, intentid::UUID)
     glbns, logics = logicalorderedintents(ibn, intentid, false)
@@ -127,3 +131,46 @@ function getdistanceNspslotsfromllis(ibn, llis)
         dist = getdistance(ibn, localpath)
         dist, spslots
 end
+
+# costs
+
+function getcost(ibn)
+    getcostopt(ibn) + getcostip(ibn)
+end
+
+function getcostopt(ibn)
+    sum([let
+         mlnode = getmlnode(ibn, v)
+         transmodlcosts = sum([getcost(transmodlres[1]) for transmodlres in gettransmodreservations(mlnode)])
+     end for v in vertices(ibn.ngr)]; init=0.0)
+end
+function getcostip(ibn)
+    sum([let
+         router = getrouter(ibn, v)
+         portcosts = gettotalcost(router)
+     end for v in vertices(ibn.ngr)]; init = 0.0)
+end
+
+
+function getcompiledintentcost(ibn, intentid::UUID)
+    glbns, logics = logicalorderedintents(ibn, intentid, false)
+    llidns = getfield.(glbns, :idn)
+    sum([getlowlevelintentcost(ibn, llidn) for llidn in llidns])
+end
+
+function getlowlevelintentcost(ibn, llidn::IntentDAGNode{R}) where R<:NodeRouterPortIntent
+    router = getrouter(ibn, getnode(llidn))
+    ff = findfirst(==(getid(llidn)), router.reservations)
+    getportcost(router, ff)
+end
+
+function getlowlevelintentcost(ibn, llidn::IntentDAGNode{R}) where R<:NodeTransmoduleIntent
+    mlnode = getmlnode(ibn, getnode(llidn))
+    transmodlresidx = findfirst(x -> x[2] == (getid(ibn), getid(llidn)), gettransmodreservations(mlnode))
+    getcost(gettransmodreservations(mlnode)[transmodlresidx][1])
+end
+
+getlowlevelintentcost(ibn, llidn::IntentDAGNode{R}) where R<:NodeSpectrumIntent = 0 
+
+getlowlevelintentcost(ibn, llidn::IntentDAGNode{R}) where R<:LowLevelIntent = 0 
+

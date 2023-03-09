@@ -105,6 +105,7 @@ end
 RouterView(rt) = RouterView(rt, Vector{Bool}(), Vector{Union{Missing,Tuple{Int,UUID}}}())
 getportrate(rv::RouterView, p::Int) = getportrate(rv.router, p)
 getportcost(rv::RouterView, p::Int) = getportcost(rv.router, p)
+gettotalcost(rv::RouterView) = gettotalcost(rv.router)
 newlinecardcost(rv::RouterView, rt::Float64, lcs, lcc) = newlinecardcost(rv.router, rt, lcs, lcc)
 function addlinecard!(rv::RouterView, lc)
     portnum = addlinecard!(rv.router, lc)
@@ -117,7 +118,27 @@ function addlinecard!(rv::RouterView, lc)
 end
 
 struct OTNView end
-struct OXCView end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Essentially it just have one switch.
+But logically we split it up to bypass, drop and add switch.
+"""
+struct OXCView
+    "edges coming into the OXC"
+    inedges::Vector{Edge}
+    "edges going out from the OXC"
+    outedges::Vector{Edge}
+    "connects `inedges` to `outedges` with a spslots, if `0` then it's either Add/Drop"
+    switchconf::Vector{Tuple{Int,Int,UnitRange{Int}}}
+    "one to one mapping to `switchconf`"
+    reservations::Vector{Tuple{Int, UUID}}
+end
+OXCView() = OXCView(Vector{Edge}(), Vector{Edge}(), Vector{Tuple{Int,Int,UnitRange{Int}}}(), Vector{Tuple{Int, UUID}}())
+OXCView(node, innei, outnei) = OXCView([Edge(i,node) for i in innei], [Edge(node, o) for o in innei])
+OXCView(inedges, outedges) = OXCView(inedges, outedges, Vector{Tuple{Int,Int,UnitRange{Int}}}(), Vector{Tuple{Int, UUID}}())
 
 mutable struct FiberView{F,L<:LogState}
     fiber::F

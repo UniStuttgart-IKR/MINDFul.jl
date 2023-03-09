@@ -111,6 +111,16 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
         connect!(ibn2.controllers[con2idx], interibnedge, props(globalnet, ed))
         add_edge!(ibn2.ngr, vertex(ibn2.ngr, con1idx, node1), node2, props(globalnet, ed))
     end
+
+    # update oxc with in/out edges
+    for ibn in myibns
+        for v in vertices(ibn.ngr)
+            oxc = getoxc(ibn, v)
+            push!(oxc.inedges, [Edge(i, v) for i in inneighbors(ibn.ngr, v)]...)
+            push!(oxc.outedges, [Edge(v, o) for o in outneighbors(ibn.ngr, v)]...)
+        end
+    end
+
     return myibns
 end
 

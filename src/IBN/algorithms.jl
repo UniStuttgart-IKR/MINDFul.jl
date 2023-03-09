@@ -186,7 +186,7 @@ function deployfirstavailablepath!(ibn::IBN, idagnode::IntentDAGNode, paths, dis
         end
         breakandcontinue && continue
 
-        transmodl = pickcheapesttransmodl(ibn, dist, path[1])
+        transmodl = pickcheapesttransmodl(ibn, dist, getrate(conint), path[1])
         if isnothing(transmodl) # break up path in 2 connectivity intents
             error("Appropriate transmission module doesn't exist. Need to break up connectivity intent in 2. Still not implemented.")
         else
@@ -206,11 +206,11 @@ $(TYPEDSIGNATURES)
 Return transmission module and mode to use.
 If none is appropriate, return `nothing`
 """
-function pickcheapesttransmodl(ibn::IBN, optreachreq::Real, source::Int)
+function pickcheapesttransmodl(ibn::IBN, optreachreq::Real, rate::Real, source::Int)
     sortedtransmodls = sort(gettransmodulespool(getmlnode(ibn, source)), by=trmdl->getcost(trmdl))
     for transmodl in sortedtransmodls
-        toselect = findmin(x -> ustrip(getoptreach(x)) >= optreachreq ? getfreqslots(x) : +Inf, gettransmissionmodes(transmodl))
-        if !isnothing(toselect)
+        toselect = findmin(x -> ustrip(getoptreach(x)) >= optreachreq && getrate(x) >= rate ? getfreqslots(x) : +Inf, gettransmissionmodes(transmodl))
+        if !isnothing(toselect) && toselect[1] != Inf
             copied = deepcopy(transmodl)
             setselection!(copied, toselect[2])
             return copied

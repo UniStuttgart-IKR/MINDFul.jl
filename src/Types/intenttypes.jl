@@ -217,8 +217,24 @@ struct NodeSpectrumIntent{R,T} <: LowLevelIntent
     edge::T
     slots::UnitRange{Int}
     bandwidth::Float64
+    "That can be signalOXCAdd, signalOXCbypass, signalOXCDrop"
+    sptype::SignalLoc
 end
-dagtext(ci::NodeSpectrumIntent) = "NodeSpectrumIntent\nnode=$(ci.node)\nedge=$(ci.edge)\nslots=$(ci.slots)\nbandwidth=$(ci.bandwidth)"
+dagtext(ci::NodeSpectrumIntent) = "NodeSpectrumIntent\nnode=$(ci.node)\nedge=$(ci.edge)\nslots=$(ci.slots)\nbandwidth=$(ci.bandwidth)\n$(ci.sptype)"
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Connects two `NodeSpectrumIntent` in node
+"""
+struct NodeROADMIntent{R, I, O} <: LowLevelIntent
+    node::R
+    inedge::I
+    outedge::O
+    slots::UnitRange{Int}
+end
+dagtext(ci::NodeROADMIntent) = "NodeROADMIntent\nnode=$(ci.node)\nedgein=$(ci.inedge)\nedgeout=$(ci.outedge)\nslots=$(ci.slots)"
 
 struct RemoteLogicIntent{T} <: LowLevelIntent
     intent::T
