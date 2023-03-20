@@ -52,14 +52,14 @@ mutable struct IntentDAGInfo
     intentcounter::Int
 end
 IntentDAGInfo() = IntentDAGInfo(1)
-const IntentDAG = typeof(MGN.MetaGraph(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo()))
+const IntentDAG = typeof(MGN.MetaGraph(SimpleDiGraph(); label_type=UUID, vertex_data_type=IntentDAGNode, graph_data=IntentDAGInfo()))
 
 function IntentDAG()
-    MGN.MetaGraph(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
+    MGN.MetaGraph(SimpleDiGraph(); label_type=UUID, vertex_data_type=IntentDAGNode, graph_data=IntentDAGInfo())
 end
 
 function IntentDAG(intent::Intent)
-    mg = MG(SimpleDiGraph(); Label=UUID, VertexData=IntentDAGNode, graph_data=IntentDAGInfo())
+    mg = MG(SimpleDiGraph(); label_type=UUID, vertex_data_type=IntentDAGNode, graph_data=IntentDAGInfo())
     addchild!(mg, intent)
     return mg
 end
