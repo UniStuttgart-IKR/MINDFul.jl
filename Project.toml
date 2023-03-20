@@ -23,7 +23,7 @@ DocStringExtensions = "0.9"
 Graphs = "1.8"
 IterTools = "1.4"
 MetaGraphs = "0.7"
-MetaGraphsNext = "0.4"
+MetaGraphsNext = "0.5"
 NestedGraphs = "0.1.1"
 Unitful = "1.12"
 
