@@ -1,33 +1,13 @@
-using Chain, Parameters
-using Test
-using Graphs, MetaGraphs, NetworkLayout
-using EzXML, GraphIO
-using MINDFul
-using NestedGraphs
-using TestSetExtensions
-using Logging
-
-using MINDFul: uncompiled, compiled, installed
-MINDF = MINDFul
-
-resetIBNF!()
-testlogger = ConsoleLogger(stderr, Logging.Error)
-
-globalnet = loadgraph(open("../data/networksnest2.graphml"), GraphMLFormat(), NestedGraphs.NestedGraphFormat())
-globalnet = MINDFul.simgraph(globalnet)
-
-myibns = MINDFul.nestedGraph2IBNs!(globalnet)
-
-
 function capacity_N_gothrough(myibns, ibn1idx, ibn1node, ibn2idx, ibn2node, ibnIssueidx, gothroughnode)
     conint = ConnectivityIntent((myibns[ibn1idx].id, ibn1node), 
                                 (myibns[ibn2idx].id, ibn2node), 
-                                [CapacityConstraint(5), GoThroughConstraint(gothroughnode)]);
+                                5 , [GoThroughConstraint(gothroughnode)]);
     testintentdeployment(conint, myibns[ibnIssueidx])
 end
 
 @testset "connectivityIntentsKshortestPath.jl" begin
     with_logger(testlogger) do
+        myibns = initialize4nets()
 
         intenttuples = [
         # intra SDN, intra IBN intent
@@ -63,32 +43,14 @@ end
         # go through edge nodes
         (2, 3, 1, 1, 1, (2,1)),
         (2, 3, 1, 1, 1, (2,2)),
-        # go through outside by ibn
-        # doesn't work
-#        (2, 3, 1, 1, 1, (2,4)),
 
-#        # inter IBN Intent: src known, destination edge node known
-#        (2, 3, 3, 7, 1),
-#        # inter IBN Intent: src known, destination edge node known (my)
-#        (2, 6, 1, 6, 1),
-#        # inter IBN Intent: src known, destination known (not passing through)
-#        (2, 3, 3, 1, 1),
-#        # inter IBN Intent: src known, destination known (passing through)
-#        (1, 3, 3, 1, 2),
-#        # inter IBN Intent: src known, destination unknown
-#        (2, 3, 3, 1, 1),
-#        # inter IBN Intent: src unknown, destination the IBN
-#        (3, 6, 1, 1, 1),
-#        # inter IBN Intent: src unknown, destination known 
-#        (3, 1, 2, 3, 1),
-#        # inter IBN Intent: src unknown, destination unknown 
-#        (3, 1, 3, 6, 1)
+        # go through outside by ibn
+        (2, 3, 1, 1, 1, (2,4)),
         ]
 
         for intenttuple in intenttuples
                 capacity_N_gothrough(myibns, intenttuple...) 
         end
 
-#        capacity_N_gothrough(myibns, intenttuples[1]..., gothroughvertices[2])
     end
 end

@@ -5,10 +5,10 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
     firstnode(ibn::IBN, neibn::IBN) = getfirst(x -> ibn.controllers[NestedGraphs.subgraph(ibn.ngr,x)] == neibn, [v for v in vertices(ibn.ngr)])
 
     conint = idagn.intent
-#    if getsrc(conint) == getdst(conint)
-#        @info "Cannot compile a connectivity intent between the same node"
-#        return getstate(idagn)
-#    end
+    if isselfintent(conint)
+        @info "Cannot compile a connectivity intent between the same node"
+        return getstate(idagn)
+    end
     if isintraintent(ibn, conint)
         state = algmethod(ibn, idagn, IntraIntent(); algargs...)
     else
@@ -24,7 +24,7 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
                     state == compiled && break
                 end
             else
-                error("Connectivity intent involves source and destination irrelevant to me: IBN $(getid(ibn))")
+                @warn("Connectivity intent involves source and destination irrelevant to me: IBN $(getid(ibn))")
 #                state = delegateintent!(ibn, neibndst, idagn, idagn.intent, algmethod; algargs...)
             end
         elseif neibnsrc !== nothing && neibndst === nothing
@@ -44,7 +44,7 @@ function compile!(ibn::IBN, idagn::IntentDAGNode{R}, algmethod::F; algargs...) w
                 state = delegateintent!(ibn, neibnsrc, idagn, getintent(idagn), algmethod; algargs...)
             end
         elseif neibnsrc == nothing && neibndst == nothing
-            error("Connectivity intent involves source and destination unknown to me: IBN $(getid(ibn))")
+            @warn("Connectivity intent involves source and destination unknown to me: IBN $(getid(ibn))")
 #            # talk to random IBN (this is where fun begins!)
 #            for neibn in getibns(ibn)
 #                delegateintent!(ibn, neibn, idagn, idagn.intent, algmethod; algargs...)
@@ -87,7 +87,10 @@ function compile!(ibn::IBN, idagn::IntentDAGNode, ::Type{LightpathIntent}, path,
             return getintentnode(ibn, uuidlp)
         end
     end
-    isavailable(ibn, lpint) || error("intent resources are not available")
+    if !isavailable(ibn, lpint)
+        @warn("intent resources are not available")
+        return nothing
+    end
     lpintnode = addchild!(dag, getid(idagn), lpint)
     for lli in lowlevelintents(lpintnode.intent)
         addchild!(dag, lpintnode.id, lli)
@@ -119,8 +122,6 @@ function compile!(ibn::IBN, lpintnode::IntentDAGNode{<:LightpathIntent}, ::Type{
             addchild!(dag, speintnode.id, lli)
         end
         return speintnode
-#        try2setstate!(speintnode, ibn, Val(compiled); time)
-#        try2setstate!(idagnode, ibn, Val(compiled); time)
     else
         return nothing
     end
@@ -153,11 +154,12 @@ $(TYPEDSIGNATURES)
 `paths` have the paths and `dists` the corresponding distances in km
 Every time allocates new transmission modules, i.e., no grooming supported.
 """
-function deployfirstavailablepath!(ibn::IBN, idagnode::IntentDAGNode, paths, dists; time)
+function deployfirstavailablepath!(ibn::IBN, idagnode::IntentDAGNode, paths, dists; time, spectrumallocfun=firstfit)
     conint = getintent(idagnode)
+    installedborder = false
     for (path,dist) in zip(paths, dists)
         bicidx = findfirst(c -> c isa BorderInitiateConstraint, getconstraints(conint))
-        if !isnothing(bicidx)
+        if !installedborder && !isnothing(bicidx)
             bic = getconstraints(conint)[bicidx]
             # Trivially compile the border connectivity intent right here right now
             # get compatible transmission module from LightpathRequirements in destination path[1]
@@ -165,9 +167,12 @@ function deployfirstavailablepath!(ibn::IBN, idagnode::IntentDAGNode, paths, dis
             realsource = localnode(ibn, src(bic.edg); subnetwork_view=false)
             lptype1 = borderinitiatelightpath
             lpintnode = compile!(ibn, idagnode, LightpathIntent, [realsource, path[1]], transmodl, lptype1)
+            isnothing(lpintnode) && continue 
             speintnode = compile!(ibn, lpintnode, SpectrumIntent, lptype1)
+            isnothing(speintnode) && continue 
 #            deleteat!(getconstraints(conint), bicidx)
             try2setstate!(speintnode, ibn, Val(compiled); time)
+            installedborder = true
             path[end] == path[1] && break
         end
         lptype = fulllightpath
@@ -193,7 +198,9 @@ function deployfirstavailablepath!(ibn::IBN, idagnode::IntentDAGNode, paths, dis
             consavailspslots = reduce(.&, [getspectrumslots(getlink(ibn, e)) for e in edgeify(path)])
             longestconsecutiveblock(==(true), consavailspslots) >= getfreqslots(transmodl) || continue
             lpintnode = compile!(ibn, idagnode, LightpathIntent, path, transmodl, lptype)
-            speintnode = compile!(ibn, lpintnode, SpectrumIntent, lptype, firstfit)
+            isnothing(lpintnode) && continue 
+            speintnode = compile!(ibn, lpintnode, SpectrumIntent, lptype, spectrumallocfun)
+            isnothing(speintnode) && continue 
             try2setstate!(speintnode, ibn, Val(compiled); time)
             break
         end

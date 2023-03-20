@@ -185,8 +185,8 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false
     # TODO maybe it starts from the fiber
     # start with the src intent
 #    cs = ConnectionState(getsrc(idn.intent), signalElectrical)
-    cs = getstartingconnectionstate(ibn, getintent(idn))
-    _logicalorderedintents_rec!(cs, nothing, globalIBNnlli_rest, globalIBNnlli, vcs)
+    cs, prelli = getstartingconnectionstate(ibn, getintent(idn))
+    _logicalorderedintents_rec!(cs, prelli, globalIBNnlli_rest, globalIBNnlli, vcs)
 #    while true
 #        gibnlli, cs = findNupdate!(cs, globalIBNnlli_rest)
 #        gibnlli === nothing && break
@@ -212,11 +212,11 @@ function logicalorderedintents(ibn::IBN, idn::IntentDAGNode{C}, globalknow=false
 end
 
 function _logicalorderedintents_rec!(cs, prelli, globalIBNnlli_rest, globalIBNnlli, vcs)
-        gibnlli, cs = findNupdate!(cs, prelli, globalIBNnlli_rest)
-        gibnlli === nothing && return nothing
-        push!(vcs, cs)
-        push!(globalIBNnlli, gibnlli)
-        _logicalorderedintents_rec!(cs, getlli(gibnlli), globalIBNnlli_rest, globalIBNnlli, vcs)
+    gibnlli, cs = findNupdate!(cs, prelli, globalIBNnlli_rest)
+    gibnlli === nothing && return nothing
+    push!(vcs, cs)
+    push!(globalIBNnlli, gibnlli)
+    _logicalorderedintents_rec!(cs, getlli(gibnlli), globalIBNnlli_rest, globalIBNnlli, vcs)
 end
 
 "$(TYPEDSIGNATURES) Get a list of global view low-level intents `IBNnIntentGLLI` for the intent `ibn, idn`"
@@ -252,10 +252,13 @@ end
 function getstartingconnectionstate(ibn::IBN, intent::I) where I<:Intent
     bic = getfirst(c->c isa BorderInitiateConstraint, getconstraints(intent))
     if isnothing(bic)
-        ConnectionState(getsrc(intent), signalElectrical)
+        cs = ConnectionState(getsrc(intent), signalElectrical)
+        prelli = nothing
     else
-        ConnectionState(src(bic.edg), signalFiberOut)
+        cs = ConnectionState(src(bic.edg), signalFiberOut)
+        prelli = NodeSpectrumIntent(src(bic.edg), bic.edg, bic.reqs.spslots, bic.reqs.rate, signalOXCbypass)
     end
+    return (cs, prelli)
 end
 
 """

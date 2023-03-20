@@ -61,6 +61,7 @@ function freeroadmswitch!(oxc::OXCView, intidx::Tuple{Int, UUID})
     isnothing(ff) && error("Intent in OXC is not found")
     deleteat!(oxc.switchconf, ff)
     deleteat!(oxc.reservations, ff)
+    return true
 end
 
 """
@@ -263,12 +264,11 @@ function set_operation_status!(ibn::IBN, device::FiberView, status::Bool; time, 
         for intentidx in intentidxs
 #            ibn.id == intentidx[1] || @warn("Device has been configured from a foreign IBN and cannot be notified of the status change")
             remibn = getibn(ibn, intentidx[1])
-            idn = getintent(remibn, intentidx[2])[intentidx[3]]
-            dag = getintent(remibn, intentidx[2])
+            idn = getintentnode(remibn, intentidx[2])
             if status
-                setstate!(idn, dag, remibn, Val(installed); time)
+                setstate!(idn, remibn, Val(installed); time)
             else
-                setstate!(idn, dag, remibn, Val(failure); time)
+                setstate!(idn, remibn, Val(failure); time)
             end
         end
     end

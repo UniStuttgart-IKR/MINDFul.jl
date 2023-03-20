@@ -42,14 +42,6 @@ The higher stacked IBN framework instance id is used to identify the domain.
 An edge can also be addressed globally with a `NestedEdge`.
 
 ### Intents indexing
-An intent can be globally indexed with a `Tuple{::Integer, ::Integer}`, i.e., `(DOMAIN_ID, INTENT_ID)`.
-However, once the intent is compiled, a tree (or Directed Acyclic Graph, DAG ) of system-generated intents is generated.
-To globally reference such a system-generated intent, 
-we use the previous Tuple in combination with a UUID from [UUIDs](https://docs.julialang.org/en/v1/stdlib/UUIDs/#UUIDs).
-In other words, we use Tuple {::Integer, ::Integer, ::UUID}.
-The first element is the highest in the hierarchy IBN id.
-The second element is the Intent id, i.e., the DAG id.
-The third element is the DAG node id.
-
-You can access all the submitted intents of an `ibn::IBN` with the `ibn.intents` field.
-So each intent will also have an index for this vector, which is not always the same as the intent DAG id.
+An intent can be globally indexed with a `Tuple{::Integer, ::UUID}`, i.e., `(DOMAIN_ID, INTENT_ID)`.
+All (compiled) intents in a IBN domain are part of a DAG (Directed Acyclic Graph).
+You can access the DAG of an `ibn::IBN` with the `ibn.intents` field.

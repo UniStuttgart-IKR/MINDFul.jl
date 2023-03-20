@@ -6,7 +6,7 @@ using TestSetExtensions
 using Unitful
 using Logging
 using MINDFul: uncompiled, compiled, installed
-MINDF = MINDFul
+const MINDF = MINDFul
 testlogger = ConsoleLogger(stderr, Logging.Error)
 
 include("testutils.jl")
@@ -14,5 +14,5 @@ include("testutils.jl")
 testdir =  dirname(@__FILE__)
 
 @testset ExtendedTestSet "MINDFul.jl" begin
-     @includetests ["connectivityIntentKshortestPath", "network_faults"]
+     @includetests ["connectivityIntentKshortestPath", "network_faults", "goThroughConstraintsConnectivity"]
 end

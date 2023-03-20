@@ -26,6 +26,19 @@ function globalintent(ibn::IBN, idn::R=missing) where R <: Union{IntentDAGNode, 
     return (getid(ibn), getid(idn))
 end
 
+"$(TYPEDSIGNATURES) Return `true` if `intent` is an intra-domain intent"
+function isintraintent(ibn::IBN, intent::I) where I<:ConnectivityIntent
+    getid(ibn) == getsrc(intent)[1] == getdst(intent)[1] && return true
+    getdst(intent) ∈ globalnode.([ibn], bordernodes(ibn; subnetwork_view=false)) &&
+        any(c -> c isa BorderTerminateConstraint, getconstraints(intent)) && return true
+    return false
+end
+
+"$(TYPEDSIGNATURES) Return `true` if `intent` is not valid (e.g. source and dest are the same)"
+function isselfintent(intent::I) where I<:ConnectivityIntent
+    return getsrc(intent) == getdst(intent) && !any(c -> c isa BorderInitiateConstraint, getconstraints(intent))
+end
+
 "$(TYPEDSIGNATURES) Get first DAG node that matches `intent` in DAG `dag`"
 function getfirstdagnode_fromintent(dag::IntentDAG, intent::Intent)
     for idn in getintentdagnodes(dag)
@@ -104,12 +117,14 @@ function getcompliantintent(ibn::IBN, parint::I, ::Type{LightpathIntent}, path::
              return nothing
          end
     end
-    # deal with GoThroughConstraint
-    for gtc in filter(x -> x isa GoThroughConstraint && x.layer == signalUknown, getconstraints(parint))
-        if localnode(ibn, gtc.node, subnetwork_view=false) ∉ path
-             return nothing
-        end
-    end
+#    # deal with GoThroughConstraint
+#    for gtc in filter(x -> x isa GoThroughConstraint, getconstraints(parint))
+#        if gtc.node[1] == getid(ibn)
+#            if localnode(ibn, gtc.node, subnetwork_view=false) ∉ path
+#                 return nothing
+#            end
+#        end
+#    end
 
     if lptype == borderinitiatelightpath
         constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderTerminateConstraint])), parint.constraints)
@@ -118,7 +133,7 @@ function getcompliantintent(ibn::IBN, parint::I, ::Type{LightpathIntent}, path::
     elseif lptype == border2borderlightpath
         constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint])), parint.constraints)
     else
-        constrs = filter(x -> !any(isa.([x],  [DelayConstraint, GoThroughConstraint, BorderInitiateConstraint, BorderTerminateConstraint])), parint.constraints)
+        constrs = filter(x -> !any(isa.([x],  [DelayConstraint, BorderInitiateConstraint, GoThroughConstraint, BorderTerminateConstraint])), parint.constraints)
     end
     return LightpathIntent(path, getrate(parint), tmdl, constrs)
 end
@@ -313,7 +328,7 @@ end
 
 function free!(ibn::IBN, nrmi::IntentDAGNode{R}) where R <:NodeROADMIntent
     intent, sdn, sdnode = sdnspace(ibn, nrmi)
-    return free_roadmswitch!(sdn, sdnode, intent.inedge, intent.outedge, intent.slots, (getid(ibn), getid(nrmi)))
+    return free_roadmswitch!(sdn, sdnode, (getid(ibn), getid(nrmi)))
 end
 
 """

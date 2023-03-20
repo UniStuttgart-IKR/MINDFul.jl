@@ -58,7 +58,6 @@ function step!(ibn::IBN, idagn::IntentDAGNode, ista::IntentState, itra::IntentTr
     elseif ista in [compiled, uncompiled] && itra == douncompile
         step!(ibn, idagn, Val(ista), Val(itra), algmethod; algargs...)
     else 
-        foreach(s-> println(s),stacktrace())
         @warn("illegal operation: Cannot "*string(itra)*" on "*string(ista))
         return false
     end

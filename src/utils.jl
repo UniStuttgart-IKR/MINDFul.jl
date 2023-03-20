@@ -114,7 +114,7 @@ function nestedGraph2IBNs!(globalnet::NestedGraph)
 
     # update oxc with in/out edges
     for ibn in myibns
-        for v in vertices(ibn.ngr)
+        for v in getmynodes(ibn; subnetwork_view=false)
             oxc = getoxc(ibn, v)
             push!(oxc.inedges, [Edge(i, v) for i in inneighbors(ibn.ngr, v)]...)
             push!(oxc.outedges, [Edge(v, o) for o in outneighbors(ibn.ngr, v)]...)

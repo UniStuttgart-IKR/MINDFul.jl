@@ -25,14 +25,6 @@ function uuidpp!(idag::IntentDAG)
 end
 nextuuid(idag::IntentDAG) = UUID(idag.graph_data.intentcounter)
 
-"$(TYPEDSIGNATURES) Return `true` if `intent` is an intra-domain intent"
-function isintraintent(ibn::IBN, intent::I) where I<:ConnectivityIntent
-    getid(ibn) == getsrc(intent)[1] == getdst(intent)[1] && return true
-    getdst(intent) ∈ globalnode.([ibn], bordernodes(ibn; subnetwork_view=false)) &&
-        any(c -> c isa BorderTerminateConstraint, getconstraints(intent)) && return true
-    return false
-end
-
 "$(TYPEDSIGNATURES) Set the state of DAG node `idn` of DAG of `ibn` to `newstate` with logging time `time`"
 function setstate!(idn, ibn::IBN, newstate::IntentState; time)
     idn.state == newstate && return
