@@ -5,3 +5,16 @@
 docs/build/
 *.cov
 mynotes.norg
+
+# latex
+*.aux
+*.dvi
+*.bbl
+*.bcf
+*.blg
+*.log
+*.out
+*.pdf
+*.fls
+*.txt
+*.fdb_latexmk
