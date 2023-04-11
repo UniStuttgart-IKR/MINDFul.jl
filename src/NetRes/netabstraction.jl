@@ -5,6 +5,7 @@ getrouter(graph, i::Integer) = getrouter(getmlnode(graph,i))
 getoxc(graph, i::Integer) = getoxc(getmlnode(graph,i))
 
 getlink(x, e::Edge) = getlink(x, src(e), dst(e))
+getlink(ibn::IBN, e::Edge) = getlink(ibn.ngr, src(e), dst(e))
 getlink(ibn::IBN, i::Integer, j::Integer) = getlink(ibn.ngr, i, j)
 getlink(sdn::SDN, i::Integer, j::Integer) = getlink(getgraph(sdn), i, j)
 getlink(graph, i::Integer, j::Integer) = get_prop(graph, i, j, :link)
