@@ -12,8 +12,9 @@ end
 # ENV variables or default for issue/volume/year
 issue = ENV["JLCON_ISSUE"] === nil ? 1 : ENV["JLCON_ISSUE"]
 volume = ENV["JLCON_VOLUME"] === nil ? 1 : ENV["JLCON_VOLUME"]
-year = ENV["JLCON_YEAR"] === nil ? 2022 : ENV["JLCON_YEAR"]
-journal_name = "Proceedings of JuliaCon" # hard-coded for now
+year = ENV["JLCON_YEAR"] === nil ? 2023 : ENV["JLCON_YEAR"]
+#journal_name = "Proceedings of JuliaCon" # hard-coded for now
+journal_name = "" # hard-coded for now
 
 open('header.tex', 'w') do |f|
   f << "% **************GENERATED FILE, DO NOT EDIT**************\n\n"

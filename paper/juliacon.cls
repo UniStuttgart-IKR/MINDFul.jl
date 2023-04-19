@@ -699,9 +699,10 @@ to\hsize{\if@nfeven\else\hfil\fi\box\@tempboxa\if@nfeven\hfil\fi}
 \def\@maketitle{\newpage \thispagestyle{titlepage}\par
  \begingroup \lineskip = \z@\null
  \vspace{-1.75em}
- \begin{picture}(5,5)
-	\includegraphics[width=1in]{logojuliacon.pdf}
- \end{picture}
+ % uncomment the logo
+% \begin{picture}(5,5)
+%	\includegraphics[width=1in]{logojuliacon.pdf}
+% \end{picture}
  \vspace{1.75em}
  \vskip -7pt\relax %-18.5pt
  \parindent\z@ \LARGE {\centering \hyphenpenalty\@M

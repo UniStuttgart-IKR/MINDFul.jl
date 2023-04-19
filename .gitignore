@@ -6,6 +6,7 @@ docs/build/
 *.cov
 mynotes.norg
 
+spellchecking.sh
 # latex
 *.aux
 *.dvi
@@ -18,3 +19,4 @@ mynotes.norg
 *.fls
 *.txt
 *.fdb_latexmk
+
