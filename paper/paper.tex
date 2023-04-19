@@ -16,6 +16,7 @@
 	\acro{DAG}{Directed Acyclic Graph}
 	\acro{MSA}{Multi-Source Agreement}
 	\acro{OXC}{Optical Cross-Connect}
+    \acro{API}{Application Programming Interface}
 \end{acronym}
 
 
@@ -52,7 +53,7 @@
 
     An intent-driven approach \cite{2023ietf, 2022ChristouCNSM} has been proposed, which can substitute traditional \ac{MD} decentralized protocols like the \ac{BGP} since they offer higher flexibility of interactions and support for much wider network capabilities.
     \ac{IBN} provides a layer of abstraction where high-level objectives (i.e., intents) can be defined and automatically handled by the system.
-    Several design and algorithmic decisions need to be made to develop an \ac{IBN} framework, like the definition of an intent state machine and the algorithms that enable the state transitions
+    Several design and algorithmic decisions need to be made to develop an \ac{IBN} framework, like the definition of an intent state machine and the algorithms that enable the state transitions.
     Commonly, an intent has at least the following four states, although naming conventions might differ:
     \begin{itemize}
         \item \emph{uncompiled} for unprocessed intents inside the system
@@ -88,12 +89,11 @@ This powerful scheme connects higher-level intents, which have a logical objecti
 This hierarchical intent structure enables seamless interoperability between domains using \emph{intent delegation}, where an intent node is passed on to a different domain.
 
 \verb|MINDFul.jl| is built with modularity in mind.
-Intent state machines and algorithms can be easily alternated.
+Intent state machines and algorithms can be alternated.
 To evaluate different designs and algorithms under diverse scenarios, the appropriate interfaces are provided to facilitate simulations. 
-The library offers a state representation of a common IP-optical network \linebreak that can be easily accessed and modified. 
-As a result, the user can easily conduct (event-based) simulations.
-Several third-party libraries can be used to facilitate such simulations.
-A company package \verb|MINDFulMakie.jl| can be used for some out-of-the-box visualizations like drawing an intent \ac{DAG} or visualizing a compiled connectivity intent in the network topology.
+The library offers a state representation of a common IP-optical network and an \ac{API} to access or modify it. 
+The user can use these interfaces to conduct (event-based) simulations.
+A company package, \verb|MINDFulMakie.jl|, can be used for some out-of-the-box visualizations like drawing an intent \ac{DAG} or visualizing a compiled connectivity intent in the network topology.
 
 The architecture provided by \verb|MINDFul.jl| is influenced by \cite{2013Rambach}.
 The authors of this publication present a techno-economical overview of the equipment used in multilayer metro/core networks.
@@ -103,7 +103,7 @@ A more detailed description of the modeling and architecture considered can be f
 
 \section{Conclusion}
 \verb|MINDFul.jl| is a Julia open-source library that facilitates research on \ac{MD} intent-driven IP-optical networks.
-It provides a way to develop experimental intent system architectures and customized algorithms, as well as evaluate them using simulations and some out-of-the-box visualizations.
+It provides a way to develop experimental intent system architectures and customized algorithms, as well as evaluate them using simulations and visualizations.
 It fills a noticeable gap in the current openly-available tools.
 We believe that the modular architecture, together with Julia's attributes, like speed and dynamicity, can significantly help advance the adaptation of \ac{IBN} in modern \ac{MD} networks.
 
