@@ -140,6 +140,8 @@ function setstate!(idn::IntentDAGNode, ibn, newstate::Val{compiling}; time)
 end
 
 """
+$(TYPEDSIGNATURES) 
+
 Checks all children of `idn` and if all are compiled, `idn` is getting in the compiled state also.
 If not, it gets in the `compiling` state.
 """
@@ -154,6 +156,8 @@ function try2setstate!(idn::IntentDAGNode, ibn::IBN, newstate::Val{compiled}; ti
 end
 
 """
+$(TYPEDSIGNATURES) 
+
 Checks all children of `idn` and if all are installed, `idn` is getting in the installed state also.
 If not, it gets in the `installing` state.
 """
@@ -163,6 +167,30 @@ function try2setstate!(idn::IntentDAGNode, ibn::IBN, newstate::Val{installed}; t
     if all(x -> x.state == installed, descs)
         setstate!(idn, ibn, Val(installed); time)
     else
+        setstate!(idn, ibn, Val(installing); time)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Looks into the descendants and appropriately update the intent node.
+TODO: Need to look closer into the complication of using this function more.
+"""
+function syncnodefromdescendants!(idn::IntentDAGNode, ibn::IBN; time)
+    dag = getintentdag(ibn)
+    descs = descendants(dag, idn)
+    if all(x -> x.state == installed, descs)
+        setstate!(idn, ibn, Val(installed); time)
+    elseif all(x -> x.state == compiled, descs)
+        setstate!(idn, ibn, Val(compiled); time)
+    elseif any(x -> x.state == installfailed, descs)
+        setstate!(idn, ibn, Val(installfailed); time)
+    elseif any(x -> x.state == compiling, descs)
+        setstate!(idn, ibn, Val(compiling); time)
+    elseif any(x -> x.state in [installed, installing, compiled] , descs)
+        setstate!(idn, ibn, Val(compiled); time)
+    elseif any(x -> x.state in [installed, installing] && x.state ∉ [compiled, uncompiled] , descs)
         setstate!(idn, ibn, Val(installing); time)
     end
 end

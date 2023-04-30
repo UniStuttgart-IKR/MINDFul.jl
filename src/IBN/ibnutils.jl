@@ -45,4 +45,4 @@ function anyreservations(ibn)
 end
 
 "$(TYPEDSIGNATURES) Get total distance of `path` in `ibn`"
-getdistance(ibn::IBN, path::Vector{T}) where T<:Integer = sum([getdistance(getlink(ibn, e)) for e in edgeify(path) if has_edge(ibn.ngr, e)])
+getdistance(ibn::IBN, path) = sum([getdistance(getlink(ibn, e)) for e in edgeify(path) if has_edge(ibn.ngr, e)])

@@ -68,7 +68,7 @@ function adjustNpropagate_constraints!(ibn::IBN, idn::IntentDAGNode)
                 push!(propagete_constraints, constr)
             end
         elseif constr isa GoThroughConstraint
-            if localnode(ibn, constr.node) == nothing
+            if localnode(ibn, constr.node) === nothing || constr.node in bordernodes(ibn)
                 push!(propagete_constraints, constr)
             end
         elseif constr isa BorderInitiateConstraint|| constr isa BorderTerminateConstraint
@@ -237,7 +237,7 @@ end
 
 # TODO Code duplication with PathIntent
 "$(TYPEDSIGNATURES)"
-function isavailable(ibn::IBN, lpint::T) where {T<:LightpathIntent}
+function isavailable(ibn::IBN, lpint::T; iuuid=UUID(0x0)) where {T<:LightpathIntent}
     path = lpint.path
     sdn1 = controllerofnode(ibn, path[1])
     sdn2 = controllerofnode(ibn, path[end])

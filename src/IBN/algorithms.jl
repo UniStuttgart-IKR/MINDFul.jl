@@ -87,8 +87,8 @@ function compile!(ibn::IBN, idagn::IntentDAGNode, ::Type{LightpathIntent}, path,
             return getintentnode(ibn, uuidlp)
         end
     end
-    if !isavailable(ibn, lpint)
-        @warn("intent resources are not available")
+    if !isavailable(ibn, lpint; iuuid=getid(idagn))
+        @warn("intent resources are not available $((getid(ibn), getid(idagn)))")
         return nothing
     end
     lpintnode = addchild!(dag, getid(idagn), lpint)
@@ -123,6 +123,7 @@ function compile!(ibn::IBN, lpintnode::IntentDAGNode{<:LightpathIntent}, ::Type{
         end
         return speintnode
     else
+        @warn("SpectrumIntent is not available")
         return nothing
     end
 end
