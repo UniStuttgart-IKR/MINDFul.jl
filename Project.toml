@@ -1,7 +1,7 @@
 name = "MINDFul"
 uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
 authors = ["fchrstou <filippos.christou@ikr.uni-stuttgart.de> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
