@@ -8,6 +8,8 @@
 
 *A Framework for Intent-driven Multi-Domain Network coordination*
 
+> :tada: :loudspeaker: :bell: :tada: NEWS: We are happy to announce that we will participate in JuliaCon 2023. If you like networks and Julia, make sure you don't miss our talk!
+
 `MINDFul.jl` is a young project aiming to research coordination algorithms of intent-driven multi-domain (MD) networks.
 It offers interfaces for the development of resource-allocation algorithms and MD coordination mechanisms.
 
