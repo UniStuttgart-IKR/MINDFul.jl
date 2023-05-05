@@ -5,6 +5,7 @@ makedocs(sitename="MINDFul.jl",
         "Introduction" => "index.md",
         "Usage and Examples" => "usage.md",
         "Roadmap" => "roadmap.md",
+        "Technical Report Paper" => "techpaper.md",
         "API" => "API.md"
     ])
 
