@@ -4,6 +4,13 @@
 It provides the means for algorithmic research in the field of IP-Optical networking.
 It includes a stateful representation of common networking equipment and facilitates event-based simulations.
 
+# Companion repos
+Companion repositories:
+- [MINDFulMakie.jl](https://github.com/UniStuttgart-IKR/MINDFulMakie.jl) for visualization purposes
+- [MINDFulCompanion.jl](https://github.com/UniStuttgart-IKR/MINDFulCompanion.jl) planned for several algorithms and utilities.
+- [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) for some examples in the form of [Pluto](https://github.com/fonsp/Pluto.jl) notebooks.\
+For example, [have a look](https://unistuttgart-ikr.github.io/MINDFulNotebookExamples.jl/intentDAGinMD.html) in a notebook related to our latest work on using intent DAGs in multi-domain IP-optical networks.
+
 # Introduction to intent-driven networking
 
 Intent-driven Networking, or Intent-based Networking (IBN), is a paradigm that enables network operators to manage their network by expressing high-level desires (or intentions).
@@ -54,9 +61,4 @@ The last scenario can be applied to domains belonging to different organizations
 ## Role of MINDFul.jl
 `MINDFul.jl` is a tool to facilitate research on state-of-the-art algorithms in decentralized multi-domain intent-driven networking.
 It provides interfaces to investigate various coordination and intent provision mechanisms.
-
-!!! info 
-    You can learn more about the target architecture of `MINDFul.jl` in the following publication:
-
-    *F. Christou, "Decentralized Intent-driven Coordination of Multi-Domain IP-Optical Networks," 2022 18th International Conference on Network and Service Management (CNSM), 2022, pp. 359-363, doi: 10.23919/CNSM55787.2022.9964606.*
 
