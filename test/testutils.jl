@@ -1,6 +1,6 @@
 function initialize4nets()
     globalnet = open(joinpath(testdir,"data","4nets.graphml")) do io
-        loadgraph(io, "global-network", GraphMLFormat(), NestedGraphs.NestedGraphFormat())
+        loadgraph(io, "global-network", GraphIO.GraphML.GraphMLFormat(), NestedGraphs.NestedGraphFormat())
     end
 
     simgraph = MINDF.simgraph(globalnet; 

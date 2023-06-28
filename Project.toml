@@ -1,7 +1,7 @@
 name = "MINDFul"
 uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
 authors = ["fchrstou <filippos.christou@ikr.uni-stuttgart.de> and contributors"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -24,7 +24,7 @@ Graphs = "1.8"
 IterTools = "1.4"
 MetaGraphs = "0.7"
 MetaGraphsNext = "0.5"
-NestedGraphs = "0.1.1"
+NestedGraphs = "0.1.1, 0.2"
 Unitful = "1.12"
 
 [extras]

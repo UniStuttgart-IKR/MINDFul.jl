@@ -264,7 +264,7 @@ $(TYPEDSIGNATURES)
 
 Builds a nested graph from `ng` able to simulate.
 """
-function simgraph(ng::G; router_lcpool, router_lccpool, router_lcccap, transponderset, distance_method=euclidean_dist) where G<:NestedMetaGraph
+function simgraph(ng::G; router_lcpool, router_lccpool, router_lcccap, transponderset, distance_method=euclidean_dist) where G<:NestedGraph
     cgnew = G(;extrasubgraph=false)
     for gr in ng.grv
         add_vertex!(cgnew, simgraph(gr; router_lcpool, router_lccpool, router_lcccap, transponderset ,distance_method))
