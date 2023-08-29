@@ -10,6 +10,7 @@ Companion repositories:
 - [MINDFulCompanion.jl](https://github.com/UniStuttgart-IKR/MINDFulCompanion.jl) planned for several algorithms and utilities.
 - [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) for some examples in the form of [Pluto](https://github.com/fonsp/Pluto.jl) notebooks.\
 For example, [have a look](https://unistuttgart-ikr.github.io/MINDFulNotebookExamples.jl/intentDAGinMD.html) in a notebook related to our latest work on using intent DAGs in multi-domain IP-optical networks.
+- [MINDFulGLMakieApp.jl](https://github.com/UniStuttgart-IKR/MINDFulGLMakieApp.jl) for a (WIP) experimental GUI application.
 
 # Introduction to intent-driven networking
 
