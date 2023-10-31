@@ -6,6 +6,7 @@ docs/build/
 *.cov
 mynotes.norg
 
+unlatexify.jl
 spellchecking.sh
 *.tar
 # latex
@@ -16,6 +17,7 @@ spellchecking.sh
 *.blg
 *.log
 *.out
+*.text
 *.pdf
 *.fls
 *.txt
