@@ -24,3 +24,7 @@ For example, [have a look](https://unistuttgart-ikr.github.io/MINDFulNotebookExa
 - [MINDFulGLMakieApp.jl](https://github.com/UniStuttgart-IKR/MINDFulGLMakieApp.jl) for a (WIP) experimental GUI application.
 
 Currently, as you will find in [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) there are some workflow dependencies on forked/unregistered packages due to pending PRs. These will be handled in time.
+
+Watch our JuliaCon2023 presentation to learn more on [YouTube](https://www.youtube.com/watch?v=LrCFRWym0Lc)
+
+[![Click to watch video](https://img.youtube.com/vi/LrCFRWym0Lc/0.jpg)](https://www.youtube.com/watch?v=LrCFRWym0Lc)
