@@ -28,3 +28,10 @@ Currently, as you will find in [MINDFulNotebookExamples](https://github.com/UniS
 Watch our JuliaCon2023 presentation to learn more on [YouTube](https://www.youtube.com/watch?v=LrCFRWym0Lc)
 
 [![Click to watch video](https://img.youtube.com/vi/LrCFRWym0Lc/0.jpg)](https://www.youtube.com/watch?v=LrCFRWym0Lc)
+
+To expand upon:
+allocate - deallocate
+reserve - unreserve
+function getters
+get... -> get field
+new... -> construct something new

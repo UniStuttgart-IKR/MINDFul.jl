@@ -1,13 +1,15 @@
 """
 The abstract type of the SDN controllers
 """
-abstract type SDNController end
+abstract type AbstractSDNController end
 
 """
 $(TYPEDEF)
 
 $(TYPEDFIELDS)
 """
-struct SDNDummy <: SDNController 
+struct SDNdummy <: AbstractSDNController end
 
+function allocate_transmissionmodule(sdn::SDNdummy, node::LocalNode, transmissionmodulereservationentry::TransmissionModuleReservationEntry)
+    return true
 end

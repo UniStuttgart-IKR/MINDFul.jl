@@ -74,8 +74,11 @@ mutable struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
     const logstate::IntentLogState
 end
 
-# IntentDAG type TODO1
-struct IntentDAG end
+mutable struct IntentDAGInfo
+    intentcounter::Int
+end
+
+const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Missing, IntentDAGInfo}
 
 """
 $(TYPEDFIELDS)
@@ -111,15 +114,15 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework
+struct IBNFramework{S<:AbstractSDNController}
     "The id of this IBN Framework instance"
     ibnfid::UUID
     "The intent dag tree that contains all intents (can be disconnected graph)"
     intentdag::IntentDAG
     "Single-domain internal graph with border nodes included"
-    graph::IBNAttributeGraph
+    ibnag::IBNAttributeGraph
     "Other IBN Frameworks handles"
     interIBNFs::Vector{IBNFrameworkHandler}
     "SDN controller handle"
-    sndcontroller::SDNDummy
+    sdncontroller::S
 end

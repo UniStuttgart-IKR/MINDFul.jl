@@ -157,7 +157,7 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
 [[deps.MINDFul]]
-deps = ["AttributeGraphs", "DocStringExtensions", "EnumX", "Graphs", "IterTools", "UUIDs"]
+deps = ["AttributeGraphs", "DataStructures", "DocStringExtensions", "EnumX", "Graphs", "IterTools", "UUIDs"]
 path = ".."
 uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
 version = "0.2.2"

@@ -4,6 +4,7 @@ using DocStringExtensions
 using EnumX
 using UUIDs
 using Graphs
+using DataStructures
 
 import AttributeGraphs as AG
 import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
