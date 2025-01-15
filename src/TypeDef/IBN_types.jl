@@ -7,6 +7,14 @@ A concrete subtype of `AbstractIntent` must implement the following methods:
 abstract type AbstractIntent end
 
 """
+$(TYPEDEF)
+
+An abstract subtype of `AbstractIntent` notating device-level intents and should return [`is_low_level_intent`](@ref) to be `true`
+"""
+abstract type LowLevelIntent <: AbstractIntent end
+
+"""
+$(TYPEDEF)
 All possible intent states
 """
 @enumx IntentState begin
@@ -24,6 +32,13 @@ Stores a vector of the history of the intent states and their timings
 """
 struct IntentLogState
     logstate::Vector{Tuple{Float64, IntentState.T}}
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function IntentLogState()
+    return Vector{Tuple{Float64, IntentState.T}}()
 end
 
 """
@@ -61,21 +76,28 @@ $(TYPEDEF)
 
 $(TYPEDFIELDS)
 """
-mutable struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
-    """The mutable state of the intent node"""
-    state::IntentState.T
+struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
     "The intent itself"
-    const intent::I
+    intent::I
     """The id of the intent w.r.t. the intent DAG it belongs"""
-    const dagnodeid::UUID
+    dagnodeid::UUID
     """The intent issuer"""
-    const intentissuer::II
-    """The history of states of the intent"""
-    const logstate::IntentLogState
+    intentissuer::II
+    """The history of states of the intent with the last being the current state"""
+    logstate::IntentLogState
 end
 
 mutable struct IntentDAGInfo
     intentcounter::Int
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Empty constructor 
+"""
+function IntentDAGInfo()
+    return IntentDAGInfo(0)
 end
 
 const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Missing, IntentDAGInfo}
@@ -125,4 +147,15 @@ struct IBNFramework{S<:AbstractSDNController}
     interIBNFs::Vector{IBNFrameworkHandler}
     "SDN controller handle"
     sdncontroller::S
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function Base.show(io::IO, ibnf::I) where {I<:IBNFramework}
+        print(io, I, "(", getibnfid(ibnf))
+        print(io, ", IntentDAG(", nv(getintentdag(ibnf)), ", ", ne(getintentdag(ibnf)), ")")
+        print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
+        print(io, ", ", getibnfid.(getinteribnfs(ibnf)))
+        print(io, ", ", typeof(getsdncontroller(ibnf)))
 end

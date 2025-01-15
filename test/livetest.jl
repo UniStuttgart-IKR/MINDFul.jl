@@ -5,7 +5,7 @@ using UUIDs
 const AG = AttributeGraphs
 const MINDF = MINDFul
 
-ag4nets = JLD2.load("../data/attributegraphs4nets.jld2")
+ag4nets = JLD2.load("./data/attributegraphs4nets.jld2")
 
 ag1 = MINDF.default_IBNAttributeGraph(ag4nets["ags"][1])
 
@@ -28,7 +28,10 @@ MINDF.unreserve!(nodeview1, dagnodeid1)
 
 MINDF.reserve!(nodeview1, dagnodeid1, transmissionmodulereservationentry1)
 
-@show !MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
+# @show !MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
 # @code_warntype MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
+
+# create an IBNF
+ibnf1 = MINDF.IBNFramework(UUID(1), MINDF.IntentDAG(), ag1, MINDF.IBNFrameworkHandler[], MINDF.SDNdummy())
 
 nothing

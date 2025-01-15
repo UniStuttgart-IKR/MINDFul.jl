@@ -9,7 +9,7 @@ using DataStructures
 import AttributeGraphs as AG
 import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 
-public is_low_level_intent
+# public is_low_level_intent
 
 include("utils.jl")
 include("TypeDef/TypeDef.jl")

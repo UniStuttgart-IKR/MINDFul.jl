@@ -1,7 +1,11 @@
-function getsdncontroller(s)
-    return s.sdncontroller
-end
+"""
+$(TYPEDSIGNATURES)
 
-function getibnag(s)
-    return s.ibnag
+Add a new user intent to the IBN framework.
+"""
+function addintent!(ibnf::IBNFramework, intent::AbstractIntent)
+    intentdag = getintentdag(ibnf)
+    intentcounter = getintentcounter(intentdag)
+    intentdagnode = IntentDAGNode(intent, UUID(intentcounter), NetworkOperator(), IntentLogState())
+    addchild!(intentdag, intent)
 end

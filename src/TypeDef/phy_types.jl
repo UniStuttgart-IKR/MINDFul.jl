@@ -77,7 +77,6 @@ struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
     adddropportnumber::Int
     "The intent reservations together with the configuration"
     switchreservations::Dict{UUID, OXCSwitchEntry}
-    # TODO: think it could be a Dictionary
 end
 
 
