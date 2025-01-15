@@ -35,7 +35,7 @@ end
 let
     oxcreservations = MINDF.getreservations(MINDF.getoxcview(nodeview1))
     @test length(oxcreservations) == 1
-    @test first(oxcreservations) == (dagnodeid1 => MINDF.OXCSwitchEntry(0,1,0,0:0))
+    @test first(oxcreservations) == (dagnodeid1 => MINDF.OXCSwitchReservationEntry(0,1,0,0:0))
 end
 
 MINDF.unreserve!(nodeview1, dagnodeid1)

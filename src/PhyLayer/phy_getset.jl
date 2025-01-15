@@ -30,22 +30,22 @@ function getadddropportnumber(oxcview::OXCView)
 end
 
 "$(TYPEDSIGNATURES)"
-function getlocalnode_input(oxcswitchentry::OXCSwitchEntry)
-    return oxcswitchentry.localnode_input
+function getlocalnode_input(oxcswitchreservationentry::OXCSwitchReservationEntry)
+    return oxcswitchreservationentry.localnode_input
 end
 
 "$(TYPEDSIGNATURES)"
-function getport_adddrop(oxcswitchentry::OXCSwitchEntry)
+function getport_adddrop(oxcswitchentry::OXCSwitchReservationEntry)
     return oxcswitchentry.port_adddrop
 end
 
 "$(TYPEDSIGNATURES)"
-function getlocalnode_output(oxcswitchentry::OXCSwitchEntry)
+function getlocalnode_output(oxcswitchentry::OXCSwitchReservationEntry)
     return oxcswitchentry.localnode_output
 end
 
 "$(TYPEDSIGNATURES)"
-function getspectrumslotsrange(oxcswitchentry::OXCSwitchEntry)
+function getspectrumslotsrange(oxcswitchentry::OXCSwitchReservationEntry)
     return oxcswitchentry.spectrumslotsrange
 end
 

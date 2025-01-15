@@ -52,16 +52,16 @@ Check whether
 - add/drp port already in use
 - spectrum in fibers in use
 """
-function canreserve(oxcview::OXCView, oxcswitchentry::OXCSwitchEntry)
+function canreserve(oxcview::OXCView, oxcswitchreservationentry::OXCSwitchReservationEntry)
     switchreservations = getreservations(oxcview)
-    getport_adddrop(oxcswitchentry) > getadddropportnumber(oxcview) && return false
+    getport_adddrop(oxcswitchreservationentry) > getadddropportnumber(oxcview) && return false
     # further check the spectrum
-    if !isadddropallocation(oxcswitchentry)
+    if !isadddropallocation(oxcswitchreservationentry)
         for registeredoxcswitchentry in values(getreservations(oxcview))
-            if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchentry) && 
-                    getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchentry) && 
-                    getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchentry)
-                spectrumslotintersection = intersection(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchentry))
+            if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) && 
+                    getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchreservationentry) && 
+                    getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchreservationentry)
+                spectrumslotintersection = intersection(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchreservationentry))
                 length(spectrumslotintersection) > 0 && return false
             end
         end
@@ -127,12 +127,12 @@ end
 $(TYPEDSIGNATURES)
 """
 function newoxcentry_adddropallocation(port::Int, spectrumslotsrange::UnitRange{Int} = 0:0)
-    return OXCSwitchEntry(0, port, 0, spectrumslotsrange)
+    return OXCSwitchReservationEntry(0, port, 0, spectrumslotsrange)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function isadddropallocation(oxcswitchentry::OXCSwitchEntry)
+function isadddropallocation(oxcswitchentry::OXCSwitchReservationEntry)
     return getlocalnode_input(oxcswitchentry) == 0 && getport_adddrop(oxcswitchentry) != 0 && getlocalnode_output(oxcswitchentry) == 0
 end

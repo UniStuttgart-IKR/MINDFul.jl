@@ -48,7 +48,7 @@ At least one of the 3 elements must be `0`.
 `(x, y, 0)` means droping an optical signal from  the localnode `x` to the drop port `y`
 `(0, x, 0)` mean that an add/drop allocation port is only reserved (is needed on top for an add/drop signal)
 """
-struct OXCSwitchEntry
+struct OXCSwitchReservationEntry
     "The node in graph entering the OXC (or `0` if invalid)"
     localnode_input::LocalNode
     "The port index adding or dropping an optical signal (or `0` if invalid)"
@@ -76,7 +76,7 @@ struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
     "The number of add/drop ports in OXC"
     adddropportnumber::Int
     "The intent reservations together with the configuration"
-    switchreservations::Dict{UUID, OXCSwitchEntry}
+    switchreservations::Dict{UUID, OXCSwitchReservationEntry}
 end
 
 

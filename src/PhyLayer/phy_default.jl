@@ -52,7 +52,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function default_OXCview() 
-    return OXCView(OXCDummy(), 50, Dict{UUID, OXCSwitchEntry}())
+    return OXCView(OXCDummy(), 50, Dict{UUID, OXCSwitchReservationEntry}())
 end
 
 function default_nodeview(nodeproperties::NodeProperties)
