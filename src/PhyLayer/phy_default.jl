@@ -1,10 +1,10 @@
-function default_linecards() 
-    return [LineCardView(10, 100, 26.72), LineCardView(2, 400, 29.36), LineCardView(1, 1000, 31.99)]
-end
+# function default_linecards() 
+#     return [LineCardView(10, 100, 26.72), LineCardView(2, 400, 29.36), LineCardView(1, 1000, 31.99)]
+# end
 
-function default_linecardchassis() 
-    return [LineCardChassisView(Vector{LineCardView}(), 4.7, 16)]
-end
+# function default_linecardchassis() 
+#     return [LineCardChassisView(Vector{LineCardView}(), 4.7, 16)]
+# end
 
 function default_dummyflexibletransponder()
     return TransmissionModuleView(
@@ -60,7 +60,8 @@ function default_nodeview(nodeproperties::NodeProperties)
 end
 
 function default_IBNAttributeGraph(ag::AttributeGraph{Int, SimpleDiGraph{Int}, Vector{Dict{Symbol, T}}, Dict{Edge{Int}, Dict{Symbol, R}}, Missing}) where {T<:Any ,R <: Any}
-    nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag)))
+    extrafielddict = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
+    nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict))
     edgeviews = Dict(k => EdgeView(constructfromdict(EdgeProperties, v)) for (k,v) in edge_attr(ag))
     return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, missing)
 end

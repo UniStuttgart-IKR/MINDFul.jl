@@ -46,4 +46,6 @@ MINDF.unreserve!(nodeview1, dagnodeid1)
 @test isempty(MINDF.getreservations(MINDF.getoxcview(nodeview1)))
 
 
-# try out 
+# still remains to develop/test 
+# - transmission modes
+# - OXCSwitchReservationEntries for spectrum slots and nodes

@@ -55,7 +55,7 @@ struct OXCSwitchReservationEntry
     port_adddrop::Int
     "The node in graph exiting the OXC (or `0` if invalid)"
     localnode_output::LocalNode
-    "The spectrum range allocated"
+    "The spectrum range allocated 1-based indexed"
     spectrumslotsrange::UnitRange{Int}
 end
 
@@ -141,6 +141,10 @@ struct NodeProperties
     ibnfid::UUID
     latitude::Float64
     longtitude::Float64
+    "The list of neighbohrs coming in"
+    inneighbors::Vector{Int}
+    "The list of neighbohrs going out"
+    outneighbors::Vector{Int}
 end
 
 """
