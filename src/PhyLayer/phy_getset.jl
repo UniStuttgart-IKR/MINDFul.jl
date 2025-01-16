@@ -30,22 +30,22 @@ function getadddropportnumber(oxcview::OXCView)
 end
 
 "$(TYPEDSIGNATURES)"
-function getlocalnode_input(oxcswitchreservationentry::OXCSwitchReservationEntry)
+function getlocalnode_input(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchreservationentry.localnode_input
 end
 
 "$(TYPEDSIGNATURES)"
-function getport_adddrop(oxcswitchentry::OXCSwitchReservationEntry)
+function getport_adddrop(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchentry.port_adddrop
 end
 
 "$(TYPEDSIGNATURES)"
-function getlocalnode_output(oxcswitchentry::OXCSwitchReservationEntry)
+function getlocalnode_output(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchentry.localnode_output
 end
 
 "$(TYPEDSIGNATURES)"
-function getspectrumslotsrange(oxcswitchentry::OXCSwitchReservationEntry)
+function getspectrumslotsrange(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchentry.spectrumslotsrange
 end
 
@@ -148,21 +148,21 @@ end
 
 # TransmissionModuleReservationEntry 
 "$(TYPEDSIGNATURES)"
-function gettransmissionmoduleviewpoolindex(s::TransmissionModuleReservationEntry)
+function gettransmissionmoduleviewpoolindex(s::TransmissionModuleLLI)
     return s.transmissionmoduleviewpoolindex
 end
 
 "$(TYPEDSIGNATURES)"
-function gettransmissionmodesindex(s::TransmissionModuleReservationEntry)
+function gettransmissionmodesindex(s::TransmissionModuleLLI)
     return s.transmissionmodesindex
 end
 
 "$(TYPEDSIGNATURES)"
-function getrouterportindex(s::TransmissionModuleReservationEntry)
+function getrouterportindex(s::RouterPortLLI)
     return s.routerportindex
 end
 
 "$(TYPEDSIGNATURES)"
-function getoxcadddropportindex(s::TransmissionModuleReservationEntry)
-    return s.oxcadddropportindex
+function getoxcadddropportindex(s::OXCAddDropBypassSpectrumLLI)
+    return s.adddropport
 end

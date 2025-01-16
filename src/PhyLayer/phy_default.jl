@@ -45,14 +45,14 @@ function default_routerview()
     return RouterView(
         RouterDummy(),
         50,
-        Dict{UUID, Int}())
+        Dict{UUID, RouterPortLLI}())
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function default_OXCview() 
-    return OXCView(OXCDummy(), 50, Dict{UUID, OXCSwitchReservationEntry}())
+    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}())
 end
 
 function default_nodeview(nodeproperties::NodeProperties)

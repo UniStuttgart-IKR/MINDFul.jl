@@ -1,20 +1,5 @@
 """
 $(TYPEDEF)
-
-A concrete subtype of `AbstractIntent` must implement the following methods: 
-- [`is_low_level_intent`](@ref)
-"""
-abstract type AbstractIntent end
-
-"""
-$(TYPEDEF)
-
-An abstract subtype of `AbstractIntent` notating device-level intents and should return [`is_low_level_intent`](@ref) to be `true`
-"""
-abstract type LowLevelIntent <: AbstractIntent end
-
-"""
-$(TYPEDEF)
 All possible intent states
 """
 @enumx IntentState begin

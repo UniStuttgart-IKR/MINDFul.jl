@@ -1,5 +1,54 @@
-const LocalNode = Int
+# low level intents are needed for the device reservations
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+struct TransmissionModuleLLI <: LowLevelIntent
+    "Target node"
+    node::LocalNode
+    "The index of the transmission module pool to be reserved"
+    transmissionmoduleviewpoolindex::Int
+    "The selected mode of the transmission module. `0` means nothing is still selected. Non elastic modules can have only `1`."
+    transmissionmodesindex::Int
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+struct RouterPortLLI <: LowLevelIntent
+    "Target node"
+    node::LocalNode
+    "The router port index to be reserved"
+    routerportindex::Int
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+A value-based interpretation of (`input`, `adddrop`, `output`).
+At least one of the 3 elements must be `0`.
+`(x, 0, y)` means optical bypass from the localnode `x` to the localnode `y`
+`(0, x, y)` means adding an optical signal from add port `x` going to the localnode `y`
+`(x, y, 0)` means droping an optical signal from  the localnode `x` to the drop port `y`
+`(0, x, 0)` mean that an add/drop allocation port is only reserved (is needed on top for an add/drop signal)
+"""
+struct OXCAddDropBypassSpectrumLLI <: LowLevelIntent
+    "Target node"
+    node::LocalNode
+    "The node in graph entering the OXC (or `0` if invalid)"
+    localnode_input::LocalNode
+    "The port index adding or dropping an optical signal (or `0` if invalid)"
+    adddropport::Int
+    "The node in graph exiting the OXC (or `0` if invalid)"
+    localnode_output::LocalNode
+    "The spectrum range allocated 1-based indexed"
+    spectrumslotsrange::UnitRange{Int}
+end
+
+# starting equipment
 abstract type AbstractRouter end
 struct RouterDummy <: AbstractRouter end
 
@@ -33,30 +82,8 @@ struct RouterView{R <: AbstractRouter} <: ReservableResourceView
     router::R
     "number of ports in router"
     portnumber::Int
-    "The intent reservations together with the reserved port index"
-    portreservations::Dict{UUID, Int}
-end
-
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-
-A value-based interpretation of (`input`, `adddrop`, `output`).
-At least one of the 3 elements must be `0`.
-`(x, 0, y)` means optical bypass from the localnode `x` to the localnode `y`
-`(0, x, y)` means adding an optical signal from add port `x` going to the localnode `y`
-`(x, y, 0)` means droping an optical signal from  the localnode `x` to the drop port `y`
-`(0, x, 0)` mean that an add/drop allocation port is only reserved (is needed on top for an add/drop signal)
-"""
-struct OXCSwitchReservationEntry
-    "The node in graph entering the OXC (or `0` if invalid)"
-    localnode_input::LocalNode
-    "The port index adding or dropping an optical signal (or `0` if invalid)"
-    port_adddrop::Int
-    "The node in graph exiting the OXC (or `0` if invalid)"
-    localnode_output::LocalNode
-    "The spectrum range allocated 1-based indexed"
-    spectrumslotsrange::UnitRange{Int}
+    "The intent reservations together with the low level intent of reserved port"
+    portreservations::Dict{UUID, RouterPortLLI}
 end
 
 
@@ -76,7 +103,7 @@ struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
     "The number of add/drop ports in OXC"
     adddropportnumber::Int
     "The intent reservations together with the configuration"
-    switchreservations::Dict{UUID, OXCSwitchReservationEntry}
+    switchreservations::Dict{UUID, OXCAddDropBypassSpectrumLLI}
 end
 
 
@@ -116,22 +143,9 @@ struct TransmissionModuleView{T <: AbstractTransmissionModule}
 end
 
 
-"""
-$(TYPEDEF)
-
-$(TYPEDFIELDS)
-"""
-struct GlobalNode
-    "IBN Framework id"
-    ibnfid::UUID
-    "Node number"
-    node::LocalNode
-end
-
 
 """
 $(TYPEDEF)
-
 $(TYPEDFIELDS)
 
 An immutable description of the node properties
@@ -147,24 +161,13 @@ struct NodeProperties
     outneighbors::Vector{Int}
 end
 
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-"""
-struct TransmissionModuleReservationEntry
-    "The index of the transmission module pool to be reserved"
-    transmissionmoduleviewpoolindex::Int
-    "The selected mode of the transmission module. `0` means nothing is still selected. Non elastic modules can have only `1`."
-    transmissionmodesindex::Int
-    "The router port index to be reserved"
-    routerportindex::Int
-    "The oxc add/drop port index to be reserved"
-    oxcadddropportindex::Int
+function NodeProperties(ibnifd::UUID, latitude::Float64, longtitude::Float64, inneighbors::Vector{Int}, outneighbors::Vector{Int})
+    # has to produce a NodeProperties with LocalNode and GlobalNode
+    nothing
 end
 
 """
 $(TYPEDEF)
-
 $(TYPEDFIELDS)
 
 The view of the current node settings
@@ -181,7 +184,7 @@ struct NodeView{R<:RouterView, O<:OXCView, T<:TransmissionModuleView} <: Reserva
     """
     intent reservation of the transmission modules
     """
-    transmissionmodulereservations::Dict{UUID, TransmissionModuleReservationEntry}
+    transmissionmodulereservations::Dict{UUID, TransmissionModuleLLI}
 end
 
 function Base.show(io::IO, nv::NodeView)
@@ -194,7 +197,7 @@ function Base.show(io::IO, nv::NodeView)
 end
 
 function NodeView(nodeproperties::NodeProperties, routerview::R, oxcview::O, transmissionmoduleviewpool::Vector{T})  where {R<:RouterView, O<:OXCView, T<:TransmissionModuleView}
-    return NodeView(nodeproperties, routerview, oxcview, transmissionmoduleviewpool, Dict{UUID, TransmissionModuleReservationEntry}())
+    return NodeView(nodeproperties, routerview, oxcview, transmissionmoduleviewpool, Dict{UUID, TransmissionModuleLLI}())
 end
 
 """

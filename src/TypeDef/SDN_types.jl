@@ -10,6 +10,6 @@ $(TYPEDFIELDS)
 """
 struct SDNdummy <: AbstractSDNController end
 
-function allocate_transmissionmodule(sdn::SDNdummy, node::LocalNode, transmissionmodulereservationentry::TransmissionModuleReservationEntry)
+function allocate_transmissionmodule(sdn::SDNdummy, node::LocalNode, transmissionmodulereservationentry::TransmissionModuleLLI)
     return true
 end

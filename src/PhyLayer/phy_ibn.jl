@@ -6,7 +6,7 @@ $(TYPEDSIGNATURES)
 function allocate_transmissionmodule(ibnf::IBNFramework, 
                                      dagnodeid::UUID, 
                                      localnode::LocalNode, 
-                                     transmissionmodulereservationentry::TransmissionModuleReservationEntry)
+                                     transmissionmodulereservationentry::TransmissionModuleLLI)
     # delegate to SDN
     success = allocate_transmissionmodule(getsdncontroller(ibnf), localnode, transmissionmodulereservationentry)
     success || return false
@@ -23,7 +23,7 @@ $(TYPEDSIGNATURES)
 """
 function deallocate_transmissionmodule(ibnf::IBNFramework, 
                                  localnode::LocalNode, 
-                                 transmissionmodulereservationentry::TransmissionModuleReservationEntry)
+                                 transmissionmodulereservationentry::TransmissionModuleLLI)
     # delegate to SDN
     success = allocate_transmissionmodule(getsdncontroller(ibnf), localnode, transmissionmodulereservationentry)
     success || return false
