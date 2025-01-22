@@ -59,9 +59,9 @@ function default_nodeview(nodeproperties::NodeProperties)
     return NodeView(nodeproperties, default_routerview(), default_OXCview(), default_transmissionmodules())
 end
 
-function default_IBNAttributeGraph(ag::AttributeGraph{Int, SimpleDiGraph{Int}, Vector{Dict{Symbol, T}}, Dict{Edge{Int}, Dict{Symbol, R}}, Missing}) where {T<:Any ,R <: Any}
+function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Nothing})
     extrafielddict = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
     nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict))
-    edgeviews = Dict(k => EdgeView(constructfromdict(EdgeProperties, v)) for (k,v) in edge_attr(ag))
+    edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k,v) in edge_attr(ag))
     return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, missing)
 end

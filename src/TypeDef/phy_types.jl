@@ -151,19 +151,27 @@ $(TYPEDFIELDS)
 An immutable description of the node properties
 """
 struct NodeProperties
-    "The id of the IBN framework this node belongs"
-    ibnfid::UUID
+    localnode::LocalNode
+    globalnode::GlobalNode
     latitude::Float64
-    longtitude::Float64
+    longitude::Float64
     "The list of neighbohrs coming in"
     inneighbors::Vector{Int}
     "The list of neighbohrs going out"
     outneighbors::Vector{Int}
 end
 
-function NodeProperties(ibnifd::UUID, latitude::Float64, longtitude::Float64, inneighbors::Vector{Int}, outneighbors::Vector{Int})
-    # has to produce a NodeProperties with LocalNode and GlobalNode
-    nothing
+function constructfromdict(_::Type{NodeProperties}, dict::Dict{Symbol}, dict2::Dict{Symbol})
+    extendedfields = [:localnode, :globalnode_node, :globalnode_ibnfid, :Latitude, :Longitude, :inneighbors, :outneighbors]
+    return NodeProperties([
+        haskey(dict, fn) ? dict[fn] : dict2[fn]
+        for fn in extendedfields
+    ]...)
+end
+
+function NodeProperties(localnode, globalnode_node, globalnode_ibnfid, latitude, longitude, inneighbors, outneighbors)
+    globalnode = GlobalNode(UUID(globalnode_ibnfid), globalnode_node)
+    return NodeProperties(localnode, globalnode, latitude, longitude, inneighbors, outneighbors)
 end
 
 """

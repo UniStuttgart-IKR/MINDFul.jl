@@ -7,15 +7,18 @@ const MINDF = MINDFul
 ## single domain 
 
 # load data
-ag4nets = JLD2.load("./data/attributegraphs4nets.jld2")
-ag1 = MINDF.default_IBNAttributeGraph(ag4nets["ags"][1])
+domains_name_graph = first(JLD2.load("data/itz_IowaStatewideFiberMap-itz_Missouri__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21).jld2"))[2]
+
+ag1 = first(domains_name_graph)[2]
+
+ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
+
 # get the node view of a single random vertex
-nodeview1 = vertex_attr(ag1)[1]
+nodeview1 = vertex_attr(ibnag1)[1]
 dagnodeid1 = UUID(1)
 
-# router port LLI
+# # router port LLI
 rplli1 = MINDF.RouterPortLLI(1, 2)
-
 @test MINDF.canreserve(MINDF.getrouterview(nodeview1), rplli1)
 @test MINDF.reserve!(MINDF.getrouterview(nodeview1), dagnodeid1, rplli1)
 # test router reservations
