@@ -1,11 +1,3 @@
-# function default_linecards() 
-#     return [LineCardView(10, 100, 26.72), LineCardView(2, 400, 29.36), LineCardView(1, 1000, 31.99)]
-# end
-
-# function default_linecardchassis() 
-#     return [LineCardChassisView(Vector{LineCardView}(), 4.7, 16)]
-# end
-
 function default_dummyflexibletransponder()
     return TransmissionModuleView(
         TransmissionModuleDummy(),

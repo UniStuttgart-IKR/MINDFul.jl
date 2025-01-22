@@ -36,7 +36,7 @@ end
 
 "$(TYPEDSIGNATURES)"
 function getport_adddrop(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
-    return oxcswitchentry.port_adddrop
+    return oxcswitchentry.adddropport
 end
 
 "$(TYPEDSIGNATURES)"
