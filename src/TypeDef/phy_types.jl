@@ -118,9 +118,9 @@ $(TYPEDFIELDS)
 """
 struct TransmissionMode
     "Optical reach in kilometers"
-    opticalreach::Float64
+    opticalreach::KMf
     "rate in Gbps"
-    rate::Float64
+    rate::GBPSf
     "Number of 12.5 GHz frequency slots needed"
     spectrumslotsneeded::Int
 end
@@ -219,12 +219,15 @@ struct EdgeProperties
     "The overall spectrum slot number (assumed 12.5GHz)"
     spectrumslots::Int
     "The distance of the edge (assumed km)"
-    distance::Float64
+    distance::KMf
+end
+
+function constructfromdict(_::Type{EdgeProperties}, dict::Dict{Symbol})
+    return EdgeProperties(dict[:spectrumslots], KMf(dict[:distance]))
 end
 
 """
 $(TYPEDEF)
-
 $(TYPEDFIELDS)
 
 The view of the current edge settings

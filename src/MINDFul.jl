@@ -5,6 +5,7 @@ using EnumX
 using UUIDs
 using Graphs
 using DataStructures
+using Unitful, UnitfulData
 
 import AttributeGraphs as AG
 import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr

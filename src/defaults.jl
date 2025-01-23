@@ -3,12 +3,12 @@ function default_dummyflexibletransponder()
         TransmissionModuleDummy(),
         "DummyFlexibleTransponder",
         [
-            TransmissionMode(5080.0, 300, 8),
-            TransmissionMode(4400.0, 400, 8),
-            TransmissionMode(2800.0, 500, 8),
-            TransmissionMode(1200.0, 600, 8),
-            TransmissionMode(700.0, 700, 10),
-            TransmissionMode(400.0, 800, 10)
+            TransmissionMode(u"5080.0km", u"300.0Gbps", 8),
+            TransmissionMode(u"4400.0km", u"400.0Gbps", 8),
+            TransmissionMode(u"2800.0km", u"500.0Gbps", 8),
+            TransmissionMode(u"1200.0km", u"600.0Gbps", 8),
+            TransmissionMode(u"700.0km", u"700.0Gbps", 10),
+            TransmissionMode(u"400.0km", u"800.0Gbps", 10)
         ],
         20.0)
 end
@@ -18,10 +18,10 @@ function default_dummyflexiblepluggable()
         TransmissionModuleDummy(),
         "DummyFlexiblePluggables",
         [
-            TransmissionMode(5840.0, 100, 4),
-            TransmissionMode(2880.0, 200, 6),
-            TransmissionMode(1600.0, 300, 6),
-            TransmissionMode(480.0, 400, 6)
+            TransmissionMode(u"5840.0km", u"100.0Gbps", 4),
+            TransmissionMode(u"2880.0km", u"200.0Gbps", 6),
+            TransmissionMode(u"1600.0km", u"300.0Gbps", 6),
+            TransmissionMode(u"480.0km", u"400.0Gbps", 6)
         ],
         8.0)
 end

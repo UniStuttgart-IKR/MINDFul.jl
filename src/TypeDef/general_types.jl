@@ -26,3 +26,6 @@ struct GlobalNode
     "Node number"
     node::LocalNode
 end
+
+const KMf= typeof(u"1.0km")
+const GBPSf= typeof(u"1.0Gbps")

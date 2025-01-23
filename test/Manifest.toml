@@ -2,7 +2,7 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "03bf5d1c4f92479f2f722a4d0302d3fadae9b987"
+project_hash = "4a00750938adf5a468b9c20306eb692b71e0df75"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -157,7 +157,7 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
 [[deps.MINDFul]]
-deps = ["AttributeGraphs", "DataStructures", "DocStringExtensions", "EnumX", "Graphs", "IterTools", "UUIDs"]
+deps = ["AttributeGraphs", "DataStructures", "DocStringExtensions", "EnumX", "Graphs", "IterTools", "UUIDs", "Unitful", "UnitfulData"]
 path = ".."
 uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
 version = "0.2.2"
@@ -323,6 +323,26 @@ version = "1.11.0"
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 version = "1.11.0"
+
+[[deps.Unitful]]
+deps = ["Dates", "LinearAlgebra", "Random"]
+git-tree-sha1 = "c0667a8e676c53d390a09dc6870b3d8d6650e2bf"
+uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
+version = "1.22.0"
+
+    [deps.Unitful.extensions]
+    ConstructionBaseUnitfulExt = "ConstructionBase"
+    InverseFunctionsUnitfulExt = "InverseFunctions"
+
+    [deps.Unitful.weakdeps]
+    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
+
+[[deps.UnitfulData]]
+deps = ["Unitful"]
+git-tree-sha1 = "801ea94a33134590d51f2ebca50cbaa8f7ed4e70"
+uuid = "479269fd-87c4-43d6-a395-02aad47d928b"
+version = "0.6.4"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
