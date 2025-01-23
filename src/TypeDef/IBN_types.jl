@@ -1,6 +1,7 @@
 """
 $(TYPEDEF)
-All possible intent states
+All possible default intent states.
+Another intent state schema could be defined.
 """
 @enumx IntentState begin
     Uncompiled
@@ -10,6 +11,9 @@ All possible intent states
     Installed
 end
 
+"Instances of this specify how to compile the intent"
+abstract type IntentCompilationAlgorithm end
+
 """
 $(TYPEDEF)
 
@@ -17,8 +21,11 @@ $(TYPEDFIELDS)
 
 Stores a vector of the history of the intent states and their timings
 """
-struct IntentLogState
-    logstate::Vector{Tuple{HRf, IntentState.T}}
+struct IntentLogState{S<:Enum{Int32}}
+    """
+    The chronological log in hours and states
+    """
+    logstate::Vector{Tuple{HRf, S}}
 end
 
 """

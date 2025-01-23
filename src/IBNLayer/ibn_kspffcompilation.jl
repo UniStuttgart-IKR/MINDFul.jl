@@ -1,0 +1,1 @@
+struct KShorestPathFirstFitCompilation <: IntentCompilationAlgorithm end
