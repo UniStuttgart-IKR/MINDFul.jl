@@ -4,7 +4,9 @@ All possible intent states
 """
 @enumx IntentState begin
     Uncompiled
+    Compiling
     Compiled
+    Installing
     Installed
 end
 
@@ -16,14 +18,16 @@ $(TYPEDFIELDS)
 Stores a vector of the history of the intent states and their timings
 """
 struct IntentLogState
-    logstate::Vector{Tuple{Float64, IntentState.T}}
+    logstate::Vector{Tuple{HRf, IntentState.T}}
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function IntentLogState()
-    return Vector{Tuple{Float64, IntentState.T}}()
+function IntentLogState(intentstate::IntentState.T=IntentState.Uncompiled)
+    return IntentLogState(
+        [(HRf(0.0), intentstate)]
+    )
 end
 
 """
@@ -52,7 +56,7 @@ struct IBNIssuer <: IntentIssuer
     "the id of the `IBNF` issued the intent"
     ibnfid::UUID
     "The id of the intent node in the DAG. The issuer of this intent node points back in this `IBNIssuer` instance."
-    dagnodeid::UUID
+    idagnodeid::UUID
 end
 
 
@@ -65,7 +69,7 @@ struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
     "The intent itself"
     intent::I
     """The id of the intent w.r.t. the intent DAG it belongs"""
-    dagnodeid::UUID
+    idagnodeid::UUID
     """The intent issuer"""
     intentissuer::II
     """The history of states of the intent with the last being the current state"""
@@ -85,7 +89,7 @@ function IntentDAGInfo()
     return IntentDAGInfo(0)
 end
 
-const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Missing, IntentDAGInfo}
+const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Nothing, IntentDAGInfo}
 
 """
 $(TYPEDFIELDS)
@@ -96,7 +100,7 @@ struct ConnectivityIntent <: AbstractIntent
     "Destination node"
     destinationnode::GlobalNode
     "Bandwidth request value (Gbps)"
-    rate::Float64
+    rate::GBPSf
 end
 
 """

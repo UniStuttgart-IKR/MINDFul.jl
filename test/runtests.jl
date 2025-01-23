@@ -3,6 +3,7 @@ using MINDFul, Test
 using Graphs 
 import AttributeGraphs as AG
 using JLD2, UUIDs
+using Unitful, UnitfulData
 
 const MINDF = MINDFul
 
@@ -44,5 +45,15 @@ end
 
 # now test the intent workflow
 # reinitialize domain
+
+ibnf1 = MINDF.IBNFramework(ibnag1)
+conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 1), MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 2), u"100Gbps")
+MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
+# add second intent
+intentid2 = MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
+@test nv(MINDF.getintentdag(ibnf1)) == 2
+# remove second intent
+@test MINDF.removeintent!(ibnf1, intentid2)
+@test nv(MINDF.getintentdag(ibnf1)) == 1
 
 nothing
