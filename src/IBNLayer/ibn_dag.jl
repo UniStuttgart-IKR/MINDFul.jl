@@ -5,5 +5,5 @@ function getintentcounter(intentdag::IntentDAG)
 end
 
 function addchild(intentdag::IntentDAG, intent::AbstractIntent)
-
+    nothing
 end

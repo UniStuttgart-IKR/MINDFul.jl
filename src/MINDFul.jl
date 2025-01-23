@@ -17,5 +17,6 @@ include("io.jl")
 include("PhyLayer/PhyLayer.jl")
 include("SDNLayer/SDNLayer.jl")
 include("IBNLayer/IBNLayer.jl")
+include("defaults.jl")
 
 end

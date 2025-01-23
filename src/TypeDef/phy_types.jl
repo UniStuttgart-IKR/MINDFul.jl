@@ -243,14 +243,3 @@ function EdgeView(edgeproperties::EdgeProperties)
     return EdgeView(edgeproperties, fill(true, getspectrumslots(edgeproperties)))
 end
 
-const IBNAttributeGraph = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{NodeView}, Dict{Edge{LocalNode}, EdgeView}, Missing}
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function IBNAttributeGraph(ag::AttributeGraph{Int, SimpleDiGraph{Int}, Vector{Dict{Symbol, T}}, Dict{Edge{Int}, Dict{Symbol, R}}, Missing}) where {T<:Any ,R <: Any}
-    nodeviews = NodeView.(constructfromdict.(NodeProperties, vertex_attr(ag)))
-    edgeviews = Dict(k => EdgeView(constructfromdict(EdgeProperties, v)) for (k,v) in edge_attr(ag))
-    return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, missing)
-end
-

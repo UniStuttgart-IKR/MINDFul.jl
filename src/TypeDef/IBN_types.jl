@@ -117,6 +117,8 @@ struct IBNFrameworkHandler
     ibnfid::UUID
 end
 
+const IBNAttributeGraph = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{NodeView}, Dict{Edge{LocalNode}, EdgeView}, UUID}
+
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
@@ -132,6 +134,14 @@ struct IBNFramework{S<:AbstractSDNController}
     interIBNFs::Vector{IBNFrameworkHandler}
     "SDN controller handle"
     sdncontroller::S
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function IBNFramework(ibnag::IBNAttributeGraph)
+    ibnfid = AG.graph_attr(ibnag)
+    return IBNFramework(ibnfid, IntentDAG(), ibnag, IBNFrameworkHandler[], SDNdummy())
 end
 
 """

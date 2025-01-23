@@ -1,6 +1,7 @@
 using MINDFul: getoxcview
 using MINDFul, Test
-using Graphs, AttributeGraphs
+using Graphs 
+import AttributeGraphs as AG
 using JLD2, UUIDs
 
 const MINDF = MINDFul
@@ -15,7 +16,7 @@ ag1 = first(domains_name_graph)[2]
 ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
 
 # get the node view of a single random vertex
-nodeview1 = vertex_attr(ibnag1)[1]
+nodeview1 = AG.vertex_attr(ibnag1)[1]
 routerview1 = MINDF.getrouterview(nodeview1)
 oxcview1 = MINDF.getoxcview(nodeview1)
 dagnodeid1 = UUID(1)
@@ -38,10 +39,10 @@ for (reservableresource, lli) in zip([nodeview1, routerview1, oxcview1], [tmlli1
 end
 
 @test MINDF.reserve!(oxcview1, oxclli1, dagnodeid1; checkfirst=true)
-# @test MINDF.reserve!(oxcview1, MINDF.OXCAddDropBypassSpectrumLLI(1, 2, 0, 4, 2:4)
+@test !MINDF.reserve!(oxcview1, MINDF.OXCAddDropBypassSpectrumLLI(1, 2, 0, 4, 5:6), dagnodeid1; checkfirst=true)
+@test MINDF.reserve!(oxcview1, MINDF.OXCAddDropBypassSpectrumLLI(1, 2, 0, 4, 5:6), UUID(2); checkfirst=true)
 
-# # still remains to develop/test 
-# # - transmission modes
-# # - OXCSwitchReservationEntries for spectrum slots and nodes
+# now test the intent workflow
+# reinitialize domain
 
 nothing
