@@ -160,8 +160,21 @@ $(TYPEDSIGNATURES)
 """
 function Base.show(io::IO, ibnf::I) where {I<:IBNFramework}
         print(io, I, "(", getibnfid(ibnf))
-        print(io, ", IntentDAG(", nv(getintentdag(ibnf)), ", ", ne(getintentdag(ibnf)), ")")
+        print(io, ", IntentDAG(", nv(getidag(ibnf)), ", ", ne(getidag(ibnf)), ")")
         print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
         print(io, ", ", getibnfid.(getinteribnfs(ibnf)))
         print(io, ", ", typeof(getsdncontroller(ibnf)))
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Expresses an intent for a lightpath.
+Compilation should yield: 
+- source and destination port indices
+- transmissionmodule selection
+"""
+struct LightpathIntent <: AbstractIntent
+    path::Vector{LocalNode}
 end

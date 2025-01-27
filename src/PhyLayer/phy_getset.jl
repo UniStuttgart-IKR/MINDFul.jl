@@ -1,5 +1,13 @@
+function getname(s)
+    return s.name
+end
+
 function getdistance(s)
     return s.distance
+end
+
+function getdistance(s::EdgeView)
+    return getdistance(getproperties(s))
 end
 
 function getspectrumslots(s)
@@ -54,6 +62,7 @@ function getreservations(nodeview::NodeView)
     return nodeview.transmissionmodulereservations
 end
 
+
 "$(TYPEDSIGNATURES)"
 function getopticalreach(tm::TransmissionMode)
     return tm.opticalreach
@@ -62,46 +71,6 @@ end
 "$(TYPEDSIGNATURES)"
 function getrate(tm::TransmissionMode)
     return tm.rate
-end
-
-"$(TYPEDSIGNATURES)"
-function getspectrumslotsneeded(tm::TransmissionMode) 
-    return tm.spectrumslotsreq
-end
-
-"$(TYPEDSIGNATURES)"
-function getcost(tmd::TransmissionModuleDummy) 
-    return tmd.cost
-end
-
-"$(TYPEDSIGNATURES)"
-function gettransmodes(tmd::TransmissionModuleDummy) 
-    return tmd.transmodes
-end
-
-"$(TYPEDSIGNATURES)"
-function gettransmode(tmd::TransmissionModuleDummy) 
-    return gettransmodes(tmd)[tmd.selected]
-end
-
-"$(TYPEDSIGNATURES)"
-function getspectrumslotreq(tmd::TransmissionModuleDummy) 
-    return getspectrumslotreq(gettransmodes(tmd)[tmd.selected])
-end
-
-function getrate(tmd::TransmissionModuleDummy) 
-    return getrate(gettransmodes(tmd)[tmd.selected])
-end
-
-"$(TYPEDSIGNATURES)"
-function setselectedmode!(tmd::TransmissionModuleDummy, m::Int)
-    tmd.selected = m
-    return nothing
-end
-
-"$(TYPEDSIGNATURES)"
-function getname(s)
-    return s.name
 end
 
 "$(TYPEDSIGNATURES)"
@@ -127,6 +96,16 @@ function getnodeproperties(s::NodeView)
 end
 
 "$(TYPEDSIGNATURES)"
+function getproperties(s::NodeView)
+    return s.nodeproperties
+end
+
+"$(TYPEDSIGNATURES)"
+function getproperties(s::EdgeView)
+    return s.edgeproperties
+end
+
+"$(TYPEDSIGNATURES)"
 function getrouterview(s::NodeView)
     return s.routerview
 end
@@ -144,6 +123,35 @@ end
 "$(TYPEDSIGNATURES)"
 function gettransmissionmodulereservations(s::NodeView)
     return s.transmissionmodulereservations
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlatitude(np::NodeProperties)
+    return np.latitude
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlongitude(np::NodeProperties)
+    return np.longitude
+end
+
+"$(TYPEDSIGNATURES)"
+function getinneighbors(np::NodeProperties)
+    return np.inneighbors
+end
+
+"$(TYPEDSIGNATURES)"
+function getoutneighbors(np::NodeProperties)
+    return np.outneighbors
+end
+
+"$(TYPEDSIGNATURES)"
+function getlocalnode(np::NodeProperties)
+    return np.localnode
 end
 
 # TransmissionModuleReservationEntry 
@@ -166,3 +174,4 @@ end
 function getoxcadddropportindex(s::OXCAddDropBypassSpectrumLLI)
     return s.adddropport
 end
+

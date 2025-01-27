@@ -1,37 +1,32 @@
-using MINDFul
-using JLD2, AttributeGraphs, Graphs
-using UUIDs
+using MINDFul: getoxcview
+import MINDFulMakie as MINDFM
+using MINDFul, Test
+using Graphs 
+import AttributeGraphs as AG
+using JLD2, UUIDs
+using Unitful, UnitfulData
 
-const AG = AttributeGraphs
 const MINDF = MINDFul
 
-ag4nets = JLD2.load("./data/attributegraphs4nets.jld2")
+using GLMakie
 
-ag1 = MINDF.default_IBNAttributeGraph(ag4nets["ags"][1])
+## single domain 
 
-nodeview1 = vertex_attr(ag1)[1]
+# load data
+domains_name_graph = first(JLD2.load("data/itz_IowaStatewideFiberMap-itz_Missouri__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21).jld2"))[2]
 
-dagnodeid1 = UUID(1)
+ag1 = first(domains_name_graph)[2]
 
-transmissionmodulereservationentry1 = MINDF.TransmissionModuleReservationEntry(1, 1, 1, 1)
+ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
 
+ibnf1 = MINDF.IBNFramework(ibnag1)
 
-@show MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
+conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 4), MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 8), u"100Gbps")
+MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
 
-MINDF.reserve!(nodeview1, dagnodeid1, transmissionmodulereservationentry1)
+# plot
+# MINDFM.ibngraphplot(ibnag1; layout = x -> MINDFM.coordlayout(ibnag1), nlabels=repr.(Graphs.vertices(ibnag1)))
 
-@show !MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
-
-MINDF.unreserve!(nodeview1, dagnodeid1)
-
-@show MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
-
-MINDF.reserve!(nodeview1, dagnodeid1, transmissionmodulereservationentry1)
-
-# @show !MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
-# @code_warntype MINDF.canreserve(nodeview1, transmissionmodulereservationentry1)
-
-# create an IBNF
-ibnf1 = MINDF.IBNFramework(UUID(1), MINDF.IntentDAG(), ag1, MINDF.IBNFrameworkHandler[], MINDF.SDNdummy())
+MINDF.compileintent!(ibnf1, UUID(1), MINDF.KShorestPathFirstFitCompilation(10))
 
 nothing

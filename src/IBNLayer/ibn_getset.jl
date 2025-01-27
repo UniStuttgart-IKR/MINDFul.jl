@@ -10,7 +10,11 @@ function getibnfid(s)
     return s.ibnfid
 end
 
-function getintentdag(s::IBNFramework)
+function getnode(s)
+    return s.node
+end
+
+function getidag(s::IBNFramework)
     return s.intentdag
 end
 
@@ -36,4 +40,67 @@ end
 
 function getcurrentstate(intentlogstate::IntentLogState)
     return intentlogstate.logstate[end][2]
+end
+
+function getintent(idagnode::IntentDAGNode)
+    return idagnode.intent
+end
+
+function getsourcenode(conintent::ConnectivityIntent)
+    return conintent.sourcenode
+end
+
+function getdestinationnode(conintent::ConnectivityIntent)
+    return conintent.destinationnode
+end
+
+function getrate(conintent::ConnectivityIntent)
+    return conintent.rate
+end
+
+function getweights(ibnag::IBNAttributeGraph)
+    [ 
+    let
+        ed = Edge(v1, v2)
+        has_edge(ibnag, ed) ? getdistance(getedgeview(ibnag, ed)) : KMf(Inf)
+    end
+    for v1 in vertices(ibnag), v2 in vertices(ibnag) ]
+end
+
+function getedgeview(ibnag::IBNAttributeGraph, ed::Edge)
+    return AG.edge_attr(ibnag)[ed]
+end
+
+function getnodeview(ibnag::IBNAttributeGraph, node::LocalNode)
+    return AG.vertex_attr(ibnag)[node]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
+    reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))
+    allidx = eachindex(gettransmissionmoduleviewpool(nodeview))
+    # pick out all indices that are not reserved
+    return filter(!∈(reservedtransmoduleviewidx), allidx)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getfirstavailablerouterportindex(nodeview::NodeView)
+    return getfirstavailablerouterportindex(getrouterview(nodeview))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the first available router port index and `0` if non available.
+"""
+function getfirstavailablerouterportindex(routerview::RouterView)
+    reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
+    for routerportindex in 1:getportnumber(routerview)
+        routerportindex ∉ reservedrouterports && return routerportindex
+    end
+    return 0
 end

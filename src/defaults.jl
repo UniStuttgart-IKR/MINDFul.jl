@@ -43,17 +43,31 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function default_OXCview() 
-    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}())
+function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int) 
+    innei = getinneighbors(nodeproperties)
+    outnei = getoutneighbors(nodeproperties)
+    localnode = getlocalnode(nodeproperties)
+    edgs = Edge{LocalNode}[]
+    foreach(innei) do inn
+        push!(edgs, Edge(localnode, inn))
+        push!(edgs, Edge(inn, localnode))
+    end
+    foreach(outnei) do outn 
+        push!(edgs, Edge(localnode, outn))
+        push!(edgs, Edge(outn, localnode))
+    end
+    linkspectrumavailabilities = Dict(ed => fill(true, spectrumslots)  for ed in edgs)
+    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities)
 end
 
-function default_nodeview(nodeproperties::NodeProperties)
-    return NodeView(nodeproperties, default_routerview(), default_OXCview(), default_transmissionmodules())
+function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int)
+    return NodeView(nodeproperties, default_routerview(), default_OXCview(nodeproperties, spectrumslots), default_transmissionmodules())
 end
 
 function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol,Any}})
+    spectrumslots = AG.graph_attr(ag)[:spectrumslots]
     extrafielddict = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
-    nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict))
+    nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
     edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k,v) in edge_attr(ag))
     ibnfid = AG.graph_attr(ag)[:ibnfid]
     return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))

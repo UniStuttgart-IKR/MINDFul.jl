@@ -51,9 +51,9 @@ conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 1
 MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
 # add second intent
 intentid2 = MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
-@test nv(MINDF.getintentdag(ibnf1)) == 2
+@test nv(MINDF.getidag(ibnf1)) == 2
 # remove second intent
 @test MINDF.removeintent!(ibnf1, intentid2)
-@test nv(MINDF.getintentdag(ibnf1)) == 1
+@test nv(MINDF.getidag(ibnf1)) == 1
 
 nothing

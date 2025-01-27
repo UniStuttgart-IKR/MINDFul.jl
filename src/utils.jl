@@ -38,3 +38,15 @@ macro returniffalse(verbose, ex)
     end
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the element is `predicate` is satisfied  or `nothing` otherwise.
+"""
+function getfirst(predicate::Function, ar::AbstractArray)
+    for a in ar
+        predicate(a) && return a
+    end
+    return nothing
+end

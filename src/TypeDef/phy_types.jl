@@ -89,13 +89,9 @@ end
 
 """
 $(TYPEDEF)
+$(TYPEDFIELDS)
 
 A view of a OXC .
-It just has one switch.
-But logically we split it up to bypass, drop and add switch.
-The add/drop IO are not modeled.
-
-$(TYPEDFIELDS)
 """
 struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
     "the underlying OXC"
@@ -104,6 +100,12 @@ struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
     adddropportnumber::Int
     "The intent reservations together with the configuration"
     switchreservations::Dict{UUID, OXCAddDropBypassSpectrumLLI}
+    """
+    Link spectrum availability total view in sync with `switchreservations`.
+    A vector showing the availability of the spectrum slots. `true` for available and `false` for reserved.
+    The vector views should be the same with the ones on the opposite OXC view.
+    """
+    linkspectrumavailabilities::Dict{Edge{Int}, Vector{Bool}}
 end
 
 
@@ -156,9 +158,9 @@ struct NodeProperties
     latitude::Float64
     longitude::Float64
     "The list of neighbohrs coming in"
-    inneighbors::Vector{Int}
+    inneighbors::Vector{LocalNode}
     "The list of neighbohrs going out"
-    outneighbors::Vector{Int}
+    outneighbors::Vector{LocalNode}
 end
 
 function constructfromdict(_::Type{NodeProperties}, dict::Dict{Symbol}, dict2::Dict{Symbol})
@@ -216,14 +218,12 @@ $(TYPEDFIELDS)
 An immutable description of the edge properties
 """
 struct EdgeProperties
-    "The overall spectrum slot number (assumed 12.5GHz)"
-    spectrumslots::Int
     "The distance of the edge (assumed km)"
     distance::KMf
 end
 
 function constructfromdict(_::Type{EdgeProperties}, dict::Dict{Symbol})
-    return EdgeProperties(dict[:spectrumslots], KMf(dict[:distance]))
+    return EdgeProperties(KMf(dict[:distance]))
 end
 
 """
@@ -235,14 +235,6 @@ The view of the current edge settings
 struct EdgeView
     "The [`EdgeProperties`](@ref)"
     edgeproperties::EdgeProperties
-    "A vector showing the availability of the spectrum slots. `true` for available and `false` for reserved"
-    spectrumavailability::Vector{Bool}
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function EdgeView(edgeproperties::EdgeProperties) 
-    return EdgeView(edgeproperties, fill(true, getspectrumslots(edgeproperties)))
-end
 

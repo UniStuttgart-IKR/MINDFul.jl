@@ -102,16 +102,6 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function unreserve!(nodeview::NodeView, dagnodeid::UUID)
-    deletereservation!(getrouterview(nodeview), dagnodeid)
-    deletereservation!(getoxcview(nodeview), dagnodeid)
-    deletereservation!(nodeview, dagnodeid)
-    return true
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
 function newoxcentry_adddropallocation(port::Int, spectrumslotsrange::UnitRange{Int} = 0:0)
     return OXCAddDropBypassSpectrumLLI(0, port, 0, spectrumslotsrange)
 end
@@ -125,9 +115,47 @@ function isadddropportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
     return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry)) 
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function isreservationvalid(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI, verbose::Bool=true)
     @returniffalse(verbose,  !(!iszero(getlocalnode_input(oxcswitchreservationentry)) && !iszero(getport_adddrop(oxcswitchreservationentry)) && !iszero(getlocalnode_output(oxcswitchreservationentry))) )
     spectrumslotsrange = getspectrumslotsrange(oxcswitchreservationentry)   
     @returniffalse(verbose,  spectrumslotsrange.start >= 0 && spectrumslotsrange.stop >= 0)
     return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function aretransmissionmodulescompatible(tmv1::TransmissionModuleView, tmv2::TransmissionModuleView)
+    return getname(tmv1) == getname(tmv2)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Checks if the transmission module can get deployed for the given demand rate and distance
+"""
+function istransmissionmoduleappropriate(transmissionmoduleview::TransmissionModuleView, demandrate::GBPSf, demanddistance::KMf)
+    for transmode in gettransmissionmodes(transmissionmoduleview)
+        getopticalreach(mode) > demanddistance && getrate(transmode) >= demandrate && return true
+    end
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the index with the lowest GBPS rate that can get deployed for the given demand rate and distance.
+If non is find return `0`.
+"""
+function getlowestratetransmissionmode(transmissionmoduleview::TransmissionModuleView, demandrate::GBPSf, demanddistance::KMf)
+    transmodes = gettransmissionmodes(transmissionmoduleview)
+    sps = sortperm(transmodes; by = getrate)
+    for sp in sps
+        transmode = transmodes[sp]
+        getopticalreach(transmode) > demanddistance && getrate(transmode) >= demandrate && return sp
+    end
+    return 0
 end

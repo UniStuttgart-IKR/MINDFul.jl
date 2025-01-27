@@ -4,7 +4,7 @@ $(TYPEDSIGNATURES)
 Add a new user intent to the IBN framework.
 """
 function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
-    intentdag = getintentdag(ibnf)
+    intentdag = getidag(ibnf)
     addidagnode!(intentdag, intent; intentissuer)
 end
 
@@ -12,7 +12,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function removeintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    intentdag = getintentdag(ibnf)
+    intentdag = getidag(ibnf)
     intentdagstate = getidagnodestate(intentdag, idagnodeid)
     @returniffalse(verbose, intentdagstate == IntentState.Uncompiled)
     return removeidagnode!(intentdag, idagnodeid)
@@ -21,13 +21,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function compileintent!(ibnf::IBNFramework, idagnodeid::UUID)
+function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm)
+    intent = getidagnode(getidag(ibnf), UUID(1))
+    return compileintent!(ibnf, intent, algorithm)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function decompileintent!(ibnf::IBNFramework, idagnodeid::UUID)
+function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID)
 end
 
 """
