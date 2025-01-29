@@ -1,8 +1,28 @@
 # general behavior
+
+"""
+$(TYPEDSIGNATURES)
+
+Implement this function to do custom actions per specific `ReservableResourceView`
+"""
+function insertreservationhook!(resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool=false)
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Implement this function to do custom actions per specific `ReservableResourceView`
+"""
+function deletereservationhook!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool=false)
+    return true
+end
+
 """
 $(TYPEDSIGNATURES)
 """
 function insertreservation!(resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool=false)
+    insertreservationhook!(resourceview, dagnodeid, reservationdescription; verbose) || return false
     reservationsdict = getreservations(resourceview)
     @returniffalse(verbose, !haskey(reservationsdict, dagnodeid))
     reservationsdict[dagnodeid] = reservationdescription
@@ -12,13 +32,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function deletereservation!(resourceview::ReservableResourceView, dagnodeid::UUID)
+function deletereservation!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose)
+    deletereservationhook!(resourceview, dagnodeid; verbose) || return false
     reservationsdict = getreservations(resourceview)
     delete!(reservationsdict, dagnodeid)
 end
 
 """
 $(TYPEDSIGNATURES)
+TODO: put reservations on the OXC edges
 """
 function reserve!(resourceview::ReservableResourceView, lowlevelintent::LowLevelIntent, dagnodeid::UUID; checkfirst::Bool=false, verbose::Bool=false)
     checkfirst && !canreserve(resourceview, lowlevelintent; verbose) && return false
@@ -28,8 +50,8 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function unreserve!(resourceview::ReservableResourceView, dagnodeid::UUID)
-    deletereservation!(resourceview, dagnodeid)
+function unreserve!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool=false)
+    deletereservation!(resourceview, dagnodeid; verbose)
     return true
 end
 
@@ -48,6 +70,23 @@ function canreserve(routerview::RouterView, routerportlli::RouterPortLLI; verbos
     # router port in use?
     @returniffalse(verbose, getrouterportindex(routerportlli) ∉ getrouterportindex.(values(getreservations(routerview))) )
     return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function insertreservationhook!(oxcview::OXCView, dagnodeid::UUID, reservationdescription::OXCAddDropBypassSpectrumLLI; verbose::Bool=false)
+    return setoxcviewlinkavailabilities!(oxcview, reservationdescription, false; verbose)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function deletereservationhook!(oxcview::OXCView, dagnodeid::UUID; verbose::Bool=false)
+    switchreservations = getreservations(oxcview)
+    @returniffalse(verbose, haskey(switchreservations, dagnodeid))
+    reservationdescription = switchreservations[dagnodeid] 
+    return setoxcviewlinkavailabilities!(oxcview, reservationdescription, true; verbose)
 end
 
 
@@ -158,4 +197,29 @@ function getlowestratetransmissionmode(transmissionmoduleview::TransmissionModul
         getopticalreach(transmode) > demanddistance && getrate(transmode) >= demandrate && return sp
     end
     return 0
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Set the link spectrum availabilities of the `oxcview` based on the OXC low level intent to `setflags`
+"""
+function setoxcviewlinkavailabilities!(oxcview::OXCView, oxcadddropbypassspectrumlli::OXCAddDropBypassSpectrumLLI, setflag::Bool; verbose::Bool = false)
+    localnode = getlocalnode(oxcadddropbypassspectrumlli)
+    localnode_input = getlocalnode_input(oxcadddropbypassspectrumlli)
+    localnode_output = getlocalnode_output(oxcadddropbypassspectrumlli)
+    spectrumslotsrange = getspectrumslotsrange(oxcadddropbypassspectrumlli)
+    linkspectrumavailabilities = getlinkspectrumavailabilities(oxcview)
+    if !iszero(localnode_input)
+        ed = Edge(localnode_input, localnode)
+        @returniffalse(verbose, haskey(linkspectrumavailabilities, ed))
+        linkspectrumavailabilities[ed][spectrumslotsrange] .= setflag
+    end
+    if !iszero(localnode_output)
+        ed = Edge(localnode, localnode_output)
+        @returniffalse(verbose, haskey(linkspectrumavailabilities, ed))
+        linkspectrumavailabilities[ed][spectrumslotsrange] .= setflag
+    end
+    return true
 end

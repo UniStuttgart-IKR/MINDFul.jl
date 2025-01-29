@@ -70,5 +70,6 @@ function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int
     nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
     edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k,v) in edge_attr(ag))
     ibnfid = AG.graph_attr(ag)[:ibnfid]
-    return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
+    # return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
+    return AG.AttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
 end

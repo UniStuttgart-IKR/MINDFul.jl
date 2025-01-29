@@ -6,7 +6,7 @@ $(TYPEDFIELDS)
 """
 struct TransmissionModuleLLI <: LowLevelIntent
     "Target node"
-    node::LocalNode
+    localnode::LocalNode
     "The index of the transmission module pool to be reserved"
     transmissionmoduleviewpoolindex::Int
     "The selected mode of the transmission module. `0` means nothing is still selected. Non elastic modules can have only `1`."
@@ -19,7 +19,7 @@ $(TYPEDFIELDS)
 """
 struct RouterPortLLI <: LowLevelIntent
     "Target node"
-    node::LocalNode
+    localnode::LocalNode
     "The router port index to be reserved"
     routerportindex::Int
 end
@@ -37,7 +37,7 @@ At least one of the 3 elements must be `0`.
 """
 struct OXCAddDropBypassSpectrumLLI <: LowLevelIntent
     "Target node"
-    node::LocalNode
+    localnode::LocalNode
     "The node in graph entering the OXC (or `0` if invalid)"
     localnode_input::LocalNode
     "The port index adding or dropping an optical signal (or `0` if invalid)"

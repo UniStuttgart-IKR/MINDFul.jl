@@ -37,6 +37,13 @@ function getadddropportnumber(oxcview::OXCView)
     return oxcview.adddropportnumber
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlinkspectrumavailabilities(oxcview::OXCView)
+    oxcview.linkspectrumavailabilities
+end
+
 "$(TYPEDSIGNATURES)"
 function getlocalnode_input(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchreservationentry.localnode_input
@@ -150,8 +157,8 @@ function getoutneighbors(np::NodeProperties)
 end
 
 "$(TYPEDSIGNATURES)"
-function getlocalnode(np::NodeProperties)
-    return np.localnode
+function getlocalnode(s)
+    return s.localnode
 end
 
 # TransmissionModuleReservationEntry 

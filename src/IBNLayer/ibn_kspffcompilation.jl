@@ -19,7 +19,6 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{Connectivity
 
     # intra-domain 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
-        # TODO ustrip should leave
         sourcelocalnode = getnode(sourceglobalnode)
         destlocalnode = getnode(destinationglobalnode)
         yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
@@ -57,6 +56,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{Connectivity
                                 return true
 
                                 # find spectrum slots
+                                # get link availabilities
                             end
                         end
                     end

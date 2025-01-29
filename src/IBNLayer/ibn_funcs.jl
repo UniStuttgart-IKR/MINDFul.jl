@@ -43,3 +43,42 @@ $(TYPEDSIGNATURES)
 """
 function uninstallintent!(ibnfid::IBNFramework, idagnodeid::UUID)
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Get spectrum availabilities along a `path` of nodes
+"""
+function getpathspectrumavailabilities(ibnf::IBNFramework, localnodespath::Vector{LocalNode})
+    nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Get the spectrum availability slots vector for `edge`
+"""
+function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst::Bool=true)
+    nodeviews = AG.vertex_attr(getibnag(ibnf))
+    if checkfirst
+        @assert(
+            getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge] ==
+            getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
+        )
+    end
+    return getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Get the spectrum availability slots vector for `edge`
+"""
+function getfiberspectrumavailabilities2(ibnf, edge::Edge{LocalNode}, c::Int; checkfirst::Bool=true)
+    nodeviews = AG.vertex_attr(getibnag(ibnf))
+    if c == 1
+        return getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
+    elseif c ==2 
+        return getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
+    end
+end

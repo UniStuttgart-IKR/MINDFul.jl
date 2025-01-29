@@ -128,19 +128,24 @@ struct IBNFrameworkHandler
     ibnfid::UUID
 end
 
-const IBNAttributeGraph = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{NodeView}, Dict{Edge{LocalNode}, EdgeView}, UUID}
+"""
+    The graph of the IBN Framework is expressed with this `AttributeGraph`.
+    Border nodes are assumed to be visible from both sides.
+    However only the official owner can issue an intent.
+"""
+const IBNAttributeGraph{T} = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{T}, Dict{Edge{LocalNode}, EdgeView}, UUID} where {T<:NodeView}
 
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{S<:AbstractSDNController}
+struct IBNFramework{S<:AbstractSDNController, T<:IBNAttributeGraph}
     "The id of this IBN Framework instance"
     ibnfid::UUID
     "The intent dag tree that contains all intents (can be disconnected graph)"
     intentdag::IntentDAG
     "Single-domain internal graph with border nodes included"
-    ibnag::IBNAttributeGraph
+    ibnag::T
     "Other IBN Frameworks handles"
     interIBNFs::Vector{IBNFrameworkHandler}
     "SDN controller handle"
@@ -150,7 +155,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 """
-function IBNFramework(ibnag::IBNAttributeGraph)
+function IBNFramework(ibnag::T) where {T<:IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
     return IBNFramework(ibnfid, IntentDAG(), ibnag, IBNFrameworkHandler[], SDNdummy())
 end
