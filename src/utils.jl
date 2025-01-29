@@ -50,3 +50,7 @@ function getfirst(predicate::Function, ar::AbstractArray)
     end
     return nothing
 end
+
+function edgeify(path::Vector{Int})
+    return Edge.(path[1:end-1], path[2:end])
+end
