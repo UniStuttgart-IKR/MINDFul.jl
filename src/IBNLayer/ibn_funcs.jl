@@ -23,7 +23,8 @@ $(TYPEDSIGNATURES)
 """
 function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm)
     intent = getidagnode(getidag(ibnf), UUID(1))
-    return compileintent!(ibnf, intent, algorithm)
+    compileintent!(ibnf, intent, algorithm)
+    updateidagstates!(getidag(ibnf), idagnodeid)
 end
 
 """
@@ -70,4 +71,35 @@ function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst:
     return getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the transmission mode
+"""
+function gettransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode{TransmissionModuleLLI})
+    idagnodeid = getidagnodeid(idagnode)
+    intent = getintent(idagnode)
+    localnode = getlocalnode(intent)
+    nodeview = getnodeview(getibnag(ibnf), localnode)
+    transmissionmodesindex = gettransmissionmodesindex(intent)
+    transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(intent)
+    reservedtransmissionmodule = gettransmissionmoduleviewpool(nodeview)[transmissionmoduleviewpoolindex]
+    return gettransmissionmode(reservedtransmissionmodule, transmissionmodesindex)
+end
 
+"""
+$(TYPEDSIGNATURES)
+Get the reserved transmission mode
+"""
+function getreservedtransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode{TransmissionModuleLLI}; verbose::Bool = false)
+    idagnodeid = getidagnodeid(idagnode)
+    intent = getintent(idagnode)
+    localnode = getlocalnode(intent)
+    nodeview = getnodeview(getibnag(ibnf), localnode)
+    transmissionmodulereservations = getreservations(nodeview)
+    @returniffalse(verbose, haskey(transmissionmodulereservations, idagnodeid))
+    @returniffalse(verbose, transmissionmodulereservations[idagnodeid] == intent)
+    transmissionmodesindex = gettransmissionmodesindex(intent)
+    transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(intent)
+    reservedtransmissionmodule = gettransmissionmoduleviewpool(nodeview)[transmissionmoduleviewpoolindex]
+    return gettransmissionmode(reservedtransmissionmodule, transmissionmodesindex)
+end

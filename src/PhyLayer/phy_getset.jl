@@ -81,6 +81,11 @@ function getrate(tm::TransmissionMode)
 end
 
 "$(TYPEDSIGNATURES)"
+function getspectrumslotsneeded(tm::TransmissionMode)
+    return tm.spectrumslotsneeded
+end
+
+"$(TYPEDSIGNATURES)"
 function getcost(s)
     return s.cost
 end
@@ -94,6 +99,11 @@ end
 "$(TYPEDSIGNATURES)"
 function gettransmissionmodes(s::TransmissionModuleView)
     return s.transmissionmodes
+end
+
+"$(TYPEDSIGNATURES)"
+function gettransmissionmode(s::TransmissionModuleView, transmissionmodeidx::Int)
+    return gettransmissionmodes(s)[transmissionmodeidx]
 end
 
 # NodeView

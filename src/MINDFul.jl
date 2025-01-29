@@ -7,6 +7,8 @@ using Graphs
 using DataStructures
 using Unitful, UnitfulData
 
+import Dates: DateTime, now
+
 import AttributeGraphs as AG
 import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 
@@ -18,6 +20,7 @@ include("io.jl")
 include("PhyLayer/PhyLayer.jl")
 include("SDNLayer/SDNLayer.jl")
 include("IBNLayer/IBNLayer.jl")
+include("satisfy.jl")
 include("defaults.jl")
 
 end

@@ -187,7 +187,7 @@ end
 $(TYPEDSIGNATURES)
 
 Return the index with the lowest GBPS rate that can get deployed for the given demand rate and distance.
-If non is find return `0`.
+If non is find return `nothing`.
 """
 function getlowestratetransmissionmode(transmissionmoduleview::TransmissionModuleView, demandrate::GBPSf, demanddistance::KMf)
     transmodes = gettransmissionmodes(transmissionmoduleview)
@@ -196,7 +196,7 @@ function getlowestratetransmissionmode(transmissionmoduleview::TransmissionModul
         transmode = transmodes[sp]
         getopticalreach(transmode) > demanddistance && getrate(transmode) >= demandrate && return sp
     end
-    return 0
+    return nothing
 end
 
 
@@ -222,4 +222,72 @@ function setoxcviewlinkavailabilities!(oxcview::OXCView, oxcadddropbypassspectru
         linkspectrumavailabilities[ed][spectrumslotsrange] .= setflag
     end
     return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
+    reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))
+    allidx = eachindex(gettransmissionmoduleviewpool(nodeview))
+    # pick out all indices that are not reserved
+    return filter(!∈(reservedtransmoduleviewidx), allidx)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getfirstavailablerouterportindex(nodeview::NodeView)
+    return getfirstavailablerouterportindex(getrouterview(nodeview))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the first available router port index and `nothing` if non available.
+"""
+function getfirstavailablerouterportindex(routerview::RouterView)
+    reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
+    for routerportindex in 1:getportnumber(routerview)
+        routerportindex ∉ reservedrouterports && return routerportindex
+    end
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getfirstavailableoxcadddropport(nodeview::NodeView)
+    return getfirstavailableoxcadddropport(getoxcview(nodeview))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the first available oxc add/drop port and `nothing` if none found
+"""
+function getfirstavailableoxcadddropport(oxcview::OXCView)
+    reservedoxcadddropports = getadddropportnumber.(values(getreservations(oxcview)))
+    for adddropport in 1:getadddropportnumber(oxcview)
+        adddropport ∉ reservedoxcadddropports && return adddropport
+    end
+    return nothing
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, sourceadddropport::Int, destadddropport::Int, spectrumslotsrange::UnitRange{Int})
+    oxcadddropbypassspectrumllis = OXCAddDropBypassSpectrumLLI[]
+    for idx in eachindex(path)
+        if idx == 1
+            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], 0, sourceadddropport, path[idx+1], spectrumslotsrange))
+        elseif idx == length(path)
+            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx-1], destadddropport, 0, spectrumslotsrange))
+        else
+            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx-1], 0, path[idx+1], spectrumslotsrange))
+        end
+    end
+    return oxcadddropbypassspectrumllis
 end

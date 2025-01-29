@@ -51,6 +51,31 @@ function getfirst(predicate::Function, ar::AbstractArray)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function edgeify(path::Vector{Int})
     return Edge.(path[1:end-1], path[2:end])
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Finds first contiguous slot range of length `lengthrequire` that satisfies the `boolvec`.
+Return the starting index of the range or `nothing` if none available
+"""
+function firstfit(boolvec::AbstractVector{Bool}, lenghrequire::Int)
+    satisfyingslots = 0
+    for (i, slotssatisfies) in enumerate(boolvec)
+        if slotssatisfies
+            satisfyingslots += 1
+            if satisfyingslots == lenghrequire
+                return i-satisfyingslots+1
+            end
+        else
+            satisfyingslots = 0
+        end
+    end
+    return nothing
+end
+

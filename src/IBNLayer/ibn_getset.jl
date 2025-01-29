@@ -79,32 +79,3 @@ function getnodeview(ibnf::IBNFramework, node::LocalNode)
     return AG.vertex_attr(getibnag(ibnf))[node]
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
-    reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))
-    allidx = eachindex(gettransmissionmoduleviewpool(nodeview))
-    # pick out all indices that are not reserved
-    return filter(!∈(reservedtransmoduleviewidx), allidx)
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getfirstavailablerouterportindex(nodeview::NodeView)
-    return getfirstavailablerouterportindex(getrouterview(nodeview))
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Return the first available router port index and `0` if non available.
-"""
-function getfirstavailablerouterportindex(routerview::RouterView)
-    reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
-    for routerportindex in 1:getportnumber(routerview)
-        routerportindex ∉ reservedrouterports && return routerportindex
-    end
-    return 0
-end

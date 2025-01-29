@@ -25,7 +25,7 @@ struct IntentLogState{S<:Enum{Int32}}
     """
     The chronological log in hours and states
     """
-    logstate::Vector{Tuple{HRf, S}}
+    logstate::Vector{Tuple{DateTime, S}}
 end
 
 """
@@ -33,7 +33,7 @@ $(TYPEDSIGNATURES)
 """
 function IntentLogState(intentstate::IntentState.T=IntentState.Uncompiled)
     return IntentLogState(
-        [(HRf(0.0), intentstate)]
+        [(now(), intentstate)]
     )
 end
 

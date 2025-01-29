@@ -24,7 +24,7 @@ struct GlobalNode
     "IBN Framework id"
     ibnfid::UUID
     "Node number"
-    node::LocalNode
+    localnode::LocalNode
 end
 
 const KMf= typeof(u"1.0km")
