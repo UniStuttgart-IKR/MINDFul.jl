@@ -78,6 +78,14 @@ Get the transmission mode
 function gettransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode{TransmissionModuleLLI})
     idagnodeid = getidagnodeid(idagnode)
     intent = getintent(idagnode)
+    return gettransmissionmode(ibng, intent)
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get the transmission mode
+"""
+function gettransmissionmode(ibnf::IBNFramework, intent::TransmissionModuleLLI)
     localnode = getlocalnode(intent)
     nodeview = getnodeview(getibnag(ibnf), localnode)
     transmissionmodesindex = gettransmissionmodesindex(intent)

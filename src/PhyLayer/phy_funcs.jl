@@ -148,10 +148,19 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Checks if this reservation only reserves the add/drop port, i.e., it's (0, x, 0).
+Checks if this reservation reserves the add port, i.e., it's (0, x, y).
 """
-function isadddropportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
-    return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry)) 
+function isaddportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
+    return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && !iszero(getlocalnode_output(oxcswitchentry)) 
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Checks if this reservation reserves the drop port, i.e., it's (x, y, 0).
+"""
+function isdropportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
+    return !iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry)) 
 end
 
 """

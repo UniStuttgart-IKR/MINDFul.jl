@@ -9,7 +9,7 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{ConnectivityInt
 
     # get all LLIs
     llis = getintent.(getidagnodellis(idag))
-    orderedlliidxs = Int[]
+    orderedllis = empty(llis)
     istotalsatisfied = true
 
     conintent = getintent(idagnode)
@@ -22,32 +22,45 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{ConnectivityInt
     end
 
     if !isnothing(lliidx1)
-        push!(orderedlliidxs, lliidx1)
+        push!(orderedllis, popat!(llis, lliidx1))
         # continue to the second and so on...
 
-        while length(orderedlliidxs) < length(llis) && istotalsatisfied
-            let lastlli = llis[end]
+        while !isempty(llis) && istotalsatisfied
+            let lastlli = orderedllis[end]
                 if lastlli isa RouterPortLLI
                     nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
                     if isnothing(nextlliidx)
                         istotalsatisfied = false
+                    else
+                        push!(orderedllis, popat!(llis, nextlliidx))
                     end
                 elseif lastlli isa TransmissionModuleLLI
-                    istotalsatisfied = false
+                    nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
+                    if isnothing(nextlliidx)
+                        istotalsatisfied = false
+                    else
+                        push!(orderedllis, popat!(llis, nextlliidx))
+                    end
                 elseif lastlli isa OXCAddDropBypassSpectrumLLI
-                    istotalsatisfied = false
+                    nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
+                    if isnothing(nextlliidx)
+                        istotalsatisfied = false
+                    else
+                        push!(orderedllis, popat!(llis, nextlliidx))
+                    end
                 end
             end
         end
     else
         istotalsatisfied = false
     end
-    @show orderedlliidxs
+
+    let lastlli = orderedllis[end]
+        if !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
+            istotalsatisfied = false
+        end
+    end
     return istotalsatisfied
-end
-
-function orderllis!(orderedllis, llis, )
-
 end
 
 """
@@ -58,16 +71,61 @@ such that the `conintent` is satisfied.
 Return `nothing` if no logical next is found.
 """
 function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis, rplli::RouterPortLLI; verbose::Bool = false)
-    # searches for TransmissionModuleLLI
     lli_idx = findfirst(llis) do lli
-        @returniffalse(verbose, lli isa TransmissionModuleLLI)
-        # RouterPortLLI && lli.localnode = sourcenode
-
+        lli isa TransmissionModuleLLI || return false
         getlocalnode(lli) == getlocalnode(rplli) || return false
         transmissionmode = gettransmissionmode(ibnf, lli)
         getrate(transmissionmode) > getrate(conintent) || return false
         return true
     end
+    return lli_idx
+end
 
+"""
+$(TYPEDSIGNATURES)
+
+Return the next logical low level intent index from `llis` given that now signal is positioned in `TransmissionModuleLLI`
+such that the `conintent` is satisfied.
+Return `nothing` if no logical next is found.
+"""
+function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis, tmlli::TransmissionModuleLLI; verbose::Bool = false)
+    lli_idx = findfirst(llis) do lli
+        if lli isa RouterPortLLI
+            getlocalnode(lli) == getlocalnode(tmlli) || return false
+            return true
+        elseif lli isa OXCAddDropBypassSpectrumLLI
+            getlocalnode(lli) == getlocalnode(tmlli) || return false
+            isaddportallocation(lli) || return false
+            transmissionmode = gettransmissionmode(ibnf, tmlli)
+            length(getspectrumslotsrange(lli)) == getspectrumslotsneeded(transmissionmode) || return false
+            return true
+        end
+        return false
+    end
+    return lli_idx
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the next logical low level intent index from `llis` given that now signal is positioned in `OXCAddDropBypassSpectrumLLI`
+such that the `conintent` is satisfied.
+Return `nothing` if no logical next is found.
+"""
+function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis, oxclli::OXCAddDropBypassSpectrumLLI; verbose::Bool = false)
+    lli_idx = findfirst(llis) do lli
+        if lli isa OXCAddDropBypassSpectrumLLI
+            getlocalnode(lli) == getlocalnode_output(oxclli) || return false
+            getspectrumslotsrange(oxclli) == getspectrumslotsrange(oxclli) || return false
+            return true
+        elseif lli isa TransmissionModuleLLI
+            isdropportallocation(oxclli) || return false
+            getlocalnode(lli) == getlocalnode(oxclli) || return false
+            transmissionmode = gettransmissionmode(ibnf, lli)
+            length(getspectrumslotsrange(oxclli)) == getspectrumslotsneeded(transmissionmode) || return false
+            return true
+        end
+        return false
+    end
     return lli_idx
 end
