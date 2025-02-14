@@ -27,6 +27,6 @@ struct GlobalNode
     localnode::LocalNode
 end
 
-const KMf= typeof(u"1.0km")
-const GBPSf= typeof(u"1.0Gbps")
-const HRf= typeof(u"1.0hr")
+const KMf = typeof(u"1.0km")
+const GBPSf = typeof(u"1.0Gbps")
+const HRf = typeof(u"1.0hr")

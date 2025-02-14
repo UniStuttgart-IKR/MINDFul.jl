@@ -1,7 +1,7 @@
 using MINDFul: getoxcview
 import MINDFulMakie as MINDFM
 using MINDFul, Test
-using Graphs 
+using Graphs
 import AttributeGraphs as AG
 using JLD2, UUIDs
 using Unitful, UnitfulData
@@ -10,7 +10,7 @@ const MINDF = MINDFul
 
 using GLMakie
 
-## single domain 
+## single domain
 
 # load data
 domains_name_graph = first(JLD2.load("data/itz_IowaStatewideFiberMap-itz_Missouri__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21).jld2"))[2]

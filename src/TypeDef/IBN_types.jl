@@ -21,7 +21,7 @@ $(TYPEDFIELDS)
 
 Stores a vector of the history of the intent states and their timings
 """
-struct IntentLogState{S<:Enum{Int32}}
+struct IntentLogState{S <: Enum{Int32}}
     """
     The chronological log in hours and states
     """
@@ -31,7 +31,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function IntentLogState(intentstate::IntentState.T=IntentState.Uncompiled)
+function IntentLogState(intentstate::IntentState.T = IntentState.Uncompiled)
     return IntentLogState(
         [(now(), intentstate)]
     )
@@ -133,13 +133,13 @@ end
     Border nodes are assumed to be visible from both sides.
     However only the official owner can issue an intent.
 """
-const IBNAttributeGraph{T} = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{T}, Dict{Edge{LocalNode}, EdgeView}, UUID} where {T<:NodeView}
+const IBNAttributeGraph{T} = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{T}, Dict{Edge{LocalNode}, EdgeView}, UUID} where {T <: NodeView}
 
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{S<:AbstractSDNController, T<:IBNAttributeGraph}
+struct IBNFramework{S <: AbstractSDNController, T <: IBNAttributeGraph}
     "The id of this IBN Framework instance"
     ibnfid::UUID
     "The intent dag tree that contains all intents (can be disconnected graph)"
@@ -155,7 +155,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 """
-function IBNFramework(ibnag::T) where {T<:IBNAttributeGraph}
+function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
     return IBNFramework(ibnfid, IntentDAG(), ibnag, IBNFrameworkHandler[], SDNdummy())
 end
@@ -163,12 +163,12 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function Base.show(io::IO, ibnf::I) where {I<:IBNFramework}
-        print(io, I, "(", getibnfid(ibnf))
-        print(io, ", IntentDAG(", nv(getidag(ibnf)), ", ", ne(getidag(ibnf)), ")")
-        print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
-        print(io, ", ", getibnfid.(getinteribnfs(ibnf)))
-        print(io, ", ", typeof(getsdncontroller(ibnf)))
+function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
+    print(io, I, "(", getibnfid(ibnf))
+    print(io, ", IntentDAG(", nv(getidag(ibnf)), ", ", ne(getidag(ibnf)), ")")
+    print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
+    print(io, ", ", getibnfid.(getinteribnfs(ibnf)))
+    return print(io, ", ", typeof(getsdncontroller(ibnf)))
 end
 
 """

@@ -1,14 +1,14 @@
 using MINDFul: getoxcview, OXCAddDropBypassSpectrumLLI
 using MINDFul
 using Test, TestSetExtensions
-using Graphs 
+using Graphs
 import AttributeGraphs as AG
 using JLD2, UUIDs
 using Unitful, UnitfulData
 
 const MINDF = MINDFul
 
-## single domain 
+## single domain
 
 include("testsuite/physicaltest.jl")
 include("testsuite/basicintenttest.jl")

@@ -19,12 +19,12 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{Connectivity
     destinationglobalnode = getdestinationnode(intent)
     demandrate = getrate(intent)
 
-    # intra-domain 
+    # intra-domain
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         sourcelocalnode = getlocalnode(sourceglobalnode)
         destlocalnode = getlocalnode(destinationglobalnode)
         yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
-        # try out all paths 
+        # try out all paths
         sourcenodeview = getnodeview(ibnag, sourcelocalnode)
         destnodeview = getnodeview(ibnag, destlocalnode)
         sourceavailtransmdlidxs = getavailabletransmissionmoduleviewindex(sourcenodeview)
@@ -66,14 +66,14 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{Connectivity
                                     sourceadddropport = getfirstavailablerouterportindex(sourcenodeview)
                                     destadddropport = getfirstavailablerouterportindex(destnodeview)
                                     if !isnothing(sourceadddropport) && !isnothing(destadddropport)
-                                        oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, sourceadddropport, destadddropport, startingslot:(startingslot+demandslotsneeded-1))
+                                        oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, sourceadddropport, destadddropport, startingslot:(startingslot + demandslotsneeded - 1))
                                         # we have the TransmissionModuleLLI, RouterPortLLI and OXCAddDropBypassSpectrumLLI
-                                        addidagnode!(idag, sourcetransmissionmodulelli; parentid=idagnodeid, intentissuer=MachineGenerated())
-                                        addidagnode!(idag, desttransmissionmodulelli; parentid=idagnodeid, intentissuer=MachineGenerated())
-                                        addidagnode!(idag, sourcerouterportlli; parentid=idagnodeid, intentissuer=MachineGenerated())
-                                        addidagnode!(idag, destrouterportlli; parentid=idagnodeid, intentissuer=MachineGenerated())
+                                        addidagnode!(idag, sourcetransmissionmodulelli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                                        addidagnode!(idag, desttransmissionmodulelli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                                        addidagnode!(idag, sourcerouterportlli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                                        addidagnode!(idag, destrouterportlli; parentid = idagnodeid, intentissuer = MachineGenerated())
                                         foreach(oxcadddropbypassspectrumllis) do oxcadddropbypassspectrumlli
-                                            addidagnode!(idag, oxcadddropbypassspectrumlli; parentid=idagnodeid, intentissuer=MachineGenerated())
+                                            addidagnode!(idag, oxcadddropbypassspectrumlli; parentid = idagnodeid, intentissuer = MachineGenerated())
                                         end
                                         return true
                                     end

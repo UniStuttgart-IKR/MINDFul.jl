@@ -3,10 +3,12 @@
 """
 $(TYPEDSIGNATURES)
 """
-function allocate_transmissionmodule(ibnf::IBNFramework, 
-                                     dagnodeid::UUID, 
-                                     localnode::LocalNode, 
-                                     transmissionmodulereservationentry::TransmissionModuleLLI)
+function allocate_transmissionmodule(
+        ibnf::IBNFramework,
+        dagnodeid::UUID,
+        localnode::LocalNode,
+        transmissionmodulereservationentry::TransmissionModuleLLI
+    )
     # delegate to SDN
     success = allocate_transmissionmodule(getsdncontroller(ibnf), localnode, transmissionmodulereservationentry)
     success || return false
@@ -21,9 +23,11 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function deallocate_transmissionmodule(ibnf::IBNFramework, 
-                                 localnode::LocalNode, 
-                                 transmissionmodulereservationentry::TransmissionModuleLLI)
+function deallocate_transmissionmodule(
+        ibnf::IBNFramework,
+        localnode::LocalNode,
+        transmissionmodulereservationentry::TransmissionModuleLLI
+    )
     # delegate to SDN
     success = allocate_transmissionmodule(getsdncontroller(ibnf), localnode, transmissionmodulereservationentry)
     success || return false
@@ -39,9 +43,10 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function allocate_oxcspectrumslots(ibnf::IBNFramework,
-                                dagnodeid::UUID, 
-                                localnode::LocalNode, 
-                                )
+function allocate_oxcspectrumslots(
+        ibnf::IBNFramework,
+        dagnodeid::UUID,
+        localnode::LocalNode,
+    )
     return false
 end

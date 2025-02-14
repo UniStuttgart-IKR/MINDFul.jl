@@ -59,12 +59,13 @@ function getrate(conintent::ConnectivityIntent)
 end
 
 function getweights(ibnag::IBNAttributeGraph)
-    [ 
-    let
-        ed = Edge(v1, v2)
-        has_edge(ibnag, ed) ? getdistance(getedgeview(ibnag, ed)) : KMf(Inf)
-    end
-    for v1 in vertices(ibnag), v2 in vertices(ibnag) ]
+    return [
+        let
+                ed = Edge(v1, v2)
+                has_edge(ibnag, ed) ? getdistance(getedgeview(ibnag, ed)) : KMf(Inf)
+        end
+            for v1 in vertices(ibnag), v2 in vertices(ibnag)
+    ]
 end
 
 function getedgeview(ibnag::IBNAttributeGraph, ed::Edge)
@@ -78,4 +79,3 @@ end
 function getnodeview(ibnf::IBNFramework, node::LocalNode)
     return AG.vertex_attr(getibnag(ibnf))[node]
 end
-

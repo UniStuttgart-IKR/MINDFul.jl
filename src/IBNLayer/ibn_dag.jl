@@ -26,21 +26,21 @@ $(TYPEDSIGNATURES)
 """
 function increaseidagcounter!(intentdag::IntentDAG)
     idaginfo = getidaginfo(intentdag)
-    idaginfo.intentcounter += 1
+    return idaginfo.intentcounter += 1
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function pushstatetoidagnode!(intentlogstate::IntentLogState, time::DateTime, intentstate::IntentState.T)
-    push!(intentlogstate.logstate, (time, intentstate))
+    return push!(intentlogstate.logstate, (time, intentstate))
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function pushstatetoidagnode!(idagnode::IntentDAGNode, time::DateTime, intentstate::IntentState.T)
-    pushstatetoidagnode!(getlogstate(idagnode), time, intentstate)
+    return pushstatetoidagnode!(getlogstate(idagnode), time, intentstate)
 end
 
 """
@@ -69,7 +69,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Union{Nothing, UUID}=nothing, intentissuer=MachineGenerated())
+function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
     intentcounter = increaseidagcounter!(intentdag)
     if intent isa LowLevelIntent
         idagnode = IntentDAGNode(intent, UUID(intentcounter), intentissuer, IntentLogState(IntentState.Compiled))
@@ -80,7 +80,7 @@ function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Un
     add_vertex!(intentdag)
     newidagnodeidx = nv(intentdag)
     push!(getidagnodes(intentdag), idagnode)
-    
+
     if !isnothing(parentid)
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
@@ -97,7 +97,7 @@ end
 
 function updateidagstates!(idag::IntentDAG, idagnodeid::UUID)
     idagnode = getidagnode(idag, idagnodeid)
-    updateidagstates!(idag, idagnode)
+    return updateidagstates!(idag, idagnode)
 end
 
 function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
@@ -116,7 +116,7 @@ function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Compiling)
         end
-        return 
+        return
     elseif all(==(IntentState.Installed, childrenstates))
         if currentstate != IntentState.Installed
             changedstate = true
@@ -128,9 +128,9 @@ function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
             pushstatetoidagnode!(idagnode, now(), IntentState.Installing)
         end
     end
-    if changedstate
+    return if changedstate
         foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-             updateidagstates!(idag, idagnodeparent)
+            updateidagstates!(idag, idagnodeparent)
         end
     end
 end
@@ -139,7 +139,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function getidagnodechildren(idag::IntentDAG, idagnodeid::UUID)
-    vertexidx = getidagnodeidx(idag, idagnodeid)   
+    vertexidx = getidagnodeidx(idag, idagnodeid)
     childrenidxs = Graphs.outneighbors(idag, vertexidx)
     return getidagnodes(idag)[childrenidxs]
 end
@@ -148,7 +148,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function getidagnodeparents(idag::IntentDAG, idagnodeid::UUID)
-    vertexidx = getidagnodeidx(idag, idagnodeid)   
+    vertexidx = getidagnodeidx(idag, idagnodeid)
     childrenidxs = Graphs.inneighbors(idag, vertexidx)
     return getidagnodes(idag)[childrenidxs]
 end

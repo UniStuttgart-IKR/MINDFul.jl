@@ -93,7 +93,7 @@ $(TYPEDFIELDS)
 
 A view of a OXC .
 """
-struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
+struct OXCView{O <: AbstractOXC} <: ReservableResourceView
     "the underlying OXC"
     oxc::O
     "The number of add/drop ports in OXC"
@@ -107,7 +107,6 @@ struct OXCView{O<:AbstractOXC} <:  ReservableResourceView
     """
     linkspectrumavailabilities::Dict{Edge{Int}, Vector{Bool}}
 end
-
 
 
 """
@@ -145,7 +144,6 @@ struct TransmissionModuleView{T <: AbstractTransmissionModule}
 end
 
 
-
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
@@ -165,10 +163,12 @@ end
 
 function constructfromdict(_::Type{NodeProperties}, dict::Dict{Symbol}, dict2::Dict{Symbol})
     extendedfields = [:localnode, :globalnode_node, :globalnode_ibnfid, :Latitude, :Longitude, :inneighbors, :outneighbors]
-    return NodeProperties([
-        haskey(dict, fn) ? dict[fn] : dict2[fn]
-        for fn in extendedfields
-    ]...)
+    return NodeProperties(
+        [
+            haskey(dict, fn) ? dict[fn] : dict2[fn]
+                for fn in extendedfields
+        ]...
+    )
 end
 
 function NodeProperties(localnode, globalnode_node, globalnode_ibnfid, latitude, longitude, inneighbors, outneighbors)
@@ -182,7 +182,7 @@ $(TYPEDFIELDS)
 
 The view of the current node settings
 """
-struct NodeView{R<:RouterView, O<:OXCView, T<:TransmissionModuleView} <: ReservableResourceView
+struct NodeView{R <: RouterView, O <: OXCView, T <: TransmissionModuleView} <: ReservableResourceView
     "The [`NodeProperties`](@ref)"
     nodeproperties::NodeProperties
     "The router in use"
@@ -202,11 +202,11 @@ function Base.show(io::IO, nv::NodeView)
     print(io, nv.nodeproperties, ", ")
     print(io, nv.routerview, ", ")
     print(io, nv.oxcview, ", ")
-    print(io, length(nv.transmissionmoduleviewpool), " transmission modules, " )
-    print(io, length(nv.transmissionmodulereservations), " reservations" )
+    print(io, length(nv.transmissionmoduleviewpool), " transmission modules, ")
+    return print(io, length(nv.transmissionmodulereservations), " reservations")
 end
 
-function NodeView(nodeproperties::NodeProperties, routerview::R, oxcview::O, transmissionmoduleviewpool::Vector{T})  where {R<:RouterView, O<:OXCView, T<:TransmissionModuleView}
+function NodeView(nodeproperties::NodeProperties, routerview::R, oxcview::O, transmissionmoduleviewpool::Vector{T}) where {R <: RouterView, O <: OXCView, T <: TransmissionModuleView}
     return NodeView(nodeproperties, routerview, oxcview, transmissionmoduleviewpool, Dict{UUID, TransmissionModuleLLI}())
 end
 
@@ -236,5 +236,3 @@ struct EdgeView
     "The [`EdgeProperties`](@ref)"
     edgeproperties::EdgeProperties
 end
-
-

@@ -41,7 +41,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function getlinkspectrumavailabilities(oxcview::OXCView)
-    oxcview.linkspectrumavailabilities
+    return oxcview.linkspectrumavailabilities
 end
 
 "$(TYPEDSIGNATURES)"
@@ -171,7 +171,7 @@ function getlocalnode(s)
     return s.localnode
 end
 
-# TransmissionModuleReservationEntry 
+# TransmissionModuleReservationEntry
 "$(TYPEDSIGNATURES)"
 function gettransmissionmoduleviewpoolindex(s::TransmissionModuleLLI)
     return s.transmissionmoduleviewpoolindex
@@ -191,4 +191,3 @@ end
 function getoxcadddropportindex(s::OXCAddDropBypassSpectrumLLI)
     return s.adddropport
 end
-

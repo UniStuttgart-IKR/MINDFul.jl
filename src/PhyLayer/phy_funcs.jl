@@ -5,7 +5,7 @@ $(TYPEDSIGNATURES)
 
 Implement this function to do custom actions per specific `ReservableResourceView`
 """
-function insertreservationhook!(resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool=false)
+function insertreservationhook!(resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool = false)
     return true
 end
 
@@ -14,14 +14,14 @@ $(TYPEDSIGNATURES)
 
 Implement this function to do custom actions per specific `ReservableResourceView`
 """
-function deletereservationhook!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool=false)
+function deletereservationhook!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool = false)
     return true
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function insertreservation!(resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool=false)
+function insertreservation!(resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool = false)
     insertreservationhook!(resourceview, dagnodeid, reservationdescription; verbose) || return false
     reservationsdict = getreservations(resourceview)
     @returniffalse(verbose, !haskey(reservationsdict, dagnodeid))
@@ -35,14 +35,14 @@ $(TYPEDSIGNATURES)
 function deletereservation!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose)
     deletereservationhook!(resourceview, dagnodeid; verbose) || return false
     reservationsdict = getreservations(resourceview)
-    delete!(reservationsdict, dagnodeid)
+    return delete!(reservationsdict, dagnodeid)
 end
 
 """
 $(TYPEDSIGNATURES)
 TODO: put reservations on the OXC edges
 """
-function reserve!(resourceview::ReservableResourceView, lowlevelintent::LowLevelIntent, dagnodeid::UUID; checkfirst::Bool=false, verbose::Bool=false)
+function reserve!(resourceview::ReservableResourceView, lowlevelintent::LowLevelIntent, dagnodeid::UUID; checkfirst::Bool = false, verbose::Bool = false)
     checkfirst && !canreserve(resourceview, lowlevelintent; verbose) && return false
     return insertreservation!(resourceview, dagnodeid, lowlevelintent; verbose)
 end
@@ -50,7 +50,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function unreserve!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool=false)
+function unreserve!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool = false)
     deletereservation!(resourceview, dagnodeid; verbose)
     return true
 end
@@ -64,28 +64,28 @@ Check if router port exists and whether it is already used
 
 Set `verbose=true` to see where the reservation fails
 """
-function canreserve(routerview::RouterView, routerportlli::RouterPortLLI; verbose::Bool=false)
+function canreserve(routerview::RouterView, routerportlli::RouterPortLLI; verbose::Bool = false)
     # router port exist?
     @returniffalse(verbose, getrouterportindex(routerportlli) <= getportnumber(routerview))
     # router port in use?
-    @returniffalse(verbose, getrouterportindex(routerportlli) ∉ getrouterportindex.(values(getreservations(routerview))) )
+    @returniffalse(verbose, getrouterportindex(routerportlli) ∉ getrouterportindex.(values(getreservations(routerview))))
     return true
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function insertreservationhook!(oxcview::OXCView, dagnodeid::UUID, reservationdescription::OXCAddDropBypassSpectrumLLI; verbose::Bool=false)
+function insertreservationhook!(oxcview::OXCView, dagnodeid::UUID, reservationdescription::OXCAddDropBypassSpectrumLLI; verbose::Bool = false)
     return setoxcviewlinkavailabilities!(oxcview, reservationdescription, false; verbose)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function deletereservationhook!(oxcview::OXCView, dagnodeid::UUID; verbose::Bool=false)
+function deletereservationhook!(oxcview::OXCView, dagnodeid::UUID; verbose::Bool = false)
     switchreservations = getreservations(oxcview)
     @returniffalse(verbose, haskey(switchreservations, dagnodeid))
-    reservationdescription = switchreservations[dagnodeid] 
+    reservationdescription = switchreservations[dagnodeid]
     return setoxcviewlinkavailabilities!(oxcview, reservationdescription, true; verbose)
 end
 
@@ -100,13 +100,13 @@ Check whether
 
 Set `verbose=true` to see where the reservation fails
 """
-function canreserve(oxcview::OXCView, oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI; verbose::Bool=false)
+function canreserve(oxcview::OXCView, oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI; verbose::Bool = false)
     @returniffalse(verbose, isreservationvalid(oxcswitchreservationentry))
     @returniffalse(verbose, getport_adddrop(oxcswitchreservationentry) <= getadddropportnumber(oxcview))
     # further check the spectrum
     for registeredoxcswitchentry in values(getreservations(oxcview))
-        if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) && 
-                getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchreservationentry) && 
+        if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) &&
+                getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchreservationentry) &&
                 getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchreservationentry)
             spectrumslotintersection = intersect(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchreservationentry))
             @returniffalse(verbose, length(spectrumslotintersection) <= 0)
@@ -120,11 +120,11 @@ $(TYPEDSIGNATURES)
 
 Set `verbose=true` to see where the reservation fails
 """
-function canreserve(nodeview::NodeView, transmissionmodulelli::TransmissionModuleLLI; verbose::Bool=false)
+function canreserve(nodeview::NodeView, transmissionmodulelli::TransmissionModuleLLI; verbose::Bool = false)
     transmissionmodulereservations = values(getreservations(nodeview))
 
     transmissionmoduleviewpool = gettransmissionmoduleviewpool(nodeview)
-    reserve2do_transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(transmissionmodulelli) 
+    reserve2do_transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(transmissionmodulelli)
 
     # is the transmission module already in use ?
     @returniffalse(verbose, reserve2do_transmissionmoduleviewpoolindex ∉ gettransmissionmoduleviewpoolindex.(transmissionmodulereservations))
@@ -149,7 +149,7 @@ $(TYPEDSIGNATURES)
 Checks if this reservation reserves the add port, i.e., it's (0, x, y).
 """
 function isaddportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
-    return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && !iszero(getlocalnode_output(oxcswitchentry)) 
+    return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && !iszero(getlocalnode_output(oxcswitchentry))
 end
 
 """
@@ -158,16 +158,16 @@ $(TYPEDSIGNATURES)
 Checks if this reservation reserves the drop port, i.e., it's (x, y, 0).
 """
 function isdropportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
-    return !iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry)) 
+    return !iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry))
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function isreservationvalid(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI, verbose::Bool=true)
-    @returniffalse(verbose,  !(!iszero(getlocalnode_input(oxcswitchreservationentry)) && !iszero(getport_adddrop(oxcswitchreservationentry)) && !iszero(getlocalnode_output(oxcswitchreservationentry))) )
-    spectrumslotsrange = getspectrumslotsrange(oxcswitchreservationentry)   
-    @returniffalse(verbose,  spectrumslotsrange.start >= 0 && spectrumslotsrange.stop >= 0)
+function isreservationvalid(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI, verbose::Bool = true)
+    @returniffalse(verbose, !(!iszero(getlocalnode_input(oxcswitchreservationentry)) && !iszero(getport_adddrop(oxcswitchreservationentry)) && !iszero(getlocalnode_output(oxcswitchreservationentry))))
+    spectrumslotsrange = getspectrumslotsrange(oxcswitchreservationentry)
+    @returniffalse(verbose, spectrumslotsrange.start >= 0 && spectrumslotsrange.stop >= 0)
     return true
 end
 
@@ -289,11 +289,11 @@ function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, s
     oxcadddropbypassspectrumllis = OXCAddDropBypassSpectrumLLI[]
     for idx in eachindex(path)
         if idx == 1
-            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], 0, sourceadddropport, path[idx+1], spectrumslotsrange))
+            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], 0, sourceadddropport, path[idx + 1], spectrumslotsrange))
         elseif idx == length(path)
-            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx-1], destadddropport, 0, spectrumslotsrange))
+            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx - 1], destadddropport, 0, spectrumslotsrange))
         else
-            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx-1], 0, path[idx+1], spectrumslotsrange))
+            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx - 1], 0, path[idx + 1], spectrumslotsrange))
         end
     end
     return oxcadddropbypassspectrumllis
