@@ -79,3 +79,18 @@ function firstfit(boolvec::AbstractVector{Bool}, lenghrequire::Int)
     return nothing
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function mycopy(whatever::T) where {T}
+    fns = fieldnames(T)
+    T(
+    [
+    let
+        f = getfield(whatever, fn)
+        isimmutable(f) ? f : Base.copy(f)
+    end
+    for fn in fns ]...
+    )
+end

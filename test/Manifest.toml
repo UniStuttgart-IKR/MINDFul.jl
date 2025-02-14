@@ -2,7 +2,7 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "421a4406ee1f07292bbf4d4024211b247eae9579"
+project_hash = "51fac9ac6433d852552552e3bd0622fa7a77d15a"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -245,6 +245,11 @@ deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "fc173b380865f70627d7dd1190dc2fce6cc105af"
 uuid = "ee1fde0b-3d02-5ea6-8484-8dfef6360eab"
 version = "1.14.10+0"
+
+[[deps.DeepDiffs]]
+git-tree-sha1 = "9824894295b62a6a4ab6adf1c7bf337b3a9ca34c"
+uuid = "ab62b9b5-e342-54a8-a765-a90f495de1a6"
+version = "1.2.0"
 
 [[deps.DelaunayTriangulation]]
 deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
@@ -907,7 +912,7 @@ uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
 version = "0.3.0"
 
 [[deps.MINDFulMakie]]
-deps = ["AbstractTrees", "AttributeGraphs", "Colors", "DocStringExtensions", "GraphMakie", "Graphs", "LayeredLayouts", "MINDFul", "Makie", "MetaGraphsNext", "NetworkLayout", "UUIDs"]
+deps = ["AbstractTrees", "AttributeGraphs", "Colors", "DocStringExtensions", "GraphMakie", "Graphs", "LayeredLayouts", "MINDFul", "Makie", "MetaGraphsNext", "NetworkLayout", "Printf", "UUIDs"]
 path = "../../MINDFulMakie.jl"
 uuid = "23b02573-35f2-499b-a490-fd32d1f018b6"
 version = "0.2.0"
@@ -1294,6 +1299,11 @@ git-tree-sha1 = "fea870727142270bdf7624ad675901a1ee3b4c87"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.7.1"
 
+[[deps.SafeTestsets]]
+git-tree-sha1 = "81ec49d645af090901120a1542e67ecbbe044db3"
+uuid = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+version = "0.1.0"
+
 [[deps.Scratch]]
 deps = ["Dates"]
 git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
@@ -1497,6 +1507,12 @@ version = "0.1.1"
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
+
+[[deps.TestSetExtensions]]
+deps = ["DeepDiffs", "Distributed", "Test"]
+git-tree-sha1 = "ccebd99935be339d2ad907589708ba1f0d62bab3"
+uuid = "98d24dd4-01ad-11ea-1b02-c9a08f80db04"
+version = "3.0.0"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "SIMD", "UUIDs"]

@@ -1,3 +1,6 @@
+function issatisfied(ibnf::IBNFramework, intentid::UUID; verbose::Bool = false, assumeglobalknowledge::Bool = false)
+    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid))
+end
 """
 $(TYPEDSIGNATURES)
 

@@ -94,8 +94,8 @@ end
 $(TYPEDSIGNATURES)
 
 Check whether
-- add/drp port exists
-- add/drp port already in use
+- add/drop port exists
+- add/drop port already in use
 - spectrum in fibers in use
 
 Set `verbose=true` to see where the reservation fails
@@ -104,14 +104,12 @@ function canreserve(oxcview::OXCView, oxcswitchreservationentry::OXCAddDropBypas
     @returniffalse(verbose, isreservationvalid(oxcswitchreservationentry))
     @returniffalse(verbose, getport_adddrop(oxcswitchreservationentry) <= getadddropportnumber(oxcview))
     # further check the spectrum
-    if !isadddropportallocation(oxcswitchreservationentry)
-        for registeredoxcswitchentry in values(getreservations(oxcview))
-            if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) && 
-                    getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchreservationentry) && 
-                    getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchreservationentry)
-                spectrumslotintersection = intersect(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchreservationentry))
-                @returniffalse(verbose, length(spectrumslotintersection) <= 0)
-            end
+    for registeredoxcswitchentry in values(getreservations(oxcview))
+        if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) && 
+                getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchreservationentry) && 
+                getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchreservationentry)
+            spectrumslotintersection = intersect(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchreservationentry))
+            @returniffalse(verbose, length(spectrumslotintersection) <= 0)
         end
     end
     return true
@@ -187,7 +185,7 @@ Checks if the transmission module can get deployed for the given demand rate and
 """
 function istransmissionmoduleappropriate(transmissionmoduleview::TransmissionModuleView, demandrate::GBPSf, demanddistance::KMf)
     for transmode in gettransmissionmodes(transmissionmoduleview)
-        getopticalreach(mode) > demanddistance && getrate(transmode) >= demandrate && return true
+        getopticalreach(transmode) > demanddistance && getrate(transmode) >= demandrate && return true
     end
     return false
 end

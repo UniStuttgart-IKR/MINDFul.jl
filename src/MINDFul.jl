@@ -21,6 +21,7 @@ include("PhyLayer/PhyLayer.jl")
 include("SDNLayer/SDNLayer.jl")
 include("IBNLayer/IBNLayer.jl")
 include("satisfy.jl")
+include("copyboilerplate.jl")
 include("defaults.jl")
 
 end
