@@ -14,14 +14,14 @@ import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 
 # public is_low_level_intent
 
-include("utils.jl")
+include("generic/utils.jl")
 include("TypeDef/TypeDef.jl")
-include("io.jl")
+include("generic/io.jl")
 include("PhyLayer/PhyLayer.jl")
 include("SDNLayer/SDNLayer.jl")
 include("IBNLayer/IBNLayer.jl")
-include("satisfy.jl")
-include("copyboilerplate.jl")
-include("defaults.jl")
+include("generic/satisfy.jl")
+include("generic/copyboilerplate.jl")
+include("generic/defaults.jl")
 
 end
