@@ -11,3 +11,15 @@ function islowlevelintentdagnodeinstalled(ibnf::MINDF.IBNFramework, lli::MINDF.L
         @test lli in values(MINDF.getreservations(oxcview))
     end
 end
+
+function nothingisallocated(ibnf::MINDF.IBNFramework)
+    ibnag = MINDF.getibnag(ibnf)
+    for localnode in vertices(ibnag)
+        nodeview = MINDF.getnodeview(ibnag, localnode)
+        @test isempty(MINDF.getreservations(nodeview))
+        routerview = MINDF.getrouterview(nodeview)
+        @test isempty(MINDF.getreservations(routerview))
+        oxcview = MINDF.getoxcview(nodeview)
+        @test isempty(MINDF.getreservations(oxcview))
+    end
+end

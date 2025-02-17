@@ -100,6 +100,7 @@ end
 function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(intentdag, idagnodeid)
     rem_vertex!(intentdag, vertexidx)
+    deleteat!(getidagnodes(intentdag), vertexidx)
     return true
 end
 
@@ -118,7 +119,12 @@ function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
     childrenstates = getidagnodestate.(idagnodechildren)
     currentstate = getidagnodestate(idagnode)
     changedstate = false
-    if all(==(IntentState.Compiled), childrenstates)
+    if length(childrenstates) == 0
+        if currentstate != IntentState.Uncompiled
+            changedstate = true
+            pushstatetoidagnode!(idagnode, now(), IntentState.Uncompiled)
+        end        
+    elseif all(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiled
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Compiled)
@@ -146,6 +152,28 @@ function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
         end
     end
     return changedstate
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get all descendants of DAG `dag` starting from node `idagnodeid`
+Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
+"""
+function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false)
+    idns = Vector{IntentDAGNode}()
+    for chidn in getidagnodechildren(idag, idagnodeid)
+        _descendants_recu!(idns, idag, getidagnodeid(chidn); exclusive)
+    end
+    return idns
+end
+
+function _descendants_recu!(vidns::Vector{IntentDAGNode}, idag::IntentDAG, idagnodeid::UUID; exclusive)
+    exclusive && length(getidagnodeparents(idag, idagnodeid)) > 1 && return
+    push!(vidns, getidagnode(idag, idagnodeid))
+    for chidn in getidagnodechildren(idag, idagnodeid)
+        _descendants_recu!(vidns, idag, getidagnodeid(chidn); exclusive)
+    end
 end
 
 """

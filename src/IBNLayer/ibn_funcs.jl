@@ -12,16 +12,15 @@ end
 $(TYPEDSIGNATURES)
 """
 function removeintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
-    intentdag = getidag(ibnf)
-    intentdagstate = getidagnodestate(intentdag, idagnodeid)
-    @returniffalse(verbose, intentdagstate == IntentState.Uncompiled)
-    return removeidagnode!(intentdag, idagnodeid)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
+    return removeidagnode!(getidag(ibnf), idagnodeid)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
     intent = getidagnode(getidag(ibnf), UUID(1))
     compileintent!(ibnf, intent, algorithm)
     return updateidagstates!(getidag(ibnf), idagnodeid)
@@ -30,7 +29,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID)
+function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
+    foreach(idagnodedescendants) do idagnodedescendant
+        removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+    end
+    return updateidagstates!(getidag(ibnf), idagnodeid)
 end
 
 """
@@ -38,6 +43,7 @@ $(TYPEDSIGNATURES)
 """
 function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    # duplicate code with `@ref uninstallintent!`
     idagnodellis = getidagnodellis(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodellis) do idagnodelli
         llintent = getintent(idagnodelli)
@@ -52,17 +58,34 @@ function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
         elseif llintent isa OXCAddDropBypassSpectrumLLI
             reserve!(getoxcview(nodeview), llintent, llid; checkfirst=true, verbose)
         end
-        idagnode = getidagnode(getidag(ibnf), llid)
         pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Installed)
     end
-    updateidagstates!(getidag(ibnf), idagnodeid)
+    return updateidagstates!(getidag(ibnf), idagnodeid)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function uninstallintent!(ibnfid::IBNFramework, idagnodeid::UUID, verbose=false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID, verbose=false)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed)
+    # duplicate code with `@ref installintent!`
+    idagnodellis = getidagnodellis(getidag(ibnf), idagnodeid; exclusive = false)
+    foreach(idagnodellis) do idagnodelli
+        llintent = getintent(idagnodelli)
+        llid = getidagnodeid(idagnodelli)
+        localnode = getlocalnode(llintent)
+        ibnag = getibnag(ibnf)
+        nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
+        if llintent isa TransmissionModuleLLI       
+            unreserve!(nodeview, llid; verbose)
+        elseif llintent isa RouterPortLLI
+            unreserve!(getrouterview(nodeview), llid; verbose)
+        elseif llintent isa OXCAddDropBypassSpectrumLLI
+            unreserve!(getoxcview(nodeview), llid; verbose)
+        end
+        pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Compiled)
+    end
+    return updateidagstates!(getidag(ibnf), idagnodeid)
 end
 
 """

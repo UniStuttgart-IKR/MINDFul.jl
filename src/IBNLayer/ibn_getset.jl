@@ -76,6 +76,10 @@ function getnodeview(ibnag::IBNAttributeGraph, node::LocalNode)
     return AG.vertex_attr(ibnag)[node]
 end
 
+function getnodeviews(ibnag::IBNAttributeGraph)
+    return AG.vertex_attr(ibnag)
+end
+
 function getnodeview(ibnf::IBNFramework, node::LocalNode)
     return AG.vertex_attr(getibnag(ibnf))[node]
 end
