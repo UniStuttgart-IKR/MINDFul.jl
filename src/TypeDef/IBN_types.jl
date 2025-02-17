@@ -15,26 +15,15 @@ end
 abstract type IntentCompilationAlgorithm end
 
 """
-$(TYPEDEF)
-
-$(TYPEDFIELDS)
-
 Stores a vector of the history of the intent states and their timings
 """
-struct IntentLogState{S <: Enum{Int32}}
-    """
-    The chronological log in hours and states
-    """
-    logstate::Vector{Tuple{DateTime, S}}
-end
+const IntentLogState{S <: Enum{Int32}} = Vector{Tuple{DateTime, S}}
 
 """
 $(TYPEDSIGNATURES)
 """
 function IntentLogState(intentstate::IntentState.T = IntentState.Uncompiled)
-    return IntentLogState(
-        [(now(), intentstate)]
-    )
+    return [(now(), intentstate)]    
 end
 
 """
@@ -80,7 +69,7 @@ struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
     """The intent issuer"""
     intentissuer::II
     """The history of states of the intent with the last being the current state"""
-    logstate::IntentLogState
+    logstate::IntentLogState{IntentState.T}
 end
 
 mutable struct IntentDAGInfo

@@ -26,6 +26,7 @@ MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
 
 # plot
 # MINDFM.ibngraphplot(ibnag1; layout = x -> MINDFM.coordlayout(ibnag1), nlabels=repr.(Graphs.vertices(ibnag1)))
+# MINDFM.intentplot(ibnf1, UUID(1); showstate=true)
 
 MINDF.compileintent!(ibnf1, UUID(1), MINDF.KShorestPathFirstFitCompilation(10))
 

@@ -37,7 +37,5 @@ get... -> get field
 new... -> construct something new
 
 New TODOs
-- create intent DAG
-- create low level intents
-- intent DAG state machine
-- implement KSPFF
+- do install
+- do multidomain

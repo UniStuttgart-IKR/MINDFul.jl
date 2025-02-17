@@ -36,13 +36,33 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function installintent!(ibnfid::IBNFramework, idagnodeid::UUID)
+function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    idagnodellis = getidagnodellis(getidag(ibnf), idagnodeid; exclusive = false)
+    foreach(idagnodellis) do idagnodelli
+        llintent = getintent(idagnodelli)
+        llid = getidagnodeid(idagnodelli)
+        localnode = getlocalnode(llintent)
+        ibnag = getibnag(ibnf)
+        nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
+        if llintent isa TransmissionModuleLLI       
+            reserve!(nodeview, llintent, llid; checkfirst=true, verbose)
+        elseif llintent isa RouterPortLLI
+            reserve!(getrouterview(nodeview), llintent, llid; checkfirst=true, verbose)
+        elseif llintent isa OXCAddDropBypassSpectrumLLI
+            reserve!(getoxcview(nodeview), llintent, llid; checkfirst=true, verbose)
+        end
+        idagnode = getidagnode(getidag(ibnf), llid)
+        pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Installed)
+    end
+    updateidagstates!(getidag(ibnf), idagnodeid)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function uninstallintent!(ibnfid::IBNFramework, idagnodeid::UUID)
+function uninstallintent!(ibnfid::IBNFramework, idagnodeid::UUID, verbose=false)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
 end
 
 """
@@ -111,3 +131,4 @@ function getreservedtransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode
     reservedtransmissionmodule = gettransmissionmoduleviewpool(nodeview)[transmissionmoduleviewpoolindex]
     return gettransmissionmode(reservedtransmissionmodule, transmissionmodesindex)
 end
+

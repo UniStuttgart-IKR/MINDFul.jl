@@ -1,18 +1,27 @@
-function issatisfied(ibnf::IBNFramework, intentid::UUID; verbose::Bool = false, assumeglobalknowledge::Bool = false)
-    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid))
+function issatisfied(ibnf::IBNFramework, intentid::UUID;  onlyinstalled = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
+    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, verbose, assumeglobalknowledge, orderedllis)
 end
 """
 $(TYPEDSIGNATURES)
 
 Steps by step check if `ibnf` satisfies the intent
-Works only with local view
+For now works only with local view.
+The options are:
+- onlyinstalled: only consideres installed intents
+- noextrallis: all LLI must be used
+- orderedllis: pass list to access ordered llis
 """
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{ConnectivityIntent}; verbose::Bool = false, assumeglobalknowledge::Bool = false)
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
     idag = getidag(ibnf)
 
     # get all LLIs
-    llis = getintent.(getidagnodellis(idag))
-    orderedllis = empty(llis)
+    idagnodellis = getidagnodellis(idag)
+    if onlyinstalled
+        filter!(x -> getidagnodestate(x) == IntentState.Installed, idagnodellis)
+    end
+    @returniffalse(verbose, !isempty(idagnodellis))
+    llis = getintent.(idagnodellis)
+
     istotalsatisfied = true
 
     conintent = getintent(idagnode)
@@ -62,6 +71,10 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{ConnectivityInt
         if !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
             istotalsatisfied = false
         end
+    end
+
+    if noextrallis
+        istotalsatisfied &= isempty(llis)
     end
     return istotalsatisfied
 end

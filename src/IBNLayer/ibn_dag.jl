@@ -33,7 +33,15 @@ end
 $(TYPEDSIGNATURES)
 """
 function pushstatetoidagnode!(intentlogstate::IntentLogState, time::DateTime, intentstate::IntentState.T)
-    return push!(intentlogstate.logstate, (time, intentstate))
+    return push!(intentlogstate, (time, intentstate))
+end
+
+"""
+$(TYPEDSIGNATURES)
+Uses now() time as default
+"""
+function pushstatetoidagnode!(intentlogstate::IntentLogState, intentstate::IntentState.T)
+    return push!(intentlogstate, (now(), intentstate))
 end
 
 """
@@ -100,6 +108,10 @@ function updateidagstates!(idag::IntentDAG, idagnodeid::UUID)
     return updateidagstates!(idag, idagnode)
 end
 
+"""
+$(TYPEDSIGNATURES)
+Return value is true if state is changed.
+"""
 function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
     idagnodeid = getidagnodeid(idagnode)
     idagnodechildren = getidagnodechildren(idag, idagnodeid)
@@ -111,28 +123,37 @@ function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Compiled)
         end
-    elseif any(==(IntentState.Compiled, childrenstates))
+    elseif any(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiling
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Compiling)
         end
         return
-    elseif all(==(IntentState.Installed, childrenstates))
+    elseif all(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installed
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Installed)
         end
-    elseif any(==(IntentState.Installed, childrenstates))
+    elseif any(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installing
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Installing)
         end
     end
-    return if changedstate
+    if changedstate
         foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
             updateidagstates!(idag, idagnodeparent)
         end
     end
+    return changedstate
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getidagnodechildren(idag::IntentDAG, idagnode::IntentDAGNode)
+    idagnodeid = getidagnodeid(idagnode)
+    return getidagnodechildren(idag, idagnodeid)
 end
 
 """
@@ -147,6 +168,23 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function hasidagnodechildren(idag::IntentDAG, idagnode::IntentDAGNode)
+    idagnodeid = getidagnodeid(idagnode)
+    return hasidagnodechildren(idag, idagnodeid)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function hasidagnodechildren(idag::IntentDAG, idagnodeid::UUID)
+    vertexidx = getidagnodeidx(idag, idagnodeid)
+    childrenidxs = Graphs.outneighbors(idag, vertexidx)
+    return !isempty(childrenidxs)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getidagnodeparents(idag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(idag, idagnodeid)
     childrenidxs = Graphs.inneighbors(idag, vertexidx)
@@ -156,7 +194,52 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getidagnodeparents(idag::IntentDAG, idagnode::IntentDAGNode)
+    idagnodeid = getidagnodeid(idagnode)
+    return getidagnodeparents(idag, idagnodeid)
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get all the Low Level Intents that exist on the DAG
+"""
 function getidagnodellis(idag::IntentDAG)
     idagnodes = getidagnodes(idag)
     return filter(x -> getintent(x) isa LowLevelIntent, idagnodes)
 end
+
+"""
+$(TYPEDSIGNATURES)
+Get all the Low Level Intents that are leafs of `idagnodeid`
+Set `exclusive=true` to get nodes that have `idn` as the only ancestor
+"""
+function getidagnodellis(idag::IntentDAG, idagnodeid::UUID; exclusive=false)
+    idagnodes = getidagnodeleafs(idag, idagnodeid; exclusive)
+    return filter(x -> getintent(x) isa LowLevelIntent, idagnodes)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get the leafs of DAG `dag` starting from node `idn`.
+Set `exclusive=true` to get nodes that have `idn` as the only ancestor
+"""
+function getidagnodeleafs(idag::IntentDAG, idagnodeid::UUID; exclusive=false)
+    idns = IntentDAGNode[]
+    for chidn in getidagnodechildren(idag, idagnodeid)
+        _leafs_recu!(idns, idag, chidn; exclusive)
+    end
+    return idns
+end
+
+function _leafs_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentDAGNode; exclusive)
+    exclusive && length(getidagnodeparents(dag, idn)) > 1 && return
+    if hasidagnodechildren(dag, idn)
+        for chidn in getidagnodechildren(dag, idn)
+            _leafs_recu!(vidns, dag, chidn; exclusive)
+        end
+    else
+        push!(vidns, idn)
+    end
+end
+

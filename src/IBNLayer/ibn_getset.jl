@@ -39,7 +39,7 @@ function getlogstate(idagnode::IntentDAGNode)
 end
 
 function getcurrentstate(intentlogstate::IntentLogState)
-    return intentlogstate.logstate[end][2]
+    return intentlogstate[end][2]
 end
 
 function getintent(idagnode::IntentDAGNode)
