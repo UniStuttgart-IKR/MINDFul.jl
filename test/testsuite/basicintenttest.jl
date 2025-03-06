@@ -37,7 +37,7 @@
     @test !MINDF.issatisfied(ibnf1, intentuuid1; onlyinstalled=true)
     @test MINDF.issatisfied(ibnf1, intentuuid1; onlyinstalled=false)
     
-    for nodeview in MINDF.getnodeviews(MINDF.getibnag(ibnf1))
+    for nodeview in MINDF.getintranodeviews(MINDF.getibnag(ibnf1))
         @test isempty(MINDF.getreservations(nodeview))
         @test isempty(MINDF.getreservations(MINDF.getrouterview(nodeview)))
         @test isempty(MINDF.getreservations(MINDF.getoxcview(nodeview)))

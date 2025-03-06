@@ -181,20 +181,21 @@ $(TYPEDEF)
 $(TYPEDFIELDS)
 
 The view of the current node settings
+Reservables resources reservations are `nothing` if it represents a border node.
 """
 struct NodeView{R <: RouterView, O <: OXCView, T <: TransmissionModuleView} <: ReservableResourceView
     "The [`NodeProperties`](@ref)"
     nodeproperties::NodeProperties
     "The router in use"
-    routerview::R
+    routerview::Union{Nothing, R}
     "The OXC in use"
-    oxcview::O
+    oxcview::Union{Nothing, O}
     "The transmission modules contained"
-    transmissionmoduleviewpool::Vector{T}
+    transmissionmoduleviewpool::Union{Nothing, Vector{T}}
     """
     intent reservation of the transmission modules
     """
-    transmissionmodulereservations::Dict{UUID, TransmissionModuleLLI}
+    transmissionmodulereservations::Union{Nothing, Dict{UUID, TransmissionModuleLLI}}
 end
 
 function Base.show(io::IO, nv::NodeView)

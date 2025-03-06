@@ -63,14 +63,29 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int)
     return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities)
 end
 
-function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int)
-    return NodeView(nodeproperties, default_routerview(), default_OXCview(nodeproperties, spectrumslots), default_transmissionmodules())
+function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, isexternal::Bool)
+    rv = default_routerview()
+    ov = default_OXCview(nodeproperties, spectrumslots)
+    tms = default_transmissionmodules()
+    if isexternal
+        return NodeView{typeof(rv), typeof(ov), eltype(tms)}(nodeproperties, nothing, nothing, nothing, nothing)
+    else
+        return NodeView(nodeproperties, rv, ov, tms)
+    end
 end
 
 function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}})
     spectrumslots = AG.graph_attr(ag)[:spectrumslots]
-    extrafielddict = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
-    nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
+    @show AG.graph_attr(ag)
+    ibnfid = AG.graph_attr(ag)[:ibnfid]
+    extrafielddicts = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
+    # nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
+    nodeviews = [
+        let
+            isexternal = va[:globalnode_ibnfid] != ibnfid
+            default_nodeview(constructfromdict(NodeProperties, va, extrafielddict); spectrumslots, isexternal)
+        end for (va, extrafielddict) in zip(AG.vertex_attr(ag), extrafielddicts)
+    ]
     edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k, v) in edge_attr(ag))
     ibnfid = AG.graph_attr(ag)[:ibnfid]
     # return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))

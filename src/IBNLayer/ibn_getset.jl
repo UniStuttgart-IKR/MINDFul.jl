@@ -80,6 +80,17 @@ function getnodeviews(ibnag::IBNAttributeGraph)
     return AG.vertex_attr(ibnag)
 end
 
+function getintranodeviews(ibnag::IBNAttributeGraph)
+    ibnfid = getibnfid(ibnag)
+    return filter(AG.vertex_attr(ibnag)) do nodeview
+        getibnfid(getglobalnode(getproperties(nodeview))) == ibnfid
+    end
+end
+
+function getibnfid(ibnag::IBNAttributeGraph)
+    return AG.graph_attr(ibnag)
+end
+
 function getnodeview(ibnf::IBNFramework, node::LocalNode)
     return AG.vertex_attr(getibnag(ibnf))[node]
 end

@@ -9,8 +9,10 @@ using Unitful, UnitfulData
 const MINDF = MINDFul
 
 ## single domain
+include("testutils.jl")
 
 include("testsuite/physicaltest.jl")
 include("testsuite/basicintenttest.jl")
+# include("testsuite/multidomain.jl")
 
 nothing

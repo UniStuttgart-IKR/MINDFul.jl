@@ -14,8 +14,7 @@ end
 
 function nothingisallocated(ibnf::MINDF.IBNFramework)
     ibnag = MINDF.getibnag(ibnf)
-    for localnode in vertices(ibnag)
-        nodeview = MINDF.getnodeview(ibnag, localnode)
+    for nodeview in MINDF.getintranodeviews(ibnag)
         @test isempty(MINDF.getreservations(nodeview))
         routerview = MINDF.getrouterview(nodeview)
         @test isempty(MINDF.getreservations(routerview))

@@ -171,6 +171,11 @@ function getlocalnode(s)
     return s.localnode
 end
 
+"$(TYPEDSIGNATURES)"
+function getglobalnode(s)
+    return s.globalnode
+end
+
 # TransmissionModuleReservationEntry
 "$(TYPEDSIGNATURES)"
 function gettransmissionmoduleviewpoolindex(s::TransmissionModuleLLI)

@@ -106,15 +106,17 @@ function is_low_level_intent(ci::ConnectivityIntent)
     return false
 end
 
+"A handler or API for IBNFrameworks to talk to each other"
+abstract type AbstractIBNFHandler end
+
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
 
-The interface the IBN Frameworks talk to each other
+Fabian Gobantes implementation
 """
-struct IBNFrameworkHandler
-    "The id of the IBN Framework"
-    ibnfid::UUID
+struct RemoteIBNFrameworkHandler <: AbstractIBNFHandler
+
 end
 
 """
@@ -128,7 +130,7 @@ const IBNAttributeGraph{T} = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{T}, 
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{S <: AbstractSDNController, T <: IBNAttributeGraph}
+struct IBNFramework{S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
     "The id of this IBN Framework instance"
     ibnfid::UUID
     "The intent dag tree that contains all intents (can be disconnected graph)"
@@ -136,17 +138,31 @@ struct IBNFramework{S <: AbstractSDNController, T <: IBNAttributeGraph}
     "Single-domain internal graph with border nodes included"
     ibnag::T
     "Other IBN Frameworks handles"
-    interIBNFs::Vector{IBNFrameworkHandler}
+    interIBNFs::Vector{H}
     "SDN controller handle"
     sdncontroller::S
 end
 
 """
 $(TYPEDSIGNATURES) 
+
+The most default construct with abstract type of IBN handlers
 """
 function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
-    return IBNFramework(ibnfid, IntentDAG(), ibnag, IBNFrameworkHandler[], SDNdummy())
+    # abstract type : for remote 
+    return IBNFramework(ibnfid, IntentDAG(), ibnag, IBNFramework{SDNdummy, T}[], SDNdummy())
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Constructor that specify IBNFHandlers to make it potentially type stable
+"""
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+    ibnfid = AG.graph_attr(ibnag)
+    # abstract type : for remote 
+    return IBNFramework(ibnfid, IntentDAG(), ibnag, ibnfhandlers, SDNdummy())
 end
 
 """
