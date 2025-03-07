@@ -13,6 +13,6 @@ include("testutils.jl")
 
 include("testsuite/physicaltest.jl")
 include("testsuite/basicintenttest.jl")
-# include("testsuite/multidomain.jl")
+include("testsuite/multidomain.jl")
 
 nothing

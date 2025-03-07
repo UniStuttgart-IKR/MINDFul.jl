@@ -94,3 +94,8 @@ end
 function getnodeview(ibnf::IBNFramework, node::LocalNode)
     return AG.vertex_attr(getibnag(ibnf))[node]
 end
+
+function emptyaggraphwithnewuuid(ibnag::IBNAttributeGraph{T}, uuid::UUID) where {T <: NodeView}
+    IBNAttributeGraph{T}(uuid)
+end
+

@@ -16,3 +16,11 @@ for i in eachindex(ibnfs)
         push!(ibnfs[i].interIBNFs, ibnfs[j] )
     end
 end
+
+# with border node
+conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100Gbps")
+intentuuid1 = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
+
+# to neighboring domain
+conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 47), u"100Gbps")
+intentuuid2 = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())

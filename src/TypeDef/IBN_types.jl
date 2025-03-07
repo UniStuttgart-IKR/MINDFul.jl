@@ -115,8 +115,7 @@ $(TYPEDFIELDS)
 
 Fabian Gobantes implementation
 """
-struct RemoteIBNFrameworkHandler <: AbstractIBNFHandler
-
+struct RemoteIBNFHandler <: AbstractIBNFHandler
 end
 
 """
@@ -125,6 +124,10 @@ end
     However only the official owner can issue an intent.
 """
 const IBNAttributeGraph{T} = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{T}, Dict{Edge{LocalNode}, EdgeView}, UUID} where {T <: NodeView}
+
+function IBNAttributeGraph{T}(uuid::UUID) where {T <: NodeView}
+    IBNAttributeGraph{T}(SimpleDiGraph{Int}(), Vector{T}(), Dict{Edge{LocalNode}, EdgeView}(), uuid)
+end
 
 """
 $(TYPEDEF)

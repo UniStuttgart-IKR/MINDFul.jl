@@ -155,3 +155,14 @@ function getreservedtransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode
     return gettransmissionmode(reservedtransmissionmodule, transmissionmodesindex)
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Convenience function that returns the `findfirst` for the global node 
+"""
+function findindexglobalnode(ibnag::IBNAttributeGraph, globalnode::GlobalNode)
+    return findfirst(getnodeviews(ibnag)) do  nodeview
+        getglobalnode(getnodeproperties(nodeview)) == globalnode
+    end
+end

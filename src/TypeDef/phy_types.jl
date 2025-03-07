@@ -201,10 +201,16 @@ end
 function Base.show(io::IO, nv::NodeView)
     print(io, "NodeView(")
     print(io, nv.nodeproperties, ", ")
-    print(io, nv.routerview, ", ")
-    print(io, nv.oxcview, ", ")
-    print(io, length(nv.transmissionmoduleviewpool), " transmission modules, ")
-    return print(io, length(nv.transmissionmodulereservations), " reservations")
+    if isnothing(nv.routerview) && isnothing(nv.oxcview) && isnothing(nv.transmissionmoduleviewpool) && isnothing(nv.transmissionmodulereservations)
+        print(io, "remote-node)")
+    else
+        print(io, nv.routerview, ", ")
+        print(io, nv.oxcview, ", ")
+        print(io, length(nv.transmissionmoduleviewpool), " transmission modules, ")
+        print(io, length(nv.transmissionmodulereservations), " reservations")
+        print(io, ")")
+    end
+    return nothing
 end
 
 function NodeView(nodeproperties::NodeProperties, routerview::R, oxcview::O, transmissionmoduleviewpool::Vector{T}) where {R <: RouterView, O <: OXCView, T <: TransmissionModuleView}

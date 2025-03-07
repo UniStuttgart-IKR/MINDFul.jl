@@ -76,7 +76,6 @@ end
 
 function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}})
     spectrumslots = AG.graph_attr(ag)[:spectrumslots]
-    @show AG.graph_attr(ag)
     ibnfid = AG.graph_attr(ag)[:ibnfid]
     extrafielddicts = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
     # nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
@@ -91,3 +90,4 @@ function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int
     # return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
     return AG.AttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
 end
+
