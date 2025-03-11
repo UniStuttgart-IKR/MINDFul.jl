@@ -11,7 +11,7 @@ The options are:
 - noextrallis: all LLI must be used
 - orderedllis: pass list to access ordered llis
 """
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
     idag = getidag(ibnf)
 
     # get all LLIs

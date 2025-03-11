@@ -124,22 +124,22 @@ end
 
 "$(TYPEDSIGNATURES)"
 function getrouterview(s::NodeView)
-    return s.routerview
+    return something(s.routerview)
 end
 
 "$(TYPEDSIGNATURES)"
 function getoxcview(s::NodeView)
-    return s.oxcview
+    return something(s.oxcview)
 end
 
 "$(TYPEDSIGNATURES)"
 function gettransmissionmoduleviewpool(s::NodeView)
-    return s.transmissionmoduleviewpool
+    return something(s.transmissionmoduleviewpool)
 end
 
 "$(TYPEDSIGNATURES)"
 function gettransmissionmodulereservations(s::NodeView)
-    return s.transmissionmodulereservations
+    return something(s.transmissionmodulereservations)
 end
 
 """

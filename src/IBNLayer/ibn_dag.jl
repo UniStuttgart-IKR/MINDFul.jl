@@ -54,10 +54,11 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Get the vertex index of the intent DAG node with id `dagnodeid`
+Get the vertex index of the intent DAG node with id `dagnodeid`.
+Errors if UUID doesn't exist.
 """
 function getidagnodeidx(intentdag::IntentDAG, dagnodeid::UUID)
-    return findfirst(==(dagnodeid), getidagnodeid.(getidagnodes(intentdag)))
+    return something(findfirst(==(dagnodeid), getidagnodeid.(getidagnodes(intentdag))))
 end
 
 """
@@ -106,14 +107,14 @@ end
 
 function updateidagstates!(idag::IntentDAG, idagnodeid::UUID)
     idagnode = getidagnode(idag, idagnodeid)
-    return updateidagstates!(idag, idagnode)
+    return updateidagnodestates!(idag, idagnode)
 end
 
 """
 $(TYPEDSIGNATURES)
 Return value is true if state is changed.
 """
-function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
+function updateidagnodestates!(idag::IntentDAG, idagnode::IntentDAGNode)
     idagnodeid = getidagnodeid(idagnode)
     idagnodechildren = getidagnodechildren(idag, idagnodeid)
     childrenstates = getidagnodestate.(idagnodechildren)
@@ -148,7 +149,7 @@ function updateidagstates!(idag::IntentDAG, idagnode::IntentDAGNode)
     end
     if changedstate
         foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-            updateidagstates!(idag, idagnodeparent)
+            updateidagnodestates!(idag, idagnodeparent)
         end
     end
     return changedstate

@@ -8,6 +8,8 @@ using Unitful, UnitfulData
 
 const MINDF = MINDFul
 
+import JET: @test_opt
+
 ## single domain
 include("testutils.jl")
 

@@ -22,3 +22,19 @@ function nothingisallocated(ibnf::MINDF.IBNFramework)
         @test isempty(MINDF.getreservations(oxcview))
     end
 end
+
+macro test_nothrows(expr)
+    return quote
+        @test try
+            $(esc(expr))
+            true
+        catch 
+            false
+        end
+    end
+end
+
+function JETfilteroutfunctions(@nospecialize f) 
+    # don't know what wrong with that. Maybe future julia versions will be better. Check every now and then.
+    return f !== MINDF.updateidagstates!
+end

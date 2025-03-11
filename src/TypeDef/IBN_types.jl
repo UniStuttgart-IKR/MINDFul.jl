@@ -11,6 +11,9 @@ Another intent state schema could be defined.
     Installed
 end
 
+"Special requirements for an intent (such as QoS)"
+abstract type AbstractIntentConstraint end
+
 "Instances of this specify how to compile the intent"
 abstract type IntentCompilationAlgorithm end
 
@@ -88,15 +91,60 @@ end
 const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Nothing, IntentDAGInfo}
 
 """
+$(TYPEDEF)
+
+Contains the requirements to compile down to `TransmissionModuleLLI`
+
 $(TYPEDFIELDS)
 """
-struct ConnectivityIntent <: AbstractIntent
+struct TransmissionModuleIntent <: AbstractIntent
+    "The data rate requierement"
+    rate::GBPSf
+    "Optical reach requirements in kilometres"
+    opticalreach::KMf
+    "Number of 12.5 GHz frequency slots needed"
+    spectrumslotsneeded::Int
+end
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+"""
+struct ConnectivityIntent{T <: AbstractIntentConstraint} <: AbstractIntent
     "Source node"
     sourcenode::GlobalNode
     "Destination node"
     destinationnode::GlobalNode
     "Bandwidth request value (Gbps)"
     rate::GBPSf
+    "Constraints for the Connecivity intent"
+    constraints::Vector{T}
+end
+
+function ConnectivityIntent(sourcenode::GlobalNode, destinationnode::GlobalNode, rate::GBPSf)
+    return ConnectivityIntent(sourcenode, destinationnode, rate, AbstractIntentConstraint[])
+end
+
+function Base.show(io::IO, connectivityintent::ConnectivityIntent)
+    sourcenodeibnfid = @sprintf("%x", getfield(getibnfid(getsourcenode(connectivityintent)), :value))
+    destinationnodeibnfid = @sprintf("%x", getfield(getibnfid(getdestinationnode(connectivityintent)), :value))
+    print(io, "ConnectivityIntent(GN($(sourcenodeibnfid), $(getlocalnode(getsourcenode(connectivityintent))))")
+    print(io, ", GN($(destinationnodeibnfid), $(getlocalnode(getdestinationnode(connectivityintent))))")
+    print(io, ", $(getrate(connectivityintent)))")
+end
+
+
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+"""
+struct RemoteIntent{I<:AbstractIntent} <: AbstractIntent
+    ibnfid::UUID
+    idagnodeid::UUID
+    intent::I
 end
 
 """

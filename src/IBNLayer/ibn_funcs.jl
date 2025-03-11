@@ -166,3 +166,12 @@ function findindexglobalnode(ibnag::IBNAttributeGraph, globalnode::GlobalNode)
         getglobalnode(getnodeproperties(nodeview)) == globalnode
     end
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return boolean if `globalnode` is in `ibnf` as a border node
+"""
+function isbordernode(globalnode::GlobalNode, ibnf::IBNFramework)
+    return globalnode in getglobalnode.(getnodeproperties.(getnodeviews(getibnag(ibnf))))
+end

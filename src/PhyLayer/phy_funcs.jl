@@ -34,7 +34,7 @@ $(TYPEDSIGNATURES)
 """
 function deletereservation!(resourceview::ReservableResourceView, dagnodeid::UUID; verbose)
     deletereservationhook!(resourceview, dagnodeid; verbose) || return false
-    reservationsdict = getreservations(resourceview)
+    reservationsdict = something(getreservations(resourceview))
     return delete!(reservationsdict, dagnodeid)
 end
 

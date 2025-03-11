@@ -5,7 +5,7 @@
     ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
     ibnf1 = MINDF.IBNFramework(ibnag1)
 
-    conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 4), MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 8), u"100Gbps")
+    conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 4), MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 8), u"100.0Gbps")
 
     intentuuid1 = MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
     @test nv(MINDF.getidag(ibnf1)) == 1
@@ -13,6 +13,7 @@
     @test MINDF.getidagnodestate(MINDF.getidag(ibnf1), intentuuid1) == MINDF.IntentState.Uncompiled
     @test isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf1), intentuuid1))
 
+    @test_opt target_modules=[MINDF] function_filter=JETfilteroutfunctions MINDF.compileintent!(ibnf1, MINDF.getidagnode(MINDF.getidag(ibnf1), intentuuid1), MINDF.KShorestPathFirstFitCompilation(10))
     MINDF.compileintent!(ibnf1, intentuuid1, MINDF.KShorestPathFirstFitCompilation(10))
     @test MINDF.getidagnodestate(MINDF.getidag(ibnf1), intentuuid1) == MINDF.IntentState.Compiled
     @test !isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf1), intentuuid1))

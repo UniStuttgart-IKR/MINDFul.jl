@@ -17,10 +17,14 @@ for i in eachindex(ibnfs)
     end
 end
 
+conintent_intra = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 2), MINDF.GlobalNode(UUID(1), 19), u"100.0Gbps")
+intentuuid0 = MINDF.addintent!(ibnfs[1], conintent_intra, MINDF.NetworkOperator())
+MINDF.compileintent!(ibnfs[1], intentuuid0, MINDF.KShorestPathFirstFitCompilation(10))
+
 # with border node
-conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100Gbps")
+conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100.0Gbps")
 intentuuid1 = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
 
 # to neighboring domain
-conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 47), u"100Gbps")
-intentuuid2 = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
+conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 47), u"100.0Gbps")
+intentuuid2 = MINDF.addintent!(ibnfs[1], conintent_neigh, MINDF.NetworkOperator())
