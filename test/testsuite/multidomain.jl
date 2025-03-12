@@ -29,11 +29,14 @@ intentuuid2 = MINDF.addintent!(ibnfs[1], conintent_intra_optterm, MINDF.NetworkO
 # intradomain with `OpticalInitaiteConstraint`
 conintent_intra_optini = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8), MINDF.GlobalNode(UUID(1), 22), u"100.0Gbps", [MINDF.OpticalInitiateConstraint(MINDF.GlobalNode(UUID(1), 2), 21:24, u"500.0km", MINDF.TransmissionModuleCompatibility(u"300.0Gbps", 4, "DummyFlexibleTransponder"))])
 intentuuid3 = MINDF.addintent!(ibnfs[1], conintent_intra_optini, MINDF.NetworkOperator())
+
 # MINDF.compileintent!(ibnfs[1], intentuuid2, MINDF.KShorestPathFirstFitCompilation(10))
 
 # intradomain with `OpticalInitaiteConstraint`
 conintent_intra_optseg = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8), MINDF.GlobalNode(UUID(1), 22), u"100.0Gbps", [MINDF.OpticalTerminateConstraint(), MINDF.OpticalInitiateConstraint(MINDF.GlobalNode(UUID(1), 2), 21:24, u"500.0km", MINDF.TransmissionModuleCompatibility(u"300.0Gbps", 4, "DummyFlexibleTransponder"))])
 intentuuid4 = MINDF.addintent!(ibnfs[1], conintent_intra_optseg, MINDF.NetworkOperator())
+
+@test MINDF.kspffintradomain_2!(ibnfs[1], MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid4), MINDF.KShorestPathFirstFitCompilation(10))
 # MINDF.compileintent!(ibnfs[1], intentuuid2, MINDF.KShorestPathFirstFitCompilation(10))
 # with border node
 conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100.0Gbps")

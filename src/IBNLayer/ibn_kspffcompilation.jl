@@ -16,7 +16,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
-        return kspffintradomain_2(ibnf, idagnode, kspffalg)
+        return kspffintradomain(ibnf, idagnode, kspffalg)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
@@ -29,7 +29,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
     return false
 end
 
-function kspffintradomain_2(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
+function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
     # needed variables
     ibnag = getibnag(ibnf)
     idag = getidag(ibnf)
@@ -47,6 +47,7 @@ function kspffintradomain_2(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
     # start algorthim
     yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
 
+    lowlevelintentstoadd = LowLevelIntent[]
     ## define a TransmissionModuleCompatibility for the destination node
     transmissionmodulecompat = nothing
     opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
@@ -55,6 +56,7 @@ function kspffintradomain_2(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
         sourcerouterindex = getfirstavailablerouterportindex(getrouterview(sourcenodeview))
         if !isnothing(sourcerouterindex)
             sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouterindex)
+            push!(lowlevelintentstoadd, sourcerouterportlli)
 
             for (dist, path) in zip(yenstate.dists, yenstate.paths)
                 # find transmission module and mode
@@ -70,6 +72,7 @@ function kspffintradomain_2(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
                         transmissionmodulename = getname(sourcetransmissionmodule)
 
                         sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx)
+                        push!(lowlevelintentstoadd, sourcetransmissionmodulelli)
 
                         transmissionmodulecompat = TransmissionModuleCompatibility(transmissionmoderate, demandslotsneeded, transmissionmodulename)
 
@@ -81,12 +84,18 @@ function kspffintradomain_2(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
                             sourceadddropport = getfirstavailableoxcadddropport(sourcenodeview)
                             if !isnothing(sourceadddropport)
                                 oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, startingslot:(startingslot + demandslotsneeded - 1); sourceadddropport, destadddropport = nothing)
+                                foreach(oxcadddropbypassspectrumllis) do lli
+                                    push!(lowlevelintentstoadd, lli)
+                                end
                                 
                                 # successful source-path configuration
                                 opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
                                 if !isnothing(opticalterminateconstraint)
                                     # no need to do something more. return true
-                                    return false
+                                    foreach(lowlevelintentstoadd) do lli
+                                        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                                    end
+                                    return true
                                 else
                                     # need to allocate a router port and a transmission module and mode
                                 end
