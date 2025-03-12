@@ -16,7 +16,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
-        return kspffintradomain(ibnf, idagnode, kspffalg)
+        return kspffintradomain_2(ibnf, idagnode, kspffalg)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
@@ -77,27 +77,31 @@ function kspffintradomain_2(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
                         pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
                         startingslot = firstfit(pathspectrumavailability, demandslotsneeded)
                         if !isnothing(startingslot)
+                            # are there oxc ports in the source ?
                             sourceadddropport = getfirstavailableoxcadddropport(sourcenodeview)
                             if !isnothing(sourceadddropport)
                                 oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, startingslot:(startingslot + demandslotsneeded - 1); sourceadddropport, destadddropport = nothing)
                                 
                                 # successful source-path configuration
+                                opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+                                if !isnothing(opticalterminateconstraint)
+                                    # no need to do something more. return true
+                                    return false
+                                else
+                                    # need to allocate a router port and a transmission module and mode
+                                end
                             end
-                            # are there oxc ports in the source ?
-
                         end
                     end
                 end
-
             end
         end
-
     # for different paths
     ## find src router port
-    else
+    elseif !isnothing(transmissionmodulecompat)
     # no router port
     # no transmission module and mode
-    transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
+        transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
     end
 
     # find router ports
