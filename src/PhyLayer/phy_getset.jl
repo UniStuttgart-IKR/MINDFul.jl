@@ -86,6 +86,16 @@ function getspectrumslotsneeded(tm::TransmissionMode)
 end
 
 "$(TYPEDSIGNATURES)"
+function getrate(tmc::TransmissionModuleCompatibility)
+    return tmc.rate
+end
+
+"$(TYPEDSIGNATURES)"
+function getspectrumslotsneeded(tmc::TransmissionModuleCompatibility)
+    return tmc.spectrumslotsneeded
+end
+
+"$(TYPEDSIGNATURES)"
 function getcost(s)
     return s.cost
 end

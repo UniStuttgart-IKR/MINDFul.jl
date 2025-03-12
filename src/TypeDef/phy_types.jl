@@ -143,6 +143,24 @@ struct TransmissionModuleView{T <: AbstractTransmissionModule}
     cost::Float64
 end
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Describe what requirements are needed to establish transmission module end-to-end connection
+Modulation should be here but it's not.
+Dissagregetation data should be here but it's not.
+Both are covered by the `name` which must be equal in both ends
+"""
+struct TransmissionModuleCompatibility
+    "The bandwidth of the connection"
+    rate::GBPSf
+    "Number of 12.5Gz frequency slots needed"
+    spectrumslotsneeded::Int
+    "descriptive name of the transmission module"
+    name::String
+end
+
 
 """
 $(TYPEDEF)

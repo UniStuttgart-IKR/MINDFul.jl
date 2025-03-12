@@ -131,9 +131,42 @@ function Base.show(io::IO, connectivityintent::ConnectivityIntent)
     destinationnodeibnfid = @sprintf("%x", getfield(getibnfid(getdestinationnode(connectivityintent)), :value))
     print(io, "ConnectivityIntent(GN($(sourcenodeibnfid), $(getlocalnode(getsourcenode(connectivityintent))))")
     print(io, ", GN($(destinationnodeibnfid), $(getlocalnode(getdestinationnode(connectivityintent))))")
-    print(io, ", $(getrate(connectivityintent)))")
+    print(io, ", $(getrate(connectivityintent))")
+    constraints = getconstraints(connectivityintent)
+    print(io, ", $(length(constraints)) constraints:")
+    foreach(constraints) do constraint
+        print(io, " ", typeof(constraint))
+    end
+    print(io, ")")
 end
 
+"""
+$(TYPEDEF)
+
+Constraint that requires the intent to terminate optically.
+It's combined with an (@ref)[`OpticalInitiateConstraint`] after.
+"""
+struct OpticalTerminateConstraint <: AbstractIntentConstraint end
+
+"""
+$(TYPEDEF)
+
+Constraint that requires the intent to initiate optically.
+It's combined with an (@ref)[`OpticalTerminateConstraint`] before.
+It contains some requirements for the connection to work out.
+
+$(TYPEDFIELDS)
+"""
+struct OpticalInitiateConstraint <: AbstractIntentConstraint
+    "The incoming border node entering the OXC"
+    globalnode_input::GlobalNode
+    "The spectrum range allocated 1-based indexed"
+    spectrumslotsrange::UnitRange{Int}
+    "the remaining optical reach to use"
+    opticalreach::KMf
+    "Requirements for termination in the electical layer"
+    transmissionmodulecompat::TransmissionModuleCompatibility
+end
 
 
 """

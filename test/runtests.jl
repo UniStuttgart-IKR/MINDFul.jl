@@ -8,6 +8,7 @@ using Unitful, UnitfulData
 
 const MINDF = MINDFul
 
+import JET
 import JET: @test_opt
 
 ## single domain

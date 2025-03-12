@@ -91,7 +91,7 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
         lli isa TransmissionModuleLLI || return false
         getlocalnode(lli) == getlocalnode(rplli) || return false
         transmissionmode = gettransmissionmode(ibnf, lli)
-        getrate(transmissionmode) > getrate(conintent) || return false
+        getrate(transmissionmode) >= getrate(conintent) || return false
         return true
     end
     return lli_idx

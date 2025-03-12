@@ -18,6 +18,7 @@ import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 include("generic/utils.jl")
 include("TypeDef/TypeDef.jl")
 include("generic/io.jl")
+include("generic/getset.jl")
 include("PhyLayer/PhyLayer.jl")
 include("SDNLayer/SDNLayer.jl")
 include("IBNLayer/IBNLayer.jl")

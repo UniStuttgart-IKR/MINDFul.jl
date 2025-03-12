@@ -58,6 +58,10 @@ function getrate(conintent::ConnectivityIntent)
     return conintent.rate
 end
 
+function getconstraints(conintent::ConnectivityIntent)
+    return conintent.constraints
+end
+
 function getweights(ibnag::IBNAttributeGraph)
     return [
         let
@@ -97,5 +101,9 @@ end
 
 function emptyaggraphwithnewuuid(ibnag::IBNAttributeGraph{T}, uuid::UUID) where {T <: NodeView}
     IBNAttributeGraph{T}(uuid)
+end
+
+function gettransmissionmodulecompat(oic::OpticalInitiateConstraint)
+    oic.transmissionmodulecompat
 end
 

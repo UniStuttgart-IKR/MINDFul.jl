@@ -21,7 +21,7 @@ $(TYPEDSIGNATURES)
 """
 function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
-    intent = getidagnode(getidag(ibnf), UUID(1))
+    intent = getidagnode(getidag(ibnf), idagnodeid)
     compileintent!(ibnf, intent, algorithm)
     return updateidagstates!(getidag(ibnf), idagnodeid)
 end

@@ -173,6 +173,65 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Return a integer tuple `(Int, Int)` denoting the first available and compatible transmission module index and its transmission mode index.
+If non found return `nothing`.
+"""
+function getfirstcompatibletransmoduleidxandmodeidx(transmissionmoduleviewpool::Vector{<:TransmissionModuleView}, availtransmdlidxs::Vector{Int}, transmissionmodulecompat::TransmissionModuleCompatibility)
+    for availtransmdlidx in availtransmdlidxs
+        transmissionmoduleview = transmissionmoduleviewpool[availtransmdlidx] 
+        transmissionmodes = gettransmissionmodes(transmissionmoduleview)
+        for transmodeidx in eachindex(transmissionmodes)
+            if istransmissionmoduleandmodecompatible(transmissionmoduleview, transmodeidx, transmissionmodulecompat)
+                return (availtransmdlidx, transmodeidx)
+            end
+        end
+    end
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return true if `transmissionmoduleview` can support with its modes the `transmissionmodulecompat`
+"""
+function istransmissionmodulecompatible(transmissionmoduleview::TransmissionModuleView, transmissionmodulecompat::TransmissionModuleCompatibility)
+    getname(transmissionmoduleview) == getname(transmissionmodulecompat) || return false
+    for transmissionmodesindex in eachindex(gettransmissionmodes(transmissionmoduleview))
+        istransmissionmoduleandmodecompatible(transmissionmoduleview, transmissionmodesindex, transmissionmodulecompat) && return true
+    end
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return true if the `transmissionmoduleview` and mode support the `transmissionmodulecompat`
+If `onlymodecheck = true` is passed then the disaggregation/protocol (aka name) will not be checked.
+"""
+function istransmissionmoduleandmodecompatible(transmissionmoduleview::TransmissionModuleView, transmissionmodesindex::Int,  transmissionmodulecompat::TransmissionModuleCompatibility)
+    getname(transmissionmoduleview) == getname(transmissionmodulecompat) || return false
+    transmissionmode = gettransmissionmodes(transmissionmoduleview)[transmissionmodesindex]
+    getrate(transmissionmode) == getrate(transmissionmodulecompat) || return false
+    getspectrumslotsneeded(transmissionmode) == getspectrumslotsneeded(transmissionmodulecompat) || return false
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return true if the `transmissionmoduleview` and mode support the `transmissionmodulecompat`
+If `onlymodecheck = true` is passed then the disaggregation/protocol (aka name) will not be checked.
+"""
+function istransmissionmoduleandmodecompatible(transmissionmoduleview::TransmissionModuleView, transmissionmode::TransmissionMode,  transmissionmodulecompat::TransmissionModuleCompatibility)
+    getname(transmissionmoduleview) == getname(transmissionmodulecompat) || return false
+    getrate(transmissionmode) == getrate(transmissionmodulecompat) || return false
+    getspectrumslotsneeded(transmissionmode) == getspectrumslotsneeded(transmissionmodulecompat) || return false
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
 """
 function aretransmissionmodulescompatible(tmv1::TransmissionModuleView, tmv2::TransmissionModuleView)
     return getname(tmv1) == getname(tmv2)
@@ -201,7 +260,7 @@ function getlowestratetransmissionmode(transmissionmoduleview::TransmissionModul
     sps = sortperm(transmodes; by = getrate)
     for sp in sps
         transmode = transmodes[sp]
-        getopticalreach(transmode) > demanddistance && getrate(transmode) >= demandrate && return sp
+        getopticalreach(transmode) >= demanddistance && getrate(transmode) >= demandrate && return sp
     end
     return nothing
 end
@@ -284,17 +343,36 @@ end
 
 """
 $(TYPEDSIGNATURES)
+Return a list of (@ref)[OXCAddDropBypassSpectrumLLI] that constitute a lightpath.
+According to the arguments a "starting lightpath", an "ending lightpath", or a "lightpath segment" can be created.
+The arguments are the following:
+- `sourceadddropport`: `nothing` for a starting lightpath and an `Integer` denating the add/drop port otherwise
+- `opticalinitincomingnode` : the (@ref)[LocalNode] denoting the incoming optical connection from the specified node for a starting lightpath. Set to `nothing` if not a starting lightpath
+- `destadddropport`: `nothing` for an ending lightpath and an `Integer` denating the add/drop port otherwise
+Note: not both `sourceadddropport` and `opticalinitincomingnode` can be nothing or have a values at the same time.
 """
-function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, sourceadddropport::Int, destadddropport::Int, spectrumslotsrange::UnitRange{Int})
+function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, spectrumslotsrange::UnitRange{Int}; sourceadddropport=nothing, opticalinitincomingnode=nothing, destadddropport=nothing)
     oxcadddropbypassspectrumllis = OXCAddDropBypassSpectrumLLI[]
     for idx in eachindex(path)
         if idx == 1
-            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], 0, sourceadddropport, path[idx + 1], spectrumslotsrange))
+            if !isnothing(sourceadddropport) && isnothing(opticalinitincomingnode)
+                push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], 0, sourceadddropport, path[idx + 1], spectrumslotsrange))
+            elseif isnothing(sourceadddropport) && !isnothing(opticalinitincomingnode)
+                if length(path) == 1 
+                    # need to finish where it starts
+                    push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], opticalinitincomingnode, destadddropport, 0, spectrumslotsrange))
+                else
+                    push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], opticalinitincomingnode, 0, path[idx + 1], spectrumslotsrange))
+                end
+            end
         elseif idx == length(path)
-            push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx - 1], destadddropport, 0, spectrumslotsrange))
+            if !isnothing(destadddropport)
+                push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx - 1], destadddropport, 0, spectrumslotsrange))
+            end
         else
             push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], path[idx - 1], 0, path[idx + 1], spectrumslotsrange))
         end
     end
     return oxcadddropbypassspectrumllis
 end
+
