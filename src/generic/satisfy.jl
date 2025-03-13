@@ -27,10 +27,19 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     conintent = getintent(idagnode)
     sourcelocalnode = getlocalnode(getsourcenode(conintent))
     destlocalnode = getlocalnode(getdestinationnode(conintent))
+    constraints = getconstraints(conintent)
 
     # find the first LLI
-    lliidx1 = findfirst(llis) do lli
-        lli isa RouterPortLLI && getlocalnode(lli) == sourcelocalnode
+    opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
+    if !isnothing(opticalinitiateconstraint)
+        lliidx1 = findfirst(llis) do lli
+            lli isa OXCAddDropBypassSpectrumLLI && getlocalnode(lli) == sourcelocalnode &&
+                getlocalnode_input(lli) == something(getlocalnode(getibnag(ibnf), getglobalnode_input(opticalinitiateconstraint)))
+        end
+    else
+        lliidx1 = findfirst(llis) do lli
+            lli isa RouterPortLLI && getlocalnode(lli) == sourcelocalnode
+        end
     end
 
     if !isnothing(lliidx1)

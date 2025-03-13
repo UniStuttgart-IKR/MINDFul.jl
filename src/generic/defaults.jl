@@ -17,7 +17,7 @@ end
 function default_dummyflexiblepluggable()
     return TransmissionModuleView(
         TransmissionModuleDummy(),
-        "DummyFlexiblePluggables",
+        "DummyFlexiblePluggable",
         [
             TransmissionMode(u"5840.0km", u"100.0Gbps", 4),
             TransmissionMode(u"2880.0km", u"200.0Gbps", 6),

@@ -340,7 +340,6 @@ function getfirstavailableoxcadddropport(oxcview::OXCView)
     return nothing
 end
 
-
 """
 $(TYPEDSIGNATURES)
 Return a list of (@ref)[OXCAddDropBypassSpectrumLLI] that constitute a lightpath.
@@ -360,7 +359,9 @@ function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, s
             elseif isnothing(sourceadddropport) && !isnothing(opticalinitincomingnode)
                 if length(path) == 1 
                     # need to finish where it starts
-                    push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], opticalinitincomingnode, destadddropport, 0, spectrumslotsrange))
+                    if !isnothing(destadddropport)
+                        push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], opticalinitincomingnode, destadddropport, 0, spectrumslotsrange))
+                    end
                 else
                     push!(oxcadddropbypassspectrumllis, OXCAddDropBypassSpectrumLLI(path[idx], opticalinitincomingnode, 0, path[idx + 1], spectrumslotsrange))
                 end

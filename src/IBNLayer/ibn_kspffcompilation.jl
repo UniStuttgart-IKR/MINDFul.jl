@@ -29,6 +29,9 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
     return false
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
     # needed variables
     ibnag = getibnag(ibnf)
@@ -46,77 +49,129 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
 
     # start algorthim
     yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
-
     lowlevelintentstoadd = LowLevelIntent[]
     ## define a TransmissionModuleCompatibility for the destination node
     transmissionmodulecompat = nothing
     opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
     if !isnothing(opticalinitiateconstraint)
         # find router port 
+        for (dist, path) in zip(yenstate.dists, yenstate.paths)
+            # find transmission module and mode
+            getopticalreach(opticalinitiateconstraint) >= dist || continue
+            pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
+            spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
+            all(pathspectrumavailability[spectrumslotsrange]) || continue
+
+            transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
+            sourceadddropport = nothing
+            opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
+
+            oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
+            foreach(oxcadddropbypassspectrumllis) do lli
+                push!(lowlevelintentstoadd, lli)
+            end
+            
+            # successful source-path configuration
+            opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+            if !isnothing(opticalterminateconstraint)
+                # no need to do something more. add intents and return true
+                foreach(lowlevelintentstoadd) do lli
+                    addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                end
+                return true
+            else
+                return kspffintradomain_destination!(ibnf, idagnode, lowlevelintentstoadd, transmissionmodulecompat)
+            end
+        end
+    else
         sourcerouterindex = getfirstavailablerouterportindex(getrouterview(sourcenodeview))
-        if !isnothing(sourcerouterindex)
-            sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouterindex)
-            push!(lowlevelintentstoadd, sourcerouterportlli)
+        !isnothing(sourcerouterindex) || return false
+        sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouterindex)
+        push!(lowlevelintentstoadd, sourcerouterportlli)
 
-            for (dist, path) in zip(yenstate.dists, yenstate.paths)
-                # find transmission module and mode
-                sourceavailtransmdlidxs = getavailabletransmissionmoduleviewindex(sourcenodeview)
-                sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
-                for sourcetransmdlidx in sourceavailtransmdlidxs
-                    sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
-                    sourcetransmissiomodeidx = getlowestratetransmissionmode(sourcetransmissionmodule, demandrate, dist)
-                    if !isnothing(sourcetransmissiomodeidx)
-                        sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
-                        demandslotsneeded = getspectrumslotsneeded(sourcetransmissionmode)
-                        transmissionmoderate = getrate(sourcetransmissionmode)
-                        transmissionmodulename = getname(sourcetransmissionmodule)
+        for (dist, path) in zip(yenstate.dists, yenstate.paths)
+            # find transmission module and mode
+            sourceavailtransmdlidxs = getavailabletransmissionmoduleviewindex(sourcenodeview)
+            sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
+            for sourcetransmdlidx in sourceavailtransmdlidxs
+                sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
+                sourcetransmissiomodeidx = getlowestratetransmissionmode(sourcetransmissionmodule, demandrate, dist)
 
-                        sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx)
-                        push!(lowlevelintentstoadd, sourcetransmissionmodulelli)
+                !isnothing(sourcetransmissiomodeidx) || continue
+                sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
+                demandslotsneeded = getspectrumslotsneeded(sourcetransmissionmode)
+                transmissionmoderate = getrate(sourcetransmissionmode)
+                transmissionmodulename = getname(sourcetransmissionmodule)
 
-                        transmissionmodulecompat = TransmissionModuleCompatibility(transmissionmoderate, demandslotsneeded, transmissionmodulename)
+                sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx)
+                push!(lowlevelintentstoadd, sourcetransmissionmodulelli)
 
-                        # find oxc configuration
-                        pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
-                        startingslot = firstfit(pathspectrumavailability, demandslotsneeded)
-                        if !isnothing(startingslot)
-                            # are there oxc ports in the source ?
-                            sourceadddropport = getfirstavailableoxcadddropport(sourcenodeview)
-                            if !isnothing(sourceadddropport)
-                                oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, startingslot:(startingslot + demandslotsneeded - 1); sourceadddropport, destadddropport = nothing)
-                                foreach(oxcadddropbypassspectrumllis) do lli
-                                    push!(lowlevelintentstoadd, lli)
-                                end
-                                
-                                # successful source-path configuration
-                                opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
-                                if !isnothing(opticalterminateconstraint)
-                                    # no need to do something more. return true
-                                    foreach(lowlevelintentstoadd) do lli
-                                        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
-                                    end
-                                    return true
-                                else
-                                    # need to allocate a router port and a transmission module and mode
-                                end
-                            end
-                        end
+                transmissionmodulecompat = TransmissionModuleCompatibility(transmissionmoderate, demandslotsneeded, transmissionmodulename)
+
+                # find oxc configuration
+                pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
+                startingslot = firstfit(pathspectrumavailability, demandslotsneeded)
+                !isnothing(startingslot) || continue
+
+                # are there oxc ports in the source ?
+                sourceadddropport = getfirstavailableoxcadddropport(sourcenodeview)
+                !isnothing(sourceadddropport) || continue
+
+                opticalinitincomingnode = nothing
+                oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, startingslot:(startingslot + demandslotsneeded - 1); sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
+
+                foreach(oxcadddropbypassspectrumllis) do lli
+                    push!(lowlevelintentstoadd, lli)
+                end
+    
+                # successful source-path configuration
+                opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+                if !isnothing(opticalterminateconstraint)
+                    # no need to do something more. add intents and return true
+                    foreach(lowlevelintentstoadd) do lli
+                        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
                     end
+                    return true
+                else
+                    # need to allocate a router port and a transmission module and mode
+                    return kspffintradomain_destination!(ibnf, idagnode, lowlevelintentstoadd, transmissionmodulecompat)
                 end
             end
         end
-    # for different paths
-    ## find src router port
-    elseif !isnothing(transmissionmodulecompat)
-    # no router port
-    # no transmission module and mode
-        transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
     end
+    return false
+end
 
-    # find router ports
+"""
+$(TYPEDSIGNATURES)
+    Takes care of the final node (destination) for the case of no `OpticalTerminateConstraint`
+"""
+function kspffintradomain_destination!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, lowlevelintentstoadd, transmissionmodulecompat)
+    ibnag = getibnag(ibnf)
+    idag = getidag(ibnf)
+    idagnodeid = getidagnodeid(idagnode)
+    intent = getintent(idagnode)
+    destinationglobalnode = getdestinationnode(intent)
+    destlocalnode = getlocalnode(destinationglobalnode)
+    destnodeview = getnodeview(ibnag, destlocalnode)
 
+    # need to allocate a router port and a transmission module and mode
+    destrouterindex = getfirstavailablerouterportindex(getrouterview(destnodeview))
+    !isnothing(destrouterindex) || return false
+    destrouterportlli = RouterPortLLI(destlocalnode, destrouterindex)
+    push!(lowlevelintentstoadd, destrouterportlli)
 
-    # find oxc configuration
+    destavailtransmdlidxs = getavailabletransmissionmoduleviewindex(destnodeview)
+    desttransmissionmoduleviewpool = gettransmissionmoduleviewpool(destnodeview)
+    destavailtransmdlmodeidx = getfirstcompatibletransmoduleidxandmodeidx(desttransmissionmoduleviewpool, destavailtransmdlidxs, transmissionmodulecompat)
+    !isnothing(destavailtransmdlmodeidx) || return false
+    destavailtransmdlidx, desttransmodeidx = destavailtransmdlmodeidx[1], destavailtransmdlmodeidx[2] 
+    desttransmissionmodulelli = TransmissionModuleLLI(destlocalnode, destavailtransmdlidx, desttransmodeidx)
+    push!(lowlevelintentstoadd, desttransmissionmodulelli)
+    foreach(lowlevelintentstoadd) do lli
+        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
+    end
+    return true
 end
 
 function kspffintradomain(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
@@ -161,8 +216,6 @@ function kspffintradomain(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connecti
                 destavailtransmdlmodeidx = getfirstcompatibletransmoduleidxandmodeidx(desttransmissionmoduleviewpool, destavailtransmdlidxs, transmissionmodulecompat)
                 if !isnothing(destavailtransmdlmodeidx)
                     destavailtransmdlidx, desttransmodeidx = destavailtransmdlmodeidx[1], destavailtransmdlmodeidx[2] 
-                    desttransmissionmodule = desttransmissionmoduleviewpool[destavailtransmdlidx]
-                    desttransmode = gettransmissionmode(desttransmissionmodule, desttransmodeidx)
 
                     # found a transmission module with a transmission mode for source and destination
                     sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourceavailtransmdlidx, sourcetransmodeidx)

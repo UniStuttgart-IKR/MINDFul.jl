@@ -23,6 +23,11 @@ function nothingisallocated(ibnf::MINDF.IBNFramework)
     end
 end
 
+function localnodesaregraphnodeidx(ibnag::MINDF.IBNAttributeGraph)
+    localnodes = MINDF.getlocalnode.(MINDF.getnodeproperties.(MINDF.getnodeviews(MINDF.getibnag(ibnag))))
+    @test localnodes == collect(1:length(localnodes))
+end
+
 macro test_nothrows(expr)
     return quote
         @test try

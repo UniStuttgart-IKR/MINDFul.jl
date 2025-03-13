@@ -175,3 +175,18 @@ Return boolean if `globalnode` is in `ibnf` as a border node
 function isbordernode(globalnode::GlobalNode, ibnf::IBNFramework)
     return globalnode in getglobalnode.(getnodeproperties.(getnodeviews(getibnag(ibnf))))
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the localnode representation given the global representation.
+Return `nothing` if not found
+"""
+function getlocalnode(ibnag::IBNAttributeGraph, globalnode::GlobalNode)
+    for nodeproperties in getnodeproperties.(getnodeviews(ibnag))  
+        if getglobalnode(nodeproperties) == globalnode
+            return getlocalnode(nodeproperties)
+        end
+    end
+    return nothing
+end
