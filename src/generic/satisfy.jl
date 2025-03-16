@@ -1,5 +1,5 @@
-function issatisfied(ibnf::IBNFramework, intentid::UUID;  onlyinstalled = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
-    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, verbose, assumeglobalknowledge, orderedllis)
+function issatisfied(ibnf::IBNFramework, intentid::UUID;  onlyinstalled = true, noextrallis = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
+    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, noextrallis, verbose, assumeglobalknowledge, orderedllis)
 end
 """
 $(TYPEDSIGNATURES)
@@ -15,7 +15,8 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     idag = getidag(ibnf)
 
     # get all LLIs
-    idagnodellis = getidagnodellis(idag)
+    # TODO-tomorow : no I only need to get the LLI children
+    idagnodellis = getidagnodellis(idag, getidagnodeid(idagnode))
     if onlyinstalled
         filter!(x -> getidagnodestate(x) == IntentState.Installed, idagnodellis)
     end
@@ -77,8 +78,15 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     end
 
     let lastlli = orderedllis[end]
-        if !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
-            istotalsatisfied = false
+        opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+        if !isnothing(opticalterminateconstraint)
+            if !(lastlli isa OXCAddDropBypassSpectrumLLI) || getlocalnode_output(lastlli) != destlocalnode
+                istotalsatisfied = false
+            end
+        else
+            if !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
+                istotalsatisfied = false
+            end
         end
     end
 

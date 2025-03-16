@@ -119,9 +119,19 @@ $(TYPEDSIGNATURES)
 Get the transmission mode
 """
 function gettransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode{TransmissionModuleLLI})
-    idagnodeid = getidagnodeid(idagnode)
     intent = getintent(idagnode)
-    return gettransmissionmode(ibng, intent)
+    return gettransmissionmode(ibnf, intent)
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get the transmission mode
+"""
+function gettransmissionmodule(ibnf::IBNFramework, intent::TransmissionModuleLLI)
+    localnode = getlocalnode(intent)
+    nodeview = getnodeview(getibnag(ibnf), localnode)
+    transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(intent)
+    return gettransmissionmoduleviewpool(nodeview)[transmissionmoduleviewpoolindex]
 end
 
 """
@@ -129,11 +139,8 @@ $(TYPEDSIGNATURES)
 Get the transmission mode
 """
 function gettransmissionmode(ibnf::IBNFramework, intent::TransmissionModuleLLI)
-    localnode = getlocalnode(intent)
-    nodeview = getnodeview(getibnag(ibnf), localnode)
     transmissionmodesindex = gettransmissionmodesindex(intent)
-    transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(intent)
-    reservedtransmissionmodule = gettransmissionmoduleviewpool(nodeview)[transmissionmoduleviewpoolindex]
+    reservedtransmissionmodule = gettransmissionmodule(ibnf, intent)
     return gettransmissionmode(reservedtransmissionmodule, transmissionmodesindex)
 end
 
@@ -172,8 +179,17 @@ $(TYPEDSIGNATURES)
 
 Return boolean if `globalnode` is in `ibnf` as a border node
 """
-function isbordernode(globalnode::GlobalNode, ibnf::IBNFramework)
-    return globalnode in getglobalnode.(getnodeproperties.(getnodeviews(getibnag(ibnf))))
+function isbordernode(ibnf::IBNFramework, globalnode::GlobalNode)
+    return getibnfid(globalnode) != getibnfid(ibnf) && globalnode in getglobalnode.(getnodeproperties.(getnodeviews(getibnag(ibnf))))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return boolean if `localnode` is in `ibnf` as a border node
+"""
+function isbordernode(ibnf::IBNFramework, localnode::LocalNode)
+    return isbordernode(ibnf, getglobalnode(getibnag(ibnf), localnode))
 end
 
 """
@@ -189,4 +205,15 @@ function getlocalnode(ibnag::IBNAttributeGraph, globalnode::GlobalNode)
         end
     end
     return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the global representation given the local representation.
+Return `nothing` if not found
+"""
+function getglobalnode(ibnag::IBNAttributeGraph, localnode::LocalNode)
+    nodeproperties = getnodeproperties(getnodeview(ibnag, localnode))  
+    return getglobalnode(nodeproperties)
 end

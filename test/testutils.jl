@@ -43,3 +43,11 @@ function JETfilteroutfunctions(@nospecialize f)
     # don't know what wrong with that. Maybe future julia versions will be better. Check every now and then.
     return f !== MINDF.updateidagstates!
 end
+
+function testoxcfiberallocationconsistency(ibnf)
+    nodeviews = AG.vertex_attr(MINDF.getibnag(ibnf))
+    for edge in edges(MINDF.getibnag(ibnf))
+        (MINDF.isbordernode(ibnf, src(edge)) || MINDF.isbordernode(ibnf, src(edge))) && continue
+        @test MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(nodeviews[src(edge)]))[edge] == MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(nodeviews[dst(edge)]))[edge]
+    end
+end

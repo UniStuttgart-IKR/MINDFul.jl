@@ -333,7 +333,7 @@ $(TYPEDSIGNATURES)
 Return the first available oxc add/drop port and `nothing` if none found
 """
 function getfirstavailableoxcadddropport(oxcview::OXCView)
-    reservedoxcadddropports = getadddropportnumber.(values(getreservations(oxcview)))
+    reservedoxcadddropports = getport_adddrop.(values(getreservations(oxcview)))
     for adddropport in 1:getadddropportnumber(oxcview)
         adddropport ∉ reservedoxcadddropports && return adddropport
     end

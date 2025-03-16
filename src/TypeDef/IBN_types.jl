@@ -143,7 +143,7 @@ end
 """
 $(TYPEDEF)
 
-Constraint that requires the intent to terminate optically.
+Constraint that requires the intent to terminate optically one node before the destination.
 It's combined with an (@ref)[`OpticalInitiateConstraint`] after.
 """
 struct OpticalTerminateConstraint <: AbstractIntentConstraint end

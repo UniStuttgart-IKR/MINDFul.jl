@@ -16,11 +16,11 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
-        return kspffintradomain(ibnf, idagnode, kspffalg)
+        return kspffintradomain_2!(ibnf, idagnode, kspffalg)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
-        if isbordernode(destinationglobalnode, ibnf)
+        if isbordernode(ibnf, destinationglobalnode)
             @info "inside"
         end
         # unvisible cross-domain node
@@ -48,7 +48,13 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
     constraints = getconstraints(intent)
 
     # start algorthim
-    yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
+    ## work around Graphs.jl bug
+    if sourcelocalnode == destlocalnode
+        yenstate = Graphs.YenState([u"0km"], [[destlocalnode]])
+    else
+        yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
+    end
+
     lowlevelintentstoadd = LowLevelIntent[]
     ## define a TransmissionModuleCompatibility for the destination node
     transmissionmodulecompat = nothing
@@ -57,10 +63,12 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
         # find router port 
         for (dist, path) in zip(yenstate.dists, yenstate.paths)
             # find transmission module and mode
-            getopticalreach(opticalinitiateconstraint) >= dist || continue
-            pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
             spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
-            all(pathspectrumavailability[spectrumslotsrange]) || continue
+            if length(path) > 1
+                getopticalreach(opticalinitiateconstraint) >= dist || continue
+                pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
+                all(pathspectrumavailability[spectrumslotsrange]) || continue
+            end
 
             transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
             sourceadddropport = nothing
@@ -80,7 +88,8 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
                 end
                 return true
             else
-                return kspffintradomain_destination!(ibnf, idagnode, lowlevelintentstoadd, transmissionmodulecompat)
+                opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end-1]
+                return kspffintradomain_destination!(ibnf, idagnode, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange)
             end
         end
     else
@@ -118,7 +127,8 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
                 !isnothing(sourceadddropport) || continue
 
                 opticalinitincomingnode = nothing
-                oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, startingslot:(startingslot + demandslotsneeded - 1); sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
+                spectrumslotsrange = startingslot:(startingslot + demandslotsneeded - 1)
+                oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
 
                 foreach(oxcadddropbypassspectrumllis) do lli
                     push!(lowlevelintentstoadd, lli)
@@ -133,8 +143,9 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
                     end
                     return true
                 else
-                    # need to allocate a router port and a transmission module and mode
-                    return kspffintradomain_destination!(ibnf, idagnode, lowlevelintentstoadd, transmissionmodulecompat)
+                    # need to allocate a router port, a transmission module and mode, and an OXC configuration
+                    opticalincomingnode = path[end-1]
+                    return kspffintradomain_destination!(ibnf, idagnode, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange)
                 end
             end
         end
@@ -146,7 +157,7 @@ end
 $(TYPEDSIGNATURES)
     Takes care of the final node (destination) for the case of no `OpticalTerminateConstraint`
 """
-function kspffintradomain_destination!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, lowlevelintentstoadd, transmissionmodulecompat)
+function kspffintradomain_destination!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode::Int, spectrumslotsrange::UnitRange{Int})
     ibnag = getibnag(ibnf)
     idag = getidag(ibnf)
     idagnodeid = getidagnodeid(idagnode)
@@ -168,6 +179,13 @@ function kspffintradomain_destination!(ibnf::IBNFramework, idagnode::IntentDAGNo
     destavailtransmdlidx, desttransmodeidx = destavailtransmdlmodeidx[1], destavailtransmdlmodeidx[2] 
     desttransmissionmodulelli = TransmissionModuleLLI(destlocalnode, destavailtransmdlidx, desttransmodeidx)
     push!(lowlevelintentstoadd, desttransmissionmodulelli)
+
+    # allocate OXC configuration
+    destadddropport = getfirstavailableoxcadddropport(destnodeview)
+    !isnothing(destadddropport) || return false
+    oxclli = OXCAddDropBypassSpectrumLLI(destlocalnode, opticalincomingnode, destadddropport, 0, spectrumslotsrange)
+    push!(lowlevelintentstoadd, oxclli)
+
     foreach(lowlevelintentstoadd) do lli
         addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
     end
