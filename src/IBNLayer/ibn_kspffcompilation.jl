@@ -16,7 +16,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
-        return kspffintradomain_2!(ibnf, idagnode, kspffalg)
+        return kspffintradomain!(ibnf, idagnode, kspffalg)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
@@ -32,7 +32,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
+function kspffintradomain!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
     # needed variables
     ibnag = getibnag(ibnf)
     idag = getidag(ibnf)
@@ -50,7 +50,7 @@ function kspffintradomain_2!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Conne
     # start algorthim
     ## work around Graphs.jl bug
     if sourcelocalnode == destlocalnode
-        yenstate = Graphs.YenState([u"0km"], [[destlocalnode]])
+        yenstate = Graphs.YenState([u"0.0km"], [[destlocalnode]])
     else
         yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
     end
@@ -192,86 +192,3 @@ function kspffintradomain_destination!(ibnf::IBNFramework, idagnode::IntentDAGNo
     return true
 end
 
-function kspffintradomain(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation)
-    # needed variables
-    ibnag = getibnag(ibnf)
-    idag = getidag(ibnf)
-    idagnodeid = getidagnodeid(idagnode)
-    intent = getintent(idagnode)
-    sourceglobalnode = getsourcenode(intent)
-    destinationglobalnode = getdestinationnode(intent)
-    demandrate = getrate(intent)
-    constraints = getconstraints(intent)
-
-    # start algorthim
-    sourcelocalnode = getlocalnode(sourceglobalnode)
-    destlocalnode = getlocalnode(destinationglobalnode)
-    yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), kspffalg.k)
-
-    # if not OpticalInitiate
-    sourcenodeview = getnodeview(ibnag, sourcelocalnode)
-    sourceavailtransmdlidxs = getavailabletransmissionmoduleviewindex(sourcenodeview)
-    sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
-
-    # if not OpticalTerminate
-    destnodeview = getnodeview(ibnag, destlocalnode)
-    destavailtransmdlidxs = getavailabletransmissionmoduleviewindex(destnodeview)
-    desttransmissionmoduleviewpool = gettransmissionmoduleviewpool(destnodeview)
-    # try out all paths
-    for (dist, path) in zip(yenstate.dists, yenstate.paths)
-        for sourceavailtransmdlidx in sourceavailtransmdlidxs
-            sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourceavailtransmdlidx]
-            sourcetransmodeidx = getlowestratetransmissionmode(sourcetransmissionmodule, demandrate, dist)
-            if !isnothing(sourcetransmodeidx)
-                sourcetransmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmodeidx)
-                demandslotsneeded = getspectrumslotsneeded(sourcetransmode)
-                transmoderate = getrate(sourcetransmode)
-                transmodulename = getname(sourcetransmissionmodule)
-                # found a transmission module with a transmission mode for source
-
-                # is it available on the destination node ?
-                transmissionmodulecompat = TransmissionModuleCompatibility(transmoderate, demandslotsneeded, transmodulename)
-                destavailtransmdlmodeidx = getfirstcompatibletransmoduleidxandmodeidx(desttransmissionmoduleviewpool, destavailtransmdlidxs, transmissionmodulecompat)
-                if !isnothing(destavailtransmdlmodeidx)
-                    destavailtransmdlidx, desttransmodeidx = destavailtransmdlmodeidx[1], destavailtransmdlmodeidx[2] 
-
-                    # found a transmission module with a transmission mode for source and destination
-                    sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourceavailtransmdlidx, sourcetransmodeidx)
-                    desttransmissionmodulelli = TransmissionModuleLLI(destlocalnode, destavailtransmdlidx, desttransmodeidx)
-
-                    # find router ports
-                    sourcerouterindex = getfirstavailablerouterportindex(getrouterview(sourcenodeview))
-                    if !isnothing(sourcerouterindex)
-                        destrouterindex = getfirstavailablerouterportindex(getrouterview(destnodeview))
-                        if !isnothing(destrouterindex)
-                            sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouterindex)
-                            destrouterportlli = RouterPortLLI(destlocalnode, destrouterindex)
-
-                            # find spectrum slots
-                            # get path availabilities
-                            pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
-                            startingslot = firstfit(pathspectrumavailability, demandslotsneeded)
-                            if !isnothing(startingslot)
-                                # is there oxc ports in the source and destination ?
-                                sourceadddropport = getfirstavailableoxcadddropport(sourcenodeview)
-                                destadddropport = getfirstavailableoxcadddropport(destnodeview)
-                                if !isnothing(sourceadddropport) && !isnothing(destadddropport)
-                                    oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, startingslot:(startingslot + demandslotsneeded - 1); sourceadddropport, destadddropport)
-                                    # we have the TransmissionModuleLLI, RouterPortLLI and OXCAddDropBypassSpectrumLLI
-                                    addidagnode!(idag, sourcetransmissionmodulelli; parentid = idagnodeid, intentissuer = MachineGenerated())
-                                    addidagnode!(idag, desttransmissionmodulelli; parentid = idagnodeid, intentissuer = MachineGenerated())
-                                    addidagnode!(idag, sourcerouterportlli; parentid = idagnodeid, intentissuer = MachineGenerated())
-                                    addidagnode!(idag, destrouterportlli; parentid = idagnodeid, intentissuer = MachineGenerated())
-                                    foreach(oxcadddropbypassspectrumllis) do oxcadddropbypassspectrumlli
-                                        addidagnode!(idag, oxcadddropbypassspectrumlli; parentid = idagnodeid, intentissuer = MachineGenerated())
-                                    end
-                                    return true
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end

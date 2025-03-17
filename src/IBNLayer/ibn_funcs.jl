@@ -195,6 +195,57 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Return all border nodes of `ibnf` with `localnode` representation
+"""
+function getbordernodesaslocal(ibnf::IBNFramework)
+    ibnag = getibnag(ibnf)
+    return [
+        getlocalnode(getproperties(getnodeview(ibnag, v)))
+        for v in vertices(ibnag) if isbordernode(ibnf, v)
+    ]
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return all border nodes of `ibnf` with `globalnode` representation
+"""
+function getbordernodesasglobal(ibnf::IBNFramework)
+    ibnag = getibnag(ibnf)
+    return [
+        getglobalnode(getproperties(getnodeview(ibnag, v)))
+        for v in vertices(ibnag) if isbordernode(ibnf, v)
+    ]
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return all border edges that contain at least one border node as endpoints
+"""
+function getborderedges(ibnf::IBNFramework)
+    ibnag = getibnag(ibnf)
+    return filter(collect(edges(ibnag))) do e
+        isbordernode(ibnf, src(e)) || isbordernode(ibnf, dst(e))
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return all border edges that contain at least one border node as endpoints as global 
+"""
+function getborderglobaledges(ibnf::IBNFramework)
+    ibnag = getibnag(ibnf)
+    [
+        GlobalEdge(getglobalnode(ibnag, src(e)), getglobalnode(ibnag, dst(e)))
+        for e in edges(ibnag) if isbordernode(ibnf, src(e)) || isbordernode(ibnf, dst(e))
+    ]
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 Return the localnode representation given the global representation.
 Return `nothing` if not found
 """

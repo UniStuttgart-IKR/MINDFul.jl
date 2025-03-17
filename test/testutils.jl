@@ -44,10 +44,44 @@ function JETfilteroutfunctions(@nospecialize f)
     return f !== MINDF.updateidagstates!
 end
 
+function testlocalnodeisindex(ibnf)
+    ibnag = MINDF.getibnag(ibnf)
+    indices = collect(vertices(ibnag))
+    localnodes = MINDF.getlocalnode.(MINDF.getnodeproperties.(MINDF.getnodeviews(ibnag)))
+    @test indices == localnodes
+end
+
+"""
+    Check if the IBNFramework fiber allocations are done from both endpoint oxcviews
+"""
 function testoxcfiberallocationconsistency(ibnf)
     nodeviews = AG.vertex_attr(MINDF.getibnag(ibnf))
     for edge in edges(MINDF.getibnag(ibnf))
-        (MINDF.isbordernode(ibnf, src(edge)) || MINDF.isbordernode(ibnf, src(edge))) && continue
+        if (MINDF.isbordernode(ibnf, src(edge)) || MINDF.isbordernode(ibnf, dst(edge)))
+            continue
+        end
         @test MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(nodeviews[src(edge)]))[edge] == MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(nodeviews[dst(edge)]))[edge]
     end
+
+    # do the same for cross domains
+    borderglobaledges = MINDF.getborderglobaledges(ibnf)
+    ibnag = MINDF.getibnag(ibnf)
+    for ge in borderglobaledges
+        for ibnfhandler in MINDF.getinteribnfs(ibnf)
+            if MINDF.getibnfid(ibnfhandler) == MINDF.getibnfid(src(ge)) 
+                remotespecavail = MINDF.requestspectrumavailability(ibnf, ibnfhandler, ge)
+                le = Edge(MINDF.getlocalnode(ibnag, src(ge)), MINDF.getlocalnode(ibnag, dst(ge)))
+                localspecavail = MINDF.getlinkspectrumavailabilities(something(MINDF.getoxcview(MINDF.getnodeview(ibnag, dst(ge) ))))[le]
+                @test remotespecavail == localspecavail
+            end
+                
+            if MINDF.getibnfid(ibnfhandler) == MINDF.getibnfid(dst(ge))
+                remotespecavail = MINDF.requestspectrumavailability(ibnf, ibnfhandler, ge)
+                le = Edge(MINDF.getlocalnode(ibnag, src(ge)), MINDF.getlocalnode(ibnag, dst(ge)))
+                localspecavail = MINDF.getlinkspectrumavailabilities(something(MINDF.getoxcview(MINDF.getnodeview(ibnag, src(ge) ))))[le]
+                @test remotespecavail == localspecavail
+            end
+        end
+    end
+    
 end

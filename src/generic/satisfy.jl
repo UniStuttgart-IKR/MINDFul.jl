@@ -15,7 +15,6 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     idag = getidag(ibnf)
 
     # get all LLIs
-    # TODO-tomorow : no I only need to get the LLI children
     idagnodellis = getidagnodellis(idag, getidagnodeid(idagnode))
     if onlyinstalled
         filter!(x -> getidagnodestate(x) == IntentState.Installed, idagnodellis)

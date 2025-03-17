@@ -5,6 +5,9 @@
     ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
     ibnf1 = MINDF.IBNFramework(ibnag1)
 
+    testlocalnodeisindex(ibnf1)
+    testoxcfiberallocationconsistency(ibnf1)
+
     conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 4), MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 8), u"100.0Gbps")
 
     intentuuid1 = MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
@@ -52,6 +55,8 @@
 
     @test MINDF.removeintent!(ibnf1, intentuuid1)
     @test nv(MINDF.getidag(ibnf1)) == 0
+
+    testoxcfiberallocationconsistency(ibnf1)
 end
 
 # nothing
