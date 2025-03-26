@@ -77,6 +77,8 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Return the `IntentDAGNode`
 """
 function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
     intentcounter = increaseidagcounter!(intentdag)
@@ -85,6 +87,26 @@ function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Un
     else
         idagnode = IntentDAGNode(intent, UUID(intentcounter), intentissuer, IntentLogState(IntentState.Uncompiled))
     end
+
+    add_vertex!(intentdag)
+    newidagnodeidx = nv(intentdag)
+    push!(getidagnodes(intentdag), idagnode)
+
+    if !isnothing(parentid)
+        parentidx = getidagnodeidx(intentdag, parentid)
+        add_edge!(intentdag, parentidx, newidagnodeidx)
+    end
+
+    return idagnode
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the `UUID`
+"""
+function addidagnode!(intentdag::IntentDAG, idagnode::IntentDAGNode; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+    intentcounter = increaseidagcounter!(intentdag)
 
     add_vertex!(intentdag)
     newidagnodeidx = nv(intentdag)

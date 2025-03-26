@@ -1,6 +1,13 @@
-function issatisfied(ibnf::IBNFramework, intentid::UUID;  onlyinstalled = true, noextrallis = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
-    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, noextrallis, verbose, assumeglobalknowledge, orderedllis)
+function issatisfied(ibnf::IBNFramework, intentid::UUID, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
+    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid), orderedllis; noextrallis, verbose)
 end
+function issatisfied(ibnf::IBNFramework, intentid::UUID;  onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, noextrallis, verbose)
+end
+function getlogicallliorder(ibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    return getlogicallliorder(ibnf, getidagnode(getidag(ibnf), intentuuid); onlyinstalled, verbose)
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -11,18 +18,71 @@ The options are:
 - noextrallis: all LLI must be used
 - orderedllis: pass list to access ordered llis
 """
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false, assumeglobalknowledge::Bool = false, orderedllis::Vector{LowLevelIntent} = LowLevelIntent[])
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+    orderedllis = getlogicallliorder(ibnf, idagnode; onlyinstalled, verbose)
+    return issatisfied(ibnf, idagnode, orderedllis; noextrallis, verbose)
+end
+
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
+    idag = getidag(ibnf)
+    conintent = getintent(idagnode)
+    sourcelocalnode = getlocalnode(getsourcenode(conintent))
+    destlocalnode = getlocalnode(getdestinationnode(conintent))
+    constraints = getconstraints(conintent)
+
+    istotalsatisfied = true
+
+    isempty(orderedllis) && return false
+
+    # check first
+    let firstlli = orderedllis[1]
+        opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
+        if !isnothing(opticalinitiateconstraint)
+            if !(firstlli isa OXCAddDropBypassSpectrumLLI && getlocalnode(firstlli) == sourcelocalnode &&
+                    getlocalnode_input(firstlli) == something(getlocalnode(getibnag(ibnf), getglobalnode_input(opticalinitiateconstraint))))
+                istotalsatisfied = false
+            end
+        else
+            if !(firstlli isa RouterPortLLI) || getlocalnode(firstlli) != sourcelocalnode
+                istotalsatisfied = false
+            end
+        end
+    end
+
+    # check last
+    let lastlli = orderedllis[end]
+        opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+        if !isnothing(opticalterminateconstraint)
+            if !(lastlli isa OXCAddDropBypassSpectrumLLI) || getlocalnode_output(lastlli) != destlocalnode
+                istotalsatisfied = false
+            end
+        else
+            if !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
+                istotalsatisfied = false
+            end
+        end
+    end
+
+    if noextrallis
+        istotalsatisfied &= (length(getidagnodellis(idag, getidagnodeid(idagnode))) == length(orderedllis))
+    end
+
+    return istotalsatisfied
+end
+
+function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, verbose::Bool = false)
     idag = getidag(ibnf)
 
     # get all LLIs
     idagnodellis = getidagnodellis(idag, getidagnodeid(idagnode))
+    llis = getintent.(idagnodellis)
+    orderedllis = empty(llis)
+    isempty(idagnodellis) && return orderedllis
+
     if onlyinstalled
         filter!(x -> getidagnodestate(x) == IntentState.Installed, idagnodellis)
     end
-    @returniffalse(verbose, !isempty(idagnodellis))
     llis = getintent.(idagnodellis)
-
-    istotalsatisfied = true
 
     conintent = getintent(idagnode)
     sourcelocalnode = getlocalnode(getsourcenode(conintent))
@@ -42,57 +102,40 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
         end
     end
 
-    if !isnothing(lliidx1)
-        push!(orderedllis, popat!(llis, lliidx1))
-        # continue to the second and so on...
+    isnothing(lliidx1) && return orderedllis
 
-        while !isempty(llis) && istotalsatisfied
-            let lastlli = orderedllis[end]
-                if lastlli isa RouterPortLLI
-                    nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
-                    if isnothing(nextlliidx)
-                        istotalsatisfied = false
-                    else
-                        push!(orderedllis, popat!(llis, nextlliidx))
-                    end
-                elseif lastlli isa TransmissionModuleLLI
-                    nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
-                    if isnothing(nextlliidx)
-                        istotalsatisfied = false
-                    else
-                        push!(orderedllis, popat!(llis, nextlliidx))
-                    end
-                elseif lastlli isa OXCAddDropBypassSpectrumLLI
-                    nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
-                    if isnothing(nextlliidx)
-                        istotalsatisfied = false
-                    else
-                        push!(orderedllis, popat!(llis, nextlliidx))
-                    end
+    push!(orderedllis, popat!(llis, lliidx1))
+    # continue to the second and so on...
+
+    validcontinuity = true
+    while !isempty(llis) && validcontinuity
+        let lastlli = orderedllis[end]
+            if lastlli isa RouterPortLLI
+                nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
+                if isnothing(nextlliidx)
+                    validcontinuity = false
+                else
+                    push!(orderedllis, popat!(llis, nextlliidx))
+                end
+            elseif lastlli isa TransmissionModuleLLI
+                nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
+                if isnothing(nextlliidx)
+                    validcontinuity = false
+                else
+                    push!(orderedllis, popat!(llis, nextlliidx))
+                end
+            elseif lastlli isa OXCAddDropBypassSpectrumLLI
+                nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
+                if isnothing(nextlliidx)
+                    validcontinuity = false
+                else
+                    push!(orderedllis, popat!(llis, nextlliidx))
                 end
             end
         end
-    else
-        istotalsatisfied = false
     end
 
-    let lastlli = orderedllis[end]
-        opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
-        if !isnothing(opticalterminateconstraint)
-            if !(lastlli isa OXCAddDropBypassSpectrumLLI) || getlocalnode_output(lastlli) != destlocalnode
-                istotalsatisfied = false
-            end
-        else
-            if !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
-                istotalsatisfied = false
-            end
-        end
-    end
-
-    if noextrallis
-        istotalsatisfied &= isempty(llis)
-    end
-    return istotalsatisfied
+    return orderedllis
 end
 
 """

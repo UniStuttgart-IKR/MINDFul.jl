@@ -28,8 +28,8 @@
     @test all(x -> MINDF.getintent(x) isa MINDF.LowLevelIntent, leafs)
     @test all(x -> MINDF.getidagnodestate(x) == MINDF.IntentState.Installed, leafs)
     @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf1), intentuuid1)) == MINDF.IntentState.Installed
-    orderedllis = MINDF.LowLevelIntent[]
-    @test MINDF.issatisfied(ibnf1, intentuuid1; orderedllis = orderedllis)
+    orderedllis = MINDF.getlogicallliorder(ibnf1, intentuuid1)
+    @test MINDF.issatisfied(ibnf1, intentuuid1, orderedllis)
 
     foreach(orderedllis) do olli
     islowlevelintentdagnodeinstalled(ibnf1, olli)

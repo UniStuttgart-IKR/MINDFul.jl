@@ -41,7 +41,9 @@ end
 
 function JETfilteroutfunctions(@nospecialize f) 
     # don't know what wrong with that. Maybe future julia versions will be better. Check every now and then.
-    return f !== MINDF.updateidagstates!
+    return f !== MINDF.updateidagstates! &&
+    # ibnhandlers are generally type unstable, but I think this shouldn't be a problem because I access type stable fields...
+        f !== MINDF.requestspectrumavailability
 end
 
 function testlocalnodeisindex(ibnf)
@@ -67,7 +69,7 @@ function testoxcfiberallocationconsistency(ibnf)
     borderglobaledges = MINDF.getborderglobaledges(ibnf)
     ibnag = MINDF.getibnag(ibnf)
     for ge in borderglobaledges
-        for ibnfhandler in MINDF.getinteribnfs(ibnf)
+        for ibnfhandler in MINDF.getibnfhandlers(ibnf)
             if MINDF.getibnfid(ibnfhandler) == MINDF.getibnfid(src(ge)) 
                 remotespecavail = MINDF.requestspectrumavailability(ibnf, ibnfhandler, ge)
                 le = Edge(MINDF.getlocalnode(ibnag, src(ge)), MINDF.getlocalnode(ibnag, dst(ge)))

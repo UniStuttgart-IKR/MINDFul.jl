@@ -19,8 +19,8 @@ function requestspectrumavailability(myibnf::IBNFramework, remoteibnf::IBNFramew
     remoteibnag = getibnag(remoteibnf)
     nodeviewsrc = getnodeview(remoteibnag, src(ge))
     nodeviewdst = getnodeview(remoteibnag, dst(ge))
-    localnodesrc = getlocalnode(remoteibnag, src(ge))
-    localnodedst = getlocalnode(remoteibnag, dst(ge))
+    localnodesrc = something(getlocalnode(remoteibnag, src(ge)))
+    localnodedst = something(getlocalnode(remoteibnag, dst(ge)))
     le = Edge(localnodesrc, localnodedst)
 
     if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(myibnf)

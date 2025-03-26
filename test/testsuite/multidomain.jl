@@ -16,7 +16,7 @@ ibnfs = [
 for i in eachindex(ibnfs)
     for j in eachindex(ibnfs)
         i == j && continue
-        push!(ibnfs[i].interIBNFs, ibnfs[j] )
+        push!(MINDF.getibnfhandlers(ibnfs[i]), ibnfs[j] )
     end
 end
 

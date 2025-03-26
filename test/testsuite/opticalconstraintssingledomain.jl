@@ -16,7 +16,7 @@ ibnfs = [
 for i in eachindex(ibnfs)
     for j in eachindex(ibnfs)
         i == j && continue
-        push!(ibnfs[i].interIBNFs, ibnfs[j] )
+        push!(MINDF.getibnfhandlers(ibnfs[i]), ibnfs[j] )
     end
 end
 
@@ -38,21 +38,21 @@ conintent_intra_optterm = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8),
 intentuuid2 = MINDF.addintent!(ibnfs[1], conintent_intra_optterm, MINDF.NetworkOperator())
 # MINDF.kspffintradomain_2!(ibnfs[1], MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid2), MINDF.KShorestPathFirstFitCompilation(10))
 @test MINDF.compileintent!(ibnfs[1], intentuuid2, MINDF.KShorestPathFirstFitCompilation(10))
-orderedllis2 = MINDF.LowLevelIntent[]
-@test MINDF.issatisfied(ibnfs[1], intentuuid2; onlyinstalled=false, noextrallis=true, orderedllis = orderedllis2)
+orderedllis2 = MINDF.getlogicallliorder(ibnfs[1], intentuuid2; onlyinstalled=false)
+@test MINDF.issatisfied(ibnfs[1], intentuuid2, orderedllis2; noextrallis=true)
 vorletzteglobalsnode = MINDF.getglobalnode(MINDF.getibnag(ibnfs[1]), MINDF.getlocalnode(orderedllis2[end]))
 spectrumslots = MINDF.getspectrumslotsrange(orderedllis2[end])
 transmode = MINDF.gettransmissionmode(ibnfs[1], orderedllis2[2])
 transmodulename = MINDF.getname(MINDF.gettransmissionmodule(ibnfs[1], orderedllis2[2]))
 @test MINDF.installintent!(ibnfs[1], intentuuid2)
-@test MINDF.issatisfied(ibnfs[1], intentuuid2; onlyinstalled=true, noextrallis=true, orderedllis = orderedllis2)
+@test MINDF.issatisfied(ibnfs[1], intentuuid2; onlyinstalled=true, noextrallis=true)
 
 conintent_intra_optini_finishprevious = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 22), MINDF.GlobalNode(UUID(1), 22), u"100.0Gbps", [MINDF.OpticalInitiateConstraint(vorletzteglobalsnode, spectrumslots, u"10.0km", MINDF.TransmissionModuleCompatibility(MINDF.getrate(transmode), MINDF.getspectrumslotsneeded(transmode), transmodulename))])
 intentuuid_intra_optini_finishprevious = MINDF.addintent!(ibnfs[1], conintent_intra_optini_finishprevious, MINDF.NetworkOperator())
 @test MINDF.compileintent!(ibnfs[1], intentuuid_intra_optini_finishprevious, MINDF.KShorestPathFirstFitCompilation(10))
-@test MINDF.issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled=false, noextrallis=true, orderedllis = orderedllis2)
+@test MINDF.issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled=false, noextrallis=true)
 @test MINDF.installintent!(ibnfs[1], intentuuid_intra_optini_finishprevious)
-@test MINDF.issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled=true, noextrallis=true, orderedllis = orderedllis2)
+@test MINDF.issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled=true, noextrallis=true)
 
 # intradomain with `OpticalInitaiteConstraint`
 conintent_intra_optini = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8), MINDF.GlobalNode(UUID(1), 22), u"100.0Gbps", [MINDF.OpticalInitiateConstraint(MINDF.GlobalNode(UUID(1), 2), 21:26, u"500.0km", MINDF.TransmissionModuleCompatibility(u"300.0Gbps", 6, "DummyFlexiblePluggable"))])
@@ -71,8 +71,9 @@ oxcllifinishprevious3 = MINDF.OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 21:26)
 conintent_intra_optseg = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8), MINDF.GlobalNode(UUID(1), 22), u"100.0Gbps", [MINDF.OpticalTerminateConstraint(), MINDF.OpticalInitiateConstraint(MINDF.GlobalNode(UUID(1), 2), 31:34, u"500.0km", MINDF.TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
 intentuuid4 = MINDF.addintent!(ibnfs[1], conintent_intra_optseg, MINDF.NetworkOperator())
 @test MINDF.compileintent!(ibnfs[1], intentuuid4, MINDF.KShorestPathFirstFitCompilation(10))
-orderedllis4 = MINDF.LowLevelIntent[]
-@test MINDF.issatisfied(ibnfs[1], intentuuid4; onlyinstalled=false, noextrallis=true, orderedllis = orderedllis4)
+orderedllis4 = MINDF.getlogicallliorder(ibnfs[1], intentuuid4; onlyinstalled=false)
+@show orderedllis4
+@test MINDF.issatisfied(ibnfs[1], intentuuid4, orderedllis4; noextrallis=true)
 vorletzteglobalsnode4 = MINDF.getlocalnode(orderedllis4[end])
 @test MINDF.installintent!(ibnfs[1], intentuuid4)
 @test MINDF.issatisfied(ibnfs[1], intentuuid4; onlyinstalled=true, noextrallis=true)

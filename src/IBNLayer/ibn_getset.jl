@@ -18,8 +18,12 @@ function getidag(s::IBNFramework)
     return s.intentdag
 end
 
-function getinteribnfs(s::IBNFramework)
-    return s.interIBNFs
+function getibnfhandlers(s::IBNFramework)
+    return s.ibnfhandlers
+end
+
+function getibnfhandler(s::IBNFramework, uuid::UUID)
+    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , s.ibnfhandlers))
 end
 
 function getidagcounter(intentdaginfo::IntentDAGInfo)

@@ -222,7 +222,7 @@ struct IBNFramework{S <: AbstractSDNController, T <: IBNAttributeGraph, H <: Abs
     "Single-domain internal graph with border nodes included"
     ibnag::T
     "Other IBN Frameworks handles"
-    interIBNFs::Vector{H}
+    ibnfhandlers::Vector{H}
     "SDN controller handle"
     sdncontroller::S
 end
@@ -256,7 +256,7 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, I, "(", getibnfid(ibnf))
     print(io, ", IntentDAG(", nv(getidag(ibnf)), ", ", ne(getidag(ibnf)), ")")
     print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
-    print(io, ", ", getibnfid.(getinteribnfs(ibnf)))
+    print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
 end
 

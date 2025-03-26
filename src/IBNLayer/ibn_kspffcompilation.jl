@@ -20,8 +20,17 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
+        idag = getidag(ibnf)
+        intent = getintent(idagnode)
         if isbordernode(ibnf, destinationglobalnode)
             @info "inside"
+            internalintent = ConnectivityIntent(getsourcenode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
+
+            internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+            # need first to compile that to get the optical choice
+            kspffintradomain!(ibnf, internalidagnode, kspffalg)
+
+            # remoteintent = ConnectivityIntent(getdestinationnode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), OpticalInitiateConstraint())
         end
         # unvisible cross-domain node
     end

@@ -5,7 +5,8 @@ Add a new user intent to the IBN framework.
 """
 function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
     intentdag = getidag(ibnf)
-    return addidagnode!(intentdag, intent; intentissuer)
+    idagnode =  addidagnode!(intentdag, intent; intentissuer)
+    return getidagnodeid(idagnode)
 end
 
 """
@@ -104,13 +105,33 @@ $(TYPEDSIGNATURES)
 Get the spectrum availability slots vector for `edge`
 """
 function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst::Bool = true)
+    #TODO-now: check with remotespectrum request
+    ibnag = getibnag(ibnf) 
     nodeviews = AG.vertex_attr(getibnag(ibnf))
     if checkfirst
-        @assert(
-            getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge] ==
-                getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
-        )
+        srclinkspectrumavailabilities = if isbordernode(ibnf, src(edge))  
+            remoteibnfid = getibnfid(getglobalnode(ibnag, src(edge)))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
+            something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
+            # getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
+        else 
+            getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
+        end
+
+        dstlinkspectrumavailabilities = if isbordernode(ibnf, dst(edge))  
+            remoteibnfid = getibnfid(getglobalnode(ibnag, dst(edge)))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
+            something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
+            # getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
+        else
+            getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
+        end
+
+        @assert(srclinkspectrumavailabilities == dstlinkspectrumavailabilities)
     end
+    #TODO-now: pick that one that is internal
     return getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
 end
 
@@ -267,4 +288,16 @@ Return `nothing` if not found
 function getglobalnode(ibnag::IBNAttributeGraph, localnode::LocalNode)
     nodeproperties = getnodeproperties(getnodeview(ibnag, localnode))  
     return getglobalnode(nodeproperties)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get the `OpticalInitiateConstraint` for the current intent DAG.
+If the compilation is not optically terminated return `nothing`.
+"""
+function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeid::UUID)
+    logicallliorder = getlogicallliorder(ibnf, idagnodeid)
+    # 
+    getfirst(x -> x isa OXCAddDropBypassSpectrumLLI, Iterators.reverse(logicallliorder))
 end
