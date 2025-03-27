@@ -291,13 +291,60 @@ function getglobalnode(ibnag::IBNAttributeGraph, localnode::LocalNode)
 end
 
 """
+$(TYPEDSIGNATURES)
+"""
+function gettransmissionmodule(ibnag::IBNAttributeGraph, oxclli::TransmissionModuleLLI)
+    nodeview = getnodeview(ibnag, getlocalnode(oxclli))
+    index = gettransmissionmoduleviewpoolindex(oxclli)
+    return gettransmissionmoduleviewpool(nodeview)[index]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettransmissionmode(ibnag::IBNAttributeGraph, oxclli::TransmissionModuleLLI)
+    transmodule = gettransmissionmodule(ibnag, oxclli)
+    modeindex = gettransmissionmodesindex(oxclli)
+    return gettransmissionmodes(transmodule)[modeindex]
+end
+
+"""
 $(TYPEDSIGNATURES) 
 
 Get the `OpticalInitiateConstraint` for the current intent DAG.
 If the compilation is not optically terminated return `nothing`.
 """
 function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeid::UUID)
-    logicallliorder = getlogicallliorder(ibnf, idagnodeid)
-    # 
-    getfirst(x -> x isa OXCAddDropBypassSpectrumLLI, Iterators.reverse(logicallliorder))
+    ibnag = getibnag(ibnf)
+    logicallliorder = getlogicallliorder(ibnf, idagnodeid; onlyinstalled=false)
+
+    isempty(logicallliorder) && return nothing
+
+    lasttransmodlliidx = findlast(x -> x isa TransmissionModuleLLI, logicallliorder)
+    isnothing(lasttransmodlliidx) && return nothing
+    lasttransmodlli = logicallliorder[lasttransmodlliidx]
+
+    oxcllis = [logicallliorder[i] for i in (lasttransmodlliidx+1):length(logicallliorder)]
+    all(x -> x isa OXCAddDropBypassSpectrumLLI, oxcllis) || return nothing
+    lastoxclli = last(oxcllis)
+
+    globalnode_input = getglobalnode(ibnag, getlocalnode(lastoxclli))
+    spectrumslotsrange = getspectrumslotsrange(lastoxclli)
+
+    # transmission mode
+    lasttransmode = gettransmissionmode(getibnag(ibnf), lasttransmodlli)
+    rate = getrate(lasttransmode)
+    spectrumslotsneeded = getspectrumslotsneeded(lasttransmode)
+    nodepath = [getlocalnode(oxclli) for oxclli in oxcllis]
+    push!(nodepath, getlocalnode_output(lastoxclli))
+    distancecovered = sum(getdistance(getedgeview(ibnag, e)) for e in edgeify(nodepath))
+    newopticalreach = getopticalreach(lasttransmode) - distancecovered
+
+    # transmission module
+    name = getname(gettransmissionmodule(getibnag(ibnf), lasttransmodlli))
+
+    # transmissionmodulecompat
+    transmdlcompat = TransmissionModuleCompatibility(rate, spectrumslotsneeded, name)
+
+    return OpticalInitiateConstraint(globalnode_input, spectrumslotsrange, newopticalreach, transmdlcompat)
 end

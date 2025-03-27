@@ -29,6 +29,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
             internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
             # need first to compile that to get the optical choice
             kspffintradomain!(ibnf, internalidagnode, kspffalg)
+            opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
 
             # remoteintent = ConnectivityIntent(getdestinationnode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), OpticalInitiateConstraint())
         end

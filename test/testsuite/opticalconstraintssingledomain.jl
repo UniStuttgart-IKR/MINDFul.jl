@@ -72,7 +72,6 @@ conintent_intra_optseg = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8), 
 intentuuid4 = MINDF.addintent!(ibnfs[1], conintent_intra_optseg, MINDF.NetworkOperator())
 @test MINDF.compileintent!(ibnfs[1], intentuuid4, MINDF.KShorestPathFirstFitCompilation(10))
 orderedllis4 = MINDF.getlogicallliorder(ibnfs[1], intentuuid4; onlyinstalled=false)
-@show orderedllis4
 @test MINDF.issatisfied(ibnfs[1], intentuuid4, orderedllis4; noextrallis=true)
 vorletzteglobalsnode4 = MINDF.getlocalnode(orderedllis4[end])
 @test MINDF.installintent!(ibnfs[1], intentuuid4)

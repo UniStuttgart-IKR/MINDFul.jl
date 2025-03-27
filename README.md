@@ -39,3 +39,10 @@ new... -> construct something new
 New TODOs
 - do install
 - do multidomain
+
+Tip for developers:
+transmission -> trans
+module -> mdl
+mode -> mode
+index -> idx
+uuid -> id

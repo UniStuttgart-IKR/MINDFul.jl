@@ -80,6 +80,10 @@ function getedgeview(ibnag::IBNAttributeGraph, ed::Edge)
     return AG.edge_attr(ibnag)[ed]
 end
 
+function getedgeviews(ibnag::IBNAttributeGraph)
+    return [AG.edge_attr(ibnag)[ed] for ed in edges(ibnag)]
+end
+
 function getnodeview(ibnag::IBNAttributeGraph, node::LocalNode)
     return AG.vertex_attr(ibnag)[node]
 end
