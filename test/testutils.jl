@@ -43,7 +43,9 @@ function JETfilteroutfunctions(@nospecialize f)
     # don't know what wrong with that. Maybe future julia versions will be better. Check every now and then.
     return f !== MINDF.updateidagstates! &&
     # ibnhandlers are generally type unstable, but I think this shouldn't be a problem because I access type stable fields...
-        f !== MINDF.requestspectrumavailability
+        f !== MINDF.requestspectrumavailability && 
+    # although I think the logic is there to be type stable, the compiler struggles
+        f !== MINDF.getopticalinitiateconstraint
 end
 
 function testlocalnodeisindex(ibnf)

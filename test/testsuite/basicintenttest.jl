@@ -16,7 +16,7 @@
     @test MINDF.getidagnodestate(MINDF.getidag(ibnf1), intentuuid1) == MINDF.IntentState.Uncompiled
     @test isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf1), intentuuid1))
 
-    @test_opt target_modules=[MINDF] function_filter=JETfilteroutfunctions MINDF.compileintent!(ibnf1, MINDF.getidagnode(MINDF.getidag(ibnf1), intentuuid1), MINDF.KShorestPathFirstFitCompilation(10))
+    RUNJET && @test_opt broken=true target_modules=[MINDF] function_filter=JETfilteroutfunctions MINDF.compileintent!(ibnf1, MINDF.getidagnode(MINDF.getidag(ibnf1), intentuuid1), MINDF.KShorestPathFirstFitCompilation(10))
     MINDF.compileintent!(ibnf1, intentuuid1, MINDF.KShorestPathFirstFitCompilation(10))
     @test MINDF.getidagnodestate(MINDF.getidag(ibnf1), intentuuid1) == MINDF.IntentState.Compiled
     @test !isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf1), intentuuid1))

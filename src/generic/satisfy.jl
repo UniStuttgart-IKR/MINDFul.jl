@@ -76,7 +76,8 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
     # get all LLIs
     idagnodellis = getidagnodellis(idag, getidagnodeid(idagnode))
     llis = getintent.(idagnodellis)
-    orderedllis = empty(llis)
+    # orderedllis = empty(llis)
+    orderedllis = LowLevelIntent[]
     isempty(idagnodellis) && return orderedllis
 
     if onlyinstalled

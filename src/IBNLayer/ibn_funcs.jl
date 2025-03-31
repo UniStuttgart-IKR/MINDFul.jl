@@ -313,18 +313,20 @@ $(TYPEDSIGNATURES)
 
 Get the `OpticalInitiateConstraint` for the current intent DAG.
 If the compilation is not optically terminated return `nothing`.
+
+To me this has all the logic needed to be type stable but the compiler fails.
 """
 function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeid::UUID)
     ibnag = getibnag(ibnf)
-    logicallliorder = getlogicallliorder(ibnf, idagnodeid; onlyinstalled=false)
+    logicallliorder::Vector{LowLevelIntent} = getlogicallliorder(ibnf, idagnodeid; onlyinstalled=false)
 
     isempty(logicallliorder) && return nothing
 
-    lasttransmodlliidx = findlast(x -> x isa TransmissionModuleLLI, logicallliorder)
-    isnothing(lasttransmodlliidx) && return nothing
-    lasttransmodlli = logicallliorder[lasttransmodlliidx]
+    lasttransmdlliidx = findlast(x -> x isa TransmissionModuleLLI, logicallliorder)
+    isnothing(lasttransmdlliidx) && return nothing
+    lasttransmodlli::TransmissionModuleLLI = logicallliorder[lasttransmdlliidx]
 
-    oxcllis = [logicallliorder[i] for i in (lasttransmodlliidx+1):length(logicallliorder)]
+    oxcllis::Vector{OXCAddDropBypassSpectrumLLI} = [logicallliorder[i] for i in (lasttransmdlliidx+1):length(logicallliorder)]
     all(x -> x isa OXCAddDropBypassSpectrumLLI, oxcllis) || return nothing
     lastoxclli = last(oxcllis)
 

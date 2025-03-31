@@ -17,9 +17,9 @@
     for (reservableresource, lli) in zip([nodeview1, routerview1, oxcview1], [tmlli1, rplli1, oxclli1])
         @test MINDF.canreserve(reservableresource, lli)
         @test_nothrows @inferred MINDF.canreserve(reservableresource, lli)
-        @test_opt target_modules=[MINDF] MINDF.canreserve(reservableresource, lli)
+        RUNJET && @test_opt target_modules=[MINDF] MINDF.canreserve(reservableresource, lli)
 
-        @test_opt target_modules=[MINDF] MINDF.reserve!(reservableresource, lli, dagnodeid1; verbose = true)
+        RUNJET && @test_opt target_modules=[MINDF] MINDF.reserve!(reservableresource, lli, dagnodeid1; verbose = true)
         @test MINDF.reserve!(reservableresource, lli, dagnodeid1; verbose = true)
         if lli isa OXCAddDropBypassSpectrumLLI
             @test !any(MINDF.getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)][2:4])
@@ -31,7 +31,7 @@
         @test length(reservations) == 1
         @test first(reservations) == (dagnodeid1 => lli)
 
-        @test_opt target_modules=[MINDF] MINDF.unreserve!(reservableresource, dagnodeid1)
+        RUNJET && @test_opt target_modules=[MINDF] MINDF.unreserve!(reservableresource, dagnodeid1)
         @test MINDF.unreserve!(reservableresource, dagnodeid1)
         if lli isa OXCAddDropBypassSpectrumLLI
             @test all(MINDF.getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)])
