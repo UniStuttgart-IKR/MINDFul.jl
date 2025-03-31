@@ -175,9 +175,14 @@ $(TYPEDEF)
 $(TYPEDFIELDS)
 """
 struct RemoteIntent{I<:AbstractIntent} <: AbstractIntent
+    "The id of the remote IBN framework"
     ibnfid::UUID
+    "The dag node id of the remote IBN framework"
     idagnodeid::UUID
+    "The intent to be transferred"
     intent::I
+    "`true` if the intent originates here and `false` otherwise"
+    isinitiator::Bool
 end
 
 """

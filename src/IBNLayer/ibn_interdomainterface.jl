@@ -37,6 +37,17 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Return the id of the new dag node if successful and `nothing` otherwise
+"""
+function delegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, onsiteidagnodeid::UUID)
+    remoteintent = RemoteIntent(getibnfid(myibnf), onsiteidagnodeid, intent, false)
+    remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent)
+    return getidagnodeid(remoteintentdagnode)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Fabian Gobantes implementation
 If far away, think about authorization and permissions.
 That's the reason why there are 2 arguments: The first argument should have the authorization.
@@ -54,5 +65,18 @@ Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
 function requestspectrumavailability(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
+    error("not implemented")
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Fabian Gobantes implementation
+
+Delegates an intent to another domain
+
+Return the id of the new dag node if successful and `nothing` otherwise
+"""
+function delegateintent!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intent::AbstractIntent, onsiteidagnodeid::UUID)
     error("not implemented")
 end

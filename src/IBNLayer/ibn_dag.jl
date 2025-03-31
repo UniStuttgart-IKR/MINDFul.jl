@@ -24,6 +24,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getidagnextcounter(intentdag::IntentDAG)
+    return getidagcounter(getidaginfo(intentdag)) + 1
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function increaseidagcounter!(intentdag::IntentDAG)
     idaginfo = getidaginfo(intentdag)
     return idaginfo.intentcounter += 1

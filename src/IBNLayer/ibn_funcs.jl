@@ -92,6 +92,26 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remoteibndif`
+"""
+function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
+    ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+    onsitenextidagnodeid = getidagnextcounter(getidag(ibnf))
+    remoteidagnodeid = delegateintent!(ibnf, ibnfhandler, getintent(idagnode), onsitenextidagnodeid)
+
+    # add an idagnode `RemoteIntent`
+    remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
+
+    # add in DAG
+    onsiteidagnode = addidagnode!(getidag(ibnf), remoteintent; parentid=getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    @assert onsitenextidagnodeid = getidagnodeid(onsiteidagnode)
+
+    return onsiteidagnode
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 Get spectrum availabilities along a `path` of nodes as a `BitVector`
 """
 function getpathspectrumavailabilities(ibnf::IBNFramework, localnodespath::Vector{LocalNode}; checkfirst::Bool = true)
