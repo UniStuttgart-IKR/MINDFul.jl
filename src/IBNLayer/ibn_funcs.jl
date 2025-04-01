@@ -22,9 +22,20 @@ $(TYPEDSIGNATURES)
 """
 function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
-    intent = getidagnode(getidag(ibnf), idagnodeid)
-    compileintent!(ibnf, intent, algorithm)
+    idagnode = getidagnode(getidag(ibnf), idagnodeid)
+    compileintent!(ibnf, idagnode, algorithm)
     return updateidagstates!(getidag(ibnf), idagnodeid)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm)
+    # make a kid
+    # idagnodechild = addidagnode!(getidag(ibnf), getintent(idagnode); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    # compile the kid
+    return compileintent!(ibnf, idagnodechild, algorithm)
 end
 
 """
@@ -96,17 +107,17 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
 """
 function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-    onsitenextidagnodeid = getidagnextcounter(getidag(ibnf))
-    remoteidagnodeid = delegateintent!(ibnf, ibnfhandler, getintent(idagnode), onsitenextidagnodeid)
+    internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
+    remoteidagnodeid = delegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
 
     # add an idagnode `RemoteIntent`
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
     # add in DAG
-    onsiteidagnode = addidagnode!(getidag(ibnf), remoteintent; parentid=getidagnodeid(idagnode), intentissuer = MachineGenerated())
-    @assert onsitenextidagnodeid = getidagnodeid(onsiteidagnode)
+    internalidagnode = addidagnode!(getidag(ibnf), remoteintent; parentid=getidagnodeid(idagnode), intentissuer=MachineGenerated())
+    @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
 
-    return onsiteidagnode
+    return internalidagnode
 end
 
 """
@@ -370,3 +381,35 @@ function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeid::UUID)
 
     return OpticalInitiateConstraint(globalnode_input, spectrumslotsrange, newopticalreach, transmdlcompat)
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function displayavailablecompilationalgorithmsinfo(myibnf::IBNFramework, remoteibnfhandler)
+    foreach(getavailablecompilationalgorithms(myibnf, remoteibnfhandler)) do keywordsymbol
+        display(keywordsymbol)
+        display(Base.doc(getcompilationalgorithm(Val(keywordsymbol))))
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getnumberofparameters(::T) where {T<:IntentCompilationAlgorithm}
+    return getnumberofparameters(T)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getnumberofparameters(::Type{T}) where {T<:IntentCompilationAlgorithm}
+    return fieldcount(T)
+end
+
+function getcompilationalgorithm(ibnf::IBNFramework, compilationalgorithmkey::Symbol, compilationalgorithmargs::Tuple)
+    compilationalgorithmkey2use = compilationalgorithmkey == :default ? getdefaultcompilationalgorithm(ibnf) : compilationalgorithmkey
+    compilationalgorithmtype = getcompilationalgorithmtype(Val(compilationalgorithmkey2use))
+    compilationalgorithmargs2use = getnumberofparameters(compilationalgorithmtype) != length(compilationalgorithmargs) ? getdefaultcompilationalgorithmargs(compilationalgorithmkey2use) : compilationalgorithmargs
+    return compilationalgorithmtype(compilationalgorithmargs2use...)
+end
+

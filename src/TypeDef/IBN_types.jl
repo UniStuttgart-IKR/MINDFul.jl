@@ -18,6 +18,16 @@ abstract type AbstractIntentConstraint end
 abstract type IntentCompilationAlgorithm end
 
 """
+How the IBN frameworks operates generally. 
+It has effect of the available compilation algorithms
+In the future it could also have effect on different intent state machines
+"""
+abstract type AbstractOperationMode end
+
+"Default operation mode defined in MINDFul.jl"
+struct DefaultOperationMode <: AbstractOperationMode end
+
+"""
 Stores a vector of the history of the intent states and their timings
 """
 const IntentLogState{S <: Enum{Int32}} = Vector{Tuple{DateTime, S}}
@@ -219,7 +229,9 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
+struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
+    "The operation mode of the IBN framework"
+    operationmode::O
     "The id of this IBN Framework instance"
     ibnfid::UUID
     "The intent dag tree that contains all intents (can be disconnected graph)"
@@ -240,7 +252,7 @@ The most default construct with abstract type of IBN handlers
 function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
     # abstract type : for remote 
-    return IBNFramework(ibnfid, IntentDAG(), ibnag, IBNFramework{SDNdummy, T}[], SDNdummy())
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
 end
 
 """
@@ -251,7 +263,7 @@ Constructor that specify IBNFHandlers to make it potentially type stable
 function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
     ibnfid = AG.graph_attr(ibnag)
     # abstract type : for remote 
-    return IBNFramework(ibnfid, IntentDAG(), ibnag, ibnfhandlers, SDNdummy())
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfhandlers, SDNdummy())
 end
 
 """

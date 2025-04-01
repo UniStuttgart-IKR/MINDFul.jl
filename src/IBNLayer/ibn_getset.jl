@@ -119,3 +119,27 @@ function gettransmissionmodulecompat(oic::OpticalInitiateConstraint)
     oic.transmissionmodulecompat
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getintent(ri::RemoteIntent)
+    ri.intent
+end
+"""
+$(TYPEDSIGNATURES)
+"""
+function getidagnodeid(ri::RemoteIntent)
+    ri.idagnodeid
+end
+"""
+$(TYPEDSIGNATURES)
+"""
+function getibnfid(ri::RemoteIntent)
+    ri.ibnfid
+end
+"""
+$(TYPEDSIGNATURES)
+"""
+function getisinitiator(ri::RemoteIntent)
+    ri.isinitiator
+end

@@ -7,6 +7,34 @@ struct KShorestPathFirstFitCompilation <: IntentCompilationAlgorithm
     k::Int
 end
 
+"The keyword for [`KShorestPathFirstFitCompilation`](@ref)"
+const KSPFFalg = :kspff
+
+"""
+$(TYPEDSIGNATURES)
+
+Give back the algorithm mapped to the symbol
+"""
+function getcompilationalgorithmtype(s::Val{KSPFFalg})
+    return KShorestPathFirstFitCompilation
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getdefaultcompilationalgorithmargs(s::Val{KSPFFalg})
+    return (5,)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Can overload for different Operation Modes.
+"""
+function getdefaultcompilationalgorithm(ibnff::IBNFramework{<:AbstractOperationMode})
+    return :kspff
+end
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -34,9 +62,16 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
             externalintent = ConnectivityIntent(getdestinationnode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
             externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
             remoteibnfid = getibnfid(getdestinationnode(intent))
-            remoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid)
+            internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid)
+            # getintent brings in the internal RemoteIntent
+            externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
 
-            # compile remoteidagnode
+            # compile internalremoteidagnode
+            #TODO-tomorrow
+            remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            remotecompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, :kspff, (kspffalg.k,))
+
+            # check state of current internalremoteidagnode
         end
         # unvisible cross-domain node
     end
@@ -54,10 +89,10 @@ function kspffintradomain!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connect
     idagnodeid = getidagnodeid(idagnode)
     intent = getintent(idagnode)
     sourceglobalnode = getsourcenode(intent)
-    sourcelocalnode = getlocalnode(sourceglobalnode)
+    sourcelocalnode = getlocalnode(ibnag, sourceglobalnode)
     sourcenodeview = getnodeview(ibnag, sourcelocalnode)
     destinationglobalnode = getdestinationnode(intent)
-    destlocalnode = getlocalnode(destinationglobalnode)
+    destlocalnode = getlocalnode(ibnag, destinationglobalnode)
     destnodeview = getnodeview(ibnag, destlocalnode)
     demandrate = getrate(intent)
     constraints = getconstraints(intent)

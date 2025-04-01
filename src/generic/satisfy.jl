@@ -20,14 +20,27 @@ The options are:
 """
 function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
     orderedllis = getlogicallliorder(ibnf, idagnode; onlyinstalled, verbose)
-    return issatisfied(ibnf, idagnode, orderedllis; noextrallis, verbose)
+    if getibnfid(ibnf) == getibnfid(getsourcenode(getintent(idagnode))) == getibnfid(getdestinationnode(getintent(idagnode)))
+        # intradomain
+        return issatisfied(ibnf, idagnode, orderedllis; noextrallis, verbose)
+    else
+        # crossdomain
+    end
+    getsourcenode(getintent(idagnode))
+end
+
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+    idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
+    length(idagnodechildren) == 1 || return false
+    return issatisfied(ibnf, idagnodechildren[1]; onlyinstalled, noextrallis, verbose)
 end
 
 function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
     idag = getidag(ibnf)
+    ibnag = getibnag(ibnf)
     conintent = getintent(idagnode)
-    sourcelocalnode = getlocalnode(getsourcenode(conintent))
-    destlocalnode = getlocalnode(getdestinationnode(conintent))
+    sourcelocalnode = getlocalnode(ibnag, getsourcenode(conintent))
+    destlocalnode = getlocalnode(ibnag, getdestinationnode(conintent))
     constraints = getconstraints(conintent)
 
     istotalsatisfied = true
@@ -72,6 +85,7 @@ end
 
 function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, verbose::Bool = false)
     idag = getidag(ibnf)
+    ibnag = getibnag(ibnf)
 
     # get all LLIs
     idagnodellis = getidagnodellis(idag, getidagnodeid(idagnode))
@@ -86,8 +100,8 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
     llis = getintent.(idagnodellis)
 
     conintent = getintent(idagnode)
-    sourcelocalnode = getlocalnode(getsourcenode(conintent))
-    destlocalnode = getlocalnode(getdestinationnode(conintent))
+    sourcelocalnode = getlocalnode(ibnag, getsourcenode(conintent))
+    destlocalnode = getlocalnode(ibnag, getdestinationnode(conintent))
     constraints = getconstraints(conintent)
 
     # find the first LLI
@@ -205,3 +219,4 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
     end
     return lli_idx
 end
+

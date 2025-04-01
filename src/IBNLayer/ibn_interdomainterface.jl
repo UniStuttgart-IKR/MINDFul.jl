@@ -39,10 +39,39 @@ $(TYPEDSIGNATURES)
 
 Return the id of the new dag node if successful and `nothing` otherwise
 """
-function delegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, onsiteidagnodeid::UUID)
-    remoteintent = RemoteIntent(getibnfid(myibnf), onsiteidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent)
+function delegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
+    remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
+    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent)
     return getidagnodeid(remoteintentdagnode)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Compilation algorithms are given as symbols because they might not be available programmatically to different IBN frameworks
+"""
+function getavailablecompilationalgorithms(myibnf::IBNFramework, remoteibnf::IBNFramework{<:AbstractOperationMode})
+    compalglist = [KSPFFalg]
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
+"""
+function remotecompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+    remotecompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
+"""
+function remotecompileintent_term!(remoteibnf::IBNFramework, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+    # get the algorithm
+    compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
+    return compileintent!(myibnf, idagnodeid, compilationalgorithm)
 end
 
 """
@@ -77,6 +106,33 @@ Delegates an intent to another domain
 
 Return the id of the new dag node if successful and `nothing` otherwise
 """
-function delegateintent!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intent::AbstractIntent, onsiteidagnodeid::UUID)
+function delegateintent!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intent::AbstractIntent, internalidagnodeid::UUID)
     error("not implemented")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Fabian Gobantes implementation
+"""
+function getavailablecompilationalgorithms(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+    error("not implemented")
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Fabian Gobantes implementation
+"""
+function remotecompileintent!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, compilationalgorithm::Symbol=:default, compilationalgorithmkey::Tuple=())
+    error("not implemented")
+end
+
+"""
+$(TYPEDSIGNATURES) 
+Fabian Gobantes implementation
+
+The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
+"""
+function remotecompileintent_term!(remoteibnfhandler::RemoteIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
 end

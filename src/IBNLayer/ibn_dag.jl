@@ -24,8 +24,8 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function getidagnextcounter(intentdag::IntentDAG)
-    return getidagcounter(getidaginfo(intentdag)) + 1
+function getidagnextuuidcounter(intentdag::IntentDAG)
+    return UUID(getidagcounter(getidaginfo(intentdag)) + 1)
 end
 
 """

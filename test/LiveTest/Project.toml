@@ -16,6 +16,5 @@ UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 
 [sources]
 MINDFul = {path="../.."}
-MINDFulMakie = {url="https://github.com/UniStuttgart-IKR/MINDFulMakie.jl", rev="rewrite"}
-Graphs = {url = "https://github.com/JuliaGraphs/Graphs.jl", rev="12ac6ba"}
+# MINDFulMakie = {url="https://github.com/UniStuttgart-IKR/MINDFulMakie.jl", rev="rewrite"}
 
