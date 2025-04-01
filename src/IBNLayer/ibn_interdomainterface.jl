@@ -86,6 +86,23 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request the initiator `remoteibnf` to update the state of its mirrored remote intent
+"""
+function requestremoteintentstateupdate!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
+    oldstate = getidagnodestate(getidag(remoteibnf), idagnodeid)
+    if oldstate != newstate
+        idagnode = getidagnode(getidag(remoteibnf), idagnodeid)
+        pushstatetoidagnode!(idagnode, now(), newstate)
+        foreach(getidagnodeparents(getidag(remoteibnf), idagnodeid)) do idagnodeparent
+            updateidagnodestates!(remoteibnf, idagnodeparent)
+        end
+    end
+    return oldstate != newstate
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Fabian Gobantes implementation
 If far away, think about authorization and permissions.
 That's the reason why there are 2 arguments: The first argument should have the authorization.

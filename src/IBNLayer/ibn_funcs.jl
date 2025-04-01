@@ -20,11 +20,10 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm)
+function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
     idagnode = getidagnode(getidag(ibnf), idagnodeid)
-    compileintent!(ibnf, idagnode, algorithm)
-    return updateidagstates!(getidag(ibnf), idagnodeid)
+    return compileintent!(ibnf, idagnode, algorithm)
 end
 
 """
@@ -47,7 +46,7 @@ function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
     foreach(idagnodedescendants) do idagnodedescendant
         removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
     end
-    return updateidagstates!(getidag(ibnf), idagnodeid)
+    return updateidagstates!(ibnf, idagnodeid)
 end
 
 """
@@ -72,7 +71,7 @@ function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
         end
         pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Installed)
     end
-    return updateidagstates!(getidag(ibnf), idagnodeid)
+    return updateidagstates!(ibnf, idagnodeid)
 end
 
 """
@@ -97,7 +96,7 @@ function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID, verbose=false)
         end
         pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Compiled)
     end
-    return updateidagstates!(getidag(ibnf), idagnodeid)
+    return updateidagstates!(ibnf, idagnodeid)
 end
 
 """

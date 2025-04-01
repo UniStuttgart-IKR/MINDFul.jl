@@ -134,16 +134,18 @@ function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     return true
 end
 
-function updateidagstates!(idag::IntentDAG, idagnodeid::UUID)
+function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID)
+    idag = getidag(ibnf)
     idagnode = getidagnode(idag, idagnodeid)
-    return updateidagnodestates!(idag, idagnode)
+    return updateidagnodestates!(ibnf, idagnode)
 end
 
 """
 $(TYPEDSIGNATURES)
 Return value is true if state is changed.
 """
-function updateidagnodestates!(idag::IntentDAG, idagnode::IntentDAGNode)
+function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode)
+    idag = getidag(ibnf)
     idagnodeid = getidagnodeid(idagnode)
     idagnodechildren = getidagnodechildren(idag, idagnodeid)
     childrenstates = getidagnodestate.(idagnodechildren)
@@ -164,7 +166,6 @@ function updateidagnodestates!(idag::IntentDAG, idagnode::IntentDAGNode)
             changedstate = true
             pushstatetoidagnode!(idagnode, now(), IntentState.Compiling)
         end
-        return
     elseif all(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installed
             changedstate = true
@@ -178,7 +179,12 @@ function updateidagnodestates!(idag::IntentDAG, idagnode::IntentDAGNode)
     end
     if changedstate
         foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-            updateidagnodestates!(idag, idagnodeparent)
+            updateidagnodestates!(ibnf, idagnodeparent)
+        end
+        if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode))
+            # notify initiator domain
+            ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnode)))
+            requestremoteintentstateupdate!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnode)), getidagnodestate(idagnode))
         end
     end
     return changedstate
