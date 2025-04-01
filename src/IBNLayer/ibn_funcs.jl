@@ -108,7 +108,7 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
 function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-    remoteidagnodeid = delegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
+    remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
 
     # add an idagnode `RemoteIntent`
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
@@ -224,6 +224,16 @@ function findindexglobalnode(ibnag::IBNAttributeGraph, globalnode::GlobalNode)
     return findfirst(getnodeviews(ibnag)) do  nodeview
         getglobalnode(getnodeproperties(nodeview)) == globalnode
     end
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Return boolean if `globalnode` belongs to `ibnf`
+"""
+function isinternalnode(ibnf::IBNFramework, globalnode::GlobalNode)
+    return getibnfid(globalnode) == getibnfid(ibnf)
 end
 
 """
@@ -386,7 +396,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function displayavailablecompilationalgorithmsinfo(myibnf::IBNFramework, remoteibnfhandler)
-    foreach(getavailablecompilationalgorithms(myibnf, remoteibnfhandler)) do keywordsymbol
+    foreach(requestavailablecompilationalgorithms(myibnf, remoteibnfhandler)) do keywordsymbol
         display(keywordsymbol)
         display(Base.doc(getcompilationalgorithm(Val(keywordsymbol))))
     end
@@ -411,5 +421,17 @@ function getcompilationalgorithm(ibnf::IBNFramework, compilationalgorithmkey::Sy
     compilationalgorithmtype = getcompilationalgorithmtype(Val(compilationalgorithmkey2use))
     compilationalgorithmargs2use = getnumberofparameters(compilationalgorithmtype) != length(compilationalgorithmargs) ? getdefaultcompilationalgorithmargs(compilationalgorithmkey2use) : compilationalgorithmargs
     return compilationalgorithmtype(compilationalgorithmargs2use...)
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Return true if at least source or destination is internal.
+"""
+function isinternalorborderintent(ibnf::IBNFramework, connectivityintent::ConnectivityIntent)
+    sourceglobalnode = getsourcenode(connectivityintent)
+    destinationglobalnode = getdestinationnode(connectivityintent)
+    return getibnfid(ibnf) == getibnfid(sourceglobalnode) || getibnfid(ibnf) == getibnfid(destinationglobalnode)
 end
 

@@ -51,7 +51,6 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
         idag = getidag(ibnf)
         intent = getintent(idagnode)
         if isbordernode(ibnf, destinationglobalnode)
-            @info "inside"
             internalintent = ConnectivityIntent(getsourcenode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
 
             internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
@@ -69,7 +68,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
             # compile internalremoteidagnode
             #TODO-tomorrow
             remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            remotecompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, :kspff, (kspffalg.k,))
+            requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, :kspff, (kspffalg.k,))
 
             # check state of current internalremoteidagnode
         end
