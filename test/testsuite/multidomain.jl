@@ -93,8 +93,11 @@ if ibnfhandler_bordernode isa MINDF.IBNFramework
 end
 
 # uncompile
-
-# check for zero resource allocation
+@test MINDF.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid_bordernode)) == MINDF.IntentState.Uncompiled
+@test isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnfs[1]), intentuuid_bordernode))
+@test nv(MINDF.getidag(ibnfs[1])) == 1
+@test nv(MINDF.getidag(ibnfs[3])) == 0
 
 # to neighboring domain
 conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 47), u"100.0Gbps")
@@ -102,3 +105,6 @@ intentuuid_neigh = MINDF.addintent!(ibnfs[1], conintent_neigh, MINDF.NetworkOper
 
 # to unknown domain
  
+foreach(ibnfs) do ibnf
+    testoxcfiberallocationconsistency(ibnf)
+end

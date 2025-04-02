@@ -110,6 +110,26 @@ end
 
 """
 $(TYPEDSIGNATURES) 
+"""
+function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestuncompileintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose)
+    if uncompiledflag
+        # delete also the intent
+        return removeintent!(myibnf, idagnodeid; verbose)
+    else
+        return false
+    end
+end
+
+"""
+$(TYPEDSIGNATURES) 
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """

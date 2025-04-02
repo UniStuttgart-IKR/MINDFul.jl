@@ -45,9 +45,16 @@ function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fa
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
     foreach(idagnodedescendants) do idagnodedescendant
-        removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+        if getintent(idagnodedescendant) isa RemoteIntent
+            ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnodedescendant)))
+            uncompiledflag = requestuncompileintent_init!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnodedescendant)); verbose)
+            uncompiledflag && removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+        else
+            removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+        end
     end
-    return updateidagstates!(ibnf, idagnodeid)
+    updateidagstates!(ibnf, idagnodeid)
+    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled
 end
 
 """
