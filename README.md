@@ -11,10 +11,14 @@
 `MINDFul.jl` is a young project aiming to research coordination algorithms of intent-driven multi-domain (MD) networks.
 It offers interfaces for the development of resource-allocation algorithms and MD coordination mechanisms.
 
-For now, `MINDFul.jl` only supports simulation, but [future work](https://unistuttgart-ikr.github.io/MINDFul.jl/dev/roadmap/) may bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers like [ODL](https://www.opendaylight.org/) or [ONOS](https://opennetworking.org/onos/) 
+For now, `MINDFul.jl` only supports simulation, but [future work](https://unistuttgart-ikr.github.io/MINDFul.jl/dev/roadmap/) may bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers. 
+Currently there are some efforts to bind it with [TeraFlowSDN](https://www.teraflow-h2020.eu/).
 
 This package is in an early development stage and might break often.
 If you have problems, try updating to the latest Julia version, as we closely follow the new releases and backwards compatibility is not promised.
+
+Version 0.3.0 has been a major rewrite.
+Some of the following repositories are still not updated.
 
 Companion repositories:
 - [MINDFulMakie.jl](https://github.com/UniStuttgart-IKR/MINDFulMakie.jl) for visualization purposes
@@ -28,23 +32,4 @@ Currently, as you will find in [MINDFulNotebookExamples](https://github.com/UniS
 Watch our JuliaCon2023 presentation to learn more on [YouTube](https://www.youtube.com/watch?v=LrCFRWym0Lc)
 
 [![Click to watch video](https://img.youtube.com/vi/LrCFRWym0Lc/0.jpg)](https://www.youtube.com/watch?v=LrCFRWym0Lc)
-
-To expand upon:
-allocate - deallocate
-reserve - unreserve
-function getters
-get... -> get field
-new... -> construct something new
-
-New TODOs
-- do install
-- do multidomain
-
-Tip for developers:
-transmission -> trans
-module -> mdl
-mode -> mode
-index -> idx
-uuid -> id
-ibn framework -> ibnf
 

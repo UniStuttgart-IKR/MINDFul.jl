@@ -1,4 +1,5 @@
-Welcome to MINDFul.jl documentation
+Welcome to `MINDFul.jl` documentation
+
 
 MINDFul.jl is an open source tool for studying IP-optical intent-based networking.
 
@@ -12,7 +13,4 @@ There are currently 3 devices to consider:
 
 For each of those devices a LLI is corresponding
 
-API:
-- reserve!
-- unreserve!
-- canreserve
+MINDFul.jl was rewritten. Better docs soon.
