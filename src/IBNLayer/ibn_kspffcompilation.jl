@@ -50,35 +50,9 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
-        idag = getidag(ibnf)
-        intent = getintent(idagnode)
-        compiledflag = true
         if isbordernode(ibnf, destinationglobalnode)
-            internalintent = ConnectivityIntent(getsourcenode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
-
-            internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-            compiledflag &= kspffintradomain!(ibnf, internalidagnode, kspffalg)
-            updateidagnodestates!(ibnf, internalidagnode)
-
-            # need first to compile that to get the optical choice
-            opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
-            externalintent = ConnectivityIntent(getdestinationnode(intent), getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
-            externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-            remoteibnfid = getibnfid(getdestinationnode(intent))
-            internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid)
-            # getintent brings in the internal RemoteIntent
-            externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
-
-            # compile internalremoteidagnode
-            remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            compiledflag &= requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, :kspff, (kspffalg.k,))
-
-            # check state of current internalremoteidagnode
-            return compiledflag
+            return kspffcrossdomain!(ibnf, idagnode, kspffalg, destinationglobalnode)
         else
-            # if known domain
-            
-            # randomly pick a border node to this domain
             destinationglobalbordernode =  
             let 
                 # randomly pick a border node
@@ -96,35 +70,43 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connectivi
                     dglobalbordernode
                 end
             end
-
-            # duplicate code with border node case
-            internalintent = ConnectivityIntent(getsourcenode(intent), destinationglobalbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
-
-            internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-            compiledflag &= kspffintradomain!(ibnf, internalidagnode, kspffalg)
-            updateidagnodestates!(ibnf, internalidagnode)
-
-            # need first to compile that to get the optical choice
-            opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
-            externalintent = ConnectivityIntent(destinationglobalbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
-            externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-            remoteibnfid = getibnfid(getdestinationnode(intent))
-            internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid)
-            # getintent brings in the internal RemoteIntent
-            externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
-
-            # compile internalremoteidagnode
-            remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            compiledflag &= requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, :kspff, (kspffalg.k,))
-
-            # check state of current internalremoteidagnode
-            return compiledflag
-
+            return kspffcrossdomain!(ibnf, idagnode, kspffalg, destinationglobalbordernode)
         end
         # unvisible cross-domain node
     end
 
     return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function kspffcrossdomain!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffalg::KShorestPathFirstFitCompilation, mediatorbordernode::GlobalNode)
+    idag = getidag(ibnf)
+    intent = getintent(idagnode)
+    compiledflag = true
+
+    internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
+
+    internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    compiledflag &= kspffintradomain!(ibnf, internalidagnode, kspffalg)
+    updateidagnodestates!(ibnf, internalidagnode)
+
+    # need first to compile that to get the optical choice
+    opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
+    externalintent = ConnectivityIntent(mediatorbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
+    externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    remoteibnfid = getibnfid(getdestinationnode(intent))
+    internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid)
+    # getintent brings in the internal RemoteIntent
+    externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
+
+    # compile internalremoteidagnode
+    remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+    compiledflag &= requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, :kspff, (kspffalg.k,))
+
+    # check state of current internalremoteidagnode
+    return compiledflag
 end
 
 """
