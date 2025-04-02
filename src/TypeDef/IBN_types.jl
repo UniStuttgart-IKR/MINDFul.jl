@@ -209,7 +209,30 @@ abstract type AbstractIBNFHandler end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 
-Fabian Gobantes implementation
+Fabian Gobantes implementation.
+Should consist of basic information all handlers should have (e.g. `ibnfid`).
+And a parametric type specific to the protocol used.
+
+```julia
+    struct HandlerProperties
+        ibnfid::UUID
+        # ...
+    end
+
+    struct IBNFHTTP2Comm <: AbstractIBNFComm
+        # example
+    end
+
+    struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
+        # this can  be the new dummy and substitute the current dummy implementation
+        ibng::T
+    end
+
+    struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
+        handlerproperties::HandlerProperties
+        ibnfcomm::T
+    end
+```
 """
 struct RemoteIBNFHandler <: AbstractIBNFHandler
 end

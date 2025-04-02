@@ -30,14 +30,18 @@ end
 $(TYPEDSIGNATURES)
 """
 function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm)
-    idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-    return compileintent!(ibnf, idagnodechild, algorithm)
+    if !getisinitiator(getintent(idagnode))
+        idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+        return compileintent!(ibnf, idagnodechild, algorithm)
+    else
+        return false
+    end
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
+function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
     foreach(idagnodedescendants) do idagnodedescendant
@@ -49,51 +53,76 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose=false)
+function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
-    # duplicate code with `@ref uninstallintent!`
-    idagnodellis = getidagnodellis(getidag(ibnf), idagnodeid; exclusive = false)
-    foreach(idagnodellis) do idagnodelli
-        llintent = getintent(idagnodelli)
-        llid = getidagnodeid(idagnodelli)
-        localnode = getlocalnode(llintent)
-        ibnag = getibnag(ibnf)
-        nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-        if llintent isa TransmissionModuleLLI       
-            reserve!(nodeview, llintent, llid; checkfirst=true, verbose)
-        elseif llintent isa RouterPortLLI
-            reserve!(getrouterview(nodeview), llintent, llid; checkfirst=true, verbose)
-        elseif llintent isa OXCAddDropBypassSpectrumLLI
-            reserve!(getoxcview(nodeview), llintent, llid; checkfirst=true, verbose)
-        end
-        pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Installed)
+    idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
+    foreach(idagnodeleafs) do idagnodeleaf
+        reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose)
     end
-    return updateidagstates!(ibnf, idagnodeid)
+    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID, verbose=false)
+function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed)
-    # duplicate code with `@ref installintent!`
-    idagnodellis = getidagnodellis(getidag(ibnf), idagnodeid; exclusive = false)
-    foreach(idagnodellis) do idagnodelli
-        llintent = getintent(idagnodelli)
-        llid = getidagnodeid(idagnodelli)
-        localnode = getlocalnode(llintent)
-        ibnag = getibnag(ibnf)
-        nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-        if llintent isa TransmissionModuleLLI       
-            unreserve!(nodeview, llid; verbose)
-        elseif llintent isa RouterPortLLI
-            unreserve!(getrouterview(nodeview), llid; verbose)
-        elseif llintent isa OXCAddDropBypassSpectrumLLI
-            unreserve!(getoxcview(nodeview), llid; verbose)
-        end
-        pushstatetoidagnode!(getlogstate(idagnodelli), now(), IntentState.Compiled)
+    idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
+    foreach(idagnodeleafs) do idagnodeleaf
+        reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose)
     end
-    return updateidagstates!(ibnf, idagnodeid)
+    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
+"""
+function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool=false)
+    leafintent = getintent(idagnodeleaf)
+    leafid = getidagnodeid(idagnodeleaf)
+    if leafintent isa LowLevelIntent
+        localnode = getlocalnode(leafintent)
+        nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
+        if leafintent isa TransmissionModuleLLI       
+            if doinstall
+                reserve!(nodeview, leafintent, leafid; checkfirst=true, verbose)
+            else
+                unreserve!(nodeview, leafid; verbose)
+            end
+        elseif leafintent isa RouterPortLLI
+            if doinstall
+                reserve!(getrouterview(nodeview), leafintent, leafid; checkfirst=true, verbose)
+            else
+                unreserve!(getrouterview(nodeview), leafid; verbose)
+            end
+        elseif leafintent isa OXCAddDropBypassSpectrumLLI
+            if doinstall
+                reserve!(getoxcview(nodeview), leafintent, leafid; checkfirst=true, verbose)
+            else
+                unreserve!(getoxcview(nodeview), leafid; verbose)
+            end
+        end
+        if doinstall
+            pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Installed)
+        else
+            pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Compiled)
+        end
+    elseif leafintent isa RemoteIntent
+        if getisinitiator(leafintent)
+            ibnfhandler = getibnfhandler(ibnf, getibnfid(leafintent))
+            if doinstall
+                requestinstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose)
+            else
+                requestuninstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose)
+            end
+        end
+    end
+    # call updateidagstates
+    return any(getidagnodeparents(getidag(ibnf), idagnodeleaf)) do idagnodeparent
+        updateidagnodestates!(ibnf, idagnodeparent)
+    end
 end
 
 """

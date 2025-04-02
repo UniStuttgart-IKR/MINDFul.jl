@@ -32,7 +32,7 @@
     @test MINDF.issatisfied(ibnf1, intentuuid1, orderedllis)
 
     foreach(orderedllis) do olli
-    islowlevelintentdagnodeinstalled(ibnf1, olli)
+        islowlevelintentdagnodeinstalled(ibnf1, olli)
     end
 
     @test MINDF.uninstallintent!(ibnf1, intentuuid1)
@@ -42,9 +42,9 @@
     @test MINDF.issatisfied(ibnf1, intentuuid1; onlyinstalled=false)
 
     for nodeview in MINDF.getintranodeviews(MINDF.getibnag(ibnf1))
-    @test isempty(MINDF.getreservations(nodeview))
-    @test isempty(MINDF.getreservations(MINDF.getrouterview(nodeview)))
-    @test isempty(MINDF.getreservations(MINDF.getoxcview(nodeview)))
+        @test isempty(MINDF.getreservations(nodeview))
+        @test isempty(MINDF.getreservations(MINDF.getrouterview(nodeview)))
+        @test isempty(MINDF.getreservations(MINDF.getoxcview(nodeview)))
     end
 
     @test MINDF.uncompileintent!(ibnf1, UUID(1))

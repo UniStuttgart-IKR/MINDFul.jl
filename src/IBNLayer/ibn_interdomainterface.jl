@@ -1,5 +1,11 @@
 # Every function in this file should be implemented for all `AbstractIBNFHandler`
-
+# MA1069
+# each function should have an _init and a _term version
+# _init is to construct the data structures, send them and initiate connection
+# _init functions should be different for RemoteIBNFHandler and IBNFramework but `term` should be the same
+# _term is for the terminal entity to do the job
+# the operation might  depend on the relation of `myibnf`, and `remoteibnf`.
+ 
 """
 $(TYPEDSIGNATURES) 
 
@@ -68,10 +74,38 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
-function requestcompileintent_term!(remoteibnf::IBNFramework, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
     return compileintent!(myibnf, idagnodeid, compilationalgorithm)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestinstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestinstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestinstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return installintent!(myibnf, idagnodeid; verbose)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return uninstallintent!(myibnf, idagnodeid; verbose)
 end
 
 """
