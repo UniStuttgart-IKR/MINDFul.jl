@@ -121,6 +121,12 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     return istotalsatisfied
 end
 
+function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}; onlyinstalled = true, verbose::Bool = false)
+    idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
+    length(idagnodechildren) == 1 || return false
+    return getlogicallliorder(ibnf, idagnodechildren[1]; onlyinstalled, verbose)
+end
+
 function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, verbose::Bool = false)
     idag = getidag(ibnf)
     ibnag = getibnag(ibnf)

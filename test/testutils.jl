@@ -89,3 +89,109 @@ function testoxcfiberallocationconsistency(ibnf)
     end
     
 end
+
+function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false)
+    @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Compiled
+    @test !isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))
+    @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
+    @test MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=false, noextrallis=false)
+    @test !MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=true, noextrallis=false)
+
+    if withremote
+        foreach(MINDF.getidagnodeid.(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))) do intentuuid
+            @test MINDF.issatisfied(ibnf, intentuuid; onlyinstalled=false, noextrallis=false)
+        end
+        @test count(x -> MINDF.getintent(x) isa MINDF.RemoteIntent, MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)) == 1
+        idagnoderemoteintent = MINDF.getfirst(x -> MINDF.getintent(x) isa MINDF.RemoteIntent, MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid))
+        @test !isnothing(idagnoderemoteintent)
+        remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
+        ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
+        idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
+        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+        if ibnfhandler_bordernode isa MINDF.IBNFramework
+            @test MINDF.issatisfied(ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+            @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
+        end
+    end
+end
+
+function testinstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false)
+    leafs = MINDF.getidagnodeleafs(MINDF.getidag(ibnf), idagnodeid)
+    @test all(x -> MINDF.getintent(x) isa MINDF.LowLevelIntent || MINDF.getintent(x) isa MINDF.RemoteIntent, leafs)
+
+    @test all(==(MINDF.IntentState.Installed),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
+    @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Installed
+    @test MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=true, noextrallis=false)
+
+    orderedllis = MINDF.getlogicallliorder(ibnf, idagnodeid)
+    foreach(orderedllis) do olli
+        islowlevelintentdagnodeinstalled(ibnf, olli)
+    end
+
+    # check that allocations are non empty
+    @test any(nodeview -> !isempty(MINDF.getreservations(nodeview)), MINDF.getintranodeviews(MINDF.getibnag(ibnf)))
+    @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getrouterview(nodeview))), MINDF.getintranodeviews(MINDF.getibnag(ibnf)))
+    @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getoxcview(nodeview))), MINDF.getintranodeviews(MINDF.getibnag(ibnf)))
+
+    if withremote
+        foreach(MINDF.getidagnodeid.(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))) do intentuuid
+            @test MINDF.issatisfied(ibnf, intentuuid; onlyinstalled=true, noextrallis=false)
+        end
+
+        @test count(x -> MINDF.getintent(x) isa MINDF.RemoteIntent, MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)) == 1
+        idagnoderemoteintent = MINDF.getfirst(x -> MINDF.getintent(x) isa MINDF.RemoteIntent, MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid))
+        @test !isnothing(idagnoderemoteintent)
+        remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
+        ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
+        idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
+        
+        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+        
+        if ibnfhandler_bordernode isa MINDF.IBNFramework
+            @test MINDF.issatisfied(ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+            @test all(==(MINDF.IntentState.Installed),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
+        
+            orderedllis = MINDF.getlogicallliorder(ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, verbose=false)
+            foreach(orderedllis) do olli
+                islowlevelintentdagnodeinstalled(ibnfhandler_bordernode, olli)
+            end
+    
+            # check that allocations are non empty
+            @test any(nodeview -> !isempty(MINDF.getreservations(nodeview)), MINDF.getintranodeviews(MINDF.getibnag(ibnfhandler_bordernode)))
+            @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getrouterview(nodeview))), MINDF.getintranodeviews(MINDF.getibnag(ibnfhandler_bordernode)))
+            @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getoxcview(nodeview))), MINDF.getintranodeviews(MINDF.getibnag(ibnfhandler_bordernode)))
+        end
+    end
+end
+
+function testuninstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false, shouldempty=false)
+    @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
+    @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Compiled
+    MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=false, noextrallis=false)
+    @test !MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=true, noextrallis=false)
+
+    # check that allocations are empty
+    if shouldempty
+        nothingisallocated(ibnf)
+    end
+
+    if withremote
+        @test count(x -> MINDF.getintent(x) isa MINDF.RemoteIntent, MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)) == 1
+        idagnoderemoteintent = MINDF.getfirst(x -> MINDF.getintent(x) isa MINDF.RemoteIntent, MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid))
+        @test !isnothing(idagnoderemoteintent)
+        remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
+        ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
+        idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
+
+        if ibnfhandler_bordernode isa MINDF.IBNFramework
+            if shouldempty
+                nothingisallocated(ibnfhandler_bordernode)
+            end
+        end
+    end
+end
+
+function testuncompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID)
+    @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Uncompiled
+    @test isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))
+end
