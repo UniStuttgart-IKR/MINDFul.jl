@@ -30,10 +30,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm)
-    # make a kid
-    # idagnodechild = addidagnode!(getidag(ibnf), getintent(idagnode); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
     idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-    # compile the kid
     return compileintent!(ibnf, idagnodechild, algorithm)
 end
 

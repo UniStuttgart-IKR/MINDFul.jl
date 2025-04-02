@@ -20,13 +20,42 @@ for i in eachindex(ibnfs)
     end
 end
 
-# MINDF.compileintent!(ibnfs[1], intentuuid2, MINDF.KShorestPathFirstFitCompilation(10))
 # with border node
 conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100.0Gbps")
 intentuuid_bordernode = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
 
-# @show MINDF.compileintent!(ibnfs[1], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10))
+@test MINDF.compileintent!(ibnfs[1], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10))
+@test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid_bordernode)) == MINDF.IntentState.Compiled
+@test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnfs[1]), intentuuid_bordernode)))
+MINDF.issatisfied(ibnfs[1], intentuuid_bordernode; onlyinstalled=false, noextrallis=false)
+foreach(MINDF.getidagnodeid.(MINDF.getidagnodechildren(MINDF.getidag(ibnfs[1]), intentuuid_bordernode))) do intentuuid
+    @test MINDF.issatisfied(ibnfs[1], intentuuid; onlyinstalled=false, noextrallis=false)
+end
+
+idagnoderemoteintent = MINDF.getfirst(x -> MINDF.getintent(x) isa MINDF.RemoteIntent ,MINDF.getidagnodedescendants(MINDF.getidag(ibnfs[1]), intentuuid_bordernode))
+@test !isnothing(idagnoderemoteintent)
+
+let remoteintent = MINDF.getintent(idagnoderemoteintent)
+    ibnfhandler = MINDF.getibnfhandler(ibnfs[1], MINDF.getibnfid(remoteintent))
+    idagnodeid = MINDF.getidagnodeid(remoteintent)
+    @test MINDF.requestissatisfied(ibnfs[1], ibnfhandler, idagnodeid; onlyinstalled=false, noextrallis=true)
+    if ibnfhandler isa MINDF.IBNFramework
+        @test MINDF.issatisfied(ibnfhandler, idagnodeid; onlyinstalled=false, noextrallis=true)
+        @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnfhandler), idagnodeid)))
+    end
+end
+
+# install
+
+# uninstall
+
+# uncompile
+
+# check for zero resource allocation
 
 # to neighboring domain
 conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 47), u"100.0Gbps")
 intentuuid_neigh = MINDF.addintent!(ibnfs[1], conintent_neigh, MINDF.NetworkOperator())
+
+# to unknown domain
+ 
