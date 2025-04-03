@@ -11,6 +11,8 @@ const MINDF = MINDFul
 import JET
 import JET: @test_opt
 
+TESTDIR = @__DIR__
+
 # if you don't want JET tests do `push!(ARGS, "--nojet")` before `include`ing
 RUNJET = !any(==("--nojet"), ARGS)
 
