@@ -1,18 +1,26 @@
-using Test
-using Graphs, MetaGraphs, NestedGraphs
-using GraphIO, NestedGraphsIO
 using MINDFul
-using TestSetExtensions
-using Unitful
-using Logging
-using MINDFul: uncompiled, compiled, installed
-const MINDF = MINDFul
-testlogger = ConsoleLogger(stderr, Logging.Error)
+using Test, TestSetExtensions
+using Graphs
+import AttributeGraphs as AG
+using JLD2, UUIDs
+using Unitful, UnitfulData
 
+const MINDF = MINDFul
+
+import JET
+import JET: @test_opt
+
+TESTDIR = @__DIR__
+
+# if you don't want JET tests do `push!(ARGS, "--nojet")` before `include`ing
+RUNJET = !any(==("--nojet"), ARGS)
+
+## single domain
 include("testutils.jl")
 
-testdir =  dirname(@__FILE__)
+include("testsuite/physicaltest.jl")
+include("testsuite/basicintenttest.jl")
+include("testsuite/opticalconstraintssingledomain.jl")
+include("testsuite/multidomain.jl")
 
-@testset ExtendedTestSet "MINDFul.jl" begin
-     @includetests ["connectivityIntentKshortestPath", "network_faults", "goThroughConstraintsConnectivity"]
-end
+nothing
