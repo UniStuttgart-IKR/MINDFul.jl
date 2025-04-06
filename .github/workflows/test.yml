@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Test Julia
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
       - run: julia --project=test/ -e "import Pkg; Pkg.instantiate()"
       - run: julia --project=test/ test/runtests.jl
       - uses: julia-actions/julia-processcoverage@v1

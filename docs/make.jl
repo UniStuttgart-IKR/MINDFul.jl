@@ -11,3 +11,7 @@ makedocs(
         "API" => "API.md",
     ],
 )
+
+deploydocs(
+    repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git",
+)
