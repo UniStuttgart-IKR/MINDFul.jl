@@ -1,4 +1,3 @@
-using MINDFul: getoxcview, OXCAddDropBypassSpectrumLLI
 using MINDFul
 using Test, TestSetExtensions
 using Graphs

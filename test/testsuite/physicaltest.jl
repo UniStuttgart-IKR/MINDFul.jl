@@ -21,7 +21,7 @@
 
         RUNJET && @test_opt target_modules=[MINDF] MINDF.reserve!(reservableresource, lli, dagnodeid1; verbose = true)
         @test MINDF.reserve!(reservableresource, lli, dagnodeid1; verbose = true)
-        if lli isa OXCAddDropBypassSpectrumLLI
+        if lli isa MINDF.OXCAddDropBypassSpectrumLLI
             @test !any(MINDF.getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)][2:4])
             @test !any(MINDF.getlinkspectrumavailabilities(oxcview1)[Edge(1, 6)][2:4])
         end
@@ -33,7 +33,7 @@
 
         RUNJET && @test_opt target_modules=[MINDF] MINDF.unreserve!(reservableresource, dagnodeid1)
         @test MINDF.unreserve!(reservableresource, dagnodeid1)
-        if lli isa OXCAddDropBypassSpectrumLLI
+        if lli isa MINDF.OXCAddDropBypassSpectrumLLI
             @test all(MINDF.getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)])
             @test all(MINDF.getlinkspectrumavailabilities(oxcview1)[Edge(1, 6)])
         end
