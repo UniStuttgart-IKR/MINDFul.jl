@@ -1,3 +1,16 @@
+module TestModule
+
+using DocStringExtensions, UUIDs, Graphs
+import MINDFul as MINDF
+import AttributeGraphs as AG
+
+# weak dependencies
+using Test, JET
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function islowlevelintentdagnodeinstalled(ibnf::MINDF.IBNFramework, lli::MINDF.LowLevelIntent)
     ibnag = MINDF.getibnag(ibnf)
     nodeview = MINDF.getnodeview(ibnag, MINDF.getlocalnode(lli))
@@ -12,6 +25,9 @@ function islowlevelintentdagnodeinstalled(ibnf::MINDF.IBNFramework, lli::MINDF.L
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function nothingisallocated(ibnf::MINDF.IBNFramework)
     ibnag = MINDF.getibnag(ibnf)
     for nodeview in MINDF.getintranodeviews(ibnag)
@@ -23,6 +39,9 @@ function nothingisallocated(ibnf::MINDF.IBNFramework)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function localnodesaregraphnodeidx(ibnag::MINDF.IBNAttributeGraph)
     localnodes = MINDF.getlocalnode.(MINDF.getnodeproperties.(MINDF.getnodeviews(MINDF.getibnag(ibnag))))
     @test localnodes == collect(1:length(localnodes))
@@ -39,6 +58,9 @@ macro test_nothrows(expr)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function JETfilteroutfunctions(@nospecialize f) 
     # don't know what wrong with that. Maybe future julia versions will be better. Check every now and then.
     return f !== MINDF.updateidagstates! &&
@@ -48,6 +70,9 @@ function JETfilteroutfunctions(@nospecialize f)
         f !== MINDF.getopticalinitiateconstraint
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function testlocalnodeisindex(ibnf)
     ibnag = MINDF.getibnag(ibnf)
     indices = collect(vertices(ibnag))
@@ -56,6 +81,7 @@ function testlocalnodeisindex(ibnf)
 end
 
 """
+$(TYPEDSIGNATURES)
     Check if the IBNFramework fiber allocations are done from both endpoint oxcviews
 """
 function testoxcfiberallocationconsistency(ibnf)
@@ -90,6 +116,9 @@ function testoxcfiberallocationconsistency(ibnf)
     
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false)
     @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Compiled
     @test !isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))
@@ -115,6 +144,9 @@ function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote:
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function testinstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false)
     leafs = MINDF.getidagnodeleafs(MINDF.getidag(ibnf), idagnodeid)
     @test all(x -> MINDF.getintent(x) isa MINDF.LowLevelIntent || MINDF.getintent(x) isa MINDF.RemoteIntent, leafs)
@@ -164,6 +196,9 @@ function testinstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function testuninstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false, shouldempty=false)
     @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
     @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Compiled
@@ -191,7 +226,12 @@ function testuninstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremo
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function testuncompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID)
     @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Uncompiled
     @test isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))
+end
+
 end

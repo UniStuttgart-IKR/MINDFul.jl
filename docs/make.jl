@@ -1,3 +1,6 @@
+# for importing TestModule
+using Test, JET
+
 using Documenter, MINDFul
 
 makedocs(

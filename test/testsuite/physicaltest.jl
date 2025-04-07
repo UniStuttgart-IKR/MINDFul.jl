@@ -18,7 +18,7 @@
     sdndummy = MINDF.SDNdummy()
     for (reservableresource, lli) in zip([nodeview1, routerview1, oxcview1], [tmlli1, rplli1, oxclli1])
         @test MINDF.canreserve(sdndummy, reservableresource, lli)
-        @test_nothrows @inferred MINDF.canreserve(sdndummy, reservableresource, lli)
+        TM.@test_nothrows @inferred MINDF.canreserve(sdndummy, reservableresource, lli)
         RUNJET && @test_opt target_modules=[MINDF] MINDF.canreserve(sdndummy, reservableresource, lli)
 
         RUNJET && @test_opt target_modules=[MINDF] MINDF.reserve!(sdndummy, reservableresource, lli, dagnodeid1; verbose = true)

@@ -15,8 +15,9 @@ TESTDIR = @__DIR__
 # if you don't want JET tests do `push!(ARGS, "--nojet")` before `include`ing
 RUNJET = !any(==("--nojet"), ARGS)
 
-## single domain
-include("testutils.jl")
+# get the test module from MINDFul
+TM = Base.get_extension(MINDFul, :TestModule)
+@test !isnothing(TM)
 
 include("testsuite/physicaltest.jl")
 include("testsuite/basicintenttest.jl")

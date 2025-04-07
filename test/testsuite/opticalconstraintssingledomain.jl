@@ -21,8 +21,8 @@ for i in eachindex(ibnfs)
 end
 
 foreach(ibnfs) do ibnf
-    testlocalnodeisindex(ibnf)
-    testoxcfiberallocationconsistency(ibnf)
+    TM.testlocalnodeisindex(ibnf)
+    TM.testoxcfiberallocationconsistency(ibnf)
 end
 
 conintent_intra = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 2), MINDF.GlobalNode(UUID(1), 19), u"100.0Gbps")
@@ -87,8 +87,8 @@ oxcllifinishprevious4_1 = MINDF.OXCAddDropBypassSpectrumLLI(22, vorletzteglobals
 @test MINDF.reserve!(MINDF.getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1, UUID(0xffffff2); verbose = true)
 
 foreach(ibnfs) do ibnf
-  testlocalnodeisindex(ibnf)
-  testoxcfiberallocationconsistency(ibnf)
+  TM.testlocalnodeisindex(ibnf)
+  TM.testoxcfiberallocationconsistency(ibnf)
 end
 
 nothing
