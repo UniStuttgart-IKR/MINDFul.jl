@@ -15,7 +15,7 @@ function allocate_transmissionmodule(
 
     # upgrade views reservations
     nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-    reserve!(nodeview, dagnodeid, transmissionmodulereservationentry)
+    reserve!(getsdncontroller(ibnf), nodeview, dagnodeid, transmissionmodulereservationentry)
 
     return true
 end
@@ -35,7 +35,7 @@ function deallocate_transmissionmodule(
 
     # upgrade views reservations
     nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-    unreserve!(nodeview, dagnodeid, transmissionmodulereservationentry)
+    unreserve!(getsdncontroller(ibnf), nodeview, dagnodeid, transmissionmodulereservationentry)
 
     return true
 end
