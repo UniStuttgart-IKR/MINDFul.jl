@@ -98,6 +98,7 @@ function IntentDAGInfo()
     return IntentDAGInfo(0)
 end
 
+"An `AttributeGraph` graph used as an intent Directed Acyclic Graph (DAG)"
 const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Nothing, IntentDAGInfo}
 
 """

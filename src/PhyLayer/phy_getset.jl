@@ -1,23 +1,41 @@
+"""
+$(TYPEDSIGNATURES)
+"""
 function getname(s)
     return s.name
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getdistance(s)
     return s.distance
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getdistance(s::EdgeView)
     return getdistance(getproperties(s))
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getspectrumslots(s)
     return s.spectrumslots
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getspectrumavailability(s)
     return s.spectrumavailability
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getportnumber(s)
     return s.portnumber
 end
