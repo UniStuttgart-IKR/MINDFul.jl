@@ -451,7 +451,7 @@ end
 function getcompilationalgorithm(ibnf::IBNFramework, compilationalgorithmkey::Symbol, compilationalgorithmargs::Tuple)
     compilationalgorithmkey2use = compilationalgorithmkey == :default ? getdefaultcompilationalgorithm(ibnf) : compilationalgorithmkey
     compilationalgorithmtype = getcompilationalgorithmtype(Val(compilationalgorithmkey2use))
-    compilationalgorithmargs2use = getnumberofparameters(compilationalgorithmtype) != length(compilationalgorithmargs) ? getdefaultcompilationalgorithmargs(compilationalgorithmkey2use) : compilationalgorithmargs
+    compilationalgorithmargs2use = getnumberofparameters(compilationalgorithmtype) != length(compilationalgorithmargs) ? getdefaultcompilationalgorithmargs(Val(compilationalgorithmkey2use)) : compilationalgorithmargs
     return compilationalgorithmtype(compilationalgorithmargs2use...)
 end
 

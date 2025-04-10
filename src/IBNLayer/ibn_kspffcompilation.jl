@@ -29,6 +29,24 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Give back the symbol mapped to the algorithm
+"""
+function getcompilationalgorithmkeyword(c::T) where {T<:IntentCompilationAlgorithm}
+    return getcompilationalgorithmkeyword(T)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Give back the symbol mapped to the algorithm
+"""
+function getcompilationalgorithmkeyword(::Type{KShorestPathFirstFitCompilation})
+    return KSPFFalg
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 Can overload for different Operation Modes.
 """
 function getdefaultcompilationalgorithm(ibnff::IBNFramework{<:AbstractOperationMode})
