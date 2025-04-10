@@ -68,7 +68,12 @@ function getlocalnode_input(oxcswitchreservationentry::OXCAddDropBypassSpectrumL
 end
 
 "$(TYPEDSIGNATURES)"
-function getport_adddrop(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
+function getadddropport(tmlli::TransmissionModuleLLI)
+    return tmlli.adddropport
+end
+
+"$(TYPEDSIGNATURES)"
+function getadddropport(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchentry.adddropport
 end
 
@@ -217,6 +222,11 @@ end
 
 "$(TYPEDSIGNATURES)"
 function getrouterportindex(s::RouterPortLLI)
+    return s.routerportindex
+end
+
+"$(TYPEDSIGNATURES)"
+function getrouterportindex(s::TransmissionModuleLLI)
     return s.routerportindex
 end
 

@@ -1,5 +1,6 @@
 """
 $(TYPEDSIGNATURES)
+using Core: ReturnNode
 
 Convenience function to construct any struct of type `T` by passing a `Dict` corresponding to the fields needed.
 """
@@ -96,5 +97,9 @@ function mycopy(whatever::T) where {T}
                 for fn in fns
         ]...
     )
+end
+
+function issuccess(s::Symbol)
+    s === ReturnCodes.SUCCESS
 end
 

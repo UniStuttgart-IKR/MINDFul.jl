@@ -34,7 +34,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteInte
         idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
         return compileintent!(ibnf, idagnodechild, algorithm)
     else
-        return false
+        return ReturnCodes.FAIL
     end
 end
 
@@ -42,7 +42,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Compiling])
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
     foreach(idagnodedescendants) do idagnodedescendant
         if getintent(idagnodedescendant) isa RemoteIntent
@@ -92,7 +92,7 @@ function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDA
     if leafintent isa LowLevelIntent
         localnode = getlocalnode(leafintent)
         nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-        if leafintent isa TransmissionModuleLLI       
+        successflag = if leafintent isa TransmissionModuleLLI       
             if doinstall
                 reserve!(getsdncontroller(ibnf), nodeview, leafintent, leafid; checkfirst=true, verbose)
             else
@@ -112,9 +112,9 @@ function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDA
             end
         end
         if doinstall
-            pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Installed)
+            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Installed)
         else
-            pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Compiled)
+            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Compiled)
         end
     elseif leafintent isa RemoteIntent
         if getisinitiator(leafintent)

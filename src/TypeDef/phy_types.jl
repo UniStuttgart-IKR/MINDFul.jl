@@ -11,6 +11,10 @@ struct TransmissionModuleLLI <: LowLevelIntent
     transmissionmoduleviewpoolindex::Int
     "The selected mode of the transmission module. `0` means nothing is still selected. Non elastic modules can have only `1`."
     transmissionmodesindex::Int
+    "The router port index to be connected"
+    routerportindex::Int
+    "The port index adding or dropping the optical signal to be connected"
+    adddropport::Int
 end
 
 """

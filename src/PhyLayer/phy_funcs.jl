@@ -13,7 +13,7 @@ $(TYPEDSIGNATURES)
 Checks if this reservation reserves the add port, i.e., it's (0, x, y).
 """
 function isaddportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
-    return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && !iszero(getlocalnode_output(oxcswitchentry))
+    return iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getadddropport(oxcswitchentry)) && !iszero(getlocalnode_output(oxcswitchentry))
 end
 
 """
@@ -22,14 +22,14 @@ $(TYPEDSIGNATURES)
 Checks if this reservation reserves the drop port, i.e., it's (x, y, 0).
 """
 function isdropportallocation(oxcswitchentry::OXCAddDropBypassSpectrumLLI)
-    return !iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getport_adddrop(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry))
+    return !iszero(getlocalnode_input(oxcswitchentry)) && !iszero(getadddropport(oxcswitchentry)) && iszero(getlocalnode_output(oxcswitchentry))
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function isreservationvalid(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI, verbose::Bool = true)
-    @returniffalse(verbose, !(!iszero(getlocalnode_input(oxcswitchreservationentry)) && !iszero(getport_adddrop(oxcswitchreservationentry)) && !iszero(getlocalnode_output(oxcswitchreservationentry))))
+    @returniffalse(verbose, !(!iszero(getlocalnode_input(oxcswitchreservationentry)) && !iszero(getadddropport(oxcswitchreservationentry)) && !iszero(getlocalnode_output(oxcswitchreservationentry))))
     spectrumslotsrange = getspectrumslotsrange(oxcswitchreservationentry)
     @returniffalse(verbose, spectrumslotsrange.start >= 0 && spectrumslotsrange.stop >= 0)
     return true
@@ -197,7 +197,7 @@ $(TYPEDSIGNATURES)
 Return the first available oxc add/drop port and `nothing` if none found
 """
 function getfirstavailableoxcadddropport(oxcview::OXCView)
-    reservedoxcadddropports = getport_adddrop.(values(getreservations(oxcview)))
+    reservedoxcadddropports = getadddropport.(values(getreservations(oxcview)))
     for adddropport in 1:getadddropportnumber(oxcview)
         adddropport ∉ reservedoxcadddropports && return adddropport
     end

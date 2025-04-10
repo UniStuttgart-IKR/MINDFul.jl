@@ -165,7 +165,7 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
         lliidx1_cands = findall(llis) do lli
             singlenextchoice = length(getafterlliidx(ibnf, conintent, llis, lli)) == 1
             singlenextchoice && return false
-            nodestnode = getlocalnode(llis[lli]) !== destlocalnode
+            nodestnode = getlocalnode(lli) !== destlocalnode
             return nodestnode
         end
         if length(lliidx1_cands) == 1
@@ -229,11 +229,17 @@ Return an empty vector if no logical next is found.
 """
 function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis, rplli::RouterPortLLI; verbose::Bool = false)
     lli_idx = findall(llis) do lli
-        lli isa TransmissionModuleLLI || return false
-        getlocalnode(lli) == getlocalnode(rplli) || return false
-        transmissionmode = gettransmissionmode(ibnf, lli)
-        getrate(transmissionmode) >= getrate(conintent) || return false
-        return true
+        if lli isa TransmissionModuleLLI
+            getlocalnode(lli) == getlocalnode(rplli) || return false
+            getrouterportindex(lli) == getrouterportindex(rplli) || return false
+            transmissionmode = gettransmissionmode(ibnf, lli)
+            getrate(transmissionmode) >= getrate(conintent) || return false
+            return true
+        elseif lli isa RouterPortLLI
+            getlocalnode(lli) == getlocalnode(rplli) || return false
+            return true
+        end
+        return false
     end
     return lli_idx
 end
@@ -249,10 +255,12 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
     lli_idx = findall(llis) do lli
         if lli isa RouterPortLLI
             getlocalnode(lli) == getlocalnode(tmlli) || return false
+            getrouterportindex(lli) == getrouterportindex(tmlli) || return false
             return true
         elseif lli isa OXCAddDropBypassSpectrumLLI
             getlocalnode(lli) == getlocalnode(tmlli) || return false
             isaddportallocation(lli) || return false
+            getadddropport(lli) == getadddropport(tmlli) || return false
             transmissionmode = gettransmissionmode(ibnf, tmlli)
             length(getspectrumslotsrange(lli)) == getspectrumslotsneeded(transmissionmode) || return false
             return true
@@ -273,11 +281,12 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
     lli_idx = findall(llis) do lli
         if lli isa OXCAddDropBypassSpectrumLLI
             getlocalnode(lli) == getlocalnode_output(oxclli) || return false
-            getspectrumslotsrange(oxclli) == getspectrumslotsrange(oxclli) || return false
+            getspectrumslotsrange(lli) == getspectrumslotsrange(oxclli) || return false
             return true
         elseif lli isa TransmissionModuleLLI
             isdropportallocation(oxclli) || return false
             getlocalnode(lli) == getlocalnode(oxclli) || return false
+            getadddropport(lli) == getadddropport(oxclli) || return false
             transmissionmode = gettransmissionmode(ibnf, lli)
             length(getspectrumslotsrange(oxclli)) == getspectrumslotsneeded(transmissionmode) || return false
             return true
