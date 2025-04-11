@@ -212,30 +212,13 @@ $(TYPEDFIELDS)
 Fabian Gobantes implementation.
 Should consist of basic information all handlers should have (e.g. `ibnfid`).
 And a parametric type specific to the protocol used.
-
-```julia
-    struct HandlerProperties
-        ibnfid::UUID
-        # ...
-    end
-
-    struct IBNFHTTP2Comm <: AbstractIBNFComm
-        # example
-    end
-
-    struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
-        # this can  be the new dummy and substitute the current dummy implementation
-        ibng::T
-    end
-
-    struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
-        handlerproperties::HandlerProperties
-        ibnfcomm::T
-    end
-```
 """
-struct RemoteIBNFHandler <: AbstractIBNFHandler
-end
+
+"""
+Abstract type for communication protocols between IBN Frameworks.
+"""
+abstract type AbstractIBNFComm end
+
 
 """
     The graph of the IBN Framework is expressed with this `AttributeGraph`.
@@ -248,10 +231,6 @@ function IBNAttributeGraph{T}(uuid::UUID) where {T <: NodeView}
     IBNAttributeGraph{T}(SimpleDiGraph{Int}(), Vector{T}(), Dict{Edge{LocalNode}, EdgeView}(), uuid)
 end
 
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-"""
 struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
     "The operation mode of the IBN framework"
     operationmode::O
@@ -267,16 +246,43 @@ struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <:
     sdncontroller::S
 end
 
+struct HandlerProperties
+    ibnfid::UUID
+    base_url::String
+end
+
+struct IBNFHTTP2Comm <: AbstractIBNFComm
+    base_url::String # Base URL of the remote IBN Framework (e.g., "http://192.168.1.2:8081")
+end
+
+struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
+    # this can  be the new dummy and substitute the current dummy implementation
+    ibng::T
+end
+
+struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
+    handlerproperties::HandlerProperties
+    ibnfcomm::T
+end
+
+#struct RemoteIBNFHandler <: AbstractIBNFHandler
+#end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+
 """
 $(TYPEDSIGNATURES) 
 
 The most default construct with abstract type of IBN handlers
 """
-function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
-    ibnfid = AG.graph_attr(ibnag)
+#function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
+ #   ibnfid = AG.graph_attr(ibnag)
     # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
-end
+  #  return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
+#end
 
 """
 $(TYPEDSIGNATURES) 
