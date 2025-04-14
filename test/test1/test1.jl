@@ -65,8 +65,16 @@ ibnf2 = MINDF.IBNFramework(ibnag2, [handler2, handler1])
 
 
 
+"""Requesting complilation algorithms"""
+algortithms = MINDF.requestavailablecompilationalgorithms_init!(ibnf1, ibnf2)
+@show algortithms
+
+
+
+#= """ Requesting spectrum availability """ 
+
 src_node = MINDF.getglobalnode(ibnag1, 1) 
-dst_node = MINDF.getglobalnode(ibnag2, 4) 
+dst_node = MINDF.getglobalnode(ibnag2, 6) 
 ge = MINDF.GlobalEdge(src_node, dst_node)
 @show ge
 #globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
@@ -74,15 +82,21 @@ ge = MINDF.GlobalEdge(src_node, dst_node)
 src_domain = ibnf1
 dst_domain = ibnf2
 
-edge_exists = haskey(MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(MINDF.getnodeview(ibnag1, 1))), Edge(1, 2))
-@show edge_exists
-if edge_exists
-    response = MINDF.requestspectrumavailability_init!(src_domain, dst_domain, ge)
-    #response = MINDF.requestspectrumavailability_term!(dst_domain, ge)
-    @show response
-else
-    println("Edge does not exist in the graph.")
-end
+response = MINDF.requestspectrumavailability_init!(src_domain, dst_domain, ge)
+@show response
+
+#edge_exists = haskey(MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(MINDF.getnodeview(ibnag1, 1))), Edge(1, 6))
+#@show edge_exists
+#if edge_exists
+    #response = MINDF.requestspectrumavailability_init!(src_domain, dst_domain, ge)
+    #@show response
+#else
+#    println("Edge does not exist in the graph.")
+#end
+
+=#
+
+
 
 #close(server1)
 #println("Server 1 closed")

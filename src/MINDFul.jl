@@ -6,6 +6,7 @@ using UUIDs
 using Graphs
 using DataStructures
 using Unitful, UnitfulData
+using HTTP
 
 import Dates: DateTime, now
 

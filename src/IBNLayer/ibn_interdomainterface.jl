@@ -181,7 +181,7 @@ Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
 
 function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
-    server2 = start_ibn_server(remoteibnf, ge)
+    server2 = start_ibn_server_ge(remoteibnf, ge)
     
     sel_handler = myibnf.ibnfhandlers[1]
     base_url = sel_handler.handlerproperties.base_url
@@ -248,8 +248,78 @@ $(TYPEDSIGNATURES)
 
 Fabian Gobantes implementation
 """
-function requestavailablecompilationalgorithms(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
-    error("not implemented")
+#=
+function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    server2 = start_ibn_server(remoteibnf)
+    
+    sel_handler = myibnf.ibnfhandlers[1]
+    base_url = sel_handler.handlerproperties.base_url
+    uri = HTTP.URI(base_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+
+
+    
+    #server1 = HTTP.serve!(ip_address, port) do
+    local status, response
+        try
+            status, response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(myibnf.ibnfid)))
+        catch
+            close(server2)
+        else
+            if status == 200
+                return response
+                close(server2)  
+            else
+                error("Failed to request compilation algorithms: $(response)")
+            end
+        end
+end
+=#
+
+
+
+function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    server2 = start_ibn_server(remoteibnf)
+    
+    req_handler = myibnf.ibnfhandlers[1]
+    req_url = req_handler.handlerproperties.base_url
+    uri = HTTP.URI(req_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+    
+
+    server1 = HTTP.serve!(ip_address, port) do req
+        response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(myibnf.ibnfid)))
+        if response.status == 200
+            return HTTP.Response(response.body)
+        else
+            error("Failed to request compilation algorithms")
+        end 
+        #return response.status, JSON.parse(String(response.body))
+        
+        #= status, response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(myibnf.ibnfid)))
+        @show response
+        if status == 200
+            return response
+            close(server2)  
+        else
+            error("Failed to request compilation algorithms: $(response)")
+        end =#
+    end
+
+    resp = send_request(myibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(remoteibnf.ibnfid)))
+    
+    close(server1)
+    close(server2)
+
+    return JSON.parse(String(resp.body))
+    
+end
+
+function requestavailablecompilationalgorithms_term!(myibnf::IBNFramework)
+    compalglist = [KSPFFalg]
+    return compalglist
 end
 
 """
