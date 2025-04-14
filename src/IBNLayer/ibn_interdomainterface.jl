@@ -179,9 +179,39 @@ Fabian Gobantes implementation
 Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
-function requestspectrumavailability(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
-    #remoteibnag = getibnag(remoteibnfhandler)
-    remoteibnag = requestibnattributegraph(myibnf, remoteibnfhandler) 
+
+function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    server2 = start_ibn_server(remoteibnf, ge)
+    
+    sel_handler = myibnf.ibnfhandlers[1]
+    base_url = sel_handler.handlerproperties.base_url
+    uri = HTTP.URI(base_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+    
+    #server1 = HTTP.serve!(ip_address, port) do
+    local status, response
+        try
+            status, response = send_request(remoteibnf, "/api/spectrum_availability", Dict("ibnfid" => string(myibnf.ibnfid)))
+        catch
+            close(server2)
+        else
+            if status == 200
+                return response  
+            else
+                error("Failed to request spectrum availability: $(response)")
+            end
+        end
+            
+    #end
+    #close(server1)
+    #close(server2)
+end
+
+function requestspectrumavailability_term!(myibnf::IBNFramework, ge::GlobalEdge)
+    
+    remoteibnag = getibnag(myibnf)
+    #remoteibnag = requestibnattributegraph(myibnf, remoteibnfhandler) 
 
     nodeviewsrc = getnodeview(remoteibnag, src(ge))
     nodeviewdst = getnodeview(remoteibnag, dst(ge))

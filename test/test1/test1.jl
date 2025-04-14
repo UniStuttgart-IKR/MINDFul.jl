@@ -7,11 +7,11 @@ using AttributeGraphs
 
 const MINDF = MINDFul
 
-const port1 = 8081
-const port2 = 8082
+port1 = 8081
+port2 = 8082
 
-const URI1 = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port1))
-const URI2 = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port2)) 
+URI1 = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port1))
+URI2 = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port2)) 
 
 URI1_s=string(URI1)
 URI2_s=string(URI2)
@@ -41,12 +41,12 @@ handler2 = MINDF. RemoteIBNFHandler(
 )
 
 # Adding handlers to the IBNFrameworks
-ibnf1 = MINDF.IBNFramework(ibnag1, [handler2])
-ibnf2 = MINDF.IBNFramework(ibnag2, [handler1])
+ibnf1 = MINDF.IBNFramework(ibnag1, [handler1, handler2])
+ibnf2 = MINDF.IBNFramework(ibnag2, [handler2, handler1])
 
 # Starting the servers in diferent ports
-server1 = MINDF.start_ibn_server(ibnf1, port1)
-server2 = MINDF.start_ibn_server(ibnf2, port2)
+#server1 = MINDF.start_ibn_server(ibnf1)
+#server2 = MINDF.start_ibn_server(ibnf2)
 
 
 
@@ -66,15 +66,25 @@ server2 = MINDF.start_ibn_server(ibnf2, port2)
 
 
 src_node = MINDF.getglobalnode(ibnag1, 1) 
-dst_node = MINDF.getglobalnode(ibnag2, 1) 
+dst_node = MINDF.getglobalnode(ibnag2, 4) 
 ge = MINDF.GlobalEdge(src_node, dst_node)
-
+@show ge
 #globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
 
-response = MINDF.requestspectrumavailability(ibnf1,handler2,ge)
-@show response
+src_domain = ibnf1
+dst_domain = ibnf2
 
-close(server1)
-println("Server 1 closed")
-close(server2)
-println("Server 2 closed")
+edge_exists = haskey(MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(MINDF.getnodeview(ibnag1, 1))), Edge(1, 2))
+@show edge_exists
+if edge_exists
+    response = MINDF.requestspectrumavailability_init!(src_domain, dst_domain, ge)
+    #response = MINDF.requestspectrumavailability_term!(dst_domain, ge)
+    @show response
+else
+    println("Edge does not exist in the graph.")
+end
+
+#close(server1)
+#println("Server 1 closed")
+#close(server2)
+#println("Server 2 closed")
