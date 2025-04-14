@@ -1,6 +1,8 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 MINDFul = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 MINDFul = {path = ".."}

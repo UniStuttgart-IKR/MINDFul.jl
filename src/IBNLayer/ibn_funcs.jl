@@ -94,21 +94,21 @@ function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDA
         nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
         if leafintent isa TransmissionModuleLLI       
             if doinstall
-                reserve!(nodeview, leafintent, leafid; checkfirst=true, verbose)
+                reserve!(getsdncontroller(ibnf), nodeview, leafintent, leafid; checkfirst=true, verbose)
             else
-                unreserve!(nodeview, leafid; verbose)
+                unreserve!(getsdncontroller(ibnf), nodeview, leafid; verbose)
             end
         elseif leafintent isa RouterPortLLI
             if doinstall
-                reserve!(getrouterview(nodeview), leafintent, leafid; checkfirst=true, verbose)
+                reserve!(getsdncontroller(ibnf), getrouterview(nodeview), leafintent, leafid; checkfirst=true, verbose)
             else
-                unreserve!(getrouterview(nodeview), leafid; verbose)
+                unreserve!(getsdncontroller(ibnf), getrouterview(nodeview), leafid; verbose)
             end
         elseif leafintent isa OXCAddDropBypassSpectrumLLI
             if doinstall
-                reserve!(getoxcview(nodeview), leafintent, leafid; checkfirst=true, verbose)
+                reserve!(getsdncontroller(ibnf), getoxcview(nodeview), leafintent, leafid; checkfirst=true, verbose)
             else
-                unreserve!(getoxcview(nodeview), leafid; verbose)
+                unreserve!(getsdncontroller(ibnf), getoxcview(nodeview), leafid; verbose)
             end
         end
         if doinstall

@@ -26,19 +26,19 @@ conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MI
 intentuuid_bordernode = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
 
 @test MINDF.compileintent!(ibnfs[1], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10))
-testcompilation(ibnfs[1], intentuuid_bordernode; withremote=true)
+TM.testcompilation(ibnfs[1], intentuuid_bordernode; withremote=true)
  
 # install
 @test MINDF.installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
-testinstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
+TM.testinstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
 
 # uninstall
 @test MINDF.uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
-testuninstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
+TM.testuninstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
 
 # uncompile
 @test MINDF.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
-testuncompilation(ibnfs[1], intentuuid_bordernode)
+TM.testuncompilation(ibnfs[1], intentuuid_bordernode)
 @test nv(MINDF.getidag(ibnfs[1])) == 1
 @test nv(MINDF.getidag(ibnfs[3])) == 0
 
@@ -47,22 +47,22 @@ conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.G
 intentuuid_neigh = MINDF.addintent!(ibnfs[1], conintent_neigh, MINDF.NetworkOperator())
 
 @test MINDF.compileintent!(ibnfs[1], intentuuid_neigh, MINDF.KShorestPathFirstFitCompilation(10))
-testcompilation(ibnfs[1], intentuuid_neigh; withremote=true)
+TM.testcompilation(ibnfs[1], intentuuid_neigh; withremote=true)
 
 @test MINDF.installintent!(ibnfs[1], intentuuid_neigh; verbose=true)
-testinstallation(ibnfs[1], intentuuid_neigh; withremote=true)
+TM.testinstallation(ibnfs[1], intentuuid_neigh; withremote=true)
 
 @test MINDF.uninstallintent!(ibnfs[1], intentuuid_neigh; verbose=true)
-testuninstallation(ibnfs[1], intentuuid_neigh; withremote=true)
+TM.testuninstallation(ibnfs[1], intentuuid_neigh; withremote=true)
 
 @test MINDF.uncompileintent!(ibnfs[1], intentuuid_neigh; verbose=true)
-testuncompilation(ibnfs[1], intentuuid_neigh)
+TM.testuncompilation(ibnfs[1], intentuuid_neigh)
 @test nv(MINDF.getidag(ibnfs[1])) == 2
 @test nv(MINDF.getidag(ibnfs[3])) == 0
 # to unknown domain
  
 foreach(ibnfs) do ibnf
-    testoxcfiberallocationconsistency(ibnf)
+    TM.testoxcfiberallocationconsistency(ibnf)
 end
 
 end

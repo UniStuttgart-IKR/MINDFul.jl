@@ -13,7 +13,20 @@ import Printf: @sprintf
 import AttributeGraphs as AG
 import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 
-# public is_low_level_intent
+# @template (FUNCTIONS, METHODS, MACROS) = """
+#                                          $(DOCSTRING)
+
+#                                          ---
+#                                          # Signatures
+#                                          $(TYPEDSIGNATURES)
+#                                          ---
+#                                          ## Methods
+#                                          $(METHODLIST)
+#                                          """
+
+# I think everything could be public ?
+public getsdncontroller, getibnag, getibnfid, getidag, getibnfhandlers, getibnfhandler, getidagcounter, getidagnodeid, getidagnodestate, getlogstate, getcurrentstate, getintent, getsourcenode, getdestinationnode, getrate, getconstraints, getweights, getedgeview, getedgeviews, getnodeview, getnodeview, getnodeviews, getintranodeviews,  getnodeview, gettransmissionmodulecompat, getintent, getidagnodeid, getisinitiator, getdistance, getspectrumslots, getspectrumavailability, getportnumber, getreservations, getreservations, getadddropportnumber, getlinkspectrumavailabilities, getlocalnode_input, getport_adddrop, getlocalnode_output, getspectrumslotsrange, getreservations, getopticalreach, getspectrumslotsneeded, getcost, getunderlyingequipment, gettransmissionmodes, gettransmissionmode, getnodeproperties, getproperties, getproperties, getrouterview, getoxcview, gettransmissionmoduleviewpool, gettransmissionmodulereservations, getlatitude, getlongitude, getinneighbors, getoutneighbors, getlocalnode, getglobalnode, gettransmissionmoduleviewpoolindex, gettransmissionmodesindex, getrouterportindex, getoxcadddropportindex, addintent!, removeintent!, compileintent!, uncompileintent!, installintent!, uninstallintent!, remoteintent!, getpathspectrumavailabilities, getfiberspectrumavailabilities, gettransmissionmode, gettransmissionmodule, getreservedtransmissionmode, findindexglobalnode, isinternalnode, isbordernode, getbordernodesaslocal, getbordernodesasglobal, getborderedges, getborderglobaledges, getlocalnode, getglobalnode, getopticalinitiateconstraint
+
 
 include("generic/utils.jl")
 include("TypeDef/TypeDef.jl")

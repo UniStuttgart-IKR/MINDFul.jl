@@ -21,8 +21,8 @@ for i in eachindex(ibnfs)
 end
 
 foreach(ibnfs) do ibnf
-    testlocalnodeisindex(ibnf)
-    testoxcfiberallocationconsistency(ibnf)
+    TM.testlocalnodeisindex(ibnf)
+    TM.testoxcfiberallocationconsistency(ibnf)
 end
 
 conintent_intra = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 2), MINDF.GlobalNode(UUID(1), 19), u"100.0Gbps")
@@ -64,8 +64,8 @@ intentuuid3 = MINDF.addintent!(ibnfs[1], conintent_intra_optini, MINDF.NetworkOp
 
 oxcview1_2 = MINDF.getoxcview(MINDF.getnodeview(ibnfs[1], 2))
 oxcllifinishprevious3 = MINDF.OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 21:26)
-@test MINDF.canreserve(oxcview1_2, oxcllifinishprevious3)
-@test MINDF.reserve!(oxcview1_2, oxcllifinishprevious3, UUID(0xfffffff); verbose = true)
+@test MINDF.canreserve(MINDF.getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3)
+@test MINDF.reserve!(MINDF.getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3, UUID(0xfffffff); verbose = true)
 
 # intradomain with `OpticalInitaiteConstraint and OpticalTerminateConstraint`
 conintent_intra_optseg = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 8), MINDF.GlobalNode(UUID(1), 22), u"100.0Gbps", [MINDF.OpticalTerminateConstraint(), MINDF.OpticalInitiateConstraint(MINDF.GlobalNode(UUID(1), 2), 31:34, u"500.0km", MINDF.TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
@@ -78,17 +78,17 @@ vorletzteglobalsnode4 = MINDF.getlocalnode(orderedllis4[end])
 @test MINDF.issatisfied(ibnfs[1], intentuuid4; onlyinstalled=true, noextrallis=true)
 
 oxcllifinishprevious4 = MINDF.OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 31:34)
-@test MINDF.canreserve(oxcview1_2, oxcllifinishprevious4)
-@test MINDF.reserve!(oxcview1_2, oxcllifinishprevious4, UUID(0xffffff1); verbose = true)
+@test MINDF.canreserve(MINDF.getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4)
+@test MINDF.reserve!(MINDF.getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4, UUID(0xffffff1); verbose = true)
 
 oxcview1_22 = MINDF.getoxcview(MINDF.getnodeview(ibnfs[1], 22))
 oxcllifinishprevious4_1 = MINDF.OXCAddDropBypassSpectrumLLI(22, vorletzteglobalsnode4, 2, 0, 31:34)
-@test MINDF.canreserve(oxcview1_22, oxcllifinishprevious4_1)
-@test MINDF.reserve!(oxcview1_22, oxcllifinishprevious4_1, UUID(0xffffff2); verbose = true)
+@test MINDF.canreserve(MINDF.getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1)
+@test MINDF.reserve!(MINDF.getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1, UUID(0xffffff2); verbose = true)
 
 foreach(ibnfs) do ibnf
-  testlocalnodeisindex(ibnf)
-  testoxcfiberallocationconsistency(ibnf)
+  TM.testlocalnodeisindex(ibnf)
+  TM.testoxcfiberallocationconsistency(ibnf)
 end
 
 nothing

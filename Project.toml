@@ -18,6 +18,12 @@ UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 
+[weakdeps]
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+ 
+[extensions]
+TestModule = ["JET", "Test"]
 
 [compat]
 AttributeGraphs = "0.3.0"
@@ -27,7 +33,9 @@ DocStringExtensions = "0.9"
 EnumX = "1.0.4"
 Graphs = "1.8"
 IterTools = "1.4"
+JET = "0.9"
 Printf = "1.11.0"
+Test = "1"
 Unitful = "1.22.0"
 UnitfulData = "0.6.4"
 julia = "1.8"
