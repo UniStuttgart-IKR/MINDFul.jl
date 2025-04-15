@@ -180,32 +180,50 @@ Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
 
+function serialize_globaledge(edge::GlobalEdge)
+    return Dict(
+        "src" => serialize_globalnode(edge.src),  # Serialize the source node
+        "dst" => serialize_globalnode(edge.dst)   # Serialize the destination node
+    )
+end
+
+function serialize_globalnode(node::GlobalNode)
+    return Dict(
+        "ibnfid" => string(node.ibnfid),  # Convert UUID to string
+        "localnode" => node.localnode    # Keep localnode as Int64
+    )
+end
+
+
 function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
-    server2 = start_ibn_server_ge(remoteibnf, ge)
     
-    sel_handler = myibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    
-    #server1 = HTTP.serve!(ip_address, port) do
-    local status, response
-        try
-            status, response = send_request(remoteibnf, "/api/spectrum_availability", Dict("ibnfid" => string(myibnf.ibnfid)))
-        catch
-            close(server2)
+    try
+        start_ibn_server(remoteibnf, myibnf,"resp") #server2
+    catch e
+        if isa(e, Base.IOError)
+            println("Remote Server is already running on")
         else
-            if status == 200
-                return response  
-            else
-                error("Failed to request spectrum availability: $(response)")
-            end
+            rethrow(e)  
         end
-            
-    #end
-    #close(server1)
-    #close(server2)
+    end
+
+
+    try
+        start_ibn_server(myibnf, remoteibnf, "req")  #server1
+    catch e
+        if isa(e, Base.IOError)
+            println("Requesting Server is already running")
+        else
+            rethrow(e)  
+        end
+    end
+
+
+    ge_data = serialize_globaledge(ge)
+
+    resp = send_request(myibnf, "/api/spectrum_availability", Dict("func" => "request", "global_edge" => ge_data))
+    
+    return JSON.parse(String(resp.body))
 end
 
 function requestspectrumavailability_term!(myibnf::IBNFramework, ge::GlobalEdge)
@@ -248,76 +266,36 @@ $(TYPEDSIGNATURES)
 
 Fabian Gobantes implementation
 """
-#=
 function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnf::IBNFramework)
-    server2 = start_ibn_server(remoteibnf)
-    
-    sel_handler = myibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-
-
-    
-    #server1 = HTTP.serve!(ip_address, port) do
-    local status, response
-        try
-            status, response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(myibnf.ibnfid)))
-        catch
-            close(server2)
+    try
+        start_ibn_server(remoteibnf, myibnf, "resp") #server2
+    catch e
+        if isa(e, Base.IOError)
+            println("Remote Server is already running")
         else
-            if status == 200
-                return response
-                close(server2)  
-            else
-                error("Failed to request compilation algorithms: $(response)")
-            end
+            rethrow(e)  
         end
-end
-=#
-
-
-
-function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnf::IBNFramework)
-    server2 = start_ibn_server(remoteibnf)
-    
-    req_handler = myibnf.ibnfhandlers[1]
-    req_url = req_handler.handlerproperties.base_url
-    uri = HTTP.URI(req_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    
-
-    server1 = HTTP.serve!(ip_address, port) do req
-        response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(myibnf.ibnfid)))
-        if response.status == 200
-            return HTTP.Response(response.body)
-        else
-            error("Failed to request compilation algorithms")
-        end 
-        #return response.status, JSON.parse(String(response.body))
-        
-        #= status, response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(myibnf.ibnfid)))
-        @show response
-        if status == 200
-            return response
-            close(server2)  
-        else
-            error("Failed to request compilation algorithms: $(response)")
-        end =#
     end
-
-    resp = send_request(myibnf, "/api/compilation_algorithms", Dict("ibnfid" => string(remoteibnf.ibnfid)))
     
-    close(server1)
-    close(server2)
+    
+    try
+        start_ibn_server(myibnf, remoteibnf, "req") #server1
+    catch e
+        if isa(e, Base.IOError)
+            println("Requesting Server is already running on")
+        else
+            rethrow(e)  
+        end
+    end
+    
+
+    resp = send_request(myibnf, "/api/compilation_algorithms", Dict("func" => "request"))
 
     return JSON.parse(String(resp.body))
     
 end
 
-function requestavailablecompilationalgorithms_term!(myibnf::IBNFramework)
+function requestavailablecompilationalgorithms_term!()
     compalglist = [KSPFFalg]
     return compalglist
 end

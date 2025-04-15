@@ -50,15 +50,6 @@ ibnf2 = MINDF.IBNFramework(ibnag2, [handler2, handler1])
 
 
 
-# Test requesting topology information
-# @testset "Interdomain Topology Request" begin
-    # Request topology information from ibnf2 to ibnf1
-   # status, response = requestibnattributegraph(ibnf2, handler1)
-    
-    #@test status == 200
-   # @test response == serialize_attributegraph(getibnag(ibnf1))  # Verify the response matches ibnf1's topology
-#end
-
 #status, response = MINDF.requestibnattributegraph(ibnf2, handler1)
 #@show status
 #@show response == MINDF.serialize_attributegraph(MINDF.getibnag(ibnf1))
@@ -66,13 +57,12 @@ ibnf2 = MINDF.IBNFramework(ibnag2, [handler2, handler1])
 
 
 """Requesting complilation algorithms"""
-algortithms = MINDF.requestavailablecompilationalgorithms_init!(ibnf1, ibnf2)
-@show algortithms
+#algortithms = MINDF.requestavailablecompilationalgorithms_init!(ibnf1, ibnf2)
+#@show algortithms
 
 
 
-#= """ Requesting spectrum availability """ 
-
+ """ Requesting spectrum availability """ 
 src_node = MINDF.getglobalnode(ibnag1, 1) 
 dst_node = MINDF.getglobalnode(ibnag2, 6) 
 ge = MINDF.GlobalEdge(src_node, dst_node)
@@ -83,7 +73,7 @@ src_domain = ibnf1
 dst_domain = ibnf2
 
 response = MINDF.requestspectrumavailability_init!(src_domain, dst_domain, ge)
-@show response
+#@show response
 
 #edge_exists = haskey(MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(MINDF.getnodeview(ibnag1, 1))), Edge(1, 6))
 #@show edge_exists
@@ -94,11 +84,3 @@ response = MINDF.requestspectrumavailability_init!(src_domain, dst_domain, ge)
 #    println("Edge does not exist in the graph.")
 #end
 
-=#
-
-
-
-#close(server1)
-#println("Server 1 closed")
-#close(server2)
-#println("Server 2 closed")

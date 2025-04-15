@@ -1,24 +1,19 @@
-using JSON, HTTP 
+using JSON, HTTP, Sockets
 using AttributeGraphs
 
 function send_request(ibnf::IBNFramework, endpoint::String, data::Dict)
     remotehandler=ibnf.ibnfhandlers[1]
     url = remotehandler.handlerproperties.base_url * endpoint
     body = JSON.json(data)  
-    headers = Dict("Content-Type" => "application/json") 
-    response = HTTP.post(url, body; headers=headers)
+    headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body))) 
+    println("Sending request to $url")
+    println("Headers: $headers")
+    println("Body: $body")
+    response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
     #return response.status, JSON.parse(String(response.body)) 
     return response
 end
 
-
-#function Base.show(io::IO, graph::AttributeGraphs.AttributeGraph)
-#    JSON.print(io, Dict(
-#        "nodes" => Graphs.vertices(graph.graph),  # Serialize nodes
-#        "edges" => [(e.src, e.dst) for e in Graphs.edges(graph.graph)],  # Serialize edges
-#        "attributes" => graph.attributes  # Serialize attributes
-#    ))
-#end
 
 function serialize_attributegraph(graph::AttributeGraphs.AttributeGraph)
     return Dict(
@@ -29,60 +24,96 @@ function serialize_attributegraph(graph::AttributeGraphs.AttributeGraph)
 end
 
 
-""" function to start a REST API server for an IBNFramework"""
-function start_ibn_server(ibnf::IBNFramework)
-    sel_handler = ibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    #@show ip_address
-    #@show port
-
-    HTTP.serve!(ip_address, port) do req
-        if req.target == "/api/ibnattributegraph"
-            """ Handle request for IBN Attribute Graph """
-            graph = getibnag(ibnf)
-            serialized_graph = serialize_attributegraph(graph)
-            return HTTP.Response(200, JSON.json(serialized_graph))
-        elseif req.target == "/api/compilation_algorithms"
-            """ Handle request for compilation algorithms """
-            compilation_algorithms = requestavailablecompilationalgorithms_term!(ibnf)
-            if compilation_algorithms !== nothing
-                return HTTP.Response(200, JSON.json(compilation_algorithms))
-            else
-                return HTTP.Response(404, "Compilation algorithms not found")
-            end
+function response(req::HTTP.Request, ibnf::IBNFramework, parsed_body::Dict)
+    """ Handle request for IBN Attribute Graph """
+    if req.target == "/api/ibnattributegraph"
+        """ Handle request for IBN Attribute Graph """
+        #graph = getibnag(ibnf)
+        #serialized_graph = serialize_attributegraph(graph)
+        #return HTTP.Response(200, JSON.json(serialized_graph))
+    elseif req.target == "/api/compilation_algorithms"
+        """ Handle request for compilation algorithms """
+        compilation_algorithms = requestavailablecompilationalgorithms_term!()
+        if compilation_algorithms !== nothing
+            return HTTP.Response(200, JSON.json(compilation_algorithms))
         else
-            return HTTP.Response(404, "Not Found")
+            return HTTP.Response(404, "Compilation algorithms not found")
         end
-    end
-end
-
-
-
-
-""" function to start a REST API server for an IBNFramework"""
-function start_ibn_server_ge(ibnf::IBNFramework, ge::GlobalEdge)
-    sel_handler = ibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    #@show ip_address
-    #@show port
-
-    HTTP.serve!(ip_address, port) do req
-        if req.target == "/api/spectrum_availability"
+    elseif req.target == "/api/spectrum_availability"
             """ Handle request for link spectrum availability """
-            spectrum_availability = requestspectrumavailability_term!(ibnf, ge)
+            #body = JSON.parse(String(req.body))
+            ge_data = parsed_body["global_edge"]
+            received_ge = GlobalEdge(
+                GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
+                GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
+            )
+            spectrum_availability = requestspectrumavailability_term!(ibnf, received_ge)
             if spectrum_availability !== nothing
                 return HTTP.Response(200, JSON.json(spectrum_availability))
             else
                 return HTTP.Response(404, "Spectrum availability not found")
             end
+    else
+        return HTTP.Response(404, "Not Found")
+    end
+end
+
+
+function request(req::HTTP.Request, remoteibnf::IBNFramework, parsed_body::Dict)
+    """ Handle request for IBN Attribute Graph """
+    if req.target == "/api/ibnattributegraph"
+        response = send_request(remoteibnf, "/api/ibnattributegraph", Dict("func" => "response"))
+        if response.status == 200
+            return HTTP.Response(response.body)
         else
-            return HTTP.Response(404, "Not Found")
+            error("Failed to request atrribute graph")
+        end 
+    
+    elseif req.target == "/api/compilation_algorithms"
+        response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("func" => "response"))
+        if response.status == 200
+            return HTTP.Response(response.body)
+        else
+            error("Failed to request compilation algorithms")
+        end 
+    
+    elseif req.target == "/api/spectrum_availability"
+        #body = JSON.parse(String(req.body))
+        received_ge = parsed_body["global_edge"]
+        
+        response = send_request(remoteibnf, "/api/spectrum_availability", Dict("func" => "response", "global_edge" => received_ge))
+        if response.status == 200
+            return HTTP.Response(response.body)
+        else
+            error("Failed to request spectrum availability")
+        end 
+    else
+        return HTTP.Response(404, "Not Found")
+    end
+end
+
+
+""" function to start a REST API server for an IBNFramework"""
+function start_ibn_server(myibnf::IBNFramework, remoteibnf::IBNFramework, func::String)
+    sel_handler = myibnf.ibnfhandlers[1]
+    base_url = sel_handler.handlerproperties.base_url
+    uri = HTTP.URI(base_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+    #@show ip_address
+    #@show port
+
+    println("Starting server on $ip_address:$port")
+    HTTP.serve!(ip_address, port) do req
+        body = HTTP.payload(req)
+        parsed_body = JSON.parse(String(body))
+        #@show parsed_body
+        func_value = parsed_body["func"]
+        #@show func_value
+        if func_value == "request"
+            return request(req, remoteibnf, parsed_body)
+        else
+            return response(req, myibnf, parsed_body)
         end
     end
 end
