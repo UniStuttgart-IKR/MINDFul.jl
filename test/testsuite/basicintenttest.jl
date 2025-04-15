@@ -20,19 +20,19 @@
     @test compileintent!(ibnf1, intentuuid1, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
     TM.testcompilation(ibnf1, intentuuid1; withremote=false)
 
-    @test installintent!(ibnf1, intentuuid1)
+    @test installintent!(ibnf1, intentuuid1) == ReturnCodes.SUCCESS
     TM.testinstallation(ibnf1, intentuuid1; withremote=false)
 
-    @test uninstallintent!(ibnf1, intentuuid1)
+    @test uninstallintent!(ibnf1, intentuuid1) == ReturnCodes.SUCCESS
     TM.testuninstallation(ibnf1, intentuuid1; withremote=false)
 
-    @test uncompileintent!(ibnf1, UUID(1))
+    @test uncompileintent!(ibnf1, UUID(1)) == ReturnCodes.SUCCESS
     TM.testuncompilation(ibnf1, intentuuid1)
     @test nv(getidag(ibnf1)) == 1
 
     TM.nothingisallocated(ibnf1)
 
-    @test removeintent!(ibnf1, intentuuid1)
+    @test removeintent!(ibnf1, intentuuid1) == ReturnCodes.SUCCESS
     @test nv(getidag(ibnf1)) == 0
 
     TM.testoxcfiberallocationconsistency(ibnf1)

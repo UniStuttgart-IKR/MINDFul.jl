@@ -29,7 +29,7 @@ conintent_intra = ConnectivityIntent(GlobalNode(UUID(1), 2), GlobalNode(UUID(1),
 intentuuid1 = addintent!(ibnfs[1], conintent_intra, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid1, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid1; onlyinstalled=false, noextrallis=true)
-@test installintent!(ibnfs[1], intentuuid1)
+@test installintent!(ibnfs[1], intentuuid1) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid1; onlyinstalled=true, noextrallis=true)
 
 
@@ -44,14 +44,14 @@ vorletzteglobalsnode = getglobalnode(getibnag(ibnfs[1]), getlocalnode(orderedlli
 spectrumslots = getspectrumslotsrange(orderedllis2[end])
 transmode = gettransmissionmode(ibnfs[1], orderedllis2[2])
 transmodulename = getname(gettransmissionmodule(ibnfs[1], orderedllis2[2]))
-@test installintent!(ibnfs[1], intentuuid2)
+@test installintent!(ibnfs[1], intentuuid2) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid2; onlyinstalled=true, noextrallis=true)
 
 conintent_intra_optini_finishprevious = ConnectivityIntent(GlobalNode(UUID(1), 22), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalInitiateConstraint(vorletzteglobalsnode, spectrumslots, u"10.0km", TransmissionModuleCompatibility(getrate(transmode), getspectrumslotsneeded(transmode), transmodulename))])
 intentuuid_intra_optini_finishprevious = addintent!(ibnfs[1], conintent_intra_optini_finishprevious, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid_intra_optini_finishprevious, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled=false, noextrallis=true)
-@test installintent!(ibnfs[1], intentuuid_intra_optini_finishprevious)
+@test installintent!(ibnfs[1], intentuuid_intra_optini_finishprevious) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled=true, noextrallis=true)
 
 # intradomain with `OpticalInitaiteConstraint`
@@ -59,7 +59,7 @@ conintent_intra_optini = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(U
 intentuuid3 = addintent!(ibnfs[1], conintent_intra_optini, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid3, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid3; onlyinstalled=false, noextrallis=true)
-@test installintent!(ibnfs[1], intentuuid3)
+@test installintent!(ibnfs[1], intentuuid3) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid3; onlyinstalled=true, noextrallis=true)
 
 oxcview1_2 = getoxcview(getnodeview(ibnfs[1], 2))
@@ -74,7 +74,7 @@ intentuuid4 = addintent!(ibnfs[1], conintent_intra_optseg, NetworkOperator())
 orderedllis4 = getlogicallliorder(ibnfs[1], intentuuid4; onlyinstalled=false)
 @test issatisfied(ibnfs[1], intentuuid4, orderedllis4; noextrallis=true)
 vorletzteglobalsnode4 = getlocalnode(orderedllis4[end])
-@test installintent!(ibnfs[1], intentuuid4)
+@test installintent!(ibnfs[1], intentuuid4) == ReturnCodes.SUCCESS
 @test issatisfied(ibnfs[1], intentuuid4; onlyinstalled=true, noextrallis=true)
 
 oxcllifinishprevious4 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 31:34)

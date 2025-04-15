@@ -71,7 +71,7 @@
     intentid2 = addintent!(ibnf1, conintent1, NetworkOperator())
     @test nv(getidag(ibnf1)) == 2
     # remove second intent
-    @test removeintent!(ibnf1, intentid2)
+    @test removeintent!(ibnf1, intentid2) == ReturnCodes.SUCCESS
     @test nv(getidag(ibnf1)) == 1
 
 end

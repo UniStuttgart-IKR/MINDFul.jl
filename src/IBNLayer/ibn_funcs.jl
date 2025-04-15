@@ -1,7 +1,7 @@
 """
 $(TYPEDSIGNATURES)
 
-Add a new user intent to the IBN framework.
+Add a new user intent to the IBN framework and return the id.
 """
 function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
     intentdag = getidag(ibnf)
@@ -48,13 +48,19 @@ function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fa
         if getintent(idagnodedescendant) isa RemoteIntent
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnodedescendant)))
             uncompiledflag = requestuncompileintent_init!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnodedescendant)); verbose)
-            uncompiledflag && removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+            if uncompiledflag == ReturnCodes.SUCCESS
+                removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+            end
         else
             removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
         end
     end
     updateidagstates!(ibnf, idagnodeid)
-    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled
+    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled
+        return ReturnCodes.SUCCESS
+    else
+        return ReturnCodes.FAIL
+    end
 end
 
 """
@@ -66,7 +72,11 @@ function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fals
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose)
     end
-    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
+    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
+        return ReturnCodes.SUCCESS
+    else
+        return ReturnCodes.FAIL
+    end
 end
 
 """
@@ -78,7 +88,11 @@ function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fa
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose)
     end
-    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
+    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
+        return ReturnCodes.SUCCESS
+    else
+        return ReturnCodes.FAIL
+    end
 end
 
 """

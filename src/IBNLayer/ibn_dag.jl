@@ -131,7 +131,7 @@ function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(intentdag, idagnodeid)
     rem_vertex!(intentdag, vertexidx)
     deleteat!(getidagnodes(intentdag), vertexidx)
-    return true
+    return ReturnCodes.SUCCESS
 end
 
 function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID)

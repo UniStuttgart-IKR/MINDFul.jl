@@ -120,7 +120,7 @@ $(TYPEDSIGNATURES)
 """
 function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose)
-    if uncompiledflag
+    if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
         return removeintent!(myibnf, idagnodeid; verbose)
     else

@@ -29,15 +29,15 @@ intentuuid_bordernode = addintent!(ibnfs[1], conintent_bordernode, NetworkOperat
 TM.testcompilation(ibnfs[1], intentuuid_bordernode; withremote=true)
  
 # install
-@test installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test installintent!(ibnfs[1], intentuuid_bordernode; verbose=true) == ReturnCodes.SUCCESS
 TM.testinstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
 
 # uninstall
-@test uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
 
 # uncompile
-@test uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_bordernode)
 @test nv(getidag(ibnfs[1])) == 1
 @test nv(getidag(ibnfs[3])) == 0
@@ -49,13 +49,13 @@ intentuuid_neigh = addintent!(ibnfs[1], conintent_neigh, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid_neigh, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 TM.testcompilation(ibnfs[1], intentuuid_neigh; withremote=true)
 
-@test installintent!(ibnfs[1], intentuuid_neigh; verbose=true)
+@test installintent!(ibnfs[1], intentuuid_neigh; verbose=true) == ReturnCodes.SUCCESS
 TM.testinstallation(ibnfs[1], intentuuid_neigh; withremote=true)
 
-@test uninstallintent!(ibnfs[1], intentuuid_neigh; verbose=true)
+@test uninstallintent!(ibnfs[1], intentuuid_neigh; verbose=true) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_neigh; withremote=true)
 
-@test uncompileintent!(ibnfs[1], intentuuid_neigh; verbose=true)
+@test uncompileintent!(ibnfs[1], intentuuid_neigh; verbose=true) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_neigh)
 @test nv(getidag(ibnfs[1])) == 2
 @test nv(getidag(ibnfs[3])) == 0
