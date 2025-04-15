@@ -467,3 +467,10 @@ function isinternalorborderintent(ibnf::IBNFramework, connectivityintent::Connec
     return getibnfid(ibnf) == getibnfid(sourceglobalnode) || getibnfid(ibnf) == getibnfid(destinationglobalnode)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getpathdistance(ibnag::IBNAttributeGraph, path::Vector{Int})
+    ws = getweights(ibnag)
+    return sum([getindex(ws, nodepair...) for nodepair in zip(path[1:end-1], path[2:end])])
+end

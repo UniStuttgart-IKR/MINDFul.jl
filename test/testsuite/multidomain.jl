@@ -7,7 +7,7 @@ ibnfs = [
     let
         ag = name_graph[2]
         ibnag = MINDF.default_IBNAttributeGraph(ag)
-        ibnf = MINDF.IBNFramework(ibnag)
+        ibnf = IBNFramework(ibnag)
     end for name_graph in domains_name_graph
 ]
 
@@ -17,48 +17,48 @@ ibnfs = [
 for i in eachindex(ibnfs)
     for j in eachindex(ibnfs)
         i == j && continue
-        push!(MINDF.getibnfhandlers(ibnfs[i]), ibnfs[j] )
+        push!(getibnfhandlers(ibnfs[i]), ibnfs[j] )
     end
 end
 
 # with border node
-conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100.0Gbps")
-intentuuid_bordernode = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
+conintent_bordernode = ConnectivityIntent(GlobalNode(UUID(1), 4), GlobalNode(UUID(3), 25), u"100.0Gbps")
+intentuuid_bordernode = addintent!(ibnfs[1], conintent_bordernode, NetworkOperator())
 
-@test MINDF.compileintent!(ibnfs[1], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10))
+@test compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 TM.testcompilation(ibnfs[1], intentuuid_bordernode; withremote=true)
  
 # install
-@test MINDF.installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 TM.testinstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
 
 # uninstall
-@test MINDF.uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 TM.testuninstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
 
 # uncompile
-@test MINDF.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+@test uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 TM.testuncompilation(ibnfs[1], intentuuid_bordernode)
-@test nv(MINDF.getidag(ibnfs[1])) == 1
-@test nv(MINDF.getidag(ibnfs[3])) == 0
+@test nv(getidag(ibnfs[1])) == 1
+@test nv(getidag(ibnfs[3])) == 0
 
 # to neighboring domain
-conintent_neigh = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 47), u"100.0Gbps")
-intentuuid_neigh = MINDF.addintent!(ibnfs[1], conintent_neigh, MINDF.NetworkOperator())
+conintent_neigh = ConnectivityIntent(GlobalNode(UUID(1), 4), GlobalNode(UUID(3), 47), u"100.0Gbps")
+intentuuid_neigh = addintent!(ibnfs[1], conintent_neigh, NetworkOperator())
 
-@test MINDF.compileintent!(ibnfs[1], intentuuid_neigh, MINDF.KShorestPathFirstFitCompilation(10))
+@test compileintent!(ibnfs[1], intentuuid_neigh, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 TM.testcompilation(ibnfs[1], intentuuid_neigh; withremote=true)
 
-@test MINDF.installintent!(ibnfs[1], intentuuid_neigh; verbose=true)
+@test installintent!(ibnfs[1], intentuuid_neigh; verbose=true)
 TM.testinstallation(ibnfs[1], intentuuid_neigh; withremote=true)
 
-@test MINDF.uninstallintent!(ibnfs[1], intentuuid_neigh; verbose=true)
+@test uninstallintent!(ibnfs[1], intentuuid_neigh; verbose=true)
 TM.testuninstallation(ibnfs[1], intentuuid_neigh; withremote=true)
 
-@test MINDF.uncompileintent!(ibnfs[1], intentuuid_neigh; verbose=true)
+@test uncompileintent!(ibnfs[1], intentuuid_neigh; verbose=true)
 TM.testuncompilation(ibnfs[1], intentuuid_neigh)
-@test nv(MINDF.getidag(ibnfs[1])) == 2
-@test nv(MINDF.getidag(ibnfs[3])) == 0
+@test nv(getidag(ibnfs[1])) == 2
+@test nv(getidag(ibnfs[3])) == 0
 # to unknown domain
  
 foreach(ibnfs) do ibnf

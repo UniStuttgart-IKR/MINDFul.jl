@@ -5,7 +5,7 @@
  """
 module ReturnCodes
 
-public SUCCESS, FAIL, FAIL_SPECTRUM, FAIL_OPTICALREACH, FAIL_OPTICALREACH_OPTINIT, FAIL_OPTICALREACH_OPTINIT_RETRY, FAIL_SRCROUTERPORT, FAIL_DSTROUTERPORT
+public SUCCESS, FAIL, FAIL_SPECTRUM, FAIL_OPTICALREACH, FAIL_OPTICALREACH_OPTINIT, FAIL_OPTICALREACH_OPTINIT_RETRY, FAIL_SRCROUTERPORT, FAIL_OPTICALREACH_OPTINIT_NONODESPLIT, FAIL_DSTROUTERPORT, FAIL_DSTOXCADDDROPPORT, FAIL_DSTTRANSMDL, FAIL_SRCTRANSMDL, FAIL_SRCOXCADDDROPPORT
 
 "Signifies everything worked as planned"
 const SUCCESS = :Success
@@ -21,6 +21,9 @@ const FAIL_OPTICALREACH = :Fail_opticalreach
 
 "No available connection for the given optical reach, coming from an initiate optical constraint, was found"
 const FAIL_OPTICALREACH_OPTINIT = :Fail_opticalreach_optinit
+
+"No available connection for the given optical reach, coming from an initiate optical constraint, was found"
+const FAIL_OPTICALREACH_OPTINIT_NONODESPLIT = :Fail_opticalreach_optinit_nonodesplit
 
 "No available connection for the given optical reach, coming from an initiate optical constraint, was found even after retrying/recompiling"
 const FAIL_OPTICALREACH_OPTINIT_RETRY = :Fail_opticalreach_optinit_retry
