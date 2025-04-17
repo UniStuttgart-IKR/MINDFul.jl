@@ -47,7 +47,8 @@ Finally this technique is well suited for simulations, but cannot work good for 
 An `offsetime=nothing` could be implemented to handle real-time applications.
 """
 macro passtime() 
-    return :((; $(esc(:offsettime)) = @logtime )...)
+    # return :((; $(esc(:offsettime)) = @logtime )...)
+    return :((; $(esc(:offsettime)) = isnothing($(esc(:offsettime))) ? nothing : @logtime )...)
 end
 
 
@@ -57,7 +58,8 @@ $(TYPEDSIGNATURES)
 This macro is used to calculate the current (simulated) time.
 """
 macro logtime()
-    return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
+    # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
+    return :(isnothing($(esc(:offsettime))) ? now() : $(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
 end
 
 """
