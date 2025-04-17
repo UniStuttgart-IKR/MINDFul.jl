@@ -60,7 +60,8 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int)
         push!(edgs, Edge(outn, localnode))
     end
     linkspectrumavailabilities = Dict(ed => fill(true, spectrumslots)  for ed in edgs)
-    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities)
+    linkstates = Dict(ed => construct_BoolLogState() for ed in edgs)
+    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities, linkstates)
 end
 
 function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, isexternal::Bool)

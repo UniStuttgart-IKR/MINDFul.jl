@@ -45,9 +45,9 @@ $(TYPEDSIGNATURES)
 
 Return the id of the new dag node if successful and `nothing` otherwise
 """
-function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
+@recvtime function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
     remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent)
+    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent; @passtime)
     return getidagnodeid(remoteintentdagnode)
 end
 
@@ -65,8 +65,8 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
 """
-function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
-    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs)
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; @passtime)
 end
 
 """
@@ -74,52 +74,52 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
-function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    return compileintent!(myibnf, idagnodeid, compilationalgorithm)
+    return compileintent!(myibnf, idagnodeid, compilationalgorithm; @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestinstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestinstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+@recvtime function requestinstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestinstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestinstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return installintent!(myibnf, idagnodeid; verbose)
+@recvtime function requestinstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return installintent!(myibnf, idagnodeid; verbose, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return uninstallintent!(myibnf, idagnodeid; verbose)
+@recvtime function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return uninstallintent!(myibnf, idagnodeid; verbose, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestuncompileintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+@recvtime function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestuncompileintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose)
+@recvtime function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
     if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
         return removeintent!(myibnf, idagnodeid; verbose)
@@ -142,13 +142,13 @@ $(TYPEDSIGNATURES)
 
 Request the initiator `remoteibnf` to update the state of its mirrored remote intent
 """
-function requestremoteintentstateupdate!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
+@recvtime function requestremoteintentstateupdate!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
     oldstate = getidagnodestate(getidag(remoteibnf), idagnodeid)
     if oldstate != newstate
         idagnode = getidagnode(getidag(remoteibnf), idagnodeid)
-        pushstatetoidagnode!(idagnode, now(), newstate)
+        pushstatetoidagnode!(idagnode, newstate; @passtime)
         foreach(getidagnodeparents(getidag(remoteibnf), idagnodeid)) do idagnodeparent
-            updateidagnodestates!(remoteibnf, idagnodeparent)
+            updateidagnodestates!(remoteibnf, idagnodeparent; @passtime)
         end
     end
     return oldstate != newstate

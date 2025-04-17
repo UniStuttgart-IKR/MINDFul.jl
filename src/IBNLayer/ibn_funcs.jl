@@ -1,9 +1,9 @@
 """
 $(TYPEDSIGNATURES)
-
+kk
 Add a new user intent to the IBN framework and return the id.
 """
-function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
+@recvtime function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
     intentdag = getidag(ibnf)
     idagnode =  addidagnode!(intentdag, intent; intentissuer)
     return getidagnodeid(idagnode)
@@ -12,7 +12,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function removeintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
+@recvtime function removeintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
     return removeidagnode!(getidag(ibnf), idagnodeid)
 end
@@ -20,19 +20,19 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm; verbose::Bool=false)
+@recvtime function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
     idagnode = getidagnode(getidag(ibnf), idagnodeid)
-    return compileintent!(ibnf, idagnode, algorithm)
+    return compileintent!(ibnf, idagnode, algorithm; @passtime)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm)
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm)
     if !getisinitiator(getintent(idagnode))
-        idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
-        return compileintent!(ibnf, idagnodechild, algorithm)
+        idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+        return compileintent!(ibnf, idagnodechild, algorithm; @passtime)
     else
         return ReturnCodes.FAIL
     end
@@ -41,13 +41,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Compiling])
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
     foreach(idagnodedescendants) do idagnodedescendant
         if getintent(idagnodedescendant) isa RemoteIntent
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnodedescendant)))
-            uncompiledflag = requestuncompileintent_init!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnodedescendant)); verbose)
+            uncompiledflag = requestuncompileintent_init!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnodedescendant)); verbose, @passtime)
             if uncompiledflag == ReturnCodes.SUCCESS
                 removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
             end
@@ -55,7 +55,7 @@ function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fa
             removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
         end
     end
-    updateidagstates!(ibnf, idagnodeid)
+    updateidagstates!(ibnf, idagnodeid; @passtime)
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled
         return ReturnCodes.SUCCESS
     else
@@ -66,11 +66,11 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
-        reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose)
+            reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
     end
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
         return ReturnCodes.SUCCESS
@@ -82,11 +82,11 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed)
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
-        reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose)
+        reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose, @passtime)
     end
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
         return ReturnCodes.SUCCESS
@@ -100,7 +100,7 @@ $(TYPEDSIGNATURES)
 
 to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
 """
-function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool=false)
+@recvtime function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool=false)
     leafintent = getintent(idagnodeleaf)
     leafid = getidagnodeid(idagnodeleaf)
     if leafintent isa LowLevelIntent
@@ -126,23 +126,23 @@ function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDA
             end
         end
         if doinstall
-            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Installed)
+            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
         else
-            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Compiled)
+            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Compiled; @passtime)
         end
     elseif leafintent isa RemoteIntent
         if getisinitiator(leafintent)
             ibnfhandler = getibnfhandler(ibnf, getibnfid(leafintent))
             if doinstall
-                requestinstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose)
+                requestinstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose, @passtime)
             else
-                requestuninstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose)
+                requestuninstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose, @passtime)
             end
         end
     end
     # call updateidagstates
     return any(getidagnodeparents(getidag(ibnf), idagnodeleaf)) do idagnodeparent
-        updateidagnodestates!(ibnf, idagnodeparent)
+        updateidagnodestates!(ibnf, idagnodeparent; @passtime)
     end
 end
 
@@ -151,7 +151,7 @@ $(TYPEDSIGNATURES)
 
 Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remoteibndif`
 """
-function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
+@recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
     remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
@@ -160,7 +160,7 @@ function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
     # add in DAG
-    internalidagnode = addidagnode!(getidag(ibnf), remoteintent; parentid=getidagnodeid(idagnode), intentissuer=MachineGenerated())
+    internalidagnode = addidagnode!(getidag(ibnf), remoteintent; parentid=getidagnodeid(idagnode), intentissuer=MachineGenerated(), @passtime)
     @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
 
     return internalidagnode

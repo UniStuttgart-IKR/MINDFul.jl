@@ -26,25 +26,6 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Return a `return false` if the expression `ex` evaluates to false.
-If `verbose=true` print the statement and the location.
-If the expression passed is `true` do nothing.
-"""
-macro returniffalse(verbose, ex)
-    return quote
-        if !($(esc(ex)))
-            if $(esc(verbose))
-                println("False expression in", $(string(__source__.file)), ':', $(__source__.line), " --> ", $(string(ex)))
-            end
-            return false
-        end
-    end
-end
-
-
-"""
-$(TYPEDSIGNATURES)
-
 Returns the element is `predicate` is satisfied  or `nothing` otherwise.
 """
 function getfirst(predicate::Function, ar::AbstractArray)

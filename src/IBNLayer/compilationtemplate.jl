@@ -14,6 +14,7 @@ intradomainalgfun(
     ibnf::IBNFramework, 
     idagnode::IntentDAGNode{<:ConnectivityIntent},
     intentcompilationalgorithm::IntentCompilationAlgorithm
+    ; datetime::DateTime
 ) -> Symbol
 ```
 
@@ -38,7 +39,7 @@ prioritizesplitbordernodes(
 ) -> Vector{GlobalNode}
 ```
 """
-function compileintenttemplate!(
+@recvtime function compileintenttemplate!(
     ibnf::IBNFramework,
     idagnode::IntentDAGNode{<:ConnectivityIntent},
     intentcompilationalgorithm::IntentCompilationAlgorithm;
@@ -54,10 +55,10 @@ function compileintenttemplate!(
 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
-        returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm)
+        returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; @passtime)
         if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
             # uncompile
-            @assert uncompileintent!(ibnf, getidagnodeid(idagnode)) 
+            @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) 
             # find shortest distance neighbor j
 
             # get a node in between the shortest paths
@@ -65,7 +66,7 @@ function compileintenttemplate!(
             isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
             # TODO single try. here there could be a loop
             splitglobalnode = first(candidatesplitglobalnodes)
-            returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode)
+            returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; @passtime)
         end
         updateidagnodestates!(ibnf, idagnode)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
@@ -73,14 +74,14 @@ function compileintenttemplate!(
         # border-node
         if isbordernode(ibnf, destinationglobalnode)
             #TODO-tomorrow
-            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword,  destinationglobalnode)
+            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; @passtime)
         else
             # select border node
             candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
             isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
             # TODO single try. here there could be a loop
             destinationglobalbordernode = first(candidatedestinationglobalbordernodes)
-            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword,  destinationglobalbordernode)
+            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; @passtime)
         end
     end
     return returncode
@@ -91,21 +92,21 @@ $(TYPEDSIGNATURES)
 
 Splits connectivity intent on `splitglobalnode`
 """
-function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm,intradomainalgfun::F, splitglobalnode::GlobalNode) where {F<:Function}
+@recvtime function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm,intradomainalgfun::F, splitglobalnode::GlobalNode;) where {F<:Function}
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
     intent = getintent(idagnode)
     idag = getidag(ibnf)
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), getconstraints(intent))
-    firsthalfidagnode = addidagnode!(idag, firsthalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    firsthalfidagnode = addidagnode!(idag, firsthalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm)
-    updateidagnodestates!(ibnf, firsthalfidagnode)
+    updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
-    secondhalfidagnode = addidagnode!(idag, secondhalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    secondhalfidagnode = addidagnode!(idag, secondhalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm)
-    updateidagnodestates!(ibnf, secondhalfidagnode)
+    updateidagnodestates!(ibnf, secondhalfidagnode; @passtime)
     return returncode
 end
 
@@ -113,32 +114,32 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function splitandcompilecrossdomainconnectivityintent(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, externaldomainalgkeyword::Symbol, mediatorbordernode::GlobalNode) where {F<:Function}
+@recvtime function splitandcompilecrossdomainconnectivityintent(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, externaldomainalgkeyword::Symbol, mediatorbordernode::GlobalNode) where {F<:Function}
     idag = getidag(ibnf)
     intent = getintent(idagnode)
     returncode::Symbol = ReturnCodes.FAIL
 
     internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
 
-    internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, internalidagnode, intentcompilationalgorithm)
-    updateidagnodestates!(ibnf, internalidagnode)
+    updateidagnodestates!(ibnf, internalidagnode; @passtime)
 
     issuccess(returncode) || return returncode
     
     # need first to compile that to get the optical choice
     opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
     externalintent = ConnectivityIntent(mediatorbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
-    externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
+    externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
     remoteibnfid = getibnfid(getdestinationnode(intent))
-    internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid)
+    internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid; @passtime)
     # getintent brings in the internal RemoteIntent
     externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
 
     # compile internalremoteidagnode
     remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     # compilationaglorithmkeyword = getcompilationalgorithmkeyword(intentcompilationalgorithm)
-    returncode = requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, externaldomainalgkeyword, getdefaultcompilationalgorithmargs(Val(externaldomainalgkeyword)))
+    returncode = requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, externaldomainalgkeyword, getdefaultcompilationalgorithmargs(Val(externaldomainalgkeyword)); @passtime)
 
     # check state of current internalremoteidagnode
     return returncode
@@ -286,14 +287,15 @@ chooseoxcadddropport(
 ) -> Vector{Int}
 ```
 """
-function intradomaincompilationtemplate(;
+@recvtime function intradomaincompilationtemplate(;
     prioritizepaths = prioritizepaths_shortest,
     prioritizerouterport = prioritizerouterports_first,
     prioritizetransmdlandmode = prioritizetransmdlmode_cheaplowrate,
     choosespectrum = choosespectrum_firstfit,
     chooseoxcadddropport = chooseoxcadddropport_first,
     )
-    return function(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
+
+    return @recvtime function(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
         # needed variables
         ibnag = getibnag(ibnf)
         idag = getidag(ibnf)
@@ -347,12 +349,12 @@ function intradomaincompilationtemplate(;
                 if !isnothing(opticalterminateconstraint)
                     # no need to do something more. add intents and return true
                     foreach(lowlevelintentstoadd) do lli
-                        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
                     end
                     return ReturnCodes.SUCCESS
                 else
                     opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end-1]
-                    return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport)
+                    return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; @passtime)
                 end
             end
         else
@@ -405,13 +407,13 @@ function intradomaincompilationtemplate(;
                         if !isnothing(opticalterminateconstraint)
                             # no need to do something more. add intents and return true
                             foreach(lowlevelintentstoadd) do lli
-                                addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
+                                addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
                             end
                             return ReturnCodes.SUCCESS
                         else
                             # need to allocate a router port, a transmission module and mode, and an OXC configuration
                             opticalincomingnode = path[end-1]
-                            return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport)
+                            return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; @passtime)
                         end
                     end
                 end
@@ -464,7 +466,7 @@ chooseoxcadddropport(
 ) -> Vector{Int}
 ```
 """
-function intradomaincompilationtemplate_destination!(
+@recvtime function intradomaincompilationtemplate_destination!(
     ibnf::IBNFramework, 
     idagnode::IntentDAGNode{<:ConnectivityIntent},
     intentcompilationalgorithm::IntentCompilationAlgorithm,
@@ -511,7 +513,7 @@ function intradomaincompilationtemplate_destination!(
     push!(lowlevelintentstoadd, desttransmissionmodulelli)
 
     foreach(lowlevelintentstoadd) do lli
-        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated())
+        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
     end
     return ReturnCodes.SUCCESS
 end

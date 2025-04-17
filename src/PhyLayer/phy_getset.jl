@@ -62,6 +62,13 @@ function getlinkspectrumavailabilities(oxcview::OXCView)
     return oxcview.linkspectrumavailabilities
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlinkstates(oxcview::OXCView)
+    return oxcview.linkstates
+end
+
 "$(TYPEDSIGNATURES)"
 function getlocalnode_input(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchreservationentry.localnode_input

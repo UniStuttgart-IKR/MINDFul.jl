@@ -35,3 +35,18 @@ end
 const KMf = typeof(u"1.0km")
 const GBPSf = typeof(u"1.0Gbps")
 const HRf = typeof(u"1.0hr")
+
+"""
+Stores a vector of the history of the boolean states and their timings
+"""
+const BoolLogState = Vector{Tuple{DateTime, Bool}}
+
+"""
+$(TYPEDSIGNATURES)
+
+Implementing BoolLogState() is type piracy.
+"""
+function construct_BoolLogState(initialstate = true)
+    return [(now(), initialstate)]    
+end
+
