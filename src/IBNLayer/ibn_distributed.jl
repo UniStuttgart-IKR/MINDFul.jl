@@ -1,8 +1,8 @@
 using JSON, HTTP, Sockets
 using AttributeGraphs
 
-function send_request(ibnf::IBNFramework, endpoint::String, data::Dict)
-    remotehandler=ibnf.ibnfhandlers[1]
+function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
+    #remotehandler=ibnf.ibnfhandlers[1]
     url = remotehandler.handlerproperties.base_url * endpoint
     body = JSON.json(data)  
     headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body))) 
@@ -25,7 +25,7 @@ end
 
 
 function response(req::HTTP.Request, ibnf::IBNFramework, parsed_body::Dict)
-    """ Handle request for IBN Attribute Graph """
+    
     if req.target == "/api/ibnattributegraph"
         """ Handle request for IBN Attribute Graph """
         #graph = getibnag(ibnf)
@@ -59,7 +59,7 @@ function response(req::HTTP.Request, ibnf::IBNFramework, parsed_body::Dict)
 end
 
 
-function request(req::HTTP.Request, remoteibnf::IBNFramework, parsed_body::Dict)
+#= function request(req::HTTP.Request, remoteibnf::IBNFramework, parsed_body::Dict)
     """ Handle request for IBN Attribute Graph """
     if req.target == "/api/ibnattributegraph"
         response = send_request(remoteibnf, "/api/ibnattributegraph", Dict("func" => "response"))
@@ -90,11 +90,11 @@ function request(req::HTTP.Request, remoteibnf::IBNFramework, parsed_body::Dict)
     else
         return HTTP.Response(404, "Not Found")
     end
-end
+end =#
 
 
 """ function to start a REST API server for an IBNFramework"""
-function start_ibn_server(myibnf::IBNFramework, remoteibnf::IBNFramework, func::String)
+function start_ibn_server(myibnf::IBNFramework)
     sel_handler = myibnf.ibnfhandlers[1]
     base_url = sel_handler.handlerproperties.base_url
     uri = HTTP.URI(base_url)
@@ -108,12 +108,12 @@ function start_ibn_server(myibnf::IBNFramework, remoteibnf::IBNFramework, func::
         body = HTTP.payload(req)
         parsed_body = JSON.parse(String(body))
         #@show parsed_body
-        func_value = parsed_body["func"]
+        #func_value = parsed_body["func"]
         #@show func_value
-        if func_value == "request"
-            return request(req, remoteibnf, parsed_body)
-        else
-            return response(req, myibnf, parsed_body)
-        end
+        #if func_value == "request"
+        #    return request(req, remoteibnf, parsed_body)
+        #else
+        return response(req, myibnf, parsed_body)
+        #end
     end
 end

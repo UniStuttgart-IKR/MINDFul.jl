@@ -195,33 +195,12 @@ function serialize_globalnode(node::GlobalNode)
 end
 
 
-function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
     
-    try
-        start_ibn_server(remoteibnf, myibnf,"resp") #server2
-    catch e
-        if isa(e, Base.IOError)
-            println("Remote Server is already running on")
-        else
-            rethrow(e)  
-        end
-    end
-
-
-    try
-        start_ibn_server(myibnf, remoteibnf, "req")  #server1
-    catch e
-        if isa(e, Base.IOError)
-            println("Requesting Server is already running")
-        else
-            rethrow(e)  
-        end
-    end
-
-
+    
     ge_data = serialize_globaledge(ge)
 
-    resp = send_request(myibnf, "/api/spectrum_availability", Dict("func" => "request", "global_edge" => ge_data))
+    resp = send_request(remoteibnfhandler, "/api/spectrum_availability", Dict("global_edge" => ge_data))
     
     return JSON.parse(String(resp.body))
 end
@@ -266,30 +245,11 @@ $(TYPEDSIGNATURES)
 
 Fabian Gobantes implementation
 """
-function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnf::IBNFramework)
-    try
-        start_ibn_server(remoteibnf, myibnf, "resp") #server2
-    catch e
-        if isa(e, Base.IOError)
-            println("Remote Server is already running")
-        else
-            rethrow(e)  
-        end
-    end
+function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
     
-    
-    try
-        start_ibn_server(myibnf, remoteibnf, "req") #server1
-    catch e
-        if isa(e, Base.IOError)
-            println("Requesting Server is already running on")
-        else
-            rethrow(e)  
-        end
-    end
     
 
-    resp = send_request(myibnf, "/api/compilation_algorithms", Dict("func" => "request"))
+    resp = send_request(remoteibnfhandler, "/api/compilation_algorithms", Dict())
 
     return JSON.parse(String(resp.body))
     
