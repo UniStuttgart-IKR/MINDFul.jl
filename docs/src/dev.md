@@ -8,6 +8,9 @@ reserve - unreserve
 function getters
 get... -> get field
 new... -> construct something new
+prioritize -> return a vector of indices
+choose -> return a specific (scalar) index
+comp -> compilation
 
 
 ## How to read variables

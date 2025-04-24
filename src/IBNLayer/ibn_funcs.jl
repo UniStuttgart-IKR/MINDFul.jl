@@ -1,7 +1,7 @@
 """
 $(TYPEDSIGNATURES)
 
-Add a new user intent to the IBN framework.
+Add a new user intent to the IBN framework and return the id.
 """
 function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
     intentdag = getidag(ibnf)
@@ -34,7 +34,7 @@ function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteInte
         idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated())
         return compileintent!(ibnf, idagnodechild, algorithm)
     else
-        return false
+        return ReturnCodes.FAIL
     end
 end
 
@@ -42,19 +42,25 @@ end
 $(TYPEDSIGNATURES)
 """
 function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Compiling])
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
     foreach(idagnodedescendants) do idagnodedescendant
         if getintent(idagnodedescendant) isa RemoteIntent
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnodedescendant)))
             uncompiledflag = requestuncompileintent_init!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnodedescendant)); verbose)
-            uncompiledflag && removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+            if uncompiledflag == ReturnCodes.SUCCESS
+                removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+            end
         else
             removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
         end
     end
     updateidagstates!(ibnf, idagnodeid)
-    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled
+    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled
+        return ReturnCodes.SUCCESS
+    else
+        return ReturnCodes.FAIL
+    end
 end
 
 """
@@ -66,7 +72,11 @@ function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fals
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose)
     end
-    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
+    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
+        return ReturnCodes.SUCCESS
+    else
+        return ReturnCodes.FAIL
+    end
 end
 
 """
@@ -78,7 +88,11 @@ function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=fa
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose)
     end
-    return getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
+    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
+        return ReturnCodes.SUCCESS
+    else
+        return ReturnCodes.FAIL
+    end
 end
 
 """
@@ -92,7 +106,7 @@ function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDA
     if leafintent isa LowLevelIntent
         localnode = getlocalnode(leafintent)
         nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-        if leafintent isa TransmissionModuleLLI       
+        successflag = if leafintent isa TransmissionModuleLLI       
             if doinstall
                 reserve!(getsdncontroller(ibnf), nodeview, leafintent, leafid; checkfirst=true, verbose)
             else
@@ -112,9 +126,9 @@ function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDA
             end
         end
         if doinstall
-            pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Installed)
+            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Installed)
         else
-            pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Compiled)
+            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), now(), IntentState.Compiled)
         end
     elseif leafintent isa RemoteIntent
         if getisinitiator(leafintent)
@@ -451,7 +465,7 @@ end
 function getcompilationalgorithm(ibnf::IBNFramework, compilationalgorithmkey::Symbol, compilationalgorithmargs::Tuple)
     compilationalgorithmkey2use = compilationalgorithmkey == :default ? getdefaultcompilationalgorithm(ibnf) : compilationalgorithmkey
     compilationalgorithmtype = getcompilationalgorithmtype(Val(compilationalgorithmkey2use))
-    compilationalgorithmargs2use = getnumberofparameters(compilationalgorithmtype) != length(compilationalgorithmargs) ? getdefaultcompilationalgorithmargs(compilationalgorithmkey2use) : compilationalgorithmargs
+    compilationalgorithmargs2use = getnumberofparameters(compilationalgorithmtype) != length(compilationalgorithmargs) ? getdefaultcompilationalgorithmargs(Val(compilationalgorithmkey2use)) : compilationalgorithmargs
     return compilationalgorithmtype(compilationalgorithmargs2use...)
 end
 
@@ -467,3 +481,10 @@ function isinternalorborderintent(ibnf::IBNFramework, connectivityintent::Connec
     return getibnfid(ibnf) == getibnfid(sourceglobalnode) || getibnfid(ibnf) == getibnfid(destinationglobalnode)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getpathdistance(ibnag::IBNAttributeGraph, path::Vector{Int})
+    ws = getweights(ibnag)
+    return sum([getindex(ws, nodepair...) for nodepair in zip(path[1:end-1], path[2:end])])
+end

@@ -5,15 +5,16 @@
 # _init functions should be different for RemoteIBNFHandler and IBNFramework but `term` should be the same
 # _term is for the terminal entity to do the job
 # the operation might  depend on the relation of `myibnf`, and `remoteibnf`.
- 
+#using .HTTPCodes
+
 """
 $(TYPEDSIGNATURES) 
 
 Request topology information
 """
-#function requestibnattributegraph(myibnf::IBNFramework, remoteibnf::IBNFramework)
-#    return getibnag(remoteibnf)
-#end
+function requestibnattributegraph(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    return getibnag(remoteibnf)
+end
 
 """
 $(TYPEDSIGNATURES) 
@@ -120,7 +121,7 @@ $(TYPEDSIGNATURES)
 """
 function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose)
-    if uncompiledflag
+    if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
         return removeintent!(myibnf, idagnodeid; verbose)
     else
@@ -161,10 +162,10 @@ Fabian Gobantes implementation
 If far away, think about authorization and permissions.
 That's the reason why there are 2 arguments: The first argument should have the authorization.
 """
-function requestibnattributegraph(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
-    status, response = send_request(remoteibnfhandler, "/api/ibnattributegraph", Dict("ibnfid" => string(myibnf.ibnfid)))
+function requestibnattributegraph_term!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+    status, response = send_request(remoteibnfhandler, "/api/ibnattributegraph", Dict())
     if status == 200
-        return response  # Parse and return the graph
+        return response  
     else
         error("Failed to request IBN Attribute Graph: $(response)")
     end
@@ -200,7 +201,7 @@ function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandl
     
     ge_data = serialize_globaledge(ge)
 
-    resp = send_request(remoteibnfhandler, "/api/spectrum_availability", Dict("global_edge" => ge_data))
+    resp = send_request(remoteibnfhandler, HTTPCodes.SPECTRUM_AVAILABILITY, Dict("global_edge" => ge_data))
     
     return JSON.parse(String(resp.body))
 end
@@ -249,7 +250,7 @@ function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remot
     
     
 
-    resp = send_request(remoteibnfhandler, "/api/compilation_algorithms", Dict())
+    resp = send_request(remoteibnfhandler, HTTPCodes.COMPILATION_ALGORITHMS, Dict())
 
     return JSON.parse(String(resp.body))
     

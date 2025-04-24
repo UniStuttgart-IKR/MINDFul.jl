@@ -39,9 +39,8 @@ end
 
 """
 $(TYPEDSIGNATURES)
-TODO: put reservations on the OXC edges
 """
-function reserve!(sdn::AbstractSDNController, resourceview::ReservableResourceView, lowlevelintent::LowLevelIntent, dagnodeid::UUID; checkfirst::Bool = false, verbose::Bool = false)
+function reserve!(sdn::AbstractSDNController, resourceview::ReservableResourceView, lowlevelintent::LowLevelIntent, dagnodeid::UUID; checkfirst::Bool = true, verbose::Bool = false)
     checkfirst && !canreserve(sdn, resourceview, lowlevelintent; verbose) && return false
     return insertreservation!(sdn, resourceview, dagnodeid, lowlevelintent; verbose)
 end
@@ -101,11 +100,11 @@ Set `verbose=true` to see where the reservation fails
 """
 function canreserve(sdn::AbstractSDNController, oxcview::OXCView, oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI; verbose::Bool = false)
     @returniffalse(verbose, isreservationvalid(oxcswitchreservationentry))
-    @returniffalse(verbose, getport_adddrop(oxcswitchreservationentry) <= getadddropportnumber(oxcview))
+    @returniffalse(verbose, getadddropport(oxcswitchreservationentry) <= getadddropportnumber(oxcview))
     # further check the spectrum
     for registeredoxcswitchentry in values(getreservations(oxcview))
         if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) &&
-                getport_adddrop(registeredoxcswitchentry) == getport_adddrop(oxcswitchreservationentry) &&
+                getadddropport(registeredoxcswitchentry) == getadddropport(oxcswitchreservationentry) &&
                 getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchreservationentry)
             spectrumslotintersection = intersect(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchreservationentry))
             @returniffalse(verbose, length(spectrumslotintersection) <= 0)
@@ -130,7 +129,7 @@ function canreserve(sdn::AbstractSDNController, nodeview::NodeView, transmission
     # does the transmission module exist ?
     @returniffalse(verbose, reserve2do_transmissionmoduleviewpoolindex <= length(transmissionmoduleviewpool))
     ## is transmissionmodesindex available ?
-    @returniffalse(verbose, gettransmissionmodesindex(transmissionmodulelli) < length(gettransmissionmodes(transmissionmoduleviewpool[reserve2do_transmissionmoduleviewpoolindex])))
+    @returniffalse(verbose, gettransmissionmodesindex(transmissionmodulelli) <= length(gettransmissionmodes(transmissionmoduleviewpool[reserve2do_transmissionmoduleviewpoolindex])))
 
     return true
 end
