@@ -69,6 +69,13 @@ function getlinkstates(oxcview::OXCView)
     return oxcview.linkstates
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getcurrentlinkstate(oxcview::OXCView, ed::Edge)
+    return oxcview.linkstates[ed][end][2]
+end
+
 "$(TYPEDSIGNATURES)"
 function getlocalnode_input(oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI)
     return oxcswitchreservationentry.localnode_input

@@ -181,35 +181,117 @@ $(TYPEDSIGNATURES)
 
 Get the spectrum availability slots vector for `edge`
 """
-function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst::Bool = true)
-    #TODO-now: check with remotespectrum request
+function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst::Bool = true, verbose::Bool=false)
     ibnag = getibnag(ibnf) 
+    edsrc = src(ed)
+    nodeviewsrc = getnodeview(ibnag, edsrc)
+    eddst = dst(ed)
+    nodeviewdst = getnodeview(ibnag, eddst)
+    issrcbordernode = isbordernode(ibnag, edsrc)
+    isdstbordernode = isbordernode(ibnag, eddst)
+    @returniffalse(verbose, !(issrcbordernode && isdstbordernode))
     nodeviews = AG.vertex_attr(getibnag(ibnf))
     if checkfirst
-        srclinkspectrumavailabilities = if isbordernode(ibnf, src(edge))  
+        globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
+        srclinkspectrumavailabilities = if issrcbordernode  
             remoteibnfid = getibnfid(getglobalnode(ibnag, src(edge)))
             ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
             something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
-            # getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
         else 
-            getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
+            getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
         end
 
-        dstlinkspectrumavailabilities = if isbordernode(ibnf, dst(edge))  
+        dstlinkspectrumavailabilities = if isdstbordernode  
             remoteibnfid = getibnfid(getglobalnode(ibnag, dst(edge)))
             ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
             something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
-            # getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
         else
-            getlinkspectrumavailabilities(getoxcview(nodeviews[dst(edge)]))[edge]
+            getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
         end
 
         @assert(srclinkspectrumavailabilities == dstlinkspectrumavailabilities)
+    else
+        if !issrcbordernode
+            return getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
+        elseif !isdstbordernode
+            return getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
+        end
     end
-    #TODO-now: pick that one that is internal
-    return getlinkspectrumavailabilities(getoxcview(nodeviews[src(edge)]))[edge]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getcurrentlinkstate(ibnf::IBNFramework, edge::Edge; checkfirst::Bool=true, verbose::Bool=false)
+    ibnag = getibnag(ibnf)
+    edsrc = src(edge)
+    nodeviewsrc = getnodeview(ibnag, edsrc)
+    eddst = dst(edge)
+    nodeviewdst = getnodeview(ibnag, eddst)
+    issrcbordernode = isbordernode(ibnf, edsrc)
+    isdstbordernode = isbordernode(ibnf, eddst)
+    @returniffalse(verbose, !(issrcbordernode && isdstbordernode))
+    if checkfirst
+        globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
+        srclinksstate = if issrcbordernode  
+            remoteibnfid = getibnfid(getglobalnode(ibnag, edsrc))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            something(requestcurrentlinkstate_init(ibnf, ibnfhandler, globaledge))
+        else 
+            getcurrentlinkstate(getoxcview(nodeviewsrc), edge)
+        end
+
+        dstlinkstate = if isdstbordernode  
+            remoteibnfid = getibnfid(getglobalnode(ibnag, eddst))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            something(requestcurrentlinkstate_init(ibnf, ibnfhandler, globaledge))
+        else
+            getcurrentlinkstate(getoxcview(nodeviewdst), edge)
+        end
+
+        @assert(srclinksstate == dstlinkstate)
+        return srclinksstate
+    else
+        if !issrcbordernode
+            return getcurrentlinkstate(getoxcview(nodeviewsrc), edge)
+        elseif !isdstbordernode
+            return getcurrentlinkstate(getoxcview(nodeviewdst), edge)
+        end
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+Set the link state on both OXCView ends of `edge`
+TODO: with recvtime
+TODO: toggle OXCLLI to failed
+"""
+@recvtime function setlinkstate!(ibnf::IBNFramework, edge::Edge, operatingstate::Bool)
+    ibnag = getibnag(ibnf)
+    edsrc = src(edge)
+    nodeviewsrc = getnodeview(ibnag, edsrc)
+    eddst = dst(edge)
+    nodeviewdst = getnodeview(ibnag, eddst)
+    issrcbordernode = isbordernode(ibnf, edsrc)
+    isdstbordernode = isbordernode(ibnf, eddst)
+    @returniffalse(verbose, !(issrcbordernode && isdstbordernode))
+    globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
+
+    if issrcbordernode  
+        remoteibnfid = getibnfid(getglobalnode(ibnag, edsrc))
+        ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+        requestsetlinkstate_init!(ibnf, ibnfhandler, globaledge, operatingstate; @passtime)
+    else 
+        setlinkstate!(getoxcview(nodeviewsrc), edge, operatingstate; @passtime)
+    end
+
+    if isdstbordernode  
+        remoteibnfid = getibnfid(getglobalnode(ibnag, eddst))
+        ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+        requestsetlinkstate_init!(ibnf, ibnfhandler, globaledge, operatingstate; @passtime)
+    else
+        setlinkstate!(getoxcview(nodeviewdst), edge, operatingstate; @passtime)
+    end
 end
 
 """

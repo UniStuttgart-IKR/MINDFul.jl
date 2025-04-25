@@ -73,7 +73,6 @@ prioritizesplitbordernodes(
         # source intra-domain , destination cross-domain
         # border-node
         if isbordernode(ibnf, destinationglobalnode)
-            #TODO-tomorrow
             returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; @passtime)
         else
             # select border node

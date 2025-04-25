@@ -55,7 +55,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-This macro is used to calculate the current (simulated) time.
+This macro is used to calculate the current (simulated) time as `offsettime + (now() - entrytime)`
 """
 macro logtime()
     # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 

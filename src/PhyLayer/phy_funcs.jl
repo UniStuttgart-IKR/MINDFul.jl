@@ -156,6 +156,24 @@ end
 
 """
 $(TYPEDSIGNATURES)
+TODO-now
+Set the operating state of the edge in `oxcview` and trigger the state update of the relevant low level intents.
+"""
+@recvtime function setlinkstate!(oxcview::OXCView, edge::Edge, operatingstate::Bool)
+    @info "setting $(edge) in one OXCView at time" @logtime
+    if getcurrentlinkstate(oxcview, edge) != operatingstate
+        linkstates = getlinkstates(oxcview)[edge]
+        push!(linkstates, (@logtime, operatingstate))
+        # update LLIs
+        for (lliid, oxclli) in getreservations(oxcview)
+            # TODO-now  if is influenced update
+        end
+    end
+    return ReturnCodes.SUCCESS
+end
+
+"""
+$(TYPEDSIGNATURES)
 """
 function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
     reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))

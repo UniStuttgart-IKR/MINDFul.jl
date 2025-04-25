@@ -43,6 +43,72 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request the link state of the border edge
+Need to check whether `ge` is indeed an edge shared with `myibnf`
+"""
+function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestcurrentlinkstate_term(myibnfhandler, remoteibnf, ge)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestcurrentlinkstate_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewdst)), le)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewsrc)), le)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Request to set the state of the neighboring link
+"""
+@recvtime function requestsetlinkstate_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestsetlinkstate_term!(myibnfhandler, remoteibnf, ge, operatingstate; @passtime)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+TODO-now implement
+"""
+@recvtime function requestsetlinkstate_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return setlinkstate!(something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Return the id of the new dag node if successful and `nothing` otherwise
 """
 @recvtime function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)

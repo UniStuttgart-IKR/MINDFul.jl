@@ -145,6 +145,47 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getcurrentlinkstate(ibnf::IBNFramework, edge::Edge; checkfirst::Bool=true, verbose::Bool=false)
+    ibnag = getibnag(ibnf)
+    edsrc = src(edge)
+    oxcsrc = getoxcview(getnodeview(ibnag, edsrc))
+    eddst = dst(edge)
+    oxcdst = getoxcview(getnodeview(ibnag, eddst))
+    issrcbordernode = isbordernode(ibnf, edsrc)
+    isdstbordernode = isbordernode(ibnf, eddst)
+    @returniffalse(verbose, !(issrcbordernode && isdstbordernode))
+    if checkfirst
+        globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
+        srclinksstate = if issrcbordernode  
+            remoteibnfid = getibnfid(getglobalnode(ibnag, edsrc))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            something(requestcurrentlinkstate(ibnf, ibnfhandler, globaledge))
+        else 
+            getcurrentlinkstate(oxcsrc, edge)
+        end
+
+        dstlinkstate = if isdstbordernode  
+            remoteibnfid = getibnfid(getglobalnode(ibnag, eddst))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            something(requestcurrentlinkstate(ibnf, ibnfhandler, globaledge))
+        else
+            getcurrentlinkstate(oxcdst, edge)
+        end
+
+        @assert(srclinksstate == dstlinkstate)
+        return srclinksstate
+    else
+        if !issrcbordernode
+            return getcurrentlinkstate(oxcsrc, edge)
+        elseif !isdstbordernode
+            return getcurrentlinkstate(oxcdst, edge)
+        end
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getedgeviews(ibnag::IBNAttributeGraph)
     return [AG.edge_attr(ibnag)[ed] for ed in edges(ibnag)]
 end
