@@ -48,7 +48,7 @@ ibnf2 = MINDF.IBNFramework(ibnag2, [handler2, handler1])
 #server1 = MINDF.start_ibn_server(ibnf1)
 #server2 = MINDF.start_ibn_server(ibnf2)
 
-try
+#=try
     MINDF.start_ibn_server(ibnf1) #server1
 catch e
     if isa(e, Base.IOError)
@@ -56,7 +56,7 @@ catch e
     else
         rethrow(e)  
     end
-end
+end=#
 
 try
     MINDF.start_ibn_server(ibnf2) #server2
@@ -80,10 +80,10 @@ end
 
 
 """Requesting complilation algorithms"""
-#src_domain = ibnf1
-#remotehandler=src_domain.ibnfhandlers[2]
-#algortithms = MINDF.requestavailablecompilationalgorithms_init!(ibnf1, remotehandler)
-
+#=src_domain = ibnf1
+remotehandler=src_domain.ibnfhandlers[2]
+algorithms = MINDF.requestavailablecompilationalgorithms_init!(ibnf1, remotehandler)
+@show algorithms=#
 
 
 
@@ -92,13 +92,14 @@ src_node = MINDF.getglobalnode(ibnag1, 1)
 dst_node = MINDF.getglobalnode(ibnag2, 6) 
 ge = MINDF.GlobalEdge(src_node, dst_node)
 @show ge
-#globaledge = GlobalEdge(getglobalnode(ibnag, src(edge)), getglobalnode(ibnag, dst(edge)))
+
 
 src_domain = ibnf1
 remotehandler=src_domain.ibnfhandlers[2]
 
 
 response = MINDF.requestspectrumavailability_init!(ibnf1, remotehandler, ge)
+
 #@show response
 
 #edge_exists = haskey(MINDF.getlinkspectrumavailabilities(MINDF.getoxcview(MINDF.getnodeview(ibnag1, 1))), Edge(1, 6))

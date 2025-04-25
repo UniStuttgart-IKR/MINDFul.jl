@@ -1,4 +1,4 @@
-using JSON, HTTP, Sockets
+using JSON, HTTP, Sockets, Oxygen, SwaggerMarkdown
 using AttributeGraphs
 
 function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
@@ -94,7 +94,7 @@ end =#
 
 
 """ function to start a REST API server for an IBNFramework"""
-function start_ibn_server(myibnf::IBNFramework)
+function start_ibn_server_1(myibnf::IBNFramework)
     sel_handler = myibnf.ibnfhandlers[1]
     base_url = sel_handler.handlerproperties.base_url
     uri = HTTP.URI(base_url)
@@ -116,4 +116,184 @@ function start_ibn_server(myibnf::IBNFramework)
         return response(req, myibnf, parsed_body)
         #end
     end
+end
+
+
+function start_ibn_server_2(myibnf::IBNFramework)
+    sel_handler = myibnf.ibnfhandlers[1]
+    base_url = sel_handler.handlerproperties.base_url
+    uri = HTTP.URI(base_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+    #@show ip_address
+    #@show port
+
+    #=@swagger """
+    /divide/{a}/{b}:
+    get:
+        description: Return the result of a / b
+        parameters:
+        - name: a
+            in: path
+            required: true
+            description: this is the value of the numerator 
+            schema:
+            type : number
+        responses:
+        '200':
+            description: Successfully returned an number.
+    """=#
+    #=@post "/api/compilation_algorithms" function (req::HTTP.Request)
+        compilation_algorithms = requestavailablecompilationalgorithms_term!()
+        if compilation_algorithms !== nothing
+            return HTTP.Response(200, JSON.json(compilation_algorithms))
+        else
+            return HTTP.Response(404, JSON.json(Dict("error" => "Compilation algorithms not found")))
+        end
+    end=#
+    #=@swagger """
+    /divide/{a}/{b}:
+    get:
+        description: Return the result of a / b
+        parameters:
+        - name: a
+            in: path
+            required: true
+            description: this is the value of the numerator 
+            schema:
+            type : number
+        responses:
+        '200':
+            description: Successfully returned an number.
+    """=#
+    #=@post "/api/spectrum_availability" function (req::HTTP.Request)
+        #body = JSON.parse(String(req.body))
+        body = HTTP.payload(req)
+        parsed_body = JSON.parse(String(body))
+        ge_data = parsed_body["global_edge"]
+        received_ge = GlobalEdge(
+            GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
+            GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
+        )
+        spectrum_availability = requestspectrumavailability_term!(myibnf, received_ge)
+        if spectrum_availability !== nothing
+            return HTTP.Response(200, JSON.json(spectrum_availability))
+        else
+            return HTTP.Response(404, "Spectrum availability not found")
+        end
+    end=#
+
+
+    #=info = Dict("title" => "My Demo Api", "version" => "1.0.0")
+    openApi = OpenAPI("3.0.4", info)
+    swagger_document = build(openApi)
+    mergeschema(swagger_document)=#
+
+    println("Starting server on $ip_address:$port")
+    serve(port=port, async=true) 
+        #body = HTTP.payload(req)
+        #parsed_body = JSON.parse(String(body))
+        #@show parsed_body
+        #func_value = parsed_body["func"]
+        #@show func_value
+        #if func_value == "request"
+        #    return request(req, remoteibnf, parsed_body)
+        #else
+        #return response(req, myibnf, parsed_body)
+        #end
+    
+end
+
+
+
+
+
+
+
+
+
+
+function start_ibn_server(myibnf::IBNFramework)
+    sel_handler = myibnf.ibnfhandlers[1]
+    base_url = sel_handler.handlerproperties.base_url
+    uri = HTTP.URI(base_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+    
+    
+    @swagger """
+    /api/compilation_algorithms: 
+      post:
+        description: Return the available compilation algorithms        
+        responses:
+          "200":
+            description: Successfully returned the compilation algorithms.
+    """
+    @post "/api/compilation_algorithms" function (req)
+        compilation_algorithms = requestavailablecompilationalgorithms_term!()
+        if compilation_algorithms !== nothing
+            return HTTP.Response(200, JSON.json(compilation_algorithms))
+        else
+            return HTTP.Response(404, JSON.json(Dict("error" => "Compilation algorithms not found")))
+        end
+    end
+
+    
+    @swagger """
+    /api/spectrum_availability:
+      post:
+        description: Return the spectrum availability
+        requestBody:
+          description: The global edge for which to check spectrum availability
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  src:
+                    type: object
+                    properties:
+                      ibnfid:
+                        type: string
+                      localnode:
+                        type: integer
+                  dst:
+                    type: object
+                    properties:
+                      ibnfid:
+                        type: string
+                      localnode:
+                        type: integer
+        responses:
+          "200":
+            description: Successfully returned the spectrum availability.
+    """    
+    @post "/api/spectrum_availability" function (req; context)
+        #body = JSON.parse(String(req.body))
+        ibnf :: IBNFramework = context
+        body = HTTP.payload(req)
+        parsed_body = JSON.parse(String(body))
+        ge_data = parsed_body["global_edge"]
+        received_ge = GlobalEdge(
+            GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
+            GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
+        )
+        spectrum_availability = requestspectrumavailability_term!(ibnf, received_ge)
+        if spectrum_availability !== nothing
+            return HTTP.Response(200, JSON.json(spectrum_availability))
+        else
+            return HTTP.Response(404, "Spectrum availability not found")
+        end
+    end
+
+    info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
+    openApi = OpenAPI("3.0", info)
+    swagger_document = build(openApi)
+    # merge the SwaggerMarkdown schema with the internal schema
+    mergeschema(swagger_document)
+    
+    println("Starting server on $ip_address:$port")
+    serve(port=port, async=true, context=myibnf, serialize=false, swagger=true) 
+        
 end

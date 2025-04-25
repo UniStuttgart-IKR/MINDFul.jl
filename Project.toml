@@ -18,6 +18,8 @@ UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+Oxygen = "df9a0d86-3283-4920-82dc-4555fc0d1d8b"
+SwaggerMarkdown = "1b6eb727-ad4b-44eb-9669-b9596a6e760f"
 
 [weakdeps]
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
