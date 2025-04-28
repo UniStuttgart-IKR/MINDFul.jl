@@ -24,8 +24,8 @@ This macro is used to receive the (simulated) timing information.
 This macro does two things:
 - puts the `offsettime::DateTime=now()` in the input keyword parameters
 - puts `entrytime = now()` as the first command to happen in the function
-Use [`logtime`](@ref) to calculate the current time inside the function.
-Use [`passtime`](@ref) to pass the timing information to another function.
+Use [`@logtime`](@ref) to calculate the current time inside the function.
+Use [`@passtime`](@ref) to pass the timing information to another function.
 """
 macro recvtime(funcexpr) 
     addkeywordparameters!(funcexpr, Expr(:kw, :(offsettime::DateTime), :(now()) ) )
@@ -37,7 +37,6 @@ end
 $(TYPEDSIGNATURES)
 
 This macro is used to pass the (simulated) timing information.
-It is valid to be used in functions defined with [`entrytime`](@ref).
 It basically passes `(; offsettime)`
 
 This strategy calls `now()` every time before passing the arguments.
