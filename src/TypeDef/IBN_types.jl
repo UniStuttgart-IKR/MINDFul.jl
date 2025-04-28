@@ -7,8 +7,8 @@ Another intent state schema could be defined.
     Uncompiled
     Compiling
     Compiled
-    Installing
     Installed
+    Failed
 end
 
 "Special requirements for an intent (such as QoS)"

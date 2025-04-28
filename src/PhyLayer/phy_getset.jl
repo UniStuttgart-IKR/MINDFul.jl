@@ -72,6 +72,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getlinkstates(oxcview::OXCView, ed::Edge)
+    return oxcview.linkstates[ed]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getcurrentlinkstate(oxcview::OXCView, ed::Edge)
     return oxcview.linkstates[ed][end][2]
 end

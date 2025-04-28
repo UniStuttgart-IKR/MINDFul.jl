@@ -31,6 +31,9 @@ const FAIL_OPTICALREACH_OPTINIT_RETRY = :Fail_opticalreach_optinit_retry
 "No available router ports were found in source node"
 const FAIL_SRCROUTERPORT = :Fail_srcrouterport
 
+"Not appropriate candidate paths"
+const FAIL_CANDIDATEPATHS = :Fail_candidatepaths
+
 "No available router ports were found in destination node"
 const FAIL_DSTROUTERPORT = :Fail_dstrouterport
 

@@ -296,3 +296,31 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
     return lli_idx
 end
 
+function logicalordercontainsedge(lo::Vector{<:LowLevelIntent}, edge::Edge)
+    for oxclli in filter(x -> x isa OXCAddDropBypassSpectrumLLI, lo)
+        found = oxcllicontainsedge(oxclli, ege)
+        found && return true
+    end
+    return false
+end
+
+function logicalordergetpath(lo::Vector{<:LowLevelIntent})
+    function validnextinsert(nd, p)
+        return !iszero(nd) && 
+            (isempty(p) ||
+                 ((length(p) == 1 && nd != p[end]) || 
+                 (length(p) >= 2 && nd != p[end] && nd != p[end-1])) ) 
+    end
+
+    path = LocalNode[]
+    for oxclli in filter(x -> x isa OXCAddDropBypassSpectrumLLI, lo)
+        input = getlocalnode_input(oxclli)
+        validnextinsert(input, path) && push!(path, input)
+        node = getlocalnode(oxclli)
+        validnextinsert(node, path)  && push!(path, node)
+        output = getlocalnode_output(oxclli)
+        validnextinsert(output, path)  && push!(path, output)
+    end
+
+    return path
+end

@@ -126,17 +126,17 @@ function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     return ReturnCodes.SUCCESS
 end
 
-@recvtime function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID)
+@recvtime function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID, newstate::Union{Nothing, IntentState.T} = nothing)
     idag = getidag(ibnf)
     idagnode = getidagnode(idag, idagnodeid)
-    return updateidagnodestates!(ibnf, idagnode; @passtime)
+    return updateidagnodestates!(ibnf, idagnode, newstate; @passtime)
 end
 
 """
 $(TYPEDSIGNATURES)
 Return value is true if state is changed.
 """
-@recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode)
+@recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode, newstate::Union{Nothing, IntentState.T} = nothing)
     idag = getidag(ibnf)
     idagnodeid = getidagnodeid(idagnode)
     idagnodechildren = getidagnodechildren(idag, idagnodeid)
@@ -144,7 +144,10 @@ Return value is true if state is changed.
     currentstate = getidagnodestate(idagnode)
     changedstate = false
     if length(childrenstates) == 0
-        if currentstate != IntentState.Uncompiled
+        if !isnothing(newstate) && newstate != currentstate
+            changedstate = true
+            pushstatetoidagnode!(idagnode, newstate; @passtime)
+        elseif currentstate != IntentState.Uncompiled
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end        
@@ -163,20 +166,20 @@ Return value is true if state is changed.
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Installed; @passtime)
         end
-    elseif any(==(IntentState.Installed), childrenstates)
-        if currentstate != IntentState.Installing
+    elseif any(==(IntentState.Failed), childrenstates)
+        if currentstate != IntentState.Failed
             changedstate = true
-            pushstatetoidagnode!(idagnode, IntentState.Installing; @passtime)
+            pushstatetoidagnode!(idagnode, IntentState.Failed; @passtime)
         end
     end
     if changedstate
         foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-            updateidagnodestates!(ibnf, idagnodeparent)
+            updateidagnodestates!(ibnf, idagnodeparent; @passtime)
         end
         if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode))
             # notify initiator domain
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnode)))
-            requestremoteintentstateupdate!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnode)), getidagnodestate(idagnode))
+            requestremoteintentstateupdate!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnode)), getidagnodestate(idagnode); @passtime)
         end
     end
     return changedstate
@@ -188,8 +191,9 @@ $(TYPEDSIGNATURES)
 Get all descendants of DAG `dag` starting from node `idagnodeid`
 Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
 """
-function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false)
+function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false, includeroot=false)
     idns = Vector{IntentDAGNode}()
+    includeroot && push!(idns, getidagnode(idag, idagnodeid))
     for chidn in getidagnodechildren(idag, idagnodeid)
         _descendants_recu!(idns, idag, getidagnodeid(chidn); exclusive)
     end
@@ -201,6 +205,30 @@ function _descendants_recu!(vidns::Vector{IntentDAGNode}, idag::IntentDAG, idagn
     push!(vidns, getidagnode(idag, idagnodeid))
     for chidn in getidagnodechildren(idag, idagnodeid)
         _descendants_recu!(vidns, idag, getidagnodeid(chidn); exclusive)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get all descendants of DAG `dag` starting from node `idagnodeid`. Return as node indices of the graph.
+Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
+"""
+function getidagnodeidxsdescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false, includeroot=false)
+    idxs = Vector{Int}()
+    vertexidx = getidagnodeidx(idag, idagnodeid)
+    includeroot && push!(idxs, vertexidx)
+    for chididx in Graphs.outneighbors(idag, vertexidx)
+        _descendants_recu_idxs!(idxs, idag, chididx; exclusive)
+    end
+    return idxs
+end
+
+function _descendants_recu_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeidx::Int; exclusive)
+    exclusive && length(Graphs.inneighbors(idag, idagnodeidx)) > 1 && return
+    push!(vidxs, idagnodeidx)
+    for chididx in Graphs.outneighbors(idag, idagnodeidx)
+        _descendants_recu_idxs!(vidxs, idag, chididx; exclusive)
     end
 end
 

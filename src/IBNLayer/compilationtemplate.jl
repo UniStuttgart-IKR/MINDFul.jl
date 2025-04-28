@@ -157,7 +157,13 @@ function prioritizesplitbordernodes_shortestorshortestrandom(ibnf::IBNFramework,
     destinationglobalnode = getdestinationnode(getintent(idagnode))
     borderlocals = getbordernodesaslocal(ibnf);
     # pick closest border node
-    hopdists = Graphs.dijkstra_shortest_paths(ibnag, sourcelocalnode).dists
+    ibnagaweights = getweights(ibnag)
+    foreach(edges(ibnag)) do ed
+        if !getcurrentlinkstate(ibnf, ed; checkfirst=true)
+            ibnagaweights[src(ed), dst(ed)] = typemax(eltype(ibnagaweights))
+        end
+    end
+    hopdists = Graphs.dijkstra_shortest_paths(ibnag, sourcelocalnode, ibnagaweights).dists
 
     borderlocalsofdestdomain = filter(localnode -> getibnfid(getglobalnode(ibnag, localnode)) == getibnfid(destinationglobalnode), borderlocals)
     if !isempty(borderlocalsofdestdomain)
@@ -191,6 +197,7 @@ function prioritizesplitnodes_longestfirstshortestpath(ibnf::IBNFramework, idagn
     yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, getweights(ibnag), getcandidatepathsnum(intentcompilationalgorithm))
     # customize per yenstate priority order
     for (dist, path) in zip(yenstate.dists, yenstate.paths)
+        all(ed -> getcurrentlinkstate(ibnf, ed; checkfirst=true), edgeify(path)) || continue
         # the accumulated distance from 2nd up to vorletzten node in path
         diststopathnodes = accumulate(+, getindex.([getweights(ibnag)], path[1:end-2], path[2:end-1]))
         for nodeinpathidx in reverse(eachindex(diststopathnodes))
@@ -319,6 +326,7 @@ chooseoxcadddropport(
         transmissionmodulecompat = nothing
         opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
         if !isnothing(opticalinitiateconstraint)
+            returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             for path in candidatepaths
                 # find transmission module and mode
                 spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
@@ -363,6 +371,7 @@ chooseoxcadddropport(
                 sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouteridx)
                 push!(lowlevelintentstoadd, sourcerouterportlli)
 
+                returncode = ReturnCodes.FAIL_CANDIDATEPATHS
                 for path in candidatepaths
                     # find transmission module and mode
                     sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
@@ -525,15 +534,20 @@ function prioritizepaths_shortest(ibnf::IBNFramework, idagnode::IntentDAGNode{<:
     distweights = getweights(ibnag)
     sourcelocalnode = getlocalnode(ibnag, getsourcenode(getintent(idagnode)))
     destlocalnode = getlocalnode(ibnag, getdestinationnode(getintent(idagnode)))
-    # yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, distweights, getcandidatepathsnum(intentcompilationalgorithm))
 
     if sourcelocalnode == destlocalnode
         yenstate = Graphs.YenState([u"0.0km"], [[destlocalnode]])
     else
         yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, distweights, getcandidatepathsnum(intentcompilationalgorithm))
     end
+    
+    operatingpaths = filter(yenstate.paths) do path
+        all(edgeify(path)) do ed
+            getcurrentlinkstate(ibnf, ed; checkfirst=true)
+        end
+    end
 
-    return yenstate.paths
+    return operatingpaths
 end
 
 """

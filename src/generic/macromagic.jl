@@ -38,7 +38,7 @@ $(TYPEDSIGNATURES)
 
 This macro is used to pass the (simulated) timing information.
 It is valid to be used in functions defined with [`entrytime`](@ref).
-It basically passes `(; entrytime, offsettime)`
+It basically passes `(; offsettime)`
 
 This strategy calls `now()` every time before passing the arguments.
 If that proves to slow down the implementation consider to pass `offsettime, entrytime` around and calcualte @logtime once in the end.
@@ -48,7 +48,7 @@ An `offsetime=nothing` could be implemented to handle real-time applications.
 """
 macro passtime() 
     # return :((; $(esc(:offsettime)) = @logtime )...)
-    return :((; $(esc(:offsettime)) = isnothing($(esc(:offsettime))) ? nothing : @logtime )...)
+    return :((; $(esc(:offsettime)) = isnothing($(esc(:offsettime))) ? nothing : @nestedlogtime )...)
 end
 
 
@@ -60,6 +60,11 @@ This macro is used to calculate the current (simulated) time as `offsettime + (n
 macro logtime()
     # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
     return :(isnothing($(esc(:offsettime))) ? now() : $(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
+end
+
+macro nestedlogtime()
+    # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
+    return :(isnothing($(esc(esc(:offsettime)))) ? now() : $(esc(esc(:offsettime))) + (now() - $(esc(esc(:entrytime)))) ) 
 end
 
 """

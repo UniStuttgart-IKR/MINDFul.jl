@@ -5,6 +5,8 @@
 # _init functions should be different for RemoteIBNFHandler and IBNFramework but `term` should be the same
 # _term is for the terminal entity to do the job
 # the operation might  depend on the relation of `myibnf`, and `remoteibnf`.
+
+# TODO make a macro for the generation of the init/term function ?
  
 """
 $(TYPEDSIGNATURES) 
@@ -43,6 +45,25 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestintentglobalpath_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestintentglobalpath_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodepath = logicalordergetpath(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodepath = map(ln -> getglobalnode(getibnag(myibnf), ln), localnodepath)
+    return globalnodepath
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Request the link state of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
@@ -74,6 +95,36 @@ function requestcurrentlinkstate_term(remoteibnfhandler::AbstractIBNFHandler, my
 end
 
 """
+$(TYPEDSIGNATURES) 
+
+Request all the link states of the border edge
+Need to check whether `ge` is indeed an edge shared with `myibnf`
+"""
+function requestlinkstates_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestlinkstates_term(myibnfhandler, remoteibnf, ge)
+end
+
+function requestlinkstates_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return getlinkstates(something(getoxcview(nodeviewdst)), le)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getlinkstates(something(getoxcview(nodeviewsrc)), le)
+    end
+
+    return nothing
+end
+
+"""
 $(TYPEDSIGNATURES)
 
 Request to set the state of the neighboring link
@@ -97,7 +148,7 @@ TODO-now implement
 
     if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
         # src is remote, dst is intra
-        return setlinkstate!(something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
+        return setlinkstate!(myibnf, something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
     elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
         # dst is remote, src is intra
         return getcurrentlinkstate(something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
