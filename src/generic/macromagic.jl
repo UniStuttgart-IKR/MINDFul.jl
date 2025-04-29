@@ -28,9 +28,9 @@ Use [`@logtime`](@ref) to calculate the current time inside the function.
 Use [`@passtime`](@ref) to pass the timing information to another function.
 """
 macro recvtime(funcexpr) 
-    addkeywordparameters!(funcexpr, Expr(:kw, :(offsettime::DateTime), :(now()) ) )
+    addkeywordparameters!(funcexpr, Expr(:kw, :(offsettime::Union{DateTime, Nothing}), :(now()) ) )
     pushfirst!(funcexpr.args[2].args, Expr(:(=), :entrytime, :(now()) ) )
-    return funcexpr
+    return :($(esc(funcexpr)))
 end
 
 """
@@ -75,7 +75,7 @@ function addkeywordparameters!(funcexpr::Expr, keywordparexprs::Expr...)
         parametersdad = funcexpr.args[1]
         ff = findfirst(ex -> Base.isexpr(ex, :parameters), parametersdad.args)
         if isnothing(ff)
-            if !isempty(parametersdad.args) && parametersdad.args[1] isa Symbol
+            if !isempty(parametersdad.args) && (parametersdad.args[1] isa Symbol || (parametersdad.args[1] isa Expr && Base.isexpr(parametersdad.args[1], :.)) )
                 position = 2
             else
                 position = 1
@@ -102,5 +102,6 @@ function addkeywordparameters!(funcexpr::Expr, keywordparexprs::Expr...)
         error("Function has unknown structure and cannot find where to insert keywords.")
     end
     return funcexpr
+    # return :($(esc(funcexpr)))
 end
 
