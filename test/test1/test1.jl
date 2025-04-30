@@ -60,6 +60,7 @@ end=#
 
 try
     MINDF.start_ibn_server(ibnf2) #server2
+    #Service.serve(port=port2, async=true, context=ibnf2, serialize=false, swagger=true) 
 catch e
     if isa(e, Base.IOError)
         println("Server2 is already running")
