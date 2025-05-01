@@ -15,7 +15,7 @@ export serve
     @swagger """
     /api/compilation_algorithms: 
       post:
-        description: Return the available compilation algorithms        
+        description: Return the available compilation algorithms
         responses:
           "200":
             description: Successfully returned the compilation algorithms.
@@ -81,10 +81,10 @@ export serve
     info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
     openApi = OpenAPI("3.0", info)
     swagger_document = build(openApi)
-    open("swagger.json", "w") do file
-        JSON.print(file, swagger_document)
-    end
-    println("Swagger documentation saved to swagger.json")
+    #open("swagger.json", "w") do file
+    #    JSON.print(file, swagger_document)
+    #end
+    #println("Swagger documentation saved to swagger.json")
     # merge the SwaggerMarkdown schema with the internal schema
     OxygenInstance.mergeschema(swagger_document)
 
