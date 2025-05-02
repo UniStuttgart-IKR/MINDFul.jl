@@ -1,11 +1,12 @@
 module Server
-using Oxygen, HTTP, SwaggerMarkdown, JSON, UUIDs, Documenter
+using Oxygen, HTTP, SwaggerMarkdown, JSON, UUIDs
 #using Oxygen: serve 
 using MINDFul
 const MINDF = MINDFul
 
 
 module OxygenInstance using Oxygen; @oxidise end
+
 import .OxygenInstance: @get, @put, @post, @delete, mergeschema, serve, router
 
 export serve
@@ -78,6 +79,8 @@ export serve
         end
     end
 
+    
+    # TODO ma1069
     info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
     openApi = OpenAPI("3.0", info)
     swagger_document = build(openApi)
@@ -86,6 +89,8 @@ export serve
     #end
     #println("Swagger documentation saved to swagger.json")
     # merge the SwaggerMarkdown schema with the internal schema
-    OxygenInstance.mergeschema(swagger_document)
+    OxygenInstance.mergeschema(swagger_document) 
+     
+     
 
 end

@@ -1,7 +1,7 @@
 # for importing TestModule
 using Test, JET
 
-using Documenter, MINDFul, JSON
+using Documenter, MINDFul, JSON, Oxygen
 
 
 function generate_swagger_html(output_path::String, swagger_json_path::String)
