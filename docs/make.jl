@@ -78,5 +78,5 @@ makedocs(
 
 
 deploydocs(
-    repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git",
+    repo = "https://github.com/fgobantes/MINDFul.jl.git",
 )
