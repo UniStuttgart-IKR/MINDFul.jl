@@ -78,6 +78,6 @@ makedocs(
 
 
 deploydocs(
-    branch = "gobantes-gh-pages",
+    branch = "gobantess-gh-pages",
     repo = "https://github.com/fgobantes/MINDFul.jl.git",
 )
