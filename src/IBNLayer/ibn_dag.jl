@@ -122,7 +122,13 @@ end
 function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(intentdag, idagnodeid)
     rem_vertex!(intentdag, vertexidx)
-    deleteat!(getidagnodes(intentdag), vertexidx)
+    # Graphs.jl removing index swapps |V| with `vertexidx` and deletes last one.
+    idagnodes = getidagnodes(intentdag)
+    if length(idagnodes) == vertexidx
+        pop!(idagnodes)
+    else
+        idagnodes[vertexidx] = pop!(idagnodes)
+    end
     return ReturnCodes.SUCCESS
 end
 
@@ -229,6 +235,34 @@ function _descendants_recu_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeid
     push!(vidxs, idagnodeidx)
     for chididx in Graphs.outneighbors(idag, idagnodeidx)
         _descendants_recu_idxs!(vidxs, idag, chididx; exclusive)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get all connected nodes of DAG `dag` starting from node `idagnodeid`. Return as node indices of the graph.
+"""
+function getidagnodeidxsconnected(idag::IntentDAG, idagnodeid::UUID;)
+    idxs = Vector{Int}()
+    vertexidx = getidagnodeidx(idag, idagnodeid)
+    for chididx in Graphs.outneighbors(idag, vertexidx)
+        _descendants_recu_connected_idxs!(idxs, idag, chididx)
+    end
+    for chididx in Graphs.inneighbors(idag, vertexidx)
+        _descendants_recu_connected_idxs!(idxs, idag, chididx)
+    end
+    return idxs
+end
+
+function _descendants_recu_connected_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeidx::Int)
+    idagnodeidx ∈ vidxs && return
+    push!(vidxs, idagnodeidx)
+    for chididx in Graphs.outneighbors(idag, idagnodeidx)
+        _descendants_recu_connected_idxs!(vidxs, idag, chididx)
+    end
+    for chididx in Graphs.inneighbors(idag, idagnodeidx)
+        _descendants_recu_connected_idxs!(vidxs, idag, chididx)
     end
 end
 

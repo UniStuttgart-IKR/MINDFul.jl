@@ -11,7 +11,7 @@ macro returniffalse(verbose, ex)
             if $(esc(verbose))
                 println("False expression in", $(string(__source__.file)), ':', $(__source__.line), " --> ", $(string(ex)))
             end
-            return false
+            return ReturnCodes.FAIL
         end
     end
 end

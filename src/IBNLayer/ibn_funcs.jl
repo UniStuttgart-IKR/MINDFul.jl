@@ -52,6 +52,7 @@ $(TYPEDSIGNATURES)
                 removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
             end
         else
+            @returniffalse(verbose, getidagnodestate(idagnodedescendant) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Compiling])
             removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
         end
     end
@@ -83,7 +84,7 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed])
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose, @passtime)
@@ -435,6 +436,16 @@ function getbordernodesaslocal(ibnf::IBNFramework)
         getlocalnode(getproperties(getnodeview(ibnag, v)))
         for v in vertices(ibnag) if isbordernode(ibnf, v)
     ]
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the number of local nodes, i.e. not border nodes.
+"""
+function getlocalnodenum(ibnf::IBNFramework)
+    ibnag = getibnag(ibnf)
+    return count(x -> !isbordernode(ibnf, x), vertices(ibnag))
 end
 
 """

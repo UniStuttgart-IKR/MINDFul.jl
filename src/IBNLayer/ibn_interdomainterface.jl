@@ -239,10 +239,10 @@ $(TYPEDSIGNATURES)
     uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
     if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
-        return removeintent!(myibnf, idagnodeid; verbose)
-    else
-        return false
+        removeintent!(myibnf, idagnodeid; verbose)
+        return ReturnCodes.SUCCESS
     end
+    return uncompiledflag
 end
 
 """
