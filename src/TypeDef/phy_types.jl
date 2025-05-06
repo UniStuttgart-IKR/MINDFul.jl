@@ -95,7 +95,9 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 
-A view of a OXC .
+A view of a OXC.
+This OXC view is also a view to the links connecting to the OXC.
+Since links are not devices under control, MINDFul does not model them directly.
 """
 struct OXCView{O <: AbstractOXC} <: ReservableResourceView
     "the underlying OXC"
@@ -110,8 +112,12 @@ struct OXCView{O <: AbstractOXC} <: ReservableResourceView
     The vector views should be the same with the ones on the opposite OXC view.
     """
     linkspectrumavailabilities::Dict{Edge{Int}, Vector{Bool}}
+    """
+    History information of the status of the connected links (working or not).
+    The last element is the current state.
+    """
+    linkstates::Dict{Edge{Int}, BoolLogState}
 end
-
 
 """
 $(TYPEDEF)

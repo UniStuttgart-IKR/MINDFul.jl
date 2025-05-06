@@ -156,6 +156,30 @@ end
 
 """
 $(TYPEDSIGNATURES)
+TODO-now
+Set the operating state of the edge in `oxcview` and trigger the state update of the relevant low level intents.
+"""
+@recvtime function setlinkstate!(ibnf::IBNFramework, oxcview::OXCView, edge::Edge, operatingstate::Bool)
+    if getcurrentlinkstate(oxcview, edge) != operatingstate
+        linkstates = getlinkstates(oxcview)[edge]
+        push!(linkstates, (@logtime, operatingstate))
+        # update LLIs
+        for (lliid, oxclli) in getreservations(oxcview)
+            # TODO-now  if is influenced update
+            if oxcllicontainsedge(oxclli, edge)
+                if operatingstate
+                    updateidagstates!(ibnf, lliid, IntentState.Installed; @passtime)
+                else
+                    updateidagstates!(ibnf, lliid, IntentState.Failed; @passtime)
+                end
+            end
+        end
+    end
+    return ReturnCodes.SUCCESS
+end
+
+"""
+$(TYPEDSIGNATURES)
 """
 function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
     reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))
@@ -241,3 +265,6 @@ function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, s
     return oxcadddropbypassspectrumllis
 end
 
+function oxcllicontainsedge(oxclli::OXCAddDropBypassSpectrumLLI, edge::Edge)
+    return (getlocalnode(oxclli) == src(edge) && getlocalnode_output(oxclli) == dst(edge)) || (getlocalnode_input(oxclli) == src(edge) && getlocalnode(oxclli) == dst(edge))
+end

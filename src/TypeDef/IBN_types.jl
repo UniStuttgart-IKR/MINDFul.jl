@@ -7,8 +7,8 @@ Another intent state schema could be defined.
     Uncompiled
     Compiling
     Compiled
-    Installing
     Installed
+    Failed
 end
 
 "Special requirements for an intent (such as QoS)"
@@ -35,8 +35,8 @@ const IntentLogState{S <: Enum{Int32}} = Vector{Tuple{DateTime, S}}
 """
 $(TYPEDSIGNATURES)
 """
-function IntentLogState(intentstate::IntentState.T = IntentState.Uncompiled)
-    return [(now(), intentstate)]    
+function IntentLogState(intentstate::IntentState.T = IntentState.Uncompiled, logtime::DateTime=now())
+    return [(logtime, intentstate)]    
 end
 
 """

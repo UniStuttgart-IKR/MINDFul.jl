@@ -41,8 +41,6 @@
         end
         @test canreserve(sdndummy, reservableresource, lli)
         @test length(getreservations(reservableresource)) == 0
-
-        # TODO check OXC edges
     end
 
     @test reserve!(sdndummy, oxcview1, oxclli1, dagnodeid1; checkfirst = true)

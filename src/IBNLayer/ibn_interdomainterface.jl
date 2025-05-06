@@ -5,7 +5,8 @@
 # _init functions should be different for RemoteIBNFHandler and IBNFramework but `term` should be the same
 # _term is for the terminal entity to do the job
 # the operation might  depend on the relation of `myibnf`, and `remoteibnf`.
-#using .HTTPCodes
+
+# TODO make a macro for the generation of the init/term function ?
 
 """
 $(TYPEDSIGNATURES) 
@@ -44,11 +45,126 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestintentglobalpath_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestintentglobalpath_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodepath = logicalordergetpath(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodepath = map(ln -> getglobalnode(getibnag(myibnf), ln), localnodepath)
+    return globalnodepath
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Request the link state of the border edge
+Need to check whether `ge` is indeed an edge shared with `myibnf`
+"""
+function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestcurrentlinkstate_term(myibnfhandler, remoteibnf, ge)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestcurrentlinkstate_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewdst)), le)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewsrc)), le)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request all the link states of the border edge
+Need to check whether `ge` is indeed an edge shared with `myibnf`
+"""
+function requestlinkstates_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestlinkstates_term(myibnfhandler, remoteibnf, ge)
+end
+
+function requestlinkstates_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return getlinkstates(something(getoxcview(nodeviewdst)), le)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getlinkstates(something(getoxcview(nodeviewsrc)), le)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Request to set the state of the neighboring link
+"""
+@recvtime function requestsetlinkstate_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestsetlinkstate_term!(myibnfhandler, remoteibnf, ge, operatingstate; @passtime)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+TODO-now implement
+"""
+@recvtime function requestsetlinkstate_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return setlinkstate!(myibnf, something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Return the id of the new dag node if successful and `nothing` otherwise
 """
-function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
+@recvtime function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
     remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent)
+    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent; @passtime)
     return getidagnodeid(remoteintentdagnode)
 end
 
@@ -66,8 +182,8 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
 """
-function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
-    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs)
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; @passtime)
 end
 
 """
@@ -75,52 +191,52 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
-function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    return compileintent!(myibnf, idagnodeid, compilationalgorithm)
+    return compileintent!(myibnf, idagnodeid, compilationalgorithm; @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestinstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestinstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+@recvtime function requestinstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestinstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestinstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return installintent!(myibnf, idagnodeid; verbose)
+@recvtime function requestinstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return installintent!(myibnf, idagnodeid; verbose, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return uninstallintent!(myibnf, idagnodeid; verbose)
+@recvtime function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return uninstallintent!(myibnf, idagnodeid; verbose, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestuncompileintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false)
+@recvtime function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    return requestuncompileintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES) 
 """
-function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose)
+@recvtime function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+    uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
     if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
         return removeintent!(myibnf, idagnodeid; verbose)
@@ -143,13 +259,13 @@ $(TYPEDSIGNATURES)
 
 Request the initiator `remoteibnf` to update the state of its mirrored remote intent
 """
-function requestremoteintentstateupdate!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
+@recvtime function requestremoteintentstateupdate!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
     oldstate = getidagnodestate(getidag(remoteibnf), idagnodeid)
     if oldstate != newstate
         idagnode = getidagnode(getidag(remoteibnf), idagnodeid)
-        pushstatetoidagnode!(idagnode, now(), newstate)
+        pushstatetoidagnode!(idagnode, now(), newstate; @passtime)
         foreach(getidagnodeparents(getidag(remoteibnf), idagnodeid)) do idagnodeparent
-            updateidagnodestates!(remoteibnf, idagnodeparent)
+            updateidagnodestates!(remoteibnf, idagnodeparent; @passtime)
         end
     end
     return oldstate != newstate

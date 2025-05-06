@@ -1,5 +1,5 @@
 using MINDFul: getoxcview
-import MINDFulMakie as MINDFM
+# import MINDFulMakie as MINDFM
 using MINDFul, Test
 using Graphs
 import AttributeGraphs as AG
@@ -8,26 +8,26 @@ using Unitful, UnitfulData
 
 const MINDF = MINDFul
 
-using GLMakie
+# using GLMakie
 
-## single domain
+domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
 
-# load data
-domains_name_graph = first(JLD2.load("data/itz_IowaStatewideFiberMap-itz_Missouri__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21).jld2"))[2]
 
-ag1 = first(domains_name_graph)[2]
+ibnfs = [
+    let
+        ag = name_graph[2]
+        ibnag = MINDF.default_IBNAttributeGraph(ag)
+        ibnf = IBNFramework(ibnag)
+    end for name_graph in domains_name_graph
+]
 
-ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
 
-ibnf1 = MINDF.IBNFramework(ibnag1)
+# add ibnf handlers
 
-conintent1 = MINDF.ConnectivityIntent(MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 4), MINDF.GlobalNode(MINDF.getibnfid(ibnf1), 8), u"100Gbps")
-MINDF.addintent!(ibnf1, conintent1, MINDF.NetworkOperator())
+for i in eachindex(ibnfs)
+    for j in eachindex(ibnfs)
+        i == j && continue
+        push!(getibnfhandlers(ibnfs[i]), ibnfs[j] )
+    end
+end
 
-# plot
-# MINDFM.ibngraphplot(ibnag1; layout = x -> MINDFM.coordlayout(ibnag1), nlabels=repr.(Graphs.vertices(ibnag1)))
-# MINDFM.intentplot(ibnf1, UUID(1); showstate=true)
-
-MINDF.compileintent!(ibnf1, UUID(1), MINDF.KShorestPathFirstFitCompilation(10))
-
-# nothing

@@ -30,8 +30,8 @@ public getsdncontroller, getibnag, getibnfid, getidag, getibnfhandlers, getibnfh
 
 
 include("TypeDef/ReturnCodes.jl")
-include("TypeDef/HTTPCodes.jl")
 include("generic/utils.jl")
+include("generic/macromagic.jl")
 include("TypeDef/TypeDef.jl")
 include("generic/io.jl")
 include("generic/getset.jl")
@@ -41,5 +41,6 @@ include("IBNLayer/IBNLayer.jl")
 include("generic/satisfy.jl")
 include("generic/copyboilerplate.jl")
 include("generic/defaults.jl")
+include("TypeDef/HTTPCodes.jl")
 
 end
