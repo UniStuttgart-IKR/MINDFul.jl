@@ -78,7 +78,7 @@ makedocs(
 
 
 deploydocs(
-    branch = "ma1069",
-    #repo = "https://github.com/fgobantes/MINDFul.jl.git",
-    repo = "https://github.com/fgobantes/MINDFul.jl/tree/ma1069/docs"
+    branch = "gh-pages-1069",
+    repo = "https://github.com/fgobantes/MINDFul.jl.git",
+    #repo = "https://github.com/fgobantes/MINDFul.jl/tree/ma1069/docs"
 )
