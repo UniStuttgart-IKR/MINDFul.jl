@@ -22,7 +22,11 @@ $(TYPEDSIGNATURES)
 Get the id of the [`IBNFramework`](@ref)
 """
 function getibnfid(s)
-    return s.ibnfid
+    try
+        return s.ibnfid
+    catch e
+        return s.handlerproperties.ibnfid
+    end
 end
 
 function getnode(s)

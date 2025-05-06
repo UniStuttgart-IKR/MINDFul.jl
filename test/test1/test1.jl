@@ -44,6 +44,9 @@ handler2 = MINDF. RemoteIBNFHandler(
 ibnf1 = MINDF.IBNFramework(ibnag1, [handler1, handler2])
 ibnf2 = MINDF.IBNFramework(ibnag2, [handler2, handler1])
 
+#@show ibnf1
+#@show ibnf2
+
 # Starting the servers in diferent ports
 #server1 = MINDF.start_ibn_server(ibnf1)
 #server2 = MINDF.start_ibn_server(ibnf2)

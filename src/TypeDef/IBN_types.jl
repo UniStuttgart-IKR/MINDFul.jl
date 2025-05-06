@@ -232,6 +232,10 @@ function IBNAttributeGraph{T}(uuid::UUID) where {T <: NodeView}
     IBNAttributeGraph{T}(SimpleDiGraph{Int}(), Vector{T}(), Dict{Edge{LocalNode}, EdgeView}(), uuid)
 end
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
 struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
     "The operation mode of the IBN framework"
     operationmode::O
@@ -261,10 +265,17 @@ struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
     ibng::T
 end
 
-struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
+#=struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
     handlerproperties::HandlerProperties
     ibnfcomm::T
+end=#
+
+struct RemoteIBNFHandler <: AbstractIBNFHandler
+    ibnfid::UUID
+    base_url::String
 end
+
+
 
 #struct RemoteIBNFHandler <: AbstractIBNFHandler
 #end
@@ -279,11 +290,11 @@ $(TYPEDSIGNATURES)
 
 The most default construct with abstract type of IBN handlers
 """
-#function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
- #   ibnfid = AG.graph_attr(ibnag)
+function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
+    ibnfid = AG.graph_attr(ibnag)
     # abstract type : for remote 
-  #  return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
-#end
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
+end
 
 """
 $(TYPEDSIGNATURES) 

@@ -263,7 +263,7 @@ Request the initiator `remoteibnf` to update the state of its mirrored remote in
     oldstate = getidagnodestate(getidag(remoteibnf), idagnodeid)
     if oldstate != newstate
         idagnode = getidagnode(getidag(remoteibnf), idagnodeid)
-        pushstatetoidagnode!(idagnode, now(), newstate; @passtime)
+        pushstatetoidagnode!(idagnode, newstate; @passtime)
         foreach(getidagnodeparents(getidag(remoteibnf), idagnodeid)) do idagnodeparent
             updateidagnodestates!(remoteibnf, idagnodeparent; @passtime)
         end
