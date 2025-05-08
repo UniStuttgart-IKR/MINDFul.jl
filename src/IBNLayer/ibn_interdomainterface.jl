@@ -20,6 +20,20 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request intent dag information
+"""
+function requestidag_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestidag_term(myibnfhandler, remoteibnf)
+end
+
+function requestidag_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
+    return getidag(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
@@ -274,7 +288,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 If far away, think about authorization and permissions.
 That's the reason why there are 2 arguments: The first argument should have the authorization.
 """
@@ -283,11 +297,17 @@ function requestibnattributegraph(myibnf::IBNFramework, remoteibnfhandler::Remot
 end
 
 """
+MA1069 implementation
+"""
+function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+    error("not implemented")
+end
+"""
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 
-Request spectrum slot availabilities of the border edge
+Request spectr /um slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
 function requestspectrumavailability(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
@@ -297,7 +317,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 
 Delegates an intent to another domain
 
@@ -310,7 +330,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Fabian Gobantes implementation
+MA1069 implementation
 """
 function requestavailablecompilationalgorithms(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
     error("not implemented")
@@ -319,7 +339,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 """
 function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, compilationalgorithm::Symbol=:default, compilationalgorithmkey::Tuple=())
     error("not implemented")
@@ -327,7 +347,7 @@ end
 
 """
 $(TYPEDSIGNATURES) 
-Fabian Gobantes implementation
+MA1069 implementation
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
@@ -338,7 +358,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """
