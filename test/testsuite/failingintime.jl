@@ -113,7 +113,7 @@ intentuuid_border_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(
 @test length(intentuuid_border_fail_timelog) == 6
 @test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2) 
 intentuuid_border_fail_timelog_remote =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(remoteibnf_border), remoteintentid_border)), 1)
-@test length(intentuuid_border_fail_timelog_remote) == 5
+@test length(intentuuid_border_fail_timelog_remote) == 6
 @test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) 
 
 # uninstall, remove all

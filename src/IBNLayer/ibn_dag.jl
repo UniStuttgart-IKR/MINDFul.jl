@@ -162,11 +162,6 @@ Return value is true if state is changed.
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
         end
-    elseif any(==(IntentState.Compiled), childrenstates)
-        if currentstate != IntentState.Compiling
-            changedstate = true
-            pushstatetoidagnode!(idagnode, IntentState.Compiling; @passtime)
-        end
     elseif all(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installed
             changedstate = true
@@ -176,6 +171,16 @@ Return value is true if state is changed.
         if currentstate != IntentState.Failed
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Failed; @passtime)
+        end
+    elseif any(==(IntentState.Pending), childrenstates)
+        if currentstate != IntentState.Pending
+            changedstate = true
+            pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
+        end
+    else
+        if currentstate != IntentState.Pending
+            changedstate = true
+            pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
         end
     end
     if changedstate
