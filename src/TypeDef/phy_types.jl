@@ -229,7 +229,7 @@ end
 function Base.show(io::IO, nv::NodeView)
     print(io, "NodeView(")
     print(io, nv.nodeproperties, ", ")
-    if isnothing(nv.routerview) && isnothing(nv.oxcview) && isnothing(nv.transmissionmoduleviewpool) && isnothing(nv.transmissionmodulereservations)
+    if !isnodeviewinternal(nv)
         print(io, "remote-node)")
     else
         print(io, nv.routerview, ", ")

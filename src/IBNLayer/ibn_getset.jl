@@ -83,6 +83,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getintentissuer(idagnode::IntentDAGNode)
+    return idagnode.intentissuer
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getcurrentstate(intentlogstate::IntentLogState)
     return intentlogstate[end][2]
 end

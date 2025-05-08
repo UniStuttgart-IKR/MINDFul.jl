@@ -56,9 +56,9 @@ prioritizesplitbordernodes(
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
         returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; @passtime)
-        if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
+        if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
             # uncompile
-            @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) 
+            @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
             # find shortest distance neighbor j
 
             # get a node in between the shortest paths
@@ -125,7 +125,7 @@ $(TYPEDSIGNATURES)
     updateidagnodestates!(ibnf, internalidagnode; @passtime)
 
     issuccess(returncode) || return returncode
-    
+   
     # need first to compile that to get the optical choice
     opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
     externalintent = ConnectivityIntent(mediatorbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
@@ -186,6 +186,7 @@ The [`GlobalNode`](@ref) is used to break up the [`ConnectivityIntent`](@ref) in
 Not several candidates are returned but only a single choice.
 """
 function prioritizesplitnodes_longestfirstshortestpath(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
+    globalnodecandidates = GlobalNode[]
     ibnag = getibnag(ibnf)
     opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idagnode)))
     @assert !isnothing(opticalinitiateconstraint)
@@ -198,16 +199,26 @@ function prioritizesplitnodes_longestfirstshortestpath(ibnf::IBNFramework, idagn
     # customize per yenstate priority order
     for (dist, path) in zip(yenstate.dists, yenstate.paths)
         all(ed -> getcurrentlinkstate(ibnf, ed; checkfirst=true), edgeify(path)) || continue
-        # the accumulated distance from 2nd up to vorletzten node in path
+        # the accumulated distance from 1st up to vorletzten node in path (vorletzten to brake intent)
         diststopathnodes = accumulate(+, getindex.([getweights(ibnag)], path[1:end-2], path[2:end-1]))
         for nodeinpathidx in reverse(eachindex(diststopathnodes))
             if opticalreach > diststopathnodes[nodeinpathidx]
+                # check also if available slots
+                spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
                 # +1 because we start measuring from the second node
-                return [getglobalnode(ibnag, path[nodeinpathidx+1])]
+                p = path[1:nodeinpathidx+1]
+                if all(getpathspectrumavailabilities(ibnf, p)[spectrumslotsrange])
+                    if p[end] ∉ globalnodecandidates
+                        push!(globalnodecandidates, getglobalnode(ibnag, path[nodeinpathidx+1]))
+                    end
+                end
             end
         end
+
     end
-    return nothing
+    # split on the same node is possible eitherway (port allocations and so are checked after)
+    push!(globalnodecandidates, getglobalnode(ibnag, sourcelocalnode))
+    return globalnodecandidates
 end
 
 """
@@ -337,7 +348,7 @@ chooseoxcadddropport(
                     end
                     pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
                     if !all(pathspectrumavailability[spectrumslotsrange])
-                        returncode = ReturnCodes.FAIL_SPECTRUM
+                        returncode = ReturnCodes.FAIL_SPECTRUM_OPTINIT
                         continue
                     end
                 end

@@ -151,7 +151,7 @@ function setoxcviewlinkavailabilities!(oxcview::OXCView, oxcadddropbypassspectru
         @returniffalse(verbose, haskey(linkspectrumavailabilities, ed))
         linkspectrumavailabilities[ed][spectrumslotsrange] .= setflag
     end
-    return true
+    return ReturnCodes.SUCCESS
 end
 
 """
@@ -265,6 +265,16 @@ function generatelightpathoxcadddropbypassspectrumlli(path::Vector{LocalNode}, s
     return oxcadddropbypassspectrumllis
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function oxcllicontainsedge(oxclli::OXCAddDropBypassSpectrumLLI, edge::Edge)
     return (getlocalnode(oxclli) == src(edge) && getlocalnode_output(oxclli) == dst(edge)) || (getlocalnode_input(oxclli) == src(edge) && getlocalnode(oxclli) == dst(edge))
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function isnodeviewinternal(nv::NodeView)
+    return !isnothing(nv.routerview) && !isnothing(nv.oxcview) && !isnothing(nv.transmissionmoduleviewpool) && !isnothing(nv.transmissionmodulereservations) 
 end

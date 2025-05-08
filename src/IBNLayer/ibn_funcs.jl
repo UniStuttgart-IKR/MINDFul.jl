@@ -126,10 +126,11 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
                 unreserve!(getsdncontroller(ibnf), getoxcview(nodeview), leafid; verbose)
             end
         end
+        issuccessfull = issuccess(successflag)
         if doinstall
-            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+            issuccessfull && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
         else
-            successflag && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Compiled; @passtime)
+            issuccessfull && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Compiled; @passtime)
         end
     elseif leafintent isa RemoteIntent
         if getisinitiator(leafintent)
@@ -182,7 +183,7 @@ $(TYPEDSIGNATURES)
 
 Get the spectrum availability slots vector for `edge`
 """
-function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst::Bool = true, verbose::Bool=false)
+function getfiberspectrumavailabilities(ibnf::IBNFramework, edge::Edge{LocalNode}; checkfirst::Bool = true, verbose::Bool=false)
     ibnag = getibnag(ibnf) 
     edsrc = src(edge)
     nodeviewsrc = getnodeview(ibnag, edsrc)
@@ -216,6 +217,28 @@ function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst:
         if !issrcbordernode
             return getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
         elseif !isdstbordernode
+            return getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
+        end
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getfiberspectrumavailabilities(ibnag::IBNAttributeGraph, edge::Edge{LocalNode}; checkfirst::Bool = true)
+    edsrc = src(edge)
+    nodeviewsrc = getnodeview(ibnag, edsrc)
+    eddst = dst(edge)
+    nodeviewdst = getnodeview(ibnag, eddst)
+    if checkfirst && isnodeviewinternal(nodeviewsrc) && isnodeviewinternal(nodeviewdst) 
+        srclinkspectrumavailabilities = getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
+        dstlinkspectrumavailabilities = getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
+        @assert srclinkspectrumavailabilities == dstlinkspectrumavailabilities 
+        return srclinkspectrumavailabilities
+    else
+        if isnodeviewinternal(nodeviewsrc)
+            return getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
+        elseif isnodeviewinternal(nodeviewdst)
             return getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
         end
     end
@@ -640,3 +663,4 @@ function getpathdistance(ibnag::IBNAttributeGraph, path::Vector{Int})
     ws = getweights(ibnag)
     return sum([getindex(ws, nodepair...) for nodepair in zip(path[1:end-1], path[2:end])])
 end
+

@@ -65,7 +65,7 @@ intentuuid3 = addintent!(ibnfs[1], conintent_intra_optini, NetworkOperator())
 oxcview1_2 = getoxcview(getnodeview(ibnfs[1], 2))
 oxcllifinishprevious3 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 21:26)
 @test canreserve(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3)
-@test reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3, UUID(0xfffffff); verbose = true)
+@test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3, UUID(0xfffffff); verbose = true))
 
 # intradomain with `OpticalInitaiteConstraint and OpticalTerminateConstraint`
 conintent_intra_optseg = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(), OpticalInitiateConstraint(GlobalNode(UUID(1), 2), 31:34, u"500.0km", TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
@@ -79,12 +79,12 @@ vorletzteglobalsnode4 = getlocalnode(orderedllis4[end])
 
 oxcllifinishprevious4 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 31:34)
 @test canreserve(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4)
-@test reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4, UUID(0xffffff1); verbose = true)
+@test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4, UUID(0xffffff1); verbose = true))
 
 oxcview1_22 = getoxcview(getnodeview(ibnfs[1], 22))
 oxcllifinishprevious4_1 = OXCAddDropBypassSpectrumLLI(22, vorletzteglobalsnode4, 2, 0, 31:34)
 @test canreserve(getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1)
-@test reserve!(getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1, UUID(0xffffff2); verbose = true)
+@test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1, UUID(0xffffff2); verbose = true))
 
 foreach(ibnfs) do ibnf
   TM.testlocalnodeisindex(ibnf)

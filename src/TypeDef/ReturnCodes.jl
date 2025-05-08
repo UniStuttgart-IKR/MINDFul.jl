@@ -19,6 +19,9 @@ const FAIL_SPECTRUM = :Fail_availabilityspectrum
 "No available connection for the given optical reach was found"
 const FAIL_OPTICALREACH = :Fail_opticalreach
 
+"No available connection for the specturm slots, coming from an initiate optical constraint, was found"
+const FAIL_SPECTRUM_OPTINIT = :Fail_spectrum_optinit
+
 "No available connection for the given optical reach, coming from an initiate optical constraint, was found"
 const FAIL_OPTICALREACH_OPTINIT = :Fail_opticalreach_optinit
 
