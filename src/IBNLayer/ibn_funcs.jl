@@ -154,8 +154,8 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
 @recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-    remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
-
+    remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
+    @show remoteidagnodeid
     # add an idagnode `RemoteIntent`
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
@@ -182,6 +182,8 @@ $(TYPEDSIGNATURES)
 Get the spectrum availability slots vector for `edge`
 """
 function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst::Bool = true, verbose::Bool=false)
+    @show getibnfid(ibnf)
+    @show edge
     ibnag = getibnag(ibnf) 
     edsrc = src(edge)
     nodeviewsrc = getnodeview(ibnag, edsrc)
@@ -196,7 +198,7 @@ function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst:
         srclinkspectrumavailabilities = if issrcbordernode  
             remoteibnfid = getibnfid(getglobalnode(ibnag, src(edge)))
             ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
+            something(requestspectrumavailability_init!(ibnf, ibnfhandler, globaledge))
         else 
             getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
         end
@@ -204,11 +206,12 @@ function getfiberspectrumavailabilities(ibnf, edge::Edge{LocalNode}; checkfirst:
         dstlinkspectrumavailabilities = if isdstbordernode  
             remoteibnfid = getibnfid(getglobalnode(ibnag, dst(edge)))
             ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
+            something(requestspectrumavailability_init!(ibnf, ibnfhandler, globaledge))
         else
             getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
         end
-
+        #@show srclinkspectrumavailabilities
+        #@show dstlinkspectrumavailabilities
         @assert(srclinkspectrumavailabilities == dstlinkspectrumavailabilities)
         return srclinkspectrumavailabilities
     else

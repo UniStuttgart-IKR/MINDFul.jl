@@ -4,7 +4,7 @@ using AttributeGraphs
 
 function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
     #remotehandler=ibnf.ibnfhandlers[1]
-    url = remotehandler.handlerproperties.base_url * endpoint
+    url = remotehandler.base_url * endpoint
     body = JSON.json(data)  
     headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body))) 
     println("Sending request to $url")
@@ -16,13 +16,29 @@ function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::
 end
 
 
-function serialize_attributegraph(graph::AttributeGraphs.AttributeGraph)
+
+function start_ibn_server(myibnf::IBNFramework)
+    sel_handler = myibnf.ibnfhandlers[1]
+    base_url = sel_handler.base_url
+    uri = HTTP.URI(base_url)
+    ip_address = string(uri.host)
+    port = parse(Int, uri.port)
+    
+    println("Starting server on $ip_address:$port")
+    Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true) 
+        
+end
+
+
+#=function serialize_attributegraph(graph::AttributeGraphs.AttributeGraph)
     return Dict(
         "nodes" => collect(Graphs.vertices(graph)),  # Serialize nodes
         "edges" => [(e.src, e.dst) for e in Graphs.edges(graph)],  # Serialize edges
         #"attributes" => graph.attributes  # Serialize attributes
     )
-end
+end=#
+
+
 
 
 #=function response(req::HTTP.Request, ibnf::IBNFramework, parsed_body::Dict)
@@ -94,7 +110,7 @@ end=#
 end =#
 
 
-""" function to start a REST API server for an IBNFramework"""
+#=""" function to start a REST API server for an IBNFramework"""
 function start_ibn_server_1(myibnf::IBNFramework)
     sel_handler = myibnf.ibnfhandlers[1]
     base_url = sel_handler.handlerproperties.base_url
@@ -117,7 +133,7 @@ function start_ibn_server_1(myibnf::IBNFramework)
         return response(req, myibnf, parsed_body)
         #end
     end
-end
+end=#
 
 
 
@@ -211,16 +227,3 @@ end=#
 
 
 
-function start_ibn_server(myibnf::IBNFramework)
-    sel_handler = myibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    
-    
-    
-    println("Starting server on $ip_address:$port")
-    Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true) 
-        
-end
