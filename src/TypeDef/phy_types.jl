@@ -64,7 +64,7 @@ struct TransmissionModuleDummy <: AbstractTransmissionModule end
 
 """
 The following functions should be implemented for subtypes:
-- `getreservations(subtype::ReservableResourceView)::Dict{UUID, T}`
+- `getreservations(subtype::ReservableResourceView)::Set{T}`
 - `canreserve(subtype::ReservableResourceView, reservation::T)::Bool`
 The following default functions exist that should already work
 - `reserve!(subtype::ReservableResourceView, dagnodeid::UUID, reservation::T; checkfirst::Bool=true)::Bool`
@@ -88,6 +88,8 @@ struct RouterView{R <: AbstractRouter} <: ReservableResourceView
     portnumber::Int
     "The intent reservations together with the low level intent of reserved port"
     portreservations::Dict{UUID, RouterPortLLI}
+    "The intent reservations together with the low level intent of a staged port"
+    portstaged::Set{RouterPortLLI}
 end
 
 
@@ -106,6 +108,8 @@ struct OXCView{O <: AbstractOXC} <: ReservableResourceView
     adddropportnumber::Int
     "The intent reservations together with the configuration"
     switchreservations::Dict{UUID, OXCAddDropBypassSpectrumLLI}
+    "The intent staged together with the configuration"
+    switchstaged::Set{OXCAddDropBypassSpectrumLLI}
     """
     Link spectrum availability total view in sync with `switchreservations`.
     A vector showing the availability of the spectrum slots. `true` for available and `false` for reserved.
@@ -220,10 +224,10 @@ struct NodeView{R <: RouterView, O <: OXCView, T <: TransmissionModuleView} <: R
     oxcview::Union{Nothing, O}
     "The transmission modules contained"
     transmissionmoduleviewpool::Union{Nothing, Vector{T}}
-    """
-    intent reservation of the transmission modules
-    """
+    "intent reservation of the transmission modules"
     transmissionmodulereservations::Union{Nothing, Dict{UUID, TransmissionModuleLLI}}
+    "intent staged of the transmission modules"
+    transmissionmodulestaged::Union{Nothing, Set{TransmissionModuleLLI}}
 end
 
 function Base.show(io::IO, nv::NodeView)
@@ -242,7 +246,7 @@ function Base.show(io::IO, nv::NodeView)
 end
 
 function NodeView(nodeproperties::NodeProperties, routerview::R, oxcview::O, transmissionmoduleviewpool::Vector{T}) where {R <: RouterView, O <: OXCView, T <: TransmissionModuleView}
-    return NodeView(nodeproperties, routerview, oxcview, transmissionmoduleviewpool, Dict{UUID, TransmissionModuleLLI}())
+    return NodeView(nodeproperties, routerview, oxcview, transmissionmoduleviewpool, Dict{UUID, TransmissionModuleLLI}(), Set{TransmissionModuleLLI}())
 end
 
 """

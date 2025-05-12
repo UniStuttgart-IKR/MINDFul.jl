@@ -367,7 +367,7 @@ chooseoxcadddropport(
                 if !isnothing(opticalterminateconstraint)
                     # no need to do something more. add intents and return true
                     foreach(lowlevelintentstoadd) do lli
-                        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+                        stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
                     end
                     return ReturnCodes.SUCCESS
                 else
@@ -426,7 +426,7 @@ chooseoxcadddropport(
                         if !isnothing(opticalterminateconstraint)
                             # no need to do something more. add intents and return true
                             foreach(lowlevelintentstoadd) do lli
-                                addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+                                stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
                             end
                             return ReturnCodes.SUCCESS
                         else
@@ -532,7 +532,7 @@ chooseoxcadddropport(
     push!(lowlevelintentstoadd, desttransmissionmodulelli)
 
     foreach(lowlevelintentstoadd) do lli
-        addidagnode!(idag, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+        stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
     end
     return ReturnCodes.SUCCESS
 end
@@ -567,7 +567,8 @@ $(TYPEDSIGNATURES)
 function prioritizerouterports_first(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
     routerview = getrouterview(getnodeview(getibnag(ibnf), node))
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
-    return filter(x -> x ∉ reservedrouterports, 1:getportnumber(routerview))
+    stagedrouterports = getrouterportindex.(getstaged(routerview))
+    return filter(x -> x ∉ reservedrouterports && x ∉ stagedrouterports, 1:getportnumber(routerview))
 end
 
 

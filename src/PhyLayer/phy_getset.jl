@@ -46,8 +46,18 @@ function getreservations(routerview::RouterView)
 end
 
 "$(TYPEDSIGNATURES)"
+function getstaged(routerview::RouterView)
+    return routerview.portstaged
+end
+
+"$(TYPEDSIGNATURES)"
 function getreservations(oxcview::OXCView)
     return oxcview.switchreservations
+end
+
+"$(TYPEDSIGNATURES)"
+function getstaged(oxcview::OXCView)
+    return oxcview.switchstaged
 end
 
 "$(TYPEDSIGNATURES)"
@@ -111,6 +121,11 @@ end
 "$(TYPEDSIGNATURES)"
 function getreservations(nodeview::NodeView)
     return nodeview.transmissionmodulereservations
+end
+
+"$(TYPEDSIGNATURES)"
+function getstaged(nodeview::NodeView)
+    return nodeview.transmissionmodulestaged
 end
 
 

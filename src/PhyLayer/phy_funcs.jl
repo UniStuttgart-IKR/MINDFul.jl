@@ -183,9 +183,10 @@ $(TYPEDSIGNATURES)
 """
 function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
     reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))
+    stagedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(getstaged(nodeview))
     allidx = eachindex(gettransmissionmoduleviewpool(nodeview))
     # pick out all indices that are not reserved
-    return filter(!∈(reservedtransmoduleviewidx), allidx)
+    return filter( x -> x ∉ reservedtransmoduleviewidx && x ∉ stagedtransmoduleviewidx, allidx)
 end
 
 """
@@ -202,8 +203,9 @@ Return the first available router port index and `nothing` if non available.
 """
 function getfirstavailablerouterportindex(routerview::RouterView)
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
+    stagedrouterports = getrouterportindex.(getreservations(routerview))
     for routerportindex in 1:getportnumber(routerview)
-        routerportindex ∉ reservedrouterports && return routerportindex
+        routerportindex ∉ reservedrouterports && routerportindex ∉ stagedrouterports && return routerportindex
     end
     return nothing
 end
@@ -222,8 +224,9 @@ Return the first available oxc add/drop port and `nothing` if none found
 """
 function getfirstavailableoxcadddropport(oxcview::OXCView)
     reservedoxcadddropports = getadddropport.(values(getreservations(oxcview)))
+    stagedoxcadddropports = getadddropport.(getreservations(oxcview))
     for adddropport in 1:getadddropportnumber(oxcview)
-        adddropport ∉ reservedoxcadddropports && return adddropport
+        adddropport ∉ reservedoxcadddropports && adddropport ∉ stageddoxcadddropports && return adddropport
     end
     return nothing
 end
@@ -276,5 +279,23 @@ end
 $(TYPEDSIGNATURES)
 """
 function isnodeviewinternal(nv::NodeView)
-    return !isnothing(nv.routerview) && !isnothing(nv.oxcview) && !isnothing(nv.transmissionmoduleviewpool) && !isnothing(nv.transmissionmodulereservations) 
+    return !isnothing(nv.routerview) && !isnothing(nv.oxcview) && !isnothing(nv.transmissionmoduleviewpool) && !isnothing(nv.transmissionmodulereservations) && !isnothing(nv.transmissionmodulestaged)
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function stage!(resourceview::ReservableResourceView, lli::LowLevelIntent)
+    stagedset = getstaged(resourceview)
+    push!(stagedset, lli)
+    return ReturnCodes.SUCCESS
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function unstage!(resourceview::ReservableResourceView, lli::LowLevelIntent)
+    stagedset = something(getstaged(resourceview))
+    return delete!(stagedset, lli)
+end
+

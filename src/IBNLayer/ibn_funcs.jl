@@ -54,6 +54,9 @@ $(TYPEDSIGNATURES)
         else
             @returniffalse(verbose, getidagnodestate(idagnodedescendant) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
             removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
+            if getintent(idagnodedescendant) isa LowLevelIntent
+                stageunstageleafintent!(ibnf, getintent(idagnodedescendant), false)
+            end
         end
     end
     updateidagstates!(ibnf, idagnodeid; @passtime)
@@ -128,9 +131,15 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
         end
         issuccessfull = issuccess(successflag)
         if doinstall
-            issuccessfull && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+            if issuccessfull
+                pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+                stageunstageleafintent!(ibnf, leafintent, false)
+            end
         else
-            issuccessfull && pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Compiled; @passtime)
+            if issuccessfull
+                pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Compiled; @passtime)
+                stageunstageleafintent!(ibnf, leafintent, true)
+            end
         end
     elseif leafintent isa RemoteIntent
         if getisinitiator(leafintent)
@@ -145,6 +154,47 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
     # call updateidagstates
     return any(getidagnodeparents(getidag(ibnf), idagnodeleaf)) do idagnodeparent
         updateidagnodestates!(ibnf, idagnodeparent; @passtime)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Stage lli as compiled in the equipment and add LLI in the intent DAG.
+Staged LLIs are not reserved but used to know that they will be in the future.
+"""
+@recvtime function stageaddidagnode!(ibnf::IBNFramework, lli::LowLevelIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+    idag = getidag(ibnf)
+    idagnode = addidagnode!(idag, lli; parentid, intentissuer, @passtime)
+    stageunstageleafintent!(ibnf, lli, true)
+end
+
+"""
+$(TYPEDSIGNATURES)
+`dostage` `true` for stage, `false` for unstage
+"""
+function stageunstageleafintent!(ibnf::IBNFramework, lli::LowLevelIntent, dostage::Bool)
+    localnode = getlocalnode(lli)
+    nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
+
+    successflag = if lli isa TransmissionModuleLLI       
+        if dostage
+            stage!(nodeview, lli)
+        else
+            unstage!(nodeview, lli)
+        end
+    elseif lli isa RouterPortLLI
+        if dostage
+            stage!(getrouterview(nodeview), lli)
+        else
+            unstage!(getrouterview(nodeview), lli)
+        end
+    elseif lli isa OXCAddDropBypassSpectrumLLI
+        if dostage
+            stage!(getoxcview(nodeview), lli)
+        else
+            unstage!(getoxcview(nodeview), lli)
+        end
     end
 end
 

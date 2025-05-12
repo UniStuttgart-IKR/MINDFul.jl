@@ -39,7 +39,8 @@ function default_routerview()
     return RouterView(
         RouterDummy(),
         50,
-        Dict{UUID, RouterPortLLI}()
+        Dict{UUID, RouterPortLLI}(),
+        Set{RouterPortLLI}()
     )
 end
 
@@ -61,7 +62,7 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int)
     end
     linkspectrumavailabilities = Dict(ed => fill(true, spectrumslots)  for ed in edgs)
     linkstates = Dict(ed => construct_BoolLogState() for ed in edgs)
-    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities, linkstates)
+    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), Set{OXCAddDropBypassSpectrumLLI}(),linkspectrumavailabilities, linkstates)
 end
 
 function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, isexternal::Bool)
@@ -69,7 +70,7 @@ function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, is
     ov = default_OXCview(nodeproperties, spectrumslots)
     tms = default_transmissionmodules()
     if isexternal
-        return NodeView{typeof(rv), typeof(ov), eltype(tms)}(nodeproperties, nothing, nothing, nothing, nothing)
+        return NodeView{typeof(rv), typeof(ov), eltype(tms)}(nodeproperties, nothing, nothing, nothing, nothing, nothing)
     else
         return NodeView(nodeproperties, rv, ov, tms)
     end
