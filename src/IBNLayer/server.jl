@@ -66,13 +66,19 @@ export serve
         #body = JSON.parse(String(req.body))
 
         if context isa MINDF.IBNFramework
-            println("context is of type MINDF.IBNFramework")
-            ibnf :: MINDF.IBNFramework = context
+          println("context is of type MINDF.IBNFramework")
+          ibnf :: MINDF.IBNFramework = context
         elseif context isa Vector{MINDF.IBNFramework}
             println("context is of type Vector{MINDF.IBNFramework}")
             ibnfs :: Vector{MINDF.IBNFramework} = context
-            host = req.headers["Host"]
+            host = Dict(req.headers)["Host"]
             @show host
+            for ibnf_temp in ibnfs
+              if ibnf_temp.ibnfhandlers[1].base_url == "http://$host"
+                ibnf = ibnf_temp
+              end
+            end
+            @show ibnf.ibnfid
         else
             println("context is of an unexpected type: $(typeof(context))")
         end
@@ -106,7 +112,28 @@ export serve
 
     @post "/api/current_linkstate" function (req; context)
       #body = JSON.parse(String(req.body))
-      ibnf :: MINDF.IBNFramework = context
+      if context isa MINDF.IBNFramework
+          println("context is of type MINDF.IBNFramework")
+          ibnf :: MINDF.IBNFramework = context
+      elseif context isa Vector{MINDF.IBNFramework}
+          println("context is of type Vector{MINDF.IBNFramework}")
+          ibnfs :: Vector{MINDF.IBNFramework} = context
+          #@show req.headers
+          host = Dict(req.headers)["Host"]
+          @show host
+          # uri = HTTP.URI("http://$host")
+          # @show uri
+          # port = parse(Int, uri.port)
+          # @show port
+          for ibnf_temp in ibnfs
+            if ibnf_temp.ibnfhandlers[1].base_url == "http://$host"
+              ibnf = ibnf_temp
+            end
+          end
+          @show ibnf.ibnfid
+      else
+          println("context is of an unexpected type: $(typeof(context))")
+      end
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
       ge_data = parsed_body["global_edge"]
@@ -134,7 +161,23 @@ export serve
 
     @post "/api/compile_intent" function (req; context)
       
-      ibnf :: MINDF.IBNFramework = context
+      if context isa MINDF.IBNFramework
+          println("context is of type MINDF.IBNFramework")
+          ibnf :: MINDF.IBNFramework = context
+      elseif context isa Vector{MINDF.IBNFramework}
+          println("context is of type Vector{MINDF.IBNFramework}")
+          ibnfs :: Vector{MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          for ibnf_temp in ibnfs
+            if ibnf_temp.ibnfhandlers[1].base_url == "http://$host"
+              ibnf = ibnf_temp
+            end
+          end
+          @show ibnf.ibnfid
+      else
+          println("context is of an unexpected type: $(typeof(context))")
+      end
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
       idagnodeid = UUID(parsed_body["idagnodeid"])
@@ -177,7 +220,23 @@ export serve
           end
       end
       
-      ibnf :: MINDF.IBNFramework = context
+      if context isa MINDF.IBNFramework
+          println("context is of type MINDF.IBNFramework")
+          ibnf :: MINDF.IBNFramework = context
+      elseif context isa Vector{MINDF.IBNFramework}
+          println("context is of type Vector{MINDF.IBNFramework}")
+          ibnfs :: Vector{MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          for ibnf_temp in ibnfs
+            if ibnf_temp.ibnfhandlers[1].base_url == "http://$host"
+              ibnf = ibnf_temp
+            end
+          end
+          @show ibnf.ibnfid
+      else
+          println("context is of an unexpected type: $(typeof(context))")
+      end
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
       internalidagnodeid = UUID(parsed_body["internalidagnodeid"])
@@ -217,7 +276,23 @@ export serve
 
     @post "api/remoteintent_stateupdate" function (req; context)
       println("remoteintent_stateupdate")
-      ibnf :: MINDF.IBNFramework = context
+      if context isa MINDF.IBNFramework
+          println("context is of type MINDF.IBNFramework")
+          ibnf :: MINDF.IBNFramework = context
+      elseif context isa Vector{MINDF.IBNFramework}
+          println("context is of type Vector{MINDF.IBNFramework}")
+          ibnfs :: Vector{MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          for ibnf_temp in ibnfs
+            if ibnf_temp.ibnfhandlers[1].base_url == "http://$host"
+              ibnf = ibnf_temp
+            end
+          end
+          @show ibnf.ibnfid
+      else
+          println("context is of an unexpected type: $(typeof(context))")
+      end
       @show ibnf.ibnfid
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
