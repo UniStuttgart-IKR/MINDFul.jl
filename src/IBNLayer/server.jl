@@ -32,6 +32,7 @@ export serve
     end
 
     
+
     @swagger """
     /api/spectrum_availability:
       post:
@@ -79,6 +80,17 @@ export serve
               end
             end
             @show ibnf.ibnfid
+        elseif context isa Dict{Int, MINDF.IBNFramework}
+            println("context is of type Dict{Int, MINDF.IBNFramework}")
+            ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
+            host = Dict(req.headers)["Host"]
+            @show host
+            uri = HTTP.URI("http://$host")
+            @show uri
+            port = parse(Int, uri.port)
+            ibnf = ibnfs_dict[port]
+            
+            @show ibnf.ibnfid
         else
             println("context is of an unexpected type: $(typeof(context))")
         end
@@ -110,6 +122,7 @@ export serve
     end
 
 
+
     @post "/api/current_linkstate" function (req; context)
       #body = JSON.parse(String(req.body))
       if context isa MINDF.IBNFramework
@@ -130,6 +143,17 @@ export serve
               ibnf = ibnf_temp
             end
           end
+          @show ibnf.ibnfid
+      elseif context isa Dict{Int, MINDF.IBNFramework}
+          println("context is of type Dict{Int, MINDF.IBNFramework}")
+          ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          uri = HTTP.URI("http://$host")
+          @show uri
+          port = parse(Int, uri.port)
+          ibnf = ibnfs_dict[port]
+          
           @show ibnf.ibnfid
       else
           println("context is of an unexpected type: $(typeof(context))")
@@ -159,8 +183,9 @@ export serve
       end
     end
 
+
+
     @post "/api/compile_intent" function (req; context)
-      
       if context isa MINDF.IBNFramework
           println("context is of type MINDF.IBNFramework")
           ibnf :: MINDF.IBNFramework = context
@@ -174,6 +199,17 @@ export serve
               ibnf = ibnf_temp
             end
           end
+          @show ibnf.ibnfid
+      elseif context isa Dict{Int, MINDF.IBNFramework}
+          println("context is of type Dict{Int, MINDF.IBNFramework}")
+          ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          uri = HTTP.URI("http://$host")
+          @show uri
+          port = parse(Int, uri.port)
+          ibnf = ibnfs_dict[port]
+          
           @show ibnf.ibnfid
       else
           println("context is of an unexpected type: $(typeof(context))")
@@ -193,7 +229,6 @@ export serve
           end
       end
 
-
       compile_intent = MINDF.requestcompileintent_term!(remoteibnf_handler, ibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs)
       if !isnothing(compile_intent)
         return HTTP.Response(200, JSON.json(string(compile_intent)))
@@ -203,8 +238,9 @@ export serve
       
     end
 
-    @post "api/delegate_intent" function (req; context)
 
+
+    @post "api/delegate_intent" function (req; context)
       function reconvert_constraint(constraint)
           if constraint["type"] == "OpticalInitiateConstraint"
               return MINDF.OpticalInitiateConstraint(
@@ -234,6 +270,17 @@ export serve
             end
           end
           @show ibnf.ibnfid
+      elseif context isa Dict{Int, MINDF.IBNFramework}
+          println("context is of type Dict{Int, MINDF.IBNFramework}")
+          ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          uri = HTTP.URI("http://$host")
+          @show uri
+          port = parse(Int, uri.port)
+          ibnf = ibnfs_dict[port]
+          
+          @show ibnf.ibnfid
       else
           println("context is of an unexpected type: $(typeof(context))")
       end
@@ -262,7 +309,6 @@ export serve
               remoteibnf_handler = handler
           end
       end
-      
 
       delegate_intent = MINDF.requestdelegateintent_term!(remoteibnf_handler, ibnf, received_intent, internalidagnodeid)
       if !isnothing(delegate_intent)
@@ -272,6 +318,7 @@ export serve
       end
       
     end
+
 
 
     @post "api/remoteintent_stateupdate" function (req; context)
@@ -290,22 +337,26 @@ export serve
             end
           end
           @show ibnf.ibnfid
+      elseif context isa Dict{Int, MINDF.IBNFramework}
+          println("context is of type Dict{Int, MINDF.IBNFramework}")
+          ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          uri = HTTP.URI("http://$host")
+          @show uri
+          port = parse(Int, uri.port)
+          ibnf = ibnfs_dict[port]
+          
+          @show ibnf.ibnfid
       else
           println("context is of an unexpected type: $(typeof(context))")
       end
       @show ibnf.ibnfid
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      
       idagnodeid = UUID(parsed_body["idagnodeid"])
-
-
-      
       newstate = Symbol(parsed_body["newstate"])
       state = getfield(MINDF.IntentState, newstate)
-
-      
-
       @show state
 
       remoteibnf_handler = nothing
@@ -333,7 +384,7 @@ export serve
       else
         return HTTP.Response(404, "Not possible to update the intent state")
       end
-
+      
     end
 
     
@@ -347,7 +398,6 @@ export serve
     #println("Swagger documentation saved to swagger.json")
     # merge the SwaggerMarkdown schema with the internal schema
     OxygenInstance.mergeschema(swagger_document) 
-     
      
 
 end

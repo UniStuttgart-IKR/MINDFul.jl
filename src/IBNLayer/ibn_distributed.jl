@@ -35,7 +35,7 @@ function start_ibn_server(myibnf::IBNFramework)
         
 end
 
-function start_ibn_servers(ibnfs::Vector{IBNFramework})
+function start_ibn_servers(ibnfs::Vector{IBNFramework}, ibnfs_dict::Dict{Int, IBNFramework})
     for ibnf in ibnfs
         sel_handler = ibnf.ibnfhandlers[1]
         base_url = sel_handler.base_url
@@ -45,7 +45,7 @@ function start_ibn_servers(ibnfs::Vector{IBNFramework})
         @show ibnf.ibnfid, port
         println("Starting server on $ip_address:$port")
         try
-            Server.serve(port=port, async=true, context=ibnfs, serialize=false, swagger=true) 
+            Server.serve(port=port, async=true, context=ibnfs_dict, serialize=false, swagger=true) 
         catch e
             if isa(e, Base.IOError)
                 println("Server at $ip_address:$port is already running")

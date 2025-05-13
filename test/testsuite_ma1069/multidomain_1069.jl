@@ -113,8 +113,17 @@ catch e
         rethrow(e)  
     end
 end=#
+ibnfs_dict = Dict{Int, IBNFramework}()
+for ibnf in ibnfs 
+    sel_handler = ibnf.ibnfhandlers[1]
+    base_url = sel_handler.base_url
+    uri = HTTP.URI(base_url)
+    port = parse(Int, uri.port)
+    push!(ibnfs_dict, port => ibnf)
+end
+@show ibnfs_dict
 
-MINDF.start_ibn_servers(ibnfs)
+MINDF.start_ibn_servers(ibnfs, ibnfs_dict)
 
 
 
