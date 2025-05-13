@@ -64,7 +64,19 @@ export serve
     """    
     @post "/api/spectrum_availability" function (req; context)
         #body = JSON.parse(String(req.body))
-        ibnf :: MINDF.IBNFramework = context
+
+        if context isa MINDF.IBNFramework
+            println("context is of type MINDF.IBNFramework")
+            ibnf :: MINDF.IBNFramework = context
+        elseif context isa Vector{MINDF.IBNFramework}
+            println("context is of type Vector{MINDF.IBNFramework}")
+            ibnfs :: Vector{MINDF.IBNFramework} = context
+            host = req.headers["Host"]
+            @show host
+        else
+            println("context is of an unexpected type: $(typeof(context))")
+        end
+        
         body = HTTP.payload(req)
         parsed_body = JSON.parse(String(body))
         ge_data = parsed_body["global_edge"]
@@ -140,8 +152,8 @@ export serve
 
 
       compile_intent = MINDF.requestcompileintent_term!(remoteibnf_handler, ibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs)
-      if compile_intent == ReturnCodes.SUCCESS
-        return HTTP.Response(200, "Intent compiled successfully")
+      if !isnothing(compile_intent)
+        return HTTP.Response(200, JSON.json(string(compile_intent)))
       else
         return HTTP.Response(404, "Not possible to compile the intent")
       end
@@ -193,9 +205,9 @@ export serve
       end
       
 
-      delegate_intent = MINDF.requestdelegateintent_term!(ibnf, remoteibnf_handler, received_intent, internalidagnodeid)
+      delegate_intent = MINDF.requestdelegateintent_term!(remoteibnf_handler, ibnf, received_intent, internalidagnodeid)
       if !isnothing(delegate_intent)
-        return HTTP.Response(200, JSON.json(string(delegate_intent)))
+        return HTTP.Response(200, JSON.json(delegate_intent))
       else
           return HTTP.Response(404, "Delegation not worked")
       end
@@ -204,30 +216,45 @@ export serve
 
 
     @post "api/remoteintent_stateupdate" function (req; context)
-      
+      println("remoteintent_stateupdate")
       ibnf :: MINDF.IBNFramework = context
+      @show ibnf.ibnfid
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
       
       idagnodeid = UUID(parsed_body["idagnodeid"])
+
+
       
       newstate = Symbol(parsed_body["newstate"])
       state = getfield(MINDF.IntentState, newstate)
+
+      
 
       @show state
 
       remoteibnf_handler = nothing
       src_domain_id = UUID(parsed_body["src_domain"])
-      handlers = MINDF.getibnfhandlers(ibnf)
-      for handler in handlers
-          if MINDF.getibnfid(handler) == src_domain_id
-              remoteibnf_handler = handler
-          end
+      # handlers = MINDF.getibnfhandlers(ibnf)
+      # for handler in handlers
+      #     if MINDF.getibnfid(handler) == src_domain_id
+      #         remoteibnf_handler = handler
+      #     end
+      # end
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+
+      if idagnodeid == UUID(0xc) && MINDF.getibnfid(ibnf) == UUID(0x3) && state == MINDF.IntentState.Compiled
+        # This is a test case for the interdomain interface
+        # It should be removed in the future
+        println("TEST CASE QWERTY_SERVER")
+        
+        
       end
 
-      updated_state = MINDF.requestremoteintentstateupdate_term!(ibnf, remoteibnf_handler, idagnodeid, state)
+      updated_state = MINDF.requestremoteintentstateupdate_term!(remoteibnf_handler, ibnf, idagnodeid, state)
+      @show updated_state
       if !isnothing(updated_state)
-        return HTTP.Response(200, updated_state)
+        return HTTP.Response(200, JSON.json(updated_state))
       else
         return HTTP.Response(404, "Not possible to update the intent state")
       end

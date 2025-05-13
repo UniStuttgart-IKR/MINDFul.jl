@@ -102,7 +102,7 @@ catch e
     else
         rethrow(e)  
     end
-end
+end=#
 
 try
     MINDF.start_ibn_server(ibnfs[3]) #server3
@@ -112,16 +112,13 @@ catch e
     else
         rethrow(e)  
     end
-end=#
-
-MINDF.start_ibn_servers(ibnfs)
+end
 
 
 
-
-
+#=
 #"""Requesting complilation algorithms"""
-#@test MINDF.requestavailablecompilationalgorithms_init!(ibnfs[1], ibnfs[1].ibnfhandlers[2]) == ["kspff"]
+@test MINDF.requestavailablecompilationalgorithms_init!(ibnfs[1], ibnfs[1].ibnfhandlers[2]) == ["kspff"]
 
 # src_node = MINDF.getglobalnode(ibnfs[1].ibnag, 1) 
 #dst_node = MINDF.getglobalnode(ibnfs[1].ibnag, 6) 
@@ -143,3 +140,4 @@ respon = compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCom
 @show respon 
 #@test compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 #end
+=#

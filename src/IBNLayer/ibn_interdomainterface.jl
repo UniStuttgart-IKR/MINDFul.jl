@@ -23,7 +23,7 @@ $(TYPEDSIGNATURES)
 Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
-function requestspectrumavailability(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
     remoteibnag = getibnag(remoteibnf)
     nodeviewsrc = getnodeview(remoteibnag, src(ge))
     nodeviewdst = getnodeview(remoteibnag, dst(ge))
@@ -67,10 +67,10 @@ $(TYPEDSIGNATURES)
 Request the link state of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
-# function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
-#     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
-#     return requestcurrentlinkstate_term(myibnfhandler, remoteibnf, ge)
-# end
+function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestcurrentlinkstate_term(myibnfhandler, remoteibnf, ge)
+end
 
 """
 $(TYPEDSIGNATURES) 
@@ -167,12 +167,20 @@ $(TYPEDSIGNATURES)
 
 Return the id of the new dag node if successful and `nothing` otherwise
 """
-@recvtime function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
-    println("requestdelegateintent")
-    remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent; @passtime)
-    return getidagnodeid(remoteintentdagnode)
+@recvtime function requestdelegateintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    
+    return requestdelegateintent_term!(myibnfhandler, remoteibnf, intent, internalidagnodeid; @passtime)
+    
+    # println("requestdelegateintent")
+    # remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
+    # remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent; @passtime)
+    # return getidagnodeid(remoteintentdagnode)
 end
+
+
+
+
 
 """
 $(TYPEDSIGNATURES)
@@ -188,9 +196,9 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
 """
-#=@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
     requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; @passtime)
-end=#
+end
 
 """
 $(TYPEDSIGNATURES) 
@@ -200,7 +208,9 @@ The initiator domain `remoteibnf` asks this domain `myibnf` to compile the inter
 @recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    return compileintent!(myibnf, idagnodeid, compilationalgorithm; @passtime)
+    intent_return = compileintent!(myibnf, idagnodeid, compilationalgorithm; @passtime)
+    @show intent_return
+    return intent_return
 end
 
 """
@@ -277,18 +287,50 @@ Request the initiator `remoteibnf` to update the state of its mirrored remote in
 #     return oldstate != newstate
 # end
 
+@recvtime function requestremoteintentstateupdate_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
+    if idagnodeid == UUID(0xc) && getibnfid(remoteibnf) == UUID(0x3) && newstate == IntentState.Compiled
+        # This is a test case for the interdomain interface
+        # It should be removed in the future
+        println("TEST CASE QWERTY")
+        
+        
+    end
+    #println("TEST CASE ABCDEF")
+    
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    requestremoteintentstateupdate_term!(myibnfhandler, remoteibnf, idagnodeid, newstate; @passtime)
+end
+
 @recvtime function requestremoteintentstateupdate_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, newstate::IntentState.T)
+    if idagnodeid == UUID(0xc) && getibnfid(remoteibnfhandler) == UUID(0x3) && newstate == IntentState.Compiled
+        # This is a test case for the interdomain interface
+        # It should be removed in the future
+        println("TEST CASE QWERTYMD")
+        
+        
+    end
+    
     src_domain = string(myibnf.ibnfid)
     @show newstate
     resp = send_request(remoteibnfhandler, HTTPCodes.REMOTEINTENT_STATEUPDATE, Dict("idagnodeid" => string(idagnodeid), "src_domain" => src_domain, "newstate" => string(newstate)))
 
-    return resp.body
+    return Bool.(JSON.parse(String(resp.body)))
 end
 
-@recvtime function requestremoteintentstateupdate_term!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, newstate::IntentState.T)
+@recvtime function requestremoteintentstateupdate_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
     @show getidag(myibnf)
     @show idagnodeid
-    
+    @show myibnf.ibnfid
+    if idagnodeid == UUID(0xc) && getibnfid(myibnf) == UUID(0x3) && newstate == IntentState.Compiled
+        # This is a test case for the interdomain interface
+        # It should be removed in the future
+        println("TEST CASE QWERTY_TERM")
+        
+        
+    end
+    #println("TEST CASE ABCDEF")
+
+
     oldstate = getidagnodestate(getidag(myibnf), idagnodeid)
     if oldstate != newstate
         idagnode = getidagnode(getidag(myibnf), idagnodeid)
@@ -482,10 +524,11 @@ function requestdelegateintent_init!(myibnf::IBNFramework, remoteibnfhandler::Re
     @show serialized_intent
     resp = send_request(remoteibnfhandler, HTTPCodes.DELEGATE_INTENT, Dict("internalidagnodeid" => string(internalidagnodeid), "src_domain" => src_domain, "intent" => serialized_intent))
     uuid_returned = JSON.parse(String(resp.body))
-    return UUID(uuid_returned)
+    @show uuid_returned
+    return UUID(uuid_returned["value"])
 end
 
-function requestdelegateintent_term!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intent::AbstractIntent, internalidagnodeid::UUID)
+@recvtime function requestdelegateintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
     println("requestdelegateintent")
     @show typeof(internalidagnodeid)
     @show intent
@@ -493,9 +536,15 @@ function requestdelegateintent_term!(myibnf::IBNFramework, remoteibnfhandler::Re
         error("internalidagnodeid must be a UUID, got $(typeof(internalidagnodeid))")
     end
     remoteintent = RemoteIntent(getibnfid(remoteibnfhandler), internalidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent)
+    remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent; @passtime)
     @show getidagnodeid(remoteintentdagnode)
     return getidagnodeid(remoteintentdagnode)
+
+
+    
+    # remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
+    # remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent; @passtime)
+    # return getidagnodeid(remoteintentdagnode)
 end
 
 """
@@ -527,8 +576,8 @@ end=#
 function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
     src_domain = string(myibnf.ibnfid)
     resp = send_request(remoteibnfhandler, HTTPCodes.COMPILE_INTENT, Dict("src_domain" => src_domain, "idagnodeid" => string(idagnodeid), "compilationalgorithmkey" => string(compilationalgorithmkey), "compilationalgorithmargs" => JSON.json(compilationalgorithmargs)))
-    
-    return JSON.parse(String(resp.body))
+    @show return_compile_init = JSON.parse(String(resp.body))
+    return Symbol(return_compile_init)
     
 end
 

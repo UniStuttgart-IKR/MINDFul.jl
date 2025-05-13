@@ -84,7 +84,7 @@ end
     println(" ")
     @show ibnfs[i].ibnfhandlers
 end=#
-#=try
+try
     MINDF.start_ibn_server(ibnfs[1]) #server1
 catch e
     if isa(e, Base.IOError)
@@ -94,7 +94,7 @@ catch e
     end
 end
 
-try
+#=try
     MINDF.start_ibn_server(ibnfs[2]) #server2
 catch e
     if isa(e, Base.IOError)
@@ -102,8 +102,8 @@ catch e
     else
         rethrow(e)  
     end
-end
-
+end=#
+#=
 try
     MINDF.start_ibn_server(ibnfs[3]) #server3
 catch e
@@ -112,11 +112,8 @@ catch e
     else
         rethrow(e)  
     end
-end=#
-
-MINDF.start_ibn_servers(ibnfs)
-
-
+end
+=#
 
 
 

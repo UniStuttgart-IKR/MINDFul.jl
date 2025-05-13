@@ -10,6 +10,12 @@ function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::
     println("Sending request to $url")
     println("Headers: $headers")
     println("Body: $body")
+
+    
+    if endpoint == HTTPCodes.REMOTEINTENT_STATEUPDATE && getibnfid(remotehandler) == UUID(0x3) && data["idagnodeid"] == string(UUID(0xc)) && data["newstate"] == string(IntentState.Compiled) 
+        println("QWERTY_SEND_REQUEST")
+    end
+        
     response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
     #return response.status, JSON.parse(String(response.body)) 
     return response
@@ -23,10 +29,32 @@ function start_ibn_server(myibnf::IBNFramework)
     uri = HTTP.URI(base_url)
     ip_address = string(uri.host)
     port = parse(Int, uri.port)
-    
+    @show myibnf.ibnfid, port
     println("Starting server on $ip_address:$port")
     Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true) 
         
+end
+
+function start_ibn_servers(ibnfs::Vector{IBNFramework})
+    for ibnf in ibnfs
+        sel_handler = ibnf.ibnfhandlers[1]
+        base_url = sel_handler.base_url
+        uri = HTTP.URI(base_url)
+        ip_address = string(uri.host)
+        port = parse(Int, uri.port)
+        @show ibnf.ibnfid, port
+        println("Starting server on $ip_address:$port")
+        try
+            Server.serve(port=port, async=true, context=ibnfs, serialize=false, swagger=true) 
+        catch e
+            if isa(e, Base.IOError)
+                println("Server at $ip_address:$port is already running")
+            else
+                rethrow(e)  
+            end
+        end
+        
+    end
 end
 
 
