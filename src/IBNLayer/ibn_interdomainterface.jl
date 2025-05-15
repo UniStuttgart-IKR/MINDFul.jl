@@ -178,7 +178,7 @@ Return the id of the new dag node if successful and `nothing` otherwise
 """
 @recvtime function requestdelegateintent!(myibnf::IBNFramework, remoteibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
     remoteintent = RemoteIntent(getibnfid(myibnf), internalidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(remoteibnf), remoteintent; @passtime)
+    remoteintentdagnode = addidagnode!(remoteibnf, remoteintent; @passtime)
     return getidagnodeid(remoteintentdagnode)
 end
 
@@ -196,8 +196,8 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
 """
-@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
-    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; @passtime)
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
+    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; verbose, @passtime)
 end
 
 """
@@ -205,10 +205,10 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
-@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    return compileintent!(myibnf, idagnodeid, compilationalgorithm; @passtime)
+    return compileintent!(myibnf, idagnodeid, compilationalgorithm; verbose, @passtime)
 end
 
 """
@@ -341,7 +341,7 @@ $(TYPEDSIGNATURES)
 
 MA1069 implementation
 """
-function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, compilationalgorithm::Symbol=:default, compilationalgorithmkey::Tuple=())
+function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, compilationalgorithm::Symbol=:default, compilationalgorithmkey::Tuple=(); verbose::Bool = false)
     error("not implemented")
 end
 

@@ -89,6 +89,7 @@ oxcllifinishprevious4_1 = OXCAddDropBypassSpectrumLLI(22, vorletzteglobalsnode4,
 foreach(ibnfs) do ibnf
   TM.testlocalnodeisindex(ibnf)
   TM.testoxcfiberallocationconsistency(ibnf)
+  TM.testzerostaged(ibnf)
 end
 
 nothing

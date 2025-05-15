@@ -44,7 +44,7 @@ const FAIL_DSTROUTERPORT = :Fail_dstrouterport
 const FAIL_SRCTRANSMDL = :Fail_srctrnsmdl
 
 "Destination transmission module not found"
-const FAIL_DSTTRANSMDL = :Fail_srctrnsmdl
+const FAIL_DSTTRANSMDL = :Fail_dsttrnsmdl
 
 "Source OXC Add/Drop port not found"
 const FAIL_SRCOXCADDDROPPORT = :Fail_srcoxcadddropport

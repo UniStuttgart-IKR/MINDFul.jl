@@ -4,8 +4,7 @@ kk
 Add a new user intent to the IBN framework and return the id.
 """
 @recvtime function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
-    intentdag = getidag(ibnf)
-    idagnode =  addidagnode!(intentdag, intent; intentissuer)
+    idagnode =  addidagnode!(ibnf, intent; intentissuer)
     return getidagnodeid(idagnode)
 end
 
@@ -23,16 +22,16 @@ $(TYPEDSIGNATURES)
 @recvtime function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
     idagnode = getidagnode(getidag(ibnf), idagnodeid)
-    return compileintent!(ibnf, idagnode, algorithm; @passtime)
+    return compileintent!(ibnf, idagnode, algorithm; verbose, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm)
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
     if !getisinitiator(getintent(idagnode))
-        idagnodechild = addidagnode!(getidag(ibnf), getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
-        return compileintent!(ibnf, idagnodechild, algorithm; @passtime)
+        idagnodechild = addidagnode!(ibnf, getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+        return compileintent!(ibnf, idagnodechild, algorithm; verbose, @passtime)
     else
         return ReturnCodes.FAIL
     end
@@ -164,8 +163,7 @@ Stage lli as compiled in the equipment and add LLI in the intent DAG.
 Staged LLIs are not reserved but used to know that they will be in the future.
 """
 @recvtime function stageaddidagnode!(ibnf::IBNFramework, lli::LowLevelIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
-    idag = getidag(ibnf)
-    idagnode = addidagnode!(idag, lli; parentid, intentissuer, @passtime)
+    idagnode = addidagnode!(ibnf, lli; parentid, intentissuer, @passtime)
     stageunstageleafintent!(ibnf, lli, true)
 end
 
@@ -212,7 +210,7 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
     # add in DAG
-    internalidagnode = addidagnode!(getidag(ibnf), remoteintent; parentid=getidagnodeid(idagnode), intentissuer=MachineGenerated(), @passtime)
+    internalidagnode = addidagnode!(ibnf, remoteintent; parentid=getidagnodeid(idagnode), intentissuer=MachineGenerated(), @passtime)
     @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
 
     return internalidagnode

@@ -79,7 +79,8 @@ $(TYPEDSIGNATURES)
 
 Return the `IntentDAGNode`
 """
-@recvtime function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+@recvtime function addidagnode!(ibnf::IBNFramework, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+    intentdag = getidag(ibnf)
     intentcounter = increaseidagcounter!(intentdag)
     if intent isa LowLevelIntent
         idagnode = IntentDAGNode(intent, UUID(intentcounter), intentissuer, IntentLogState(IntentState.Compiled, @logtime))
@@ -94,6 +95,7 @@ Return the `IntentDAGNode`
     if !isnothing(parentid)
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
+        updateidagstates!(ibnf, parentid)
     end
 
     return idagnode
@@ -104,7 +106,8 @@ $(TYPEDSIGNATURES)
 
 Return the `UUID`
 """
-function addidagnode!(intentdag::IntentDAG, idagnode::IntentDAGNode; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+    intentdag = getidag(ibnf)
     intentcounter = increaseidagcounter!(intentdag)
 
     add_vertex!(intentdag)
@@ -114,6 +117,7 @@ function addidagnode!(intentdag::IntentDAG, idagnode::IntentDAGNode; parentid::U
     if !isnothing(parentid)
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
+        updateidagstates!(ibnf, parentid)
     end
 
     return getidagnodeid(idagnode)
@@ -161,6 +165,11 @@ Return value is true if state is changed.
         if currentstate != IntentState.Compiled
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
+        end
+    elseif all(==(IntentState.Uncompiled), childrenstates)
+        if currentstate != IntentState.Uncompiled
+            changedstate = true
+            pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end
     elseif all(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installed

@@ -43,6 +43,7 @@ prioritizesplitbordernodes(
     ibnf::IBNFramework,
     idagnode::IntentDAGNode{<:ConnectivityIntent},
     intentcompilationalgorithm::IntentCompilationAlgorithm;
+    verbose::Bool = false,
     intradomainalgfun::F1,
     externaldomainalgkeyword::Symbol,
     prioritizesplitnodes::F2 = prioritizesplitnodes_longestfirstshortestpath,
@@ -52,11 +53,13 @@ prioritizesplitbordernodes(
     destinationglobalnode = getdestinationnode(getintent(idagnode))
 
     returncode::Symbol = ReturnCodes.FAIL
+    verbose && @info("Compiling intent ", getidagnodeid(idagnode), getintent(idagnode))
 
     if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         # intra-domain
-        returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; @passtime)
+        returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
         if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
+            verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
             # uncompile
             @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
             # find shortest distance neighbor j
@@ -66,13 +69,15 @@ prioritizesplitbordernodes(
             isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
             # TODO single try. here there could be a loop
             splitglobalnode = first(candidatesplitglobalnodes)
-            returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; @passtime)
+            verbose && @info("Attenmpting splitting intent at GlobalNode", splitglobalnode)
+            returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; verbose, @passtime)
         end
         updateidagnodestates!(ibnf, idagnode)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
         # source intra-domain , destination cross-domain
         # border-node
         if isbordernode(ibnf, destinationglobalnode)
+            verbose && @info("Splitting at the border node")
             returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; @passtime)
         else
             # select border node
@@ -80,7 +85,8 @@ prioritizesplitbordernodes(
             isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
             # TODO single try. here there could be a loop
             destinationglobalbordernode = first(candidatedestinationglobalbordernodes)
-            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; @passtime)
+            verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
+            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; verbose, @passtime)
         end
     end
     return returncode
@@ -91,20 +97,20 @@ $(TYPEDSIGNATURES)
 
 Splits connectivity intent on `splitglobalnode`
 """
-@recvtime function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm,intradomainalgfun::F, splitglobalnode::GlobalNode;) where {F<:Function}
+@recvtime function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm,intradomainalgfun::F, splitglobalnode::GlobalNode; verbose::Bool = false) where {F<:Function}
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
     intent = getintent(idagnode)
     idag = getidag(ibnf)
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), getconstraints(intent))
-    firsthalfidagnode = addidagnode!(idag, firsthalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm)
+    firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose)
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
-    secondhalfidagnode = addidagnode!(idag, secondhalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm)
+    secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose)
     updateidagnodestates!(ibnf, secondhalfidagnode; @passtime)
     return returncode
 end
@@ -113,15 +119,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function splitandcompilecrossdomainconnectivityintent(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, externaldomainalgkeyword::Symbol, mediatorbordernode::GlobalNode) where {F<:Function}
+@recvtime function splitandcompilecrossdomainconnectivityintent(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, externaldomainalgkeyword::Symbol, mediatorbordernode::GlobalNode; verbose::Bool = false) where {F<:Function}
     idag = getidag(ibnf)
     intent = getintent(idagnode)
     returncode::Symbol = ReturnCodes.FAIL
 
     internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
 
-    internalidagnode = addidagnode!(idag, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, internalidagnode, intentcompilationalgorithm)
+    internalidagnode = addidagnode!(ibnf, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    returncode = intradomainalgfun(ibnf, internalidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, internalidagnode; @passtime)
 
     issuccess(returncode) || return returncode
@@ -129,7 +135,7 @@ $(TYPEDSIGNATURES)
     # need first to compile that to get the optical choice
     opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
     externalintent = ConnectivityIntent(mediatorbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
-    externalidagnode = addidagnode!(idag, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    externalidagnode = addidagnode!(ibnf, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
     remoteibnfid = getibnfid(getdestinationnode(intent))
     internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid; @passtime)
     # getintent brings in the internal RemoteIntent
@@ -138,7 +144,7 @@ $(TYPEDSIGNATURES)
     # compile internalremoteidagnode
     remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     # compilationaglorithmkeyword = getcompilationalgorithmkeyword(intentcompilationalgorithm)
-    returncode = requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, externaldomainalgkeyword, getdefaultcompilationalgorithmargs(Val(externaldomainalgkeyword)); @passtime)
+    returncode = requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, externaldomainalgkeyword, getdefaultcompilationalgorithmargs(Val(externaldomainalgkeyword)); verbose, @passtime)
 
     # check state of current internalremoteidagnode
     return returncode
@@ -312,7 +318,7 @@ chooseoxcadddropport(
     chooseoxcadddropport = chooseoxcadddropport_first,
     )
 
-    return @recvtime function(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
+    return @recvtime function(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm; verbose::Bool = false)
         # needed variables
         ibnag = getibnag(ibnf)
         idag = getidag(ibnf)
@@ -327,8 +333,8 @@ chooseoxcadddropport(
         demandrate = getrate(intent)
         constraints = getconstraints(intent)
 
+        verbose && @info("Compiling intradomain intent ", getidagnodeid(idagnode), getintent(idagnode))
         returncode::Symbol = ReturnCodes.FAIL
-
         candidatepaths = prioritizepaths(ibnf, idagnode, intentcompilationalgorithm)
 
         # TODO just add them all in the last bit
@@ -339,6 +345,7 @@ chooseoxcadddropport(
         if !isnothing(opticalinitiateconstraint)
             returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             for path in candidatepaths
+                verbose && @info("Testing path $(path)")
                 # find transmission module and mode
                 spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
                 if length(path) > 1
@@ -354,6 +361,8 @@ chooseoxcadddropport(
                 end
 
                 transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
+                verbose && @info("Solving for initial transmission module compatibility", transmissionmodulecompat)
+
                 sourceadddropport = nothing
                 opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
 
@@ -361,6 +370,7 @@ chooseoxcadddropport(
                 foreach(oxcadddropbypassspectrumllis) do lli
                     push!(lowlevelintentstoadd, lli)
                 end
+                verbose && @info("Picked OXC LLIs with initial constraints", spectrumslotsrange)
             
                 # successful source-path configuration
                 opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
@@ -372,18 +382,20 @@ chooseoxcadddropport(
                     return ReturnCodes.SUCCESS
                 else
                     opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end-1]
-                    return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; @passtime)
+                    return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
                 end
             end
         else
             returncode = ReturnCodes.FAIL_SRCROUTERPORT
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
             for sourcerouteridx in sourcerouteridxs
+                verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
                 sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouteridx)
                 push!(lowlevelintentstoadd, sourcerouterportlli)
 
                 returncode = ReturnCodes.FAIL_CANDIDATEPATHS
                 for path in candidatepaths
+                    verbose && @info("Testing path $(path)")
                     # find transmission module and mode
                     sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
                     returncode = ReturnCodes.FAIL_SRCTRANSMDL
@@ -411,6 +423,8 @@ chooseoxcadddropport(
                         end
 
                         sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx, sourcerouteridx, sourceadddropport)
+                        verbose && @info("Picking transmission module at source node", sourcetransmissionmodulelli)
+
                         push!(lowlevelintentstoadd, sourcetransmissionmodulelli)
 
                         opticalinitincomingnode = nothing
@@ -420,6 +434,7 @@ chooseoxcadddropport(
                         foreach(oxcadddropbypassspectrumllis) do lli
                             push!(lowlevelintentstoadd, lli)
                         end
+                        verbose && @info("Picked OXC LLIs at", spectrumslotsrange)
     
                         # successful source-path configuration
                         opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
@@ -432,7 +447,7 @@ chooseoxcadddropport(
                         else
                             # need to allocate a router port, a transmission module and mode, and an OXC configuration
                             opticalincomingnode = path[end-1]
-                            return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; @passtime)
+                            return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
                         end
                     end
                 end
@@ -495,7 +510,11 @@ chooseoxcadddropport(
     spectrumslotsrange::UnitRange{Int},
     prioritizerouterport::F1,
     prioritizetransmdlmode::F2,
-    chooseoxcadddropport::F3) where {F1<:Function, F2<:Function, F3<:Function}
+    chooseoxcadddropport::F3;
+    verbose::Bool = false) where {F1<:Function, F2<:Function, F3<:Function}
+
+    verbose && @info("Solving intent at the destination", getidagnodeid(idagnode))
+    
 
     ibnag = getibnag(ibnf)
     idag = getidag(ibnf)
