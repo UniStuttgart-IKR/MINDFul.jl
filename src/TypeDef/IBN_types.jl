@@ -5,7 +5,7 @@ Another intent state schema could be defined.
 """
 @enumx IntentState begin
     Uncompiled
-    Compiling
+    Pending
     Compiled
     Installed
     Failed

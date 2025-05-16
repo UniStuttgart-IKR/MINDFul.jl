@@ -80,7 +80,8 @@ $(TYPEDSIGNATURES)
 
 Return the `IntentDAGNode`
 """
-@recvtime function addidagnode!(intentdag::IntentDAG, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+@recvtime function addidagnode!(ibnf::IBNFramework, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+    intentdag = getidag(ibnf)
     intentcounter = increaseidagcounter!(intentdag)
     if intent isa LowLevelIntent
         idagnode = IntentDAGNode(intent, UUID(intentcounter), intentissuer, IntentLogState(IntentState.Compiled, @logtime))
@@ -95,6 +96,7 @@ Return the `IntentDAGNode`
     if !isnothing(parentid)
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
+        updateidagstates!(ibnf, parentid)
     end
 
     return idagnode
@@ -105,7 +107,8 @@ $(TYPEDSIGNATURES)
 
 Return the `UUID`
 """
-function addidagnode!(intentdag::IntentDAG, idagnode::IntentDAGNode; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+    intentdag = getidag(ibnf)
     intentcounter = increaseidagcounter!(intentdag)
 
     add_vertex!(intentdag)
@@ -115,6 +118,7 @@ function addidagnode!(intentdag::IntentDAG, idagnode::IntentDAGNode; parentid::U
     if !isnothing(parentid)
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
+        updateidagstates!(ibnf, parentid)
     end
 
     return getidagnodeid(idagnode)
@@ -123,7 +127,13 @@ end
 function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(intentdag, idagnodeid)
     rem_vertex!(intentdag, vertexidx)
-    deleteat!(getidagnodes(intentdag), vertexidx)
+    # Graphs.jl removing index swapps |V| with `vertexidx` and deletes last one.
+    idagnodes = getidagnodes(intentdag)
+    if length(idagnodes) == vertexidx
+        pop!(idagnodes)
+    else
+        idagnodes[vertexidx] = pop!(idagnodes)
+    end
     return ReturnCodes.SUCCESS
 end
 
@@ -157,10 +167,10 @@ Return value is true if state is changed.
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
         end
-    elseif any(==(IntentState.Compiled), childrenstates)
-        if currentstate != IntentState.Compiling
+    elseif all(==(IntentState.Uncompiled), childrenstates)
+        if currentstate != IntentState.Uncompiled
             changedstate = true
-            pushstatetoidagnode!(idagnode, IntentState.Compiling; @passtime)
+            pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end
     elseif all(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installed
@@ -171,6 +181,16 @@ Return value is true if state is changed.
         if currentstate != IntentState.Failed
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Failed; @passtime)
+        end
+    elseif any(==(IntentState.Pending), childrenstates)
+        if currentstate != IntentState.Pending
+            changedstate = true
+            pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
+        end
+    else
+        if currentstate != IntentState.Pending
+            changedstate = true
+            pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
         end
     end
     if changedstate
@@ -232,6 +252,34 @@ function _descendants_recu_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeid
     push!(vidxs, idagnodeidx)
     for chididx in Graphs.outneighbors(idag, idagnodeidx)
         _descendants_recu_idxs!(vidxs, idag, chididx; exclusive)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get all connected nodes of DAG `dag` starting from node `idagnodeid`. Return as node indices of the graph.
+"""
+function getidagnodeidxsconnected(idag::IntentDAG, idagnodeid::UUID;)
+    idxs = Vector{Int}()
+    vertexidx = getidagnodeidx(idag, idagnodeid)
+    for chididx in Graphs.outneighbors(idag, vertexidx)
+        _descendants_recu_connected_idxs!(idxs, idag, chididx)
+    end
+    for chididx in Graphs.inneighbors(idag, vertexidx)
+        _descendants_recu_connected_idxs!(idxs, idag, chididx)
+    end
+    return idxs
+end
+
+function _descendants_recu_connected_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeidx::Int)
+    idagnodeidx ∈ vidxs && return
+    push!(vidxs, idagnodeidx)
+    for chididx in Graphs.outneighbors(idag, idagnodeidx)
+        _descendants_recu_connected_idxs!(vidxs, idag, chididx)
+    end
+    for chididx in Graphs.inneighbors(idag, idagnodeidx)
+        _descendants_recu_connected_idxs!(vidxs, idag, chididx)
     end
 end
 

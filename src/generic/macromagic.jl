@@ -1,11 +1,29 @@
 """
 $(TYPEDSIGNATURES)
 
-Return a `return false` if the expression `ex` evaluates to false.
+Return a `return ReturnCodes.Fail` if the expression `ex` evaluates to false.
 If `verbose=true` print the statement and the location.
 If the expression passed is `true` do nothing.
 """
 macro returniffalse(verbose, ex)
+    return quote
+        if !($(esc(ex)))
+            if $(esc(verbose))
+                println("False expression in", $(string(__source__.file)), ':', $(__source__.line), " --> ", $(string(ex)))
+            end
+            return ReturnCodes.FAIL
+        end
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return a `return false` if the expression `ex` evaluates to false.
+If `verbose=true` print the statement and the location.
+If the expression passed is `true` do nothing.
+"""
+macro returnfalseiffalse(verbose, ex)
     return quote
         if !($(esc(ex)))
             if $(esc(verbose))

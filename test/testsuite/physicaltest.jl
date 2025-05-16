@@ -22,7 +22,7 @@
         RUNJET && @test_opt target_modules=[MINDF] canreserve(sdndummy, reservableresource, lli)
 
         RUNJET && @test_opt target_modules=[MINDF] reserve!(sdndummy, reservableresource, lli, dagnodeid1; verbose = true)
-        @test reserve!(sdndummy, reservableresource, lli, dagnodeid1; verbose = true)
+        @test issuccess(reserve!(sdndummy, reservableresource, lli, dagnodeid1; verbose = true))
         if lli isa OXCAddDropBypassSpectrumLLI
             @test !any(getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)][2:4])
             @test !any(getlinkspectrumavailabilities(oxcview1)[Edge(1, 6)][2:4])
@@ -34,7 +34,7 @@
         @test first(reservations) == (dagnodeid1 => lli)
 
         RUNJET && @test_opt target_modules=[MINDF] unreserve!(sdndummy, reservableresource, dagnodeid1)
-        @test unreserve!(sdndummy, reservableresource, dagnodeid1)
+        @test issuccess(unreserve!(sdndummy, reservableresource, dagnodeid1))
         if lli isa OXCAddDropBypassSpectrumLLI
             @test all(getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)])
             @test all(getlinkspectrumavailabilities(oxcview1)[Edge(1, 6)])
@@ -43,21 +43,21 @@
         @test length(getreservations(reservableresource)) == 0
     end
 
-    @test reserve!(sdndummy, oxcview1, oxclli1, dagnodeid1; checkfirst = true)
-    @test !reserve!(sdndummy, oxcview1, OXCAddDropBypassSpectrumLLI(1, 4, 0, 6, 5:6), dagnodeid1; checkfirst = true)
-    @test reserve!(sdndummy, oxcview1, OXCAddDropBypassSpectrumLLI(1, 4, 0, 6, 5:6), UUID(2); checkfirst = true)
+    @test issuccess(reserve!(sdndummy, oxcview1, oxclli1, dagnodeid1; checkfirst = true))
+    @test !issuccess(reserve!(sdndummy, oxcview1, OXCAddDropBypassSpectrumLLI(1, 4, 0, 6, 5:6), dagnodeid1; checkfirst = true))
+    @test issuccess(reserve!(sdndummy, oxcview1, OXCAddDropBypassSpectrumLLI(1, 4, 0, 6, 5:6), UUID(2); checkfirst = true))
     @test !any(getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)][2:6])
     @test getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)][1]
     @test all(getlinkspectrumavailabilities(oxcview1)[Edge(4, 1)][7:end])
 
     # allocate also nodes 4 and 6 for OXClli to have a consistent OXC-level state
     # go from 4 to 1
-    @test reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[4]), OXCAddDropBypassSpectrumLLI(4, 0, 1, 1, 2:4), UUID(3); checkfirst = true)
-    @test reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[4]), OXCAddDropBypassSpectrumLLI(4, 0, 2, 1, 5:6), UUID(4); checkfirst = true)
+    @test issuccess(reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[4]), OXCAddDropBypassSpectrumLLI(4, 0, 1, 1, 2:4), UUID(3); checkfirst = true))
+    @test issuccess(reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[4]), OXCAddDropBypassSpectrumLLI(4, 0, 2, 1, 5:6), UUID(4); checkfirst = true))
 
     # go from 1 to 6
-    @test reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[6]), OXCAddDropBypassSpectrumLLI(6, 1, 1, 0, 2:4), UUID(5); checkfirst = true)
-    @test reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[6]), OXCAddDropBypassSpectrumLLI(6, 1, 2, 0, 5:6), UUID(6); checkfirst = true)
+    @test issuccess(reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[6]), OXCAddDropBypassSpectrumLLI(6, 1, 1, 0, 2:4), UUID(5); checkfirst = true))
+    @test issuccess(reserve!(sdndummy, getoxcview(AG.vertex_attr(ibnag1)[6]), OXCAddDropBypassSpectrumLLI(6, 1, 2, 0, 5:6), UUID(6); checkfirst = true))
 
     # now test the intent workflow
     # reinitialize domain

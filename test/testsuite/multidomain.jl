@@ -63,6 +63,7 @@ TM.testuncompilation(ibnfs[1], intentuuid_neigh)
  
 foreach(ibnfs) do ibnf
     TM.testoxcfiberallocationconsistency(ibnf)
+    TM.testzerostaged(ibnf)
 end
 
 end

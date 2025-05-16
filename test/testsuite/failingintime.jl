@@ -107,16 +107,25 @@ offsettime += Hour(1)
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_border_fail)])
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(remoteibnf_border), remoteintentid_border)])
 
-# TODO test simulated time offset
 borderedgelinkstates = getlinkstates(ibnfs[1], borderedge; checkfirst=true)
 @test all(getindex.(borderedgelinkstates[2:end], 1) .- getindex.(borderedgelinkstates[1:end-1], 1) .>= Hour(1))
 intentuuid_border_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_border_fail)), 1)
-@test length(intentuuid_border_fail_timelog) == 6
+@test length(intentuuid_border_fail_timelog) == 8
 @test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2) 
 intentuuid_border_fail_timelog_remote =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(remoteibnf_border), remoteintentid_border)), 1)
-@test length(intentuuid_border_fail_timelog_remote) == 5
+@test length(intentuuid_border_fail_timelog_remote) == 6
 @test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) 
 
+# uninstall, remove all
+@test uninstallintent!(ibnfs[1], intentuuid_border_fail; verbose=true) == ReturnCodes.SUCCESS
+TM.testuninstallation(ibnfs[1], intentuuid_border_fail; withremote=true)
+@test uninstallintent!(ibnfs[1], intentuuid_border; verbose=true) == ReturnCodes.SUCCESS
+TM.testuninstallation(ibnfs[1], intentuuid_border; withremote=true)
+
+@test uncompileintent!(ibnfs[1], intentuuid_border_fail; verbose=true) == ReturnCodes.SUCCESS
+TM.testuncompilation(ibnfs[1], intentuuid_border_fail)
+@test uncompileintent!(ibnfs[1], intentuuid_border; verbose=true) == ReturnCodes.SUCCESS
+TM.testuncompilation(ibnfs[1], intentuuid_border)
 
 # External link is failing (ibnfs[3])
 externaledge = Edge(23, 15)
@@ -143,6 +152,17 @@ let
     logord = getlogicallliorder(remoteibnf_external, remoteintentid_external, onlyinstalled=false)
     @test externaledge ∉ edgeify(logicalordergetpath(logord))
 end
+
+# uninstall, remove all
+@test uninstallintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
+TM.testuninstallation(ibnfs[1], intentuuid_external_fail; withremote=true)
+@test uninstallintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
+TM.testuninstallation(ibnfs[1], intentuuid_external; withremote=true)
+
+@test uncompileintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
+TM.testuncompilation(ibnfs[1], intentuuid_external_fail)
+@test uncompileintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
+TM.testuncompilation(ibnfs[1], intentuuid_external)
 
 nothing
 end

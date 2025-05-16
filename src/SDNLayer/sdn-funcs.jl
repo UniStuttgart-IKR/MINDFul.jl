@@ -5,7 +5,7 @@ $(TYPEDSIGNATURES)
 Implement this function to do custom actions per specific `ReservableResourceView`
 """
 function insertreservationhook!(sdn::AbstractSDNController, resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool = false)
-    return true
+    return ReturnCodes.SUCCESS
 end
 
 """
@@ -14,25 +14,25 @@ $(TYPEDSIGNATURES)
 Implement this function to do custom actions per specific `ReservableResourceView`
 """
 function deletereservationhook!(sdn::AbstractSDNController, resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool = false)
-    return true
+    return ReturnCodes.SUCCESS
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function insertreservation!(sdn::AbstractSDNController, resourceview::ReservableResourceView, dagnodeid::UUID, reservationdescription; verbose::Bool = false)
-    insertreservationhook!(sdn, resourceview, dagnodeid, reservationdescription; verbose) || return false
+    issuccess(insertreservationhook!(sdn, resourceview, dagnodeid, reservationdescription; verbose)) || return ReturnCodes.FAIL
     reservationsdict = getreservations(resourceview)
     @returniffalse(verbose, !haskey(reservationsdict, dagnodeid))
     reservationsdict[dagnodeid] = reservationdescription
-    return true
+    return ReturnCodes.SUCCESS
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function deletereservation!(sdn::AbstractSDNController, resourceview::ReservableResourceView, dagnodeid::UUID; verbose)
-    deletereservationhook!(sdn, resourceview, dagnodeid; verbose) || return false
+    issuccess(deletereservationhook!(sdn, resourceview, dagnodeid; verbose)) || return ReturnCodes.FAIL
     reservationsdict = something(getreservations(resourceview))
     return delete!(reservationsdict, dagnodeid)
 end
@@ -41,7 +41,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function reserve!(sdn::AbstractSDNController, resourceview::ReservableResourceView, lowlevelintent::LowLevelIntent, dagnodeid::UUID; checkfirst::Bool = true, verbose::Bool = false)
-    checkfirst && !canreserve(sdn, resourceview, lowlevelintent; verbose) && return false
+    checkfirst && !canreserve(sdn, resourceview, lowlevelintent; verbose) && return ReturnCodes.FAIL
     return insertreservation!(sdn, resourceview, dagnodeid, lowlevelintent; verbose)
 end
 
@@ -50,7 +50,7 @@ $(TYPEDSIGNATURES)
 """
 function unreserve!(sdn::AbstractSDNController, resourceview::ReservableResourceView, dagnodeid::UUID; verbose::Bool = false)
     deletereservation!(sdn, resourceview, dagnodeid; verbose)
-    return true
+    return ReturnCodes.SUCCESS
 end
 
 # specific behabior
@@ -64,9 +64,9 @@ Set `verbose=true` to see where the reservation fails
 """
 function canreserve(sdn::AbstractSDNController, routerview::RouterView, routerportlli::RouterPortLLI; verbose::Bool = false)
     # router port exist?
-    @returniffalse(verbose, getrouterportindex(routerportlli) <= getportnumber(routerview))
+    @returnfalseiffalse(verbose, getrouterportindex(routerportlli) <= getportnumber(routerview))
     # router port in use?
-    @returniffalse(verbose, getrouterportindex(routerportlli) ∉ getrouterportindex.(values(getreservations(routerview))))
+    @returnfalseiffalse(verbose, getrouterportindex(routerportlli) ∉ getrouterportindex.(values(getreservations(routerview))))
     return true
 end
 
@@ -99,15 +99,15 @@ Check whether
 Set `verbose=true` to see where the reservation fails
 """
 function canreserve(sdn::AbstractSDNController, oxcview::OXCView, oxcswitchreservationentry::OXCAddDropBypassSpectrumLLI; verbose::Bool = false)
-    @returniffalse(verbose, isreservationvalid(oxcswitchreservationentry))
-    @returniffalse(verbose, getadddropport(oxcswitchreservationentry) <= getadddropportnumber(oxcview))
+    @returnfalseiffalse(verbose, isreservationvalid(oxcswitchreservationentry))
+    @returnfalseiffalse(verbose, getadddropport(oxcswitchreservationentry) <= getadddropportnumber(oxcview))
     # further check the spectrum
     for registeredoxcswitchentry in values(getreservations(oxcview))
         if getlocalnode_input(registeredoxcswitchentry) == getlocalnode_input(oxcswitchreservationentry) &&
                 getadddropport(registeredoxcswitchentry) == getadddropport(oxcswitchreservationentry) &&
                 getlocalnode_output(registeredoxcswitchentry) == getlocalnode_output(oxcswitchreservationentry)
             spectrumslotintersection = intersect(getspectrumslotsrange(registeredoxcswitchentry), getspectrumslotsrange(oxcswitchreservationentry))
-            @returniffalse(verbose, length(spectrumslotintersection) <= 0)
+            @returnfalseiffalse(verbose, length(spectrumslotintersection) <= 0)
         end
     end
     return true
@@ -125,11 +125,11 @@ function canreserve(sdn::AbstractSDNController, nodeview::NodeView, transmission
     reserve2do_transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(transmissionmodulelli)
 
     # is the transmission module already in use ?
-    @returniffalse(verbose, reserve2do_transmissionmoduleviewpoolindex ∉ gettransmissionmoduleviewpoolindex.(transmissionmodulereservations))
+    @returnfalseiffalse(verbose, reserve2do_transmissionmoduleviewpoolindex ∉ gettransmissionmoduleviewpoolindex.(transmissionmodulereservations))
     # does the transmission module exist ?
-    @returniffalse(verbose, reserve2do_transmissionmoduleviewpoolindex <= length(transmissionmoduleviewpool))
+    @returnfalseiffalse(verbose, reserve2do_transmissionmoduleviewpoolindex <= length(transmissionmoduleviewpool))
     ## is transmissionmodesindex available ?
-    @returniffalse(verbose, gettransmissionmodesindex(transmissionmodulelli) <= length(gettransmissionmodes(transmissionmoduleviewpool[reserve2do_transmissionmoduleviewpoolindex])))
+    @returnfalseiffalse(verbose, gettransmissionmodesindex(transmissionmodulelli) <= length(gettransmissionmodes(transmissionmoduleviewpool[reserve2do_transmissionmoduleviewpoolindex])))
 
     return true
 end

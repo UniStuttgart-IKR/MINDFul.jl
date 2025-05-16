@@ -4,6 +4,8 @@ using DocStringExtensions, UUIDs, Graphs
 import MINDFul as MINDF
 import AttributeGraphs as AG
 
+import MINDFul: getibnag, getoxcview, getrouterview, getstaged, NodeView
+
 # weak dependencies
 using Test, JET
 
@@ -250,6 +252,19 @@ function getfirstremoteintent(ibnf::MINDF.IBNFramework, idagnodeid::UUID)
     MINDF.getibnfid(remoteintent), MINDF.getidagnodeid(remoteintent)
 end
 
+function testzerostaged(ibnf::MINDF.IBNFramework)
+    for nodeview in MINDF.getintranodeviews(getibnag(ibnf))
+        @test isempty(getstaged(nodeview))
+        @test isempty(getstaged(getoxcview(nodeview)))
+        @test isempty(getstaged(getrouterview(nodeview)))
+    end
+end
+
+function testzerostaged(nodeview::NodeView)
+    @test isempty(getstaged(nodeview))
+    @test isempty(getstaged(getoxcview(nodeview)))
+    @test isempty(getstaged(getrouterview(nodeview)))
+end
 
 end
 

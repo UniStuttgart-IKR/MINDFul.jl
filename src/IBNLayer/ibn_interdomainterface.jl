@@ -20,6 +20,20 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request intent dag information
+"""
+function requestidag_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestidag_term(myibnfhandler, remoteibnf)
+end
+
+function requestidag_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
+    return getidag(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
@@ -196,8 +210,8 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
 """
-@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
-    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; @passtime)
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
+    requestcompileintent_term!(myibnf, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; verbose, @passtime)
 end
 
 """
@@ -205,10 +219,10 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
-@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    intent_return = compileintent!(myibnf, idagnodeid, compilationalgorithm; @passtime)
+    intent_return = compileintent!(myibnf, idagnodeid, compilationalgorithm; verbose, @passtime)
     @show intent_return
     return intent_return
 end
@@ -255,10 +269,10 @@ $(TYPEDSIGNATURES)
     uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
     if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
-        return removeintent!(myibnf, idagnodeid; verbose)
-    else
-        return false
+        removeintent!(myibnf, idagnodeid; verbose)
+        return ReturnCodes.SUCCESS
     end
+    return uncompiledflag
 end
 
 """
@@ -345,7 +359,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 If far away, think about authorization and permissions.
 That's the reason why there are 2 arguments: The first argument should have the authorization.
 """
@@ -360,9 +374,15 @@ function requestibnattributegraph_term!(myibnf::IBNFramework, remoteibnfhandler:
 end
 
 """
+MA1069 implementation
+"""
+function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+    error("not implemented")
+end
+"""
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 
 Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
@@ -462,7 +482,7 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 
 Delegates an intent to another domain
 
@@ -536,7 +556,8 @@ end
         error("internalidagnodeid must be a UUID, got $(typeof(internalidagnodeid))")
     end
     remoteintent = RemoteIntent(getibnfid(remoteibnfhandler), internalidagnodeid, intent, false)
-    remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent; @passtime)
+    #remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent; @passtime)
+    remoteintentdagnode = addidagnode!(myibnf, remoteintent; @passtime)
     @show getidagnodeid(remoteintentdagnode)
     return getidagnodeid(remoteintentdagnode)
 
@@ -550,7 +571,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Fabian Gobantes implementation
+MA1069 implementation
 """
 function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
 
@@ -568,12 +589,12 @@ end
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 """
 #=function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, compilationalgorithm::Symbol=:default, compilationalgorithmkey::Tuple=())
     error("not implemented")
 end=#
-function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=())
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     src_domain = string(myibnf.ibnfid)
     resp = send_request(remoteibnfhandler, HTTPCodes.COMPILE_INTENT, Dict("src_domain" => src_domain, "idagnodeid" => string(idagnodeid), "compilationalgorithmkey" => string(compilationalgorithmkey), "compilationalgorithmargs" => JSON.json(compilationalgorithmargs)))
     @show return_compile_init = JSON.parse(String(resp.body))
@@ -583,7 +604,7 @@ end
 
 """
 $(TYPEDSIGNATURES) 
-Fabian Gobantes implementation
+MA1069 implementation
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
@@ -595,7 +616,7 @@ end=#
 """
 $(TYPEDSIGNATURES) 
 
-Fabian Gobantes implementation
+MA1069 implementation
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """

@@ -1,4 +1,5 @@
 include("ibn_getset.jl")
+include("ibn_helpers.jl")
 include("ibn_interdomainterface.jl")
 include("ibn_funcs.jl")
 include("ibn_dag.jl")

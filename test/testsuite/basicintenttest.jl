@@ -36,6 +36,7 @@
     @test nv(getidag(ibnf1)) == 0
 
     TM.testoxcfiberallocationconsistency(ibnf1)
+    TM.testzerostaged(ibnf1)
 end
 
 # nothing

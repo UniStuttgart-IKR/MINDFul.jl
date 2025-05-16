@@ -63,7 +63,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffcomp::KShorestPathFirstFitCompilation)
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffcomp::KShorestPathFirstFitCompilation; verbose::Bool = false)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_shortest,
         prioritizerouterport = prioritizerouterports_first,
@@ -72,6 +72,7 @@ $(TYPEDSIGNATURES)
         chooseoxcadddropport = chooseoxcadddropport_first,
     )
     compileintenttemplate!(ibnf, idagnode, kspffcomp;
+        verbose,
         intradomainalgfun = intradomaincompilationalg,
         externaldomainalgkeyword = getcompilationalgorithmkeyword(kspffcomp),
         prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,

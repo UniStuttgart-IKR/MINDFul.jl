@@ -58,6 +58,15 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Get the handler of the given IBNFramework.
+"""
+function getibnfhandler(s::IBNFramework)
+    return s
+end
+
+"""
+$(TYPEDSIGNATURES)
 """
 function getidagcounter(intentdaginfo::IntentDAGInfo)
     return intentdaginfo.intentcounter
@@ -82,6 +91,13 @@ $(TYPEDSIGNATURES)
 """
 function getlogstate(idagnode::IntentDAGNode)
     return idagnode.logstate
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getintentissuer(idagnode::IntentDAGNode)
+    return idagnode.intentissuer
 end
 
 """
