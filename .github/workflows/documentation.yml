@@ -3,7 +3,7 @@ name: Documentation
 on:
   push:
     branches:
-      - ma1069 # update to match your development branch (master, main, dev, trunk, ...)
+      - 'ma1069' # update to match your development branch (master, main, dev, trunk, ...)
     tags: '*'
   pull_request:
 
