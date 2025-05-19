@@ -78,6 +78,44 @@ end
 """
 $(TYPEDSIGNATURES) 
 
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestglobalnodeelectricalpresence_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestglobalnodeelectricalpresence_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodeelectricalpresence = logicalordergetelectricalpresence(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodepaelectricalpresence = map(ln -> getglobalnode(getibnag(myibnf), ln), localnodeelectricalpresence)
+    return globalnodepaelectricalpresence
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestintentgloballightpaths_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestintentgloballightpaths_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodelightpaths = logicalordergetlightpaths(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodelightpaths = [map(ln -> getglobalnode(getibnag(myibnf), ln), localnodelightpath) for localnodelightpath in localnodelightpaths]
+    return globalnodelightpaths
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
 Request the link state of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """

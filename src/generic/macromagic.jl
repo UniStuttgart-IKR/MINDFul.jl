@@ -60,8 +60,7 @@ It basically passes `(; offsettime)`
 This strategy calls `now()` every time before passing the arguments.
 If that proves to slow down the implementation consider to pass `offsettime, entrytime` around and calcualte @logtime once in the end.
 Another caveat is that the communication overhead between domains is not measured.
-Finally this technique is well suited for simulations, but cannot work good for real time applications.
-An `offsetime=nothing` could be implemented to handle real-time applications.
+An `offsetime=nothing` logs the time of the current system.
 """
 macro passtime() 
     # return :((; $(esc(:offsettime)) = @logtime )...)

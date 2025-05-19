@@ -164,5 +164,11 @@ TM.testuncompilation(ibnfs[1], intentuuid_external_fail)
 @test uncompileintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_external)
 
+# test bordernodes have the same logs
+
+for ibnf in ibnfs
+    TM.testedgeoxclogs(ibnf)
+end
+
 nothing
 end

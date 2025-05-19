@@ -304,6 +304,9 @@ function logicalordercontainsedge(lo::Vector{<:LowLevelIntent}, edge::Edge)
     return false
 end
 
+"""
+    Return a Vector{Int} with the path given from the logical low level intent order
+"""
 function logicalordergetpath(lo::Vector{<:LowLevelIntent})
     function validnextinsert(nd, p)
         return !iszero(nd) && 
@@ -323,4 +326,22 @@ function logicalordergetpath(lo::Vector{<:LowLevelIntent})
     end
 
     return path
+end
+
+"""
+    Return a Vector{Vector{Int}} being the lightpaths from the logical low level intent order
+"""
+function logicalordergetlightpaths(lo::Vector{<:LowLevelIntent})
+    # find consequetive OXCLLis and pass them to `logicalordergetpaths`
+    oxcblocks = findconsecutiveblocks(x -> x isa OXCAddDropBypassSpectrumLLI, lo)
+    return [logicalordergetpath(lo[oxcblock[1]:oxcblock[2]]) for oxcblock in oxcblocks]
+end
+
+"""
+    Return a Vector{Int} being the nodes that process electrically the signal
+"""
+function logicalordergetelectricalpresence(lo::Vector{<:LowLevelIntent})
+    # find consequetive OXCLLis and pass them to `logicalordergetpaths`
+    routerllis = filter(x -> x isa RouterPortLLI, lo)
+    return unique(getlocalnode.(routerllis))
 end

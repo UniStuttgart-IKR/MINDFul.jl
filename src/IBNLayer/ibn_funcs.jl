@@ -377,8 +377,6 @@ end
 """
 $(TYPEDSIGNATURES)
 Set the link state on both OXCView ends of `edge`
-TODO: with recvtime
-TODO: toggle OXCLLI to failed
 """
 @recvtime function setlinkstate!(ibnf::IBNFramework, edge::Edge, operatingstate::Bool)
     ibnag = getibnag(ibnf)

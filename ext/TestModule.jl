@@ -4,7 +4,7 @@ using DocStringExtensions, UUIDs, Graphs
 import MINDFul as MINDF
 import AttributeGraphs as AG
 
-import MINDFul: getibnag, getoxcview, getrouterview, getstaged, NodeView
+import MINDFul: getibnag, getoxcview, getrouterview, getstaged, NodeView, getglobalnode, isbordernode, requestlinkstates_init, GlobalEdge, getnodeview, getlinkstates, getibnfhandler, getibnfid, IBNFramework
 
 # weak dependencies
 using Test, JET
@@ -264,6 +264,29 @@ function testzerostaged(nodeview::NodeView)
     @test isempty(getstaged(nodeview))
     @test isempty(getstaged(getoxcview(nodeview)))
     @test isempty(getstaged(getrouterview(nodeview)))
+end
+
+function testedgeoxclogs(ibnf::IBNFramework)
+    ibnag = getibnag(ibnf)
+    for ed in edges(ibnag)
+        srcglobalnode = getglobalnode(ibnag, src(ed))
+        dstglobalnode = getglobalnode(ibnag, dst(ed))
+        if isbordernode(ibnf, srcglobalnode) 
+            ibnfhandler = getibnfhandler(ibnf, getibnfid(srcglobalnode))
+            edgestatesrc = requestlinkstates_init(ibnf, ibnfhandler, GlobalEdge(srcglobalnode, dstglobalnode))
+        else
+            edgestatesrc = getlinkstates(getoxcview(getnodeview(ibnf, src(ed))), ed)
+        end
+
+        if isbordernode(ibnf, dstglobalnode)
+            ibnfhandler = getibnfhandler(ibnf, getibnfid(dstglobalnode))
+            edgestatedst = requestlinkstates_init(ibnf, ibnfhandler, GlobalEdge(srcglobalnode, dstglobalnode))
+        else
+            edgestatedst = getlinkstates(getoxcview(getnodeview(ibnf, dst(ed))), ed)
+        end
+
+        @test getindex.(edgestatesrc, 2) == getindex.(edgestatedst, 2)
+    end
 end
 
 end
