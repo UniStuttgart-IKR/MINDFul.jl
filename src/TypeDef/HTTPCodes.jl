@@ -23,6 +23,6 @@ const DELEGATE_INTENT = "/api/delegate_intent"
 
 const REMOTEINTENT_STATEUPDATE = "/api/remoteintent_stateupdate"
 
-
+const IS_SATISFIED = "/api/requestissatisfied"
 
 end

@@ -5,6 +5,7 @@ Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 MINDFul = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
@@ -15,6 +16,5 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 
 [sources]
-MINDFul = {path="../.."}
-MINDFulMakie = {url="https://github.com/UniStuttgart-IKR/MINDFulMakie.jl", rev="rewrite"}
-
+MINDFul = {path = "../.."}
+MINDFulMakie = {url = "https://github.com/UniStuttgart-IKR/MINDFulMakie.jl"}

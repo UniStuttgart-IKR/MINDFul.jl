@@ -619,9 +619,15 @@ $(TYPEDSIGNATURES)
 MA1069 implementation
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
-"""
-function requestissatisfied(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnode::IntentDAGNode; onlyinstalled::Bool, noextrallis::Bool)
-    error("not implemented")
+""" #before, here it was idagnode::IntentDAGNode, i dont know if it was an error
+function requestissatisfied(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
+    src_domain = string(myibnf.ibnfid)
+    resp = send_request(remoteibnfhandler, HTTPCodes.IS_SATISFIED, Dict("src_domain" => src_domain, "idagnodeid" => string(idagnodeid), "onlyinstalled" => onlyinstalled, "noextrallis" => noextrallis))
+    return JSON.parse(String(resp.body))
+end
+
+function requestissatisfied_term!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
+    return issatisfied(myibnf, idagnodeid; onlyinstalled, noextrallis)
 end
 
 

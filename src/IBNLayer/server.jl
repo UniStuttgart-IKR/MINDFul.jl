@@ -361,12 +361,6 @@ export serve
 
       remoteibnf_handler = nothing
       src_domain_id = UUID(parsed_body["src_domain"])
-      # handlers = MINDF.getibnfhandlers(ibnf)
-      # for handler in handlers
-      #     if MINDF.getibnfid(handler) == src_domain_id
-      #         remoteibnf_handler = handler
-      #     end
-      # end
       remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
 
       if idagnodeid == UUID(0xc) && MINDF.getibnfid(ibnf) == UUID(0x3) && state == MINDF.IntentState.Compiled
@@ -383,6 +377,70 @@ export serve
         return HTTP.Response(200, JSON.json(updated_state))
       else
         return HTTP.Response(404, "Not possible to update the intent state")
+      end
+      
+    end
+
+    @post "api/requestissatisfied" function (req; context)
+      println("requestissatisfied")
+      function parse_bool(s::String)
+          if s == "true"
+              return true
+          elseif s == "false"
+              return false
+          else
+              error("Invalid boolean string: $s")
+          end
+      end
+
+      if context isa MINDF.IBNFramework
+          println("context is of type MINDF.IBNFramework")
+          ibnf :: MINDF.IBNFramework = context
+      elseif context isa Vector{MINDF.IBNFramework}
+          println("context is of type Vector{MINDF.IBNFramework}")
+          ibnfs :: Vector{MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          for ibnf_temp in ibnfs
+            if ibnf_temp.ibnfhandlers[1].base_url == "http://$host"
+              ibnf = ibnf_temp
+            end
+          end
+          @show ibnf.ibnfid
+      elseif context isa Dict{Int, MINDF.IBNFramework}
+          println("context is of type Dict{Int, MINDF.IBNFramework}")
+          ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
+          host = Dict(req.headers)["Host"]
+          @show host
+          uri = HTTP.URI("http://$host")
+          @show uri
+          port = parse(Int, uri.port)
+          ibnf = ibnfs_dict[port]
+          
+          @show ibnf.ibnfid
+      else
+          println("context is of an unexpected type: $(typeof(context))")
+      end
+
+      body = HTTP.payload(req)
+      parsed_body = JSON.parse(String(body))
+      idagnodeid = UUID(parsed_body["idagnodeid"])
+      #onlyinstalled = parse_bool(parsed_body["onlyinstalled"])
+      @show onlyinstalled = parsed_body["onlyinstalled"]
+      #noextrallist = parse_bool(parsed_body["noextrallis"])
+      @show noextrallis = parsed_body["noextrallis"]
+
+      #remoteibnf_handler = nothing
+      src_domain_id = UUID(parsed_body["src_domain"])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+
+
+      issatisfied_result = MINDF.requestissatisfied_term!(ibnf, remoteibnf_handler, idagnodeid; onlyinstalled, noextrallis)
+      @show issatisfied_result
+      if !isnothing(issatisfied_result)
+        return HTTP.Response(200, JSON.json(issatisfied_result))
+      else
+        return HTTP.Response(404, "Not possible to check if the intent is satisfied")
       end
       
     end

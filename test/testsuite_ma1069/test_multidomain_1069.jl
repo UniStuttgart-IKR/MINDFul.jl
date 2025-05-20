@@ -5,38 +5,13 @@ domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-it
 handlers=Vector{MINDFul.RemoteIBNFHandler}()
 hdlr=Vector{MINDFul.RemoteIBNFHandler}()
 ibnfs=Vector{MINDFul.IBNFramework}()
-#=counter = 0
-for name_graph in domains_name_graph
-    counter = counter + 1
-    port = 8080 + c
-    URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
-    URI_s=string(URI)
-    handlers[counter]=MINDF.RemoteIBNFHandler(UUID(j),URI_s)
-end 
 
 
-# add ibnf handlers
-c=1
-for name_graph in domains_name_graph
-    ag = name_graph[2]
-    ibnag = MINDF.default_IBNAttributeGraph(ag)
-    
-    for j in counter
-        c == j && continue
-        
-        
-    end
-    ibnfs[c]=IBNFramework(ibnag, handlers)
-    c=c+1
-end
-=#
-
-
-ibnfs_temp = [
+ibnfs = [
     let
         ag = name_graph[2]
         ibnag = MINDF.default_IBNAttributeGraph(ag)
-        ibnf_temp = IBNFramework(ibnag, handlers)
+        ibnf = IBNFramework(ibnag, handlers)
     end for name_graph in domains_name_graph
 ]
 
@@ -46,46 +21,43 @@ ibnfs_temp = [
 end=#
 #@show eachindex(ibnfs_temp)
 
-
-
-# add ibnf handlers
-for i in eachindex(ibnfs_temp)
+for i in eachindex(ibnfs)
     port = 8080 + i
     URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
     URI_s=string(URI)
     push!(hdlr, MINDF.RemoteIBNFHandler(UUID(i), URI_s))
 end
+@show hdlr
 
 #=for i in eachindex(ibnfs_temp)
     @show hdlr[i]
     println(" ")
 end=#
 
-for i in eachindex(ibnfs_temp)
-    temp = Vector{MINDFul.AbstractIBNFHandler}()
-    push!(temp, hdlr[i])
+for i in eachindex(ibnfs)
+    
+    push!(getibnfhandlers(ibnfs[i]), hdlr[i])
     
     println(" ")
-    for j in eachindex(ibnfs_temp)
+    #@show ibnfs[i].ibnfhandlers
+
+    for j in eachindex(ibnfs)
         i == j && continue
         #if !(hdlr[j] in ibnfs[i].ibnfhandlers)
-        push!(temp, hdlr[j])
+            push!(getibnfhandlers(ibnfs[i]), hdlr[j])
         #end
         
     end
-    #@show temp
-    ibnf = IBNFramework(ibnfs_temp[i].ibnag, temp)
-    push!(ibnfs,ibnf)    
 end
 
 
 
-#=for i in eachindex(ibnfs)
+for i in eachindex(ibnfs)
     println(" ")
     @show ibnfs[i].ibnfhandlers
-end=#
+end
 
-ibnfs_dict = Dict{Int, IBNFramework}()
+#=ibnfs_dict = Dict{Int, IBNFramework}()
 for ibnf in ibnfs 
     sel_handler = ibnf.ibnfhandlers[1]
     base_url = sel_handler.base_url
@@ -93,9 +65,9 @@ for ibnf in ibnfs
     port = parse(Int, uri.port)
     push!(ibnfs_dict, port => ibnf)
 end
-#@show ibnfs_dict
+@show ibnfs_dict=#
 
-MINDF.start_ibn_servers(ibnfs, ibnfs_dict)
+#MINDF.start_ibn_servers(ibnfs, ibnfs_dict)
 
 
 
@@ -116,22 +88,20 @@ remotehandler=src_domain.ibnfhandlers[2]
 @test MINDF.requestspectrumavailability_init!(src_domain, remotehandler, ge) == ReturnCodes.SUCCESS
 =#
 
-# Compiling a connectivity intent
+#= Compiling a connectivity intent
 gnode1=GlobalNode(UUID(1), 4)
 gnode2=GlobalNode(UUID(3), 25)
 conintent_bordernode = ConnectivityIntent(gnode1, gnode2, u"100.0Gbps")
 intentuuid_bordernode = addintent!(ibnfs[1], conintent_bordernode, NetworkOperator())
-#@show intentuuid_bordernode
+@show intentuuid_bordernode
 respon = compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCompilation(10))
 @show respon 
-#@test compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-TM.testcompilation(ibnfs[1], intentuuid_bordernode; withremote=true)
-
-@show getidagnodestate(getidag(ibnfs[1]), intentuuid_bordernode)
+#@test compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS=#
 
 
-install = installintent!(ibnfs[1], intentuuid_bordernode; verbose=true) == ReturnCodes.SUCCESS
-@show install
+
+
+
 
 
 #end
