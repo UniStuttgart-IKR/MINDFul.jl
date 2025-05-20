@@ -35,10 +35,19 @@ function default_transmissionmodules()
     ]
 end
 
+function default_routerports()
+    return [
+        fill(RouterPort(u"100.0Gbps"), 60)..., 
+        fill(RouterPort(u"700.0Gbps"), 40)..., 
+        fill(RouterPort(u"400.0Gbps"), 20)..., 
+        fill(RouterPort(u"1000.0Gbps"), 10)..., 
+    ]
+end
+
 function default_routerview()
     return RouterView(
         RouterDummy(),
-        50,
+        default_routerports(),
         Dict{UUID, RouterPortLLI}(),
         Set{RouterPortLLI}()
     )

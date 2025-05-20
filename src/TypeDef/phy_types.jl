@@ -63,6 +63,17 @@ abstract type AbstractTransmissionModule end
 struct TransmissionModuleDummy <: AbstractTransmissionModule end
 
 """
+$(TYPEDEF)
+
+A representation of a router port.
+
+$(TYPEDFIELDS)
+"""
+struct RouterPort
+    rate::GBPSf
+end
+
+"""
 The following functions should be implemented for subtypes:
 - `getreservations(subtype::ReservableResourceView)::Set{T}`
 - `canreserve(subtype::ReservableResourceView, reservation::T)::Bool`
@@ -85,7 +96,7 @@ struct RouterView{R <: AbstractRouter} <: ReservableResourceView
     "The underlying router"
     router::R
     "number of ports in router"
-    portnumber::Int
+    ports::Vector{RouterPort}
     "The intent reservations together with the low level intent of reserved port"
     portreservations::Dict{UUID, RouterPortLLI}
     "The intent reservations together with the low level intent of a staged port"

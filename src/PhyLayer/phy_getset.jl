@@ -40,6 +40,20 @@ function getportnumber(s)
     return s.portnumber
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getportnumber(s::RouterView)
+    return length(s.ports)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getports(s::RouterView)
+    return s.ports
+end
+
 "$(TYPEDSIGNATURES)"
 function getreservations(routerview::RouterView)
     return routerview.portreservations
