@@ -82,7 +82,6 @@ prioritizesplitbordernodes(
             # select border node
             candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
             isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
-            # TODO single try. here there could be a loop
             for destinationglobalbordernode in candidatedestinationglobalbordernodes
                 uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
                 verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
@@ -339,7 +338,6 @@ chooseoxcadddropport(
         returncode::Symbol = ReturnCodes.FAIL
         candidatepaths = prioritizepaths(ibnf, idagnode, intentcompilationalgorithm)
 
-        # TODO just add them all in the last bit
         lowlevelintentstoadd = LowLevelIntent[]
 
         transmissionmodulecompat = nothing

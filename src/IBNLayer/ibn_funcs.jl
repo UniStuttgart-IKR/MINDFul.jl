@@ -408,6 +408,26 @@ end
 
 """
 $(TYPEDSIGNATURES)
+Get the router port
+"""
+function getrouterport(ibnf::IBNFramework, intent::RouterPortLLI)
+    localnode = getlocalnode(intent)
+    routerview = getrouterview(getnodeview(getibnag(ibnf), localnode))
+    return getrouterport(routerview, getrouterportindex(intent))
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get the router port
+"""
+function getrouterportrate(ibnf::IBNFramework, intent::RouterPortLLI)
+    localnode = getlocalnode(intent)
+    routerview = getrouterview(getnodeview(getibnag(ibnf), localnode))
+    return getrate(getrouterport(routerview, getrouterportindex(intent)))
+end
+
+"""
+$(TYPEDSIGNATURES)
 Get the transmission mode
 """
 function gettransmissionmode(ibnf::IBNFramework, idagnode::IntentDAGNode{TransmissionModuleLLI})

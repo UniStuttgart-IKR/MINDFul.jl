@@ -112,7 +112,10 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
         end
     end
 
-
+    # TODO
+    # - src router port satisfy rate
+    # - optical reach
+    # - groomed intents do not surpass the resources capacity
 
     if noextrallis
         istotalsatisfied &= (length(getidagnodellis(idag, getidagnodeid(idagnode))) == length(orderedllis))
@@ -157,7 +160,7 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
         end
     else
         lliidx1 = findfirst(llis) do lli
-            lli isa RouterPortLLI && getlocalnode(lli) == sourcelocalnode
+            lli isa RouterPortLLI && getlocalnode(lli) == sourcelocalnode && getrouterportrate(ibnf, lli) >= getrate(conintent)
         end
     end
 
@@ -234,6 +237,7 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
             getrouterportindex(lli) == getrouterportindex(rplli) || return false
             transmissionmode = gettransmissionmode(ibnf, lli)
             getrate(transmissionmode) >= getrate(conintent) || return false
+            getrate(transmissionmode) <= getrouterportrate(ibnf, rplli) || return false
             return true
         elseif lli isa RouterPortLLI
             getlocalnode(lli) == getlocalnode(rplli) || return false
@@ -256,6 +260,8 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
         if lli isa RouterPortLLI
             getlocalnode(lli) == getlocalnode(tmlli) || return false
             getrouterportindex(lli) == getrouterportindex(tmlli) || return false
+            transmissionmode = gettransmissionmode(ibnf, tmlli)
+            getrate(transmissionmode) <= getrouterportrate(ibnf, lli) || return false
             return true
         elseif lli isa OXCAddDropBypassSpectrumLLI
             getlocalnode(lli) == getlocalnode(tmlli) || return false

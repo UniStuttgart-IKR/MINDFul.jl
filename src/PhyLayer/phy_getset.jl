@@ -40,6 +40,11 @@ function getportnumber(s)
     return s.portnumber
 end
 
+"$(TYPEDSIGNATURES)"
+function getrate(s::RouterPort)
+    return s.rate
+end
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -50,8 +55,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function getports(s::RouterView)
+function getrouterports(s::RouterView)
     return s.ports
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getrouterport(s::RouterView, idx)
+    return s.ports[idx]
 end
 
 "$(TYPEDSIGNATURES)"

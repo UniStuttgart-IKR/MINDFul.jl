@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "basicintenttest.jl"  begin
+# @testset ExtendedTestSet "basicintenttest.jl"  begin
     # initialization
     domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21).jld2"))[2]
     ag1 = first(domains_name_graph)[2]
@@ -8,7 +8,7 @@
     TM.testlocalnodeisindex(ibnf1)
     TM.testoxcfiberallocationconsistency(ibnf1)
 
-    conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnf1), 4), GlobalNode(getibnfid(ibnf1), 8), u"100.0Gbps")
+    conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnf1), 4), GlobalNode(getibnfid(ibnf1), 8), u"105.0Gbps")
 
     intentuuid1 = addintent!(ibnf1, conintent1, NetworkOperator())
     @test nv(getidag(ibnf1)) == 1
@@ -37,6 +37,6 @@
 
     TM.testoxcfiberallocationconsistency(ibnf1)
     TM.testzerostaged(ibnf1)
-end
+# end
 
 # nothing

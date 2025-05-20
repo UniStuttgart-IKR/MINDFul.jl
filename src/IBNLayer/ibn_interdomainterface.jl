@@ -188,7 +188,6 @@ end
 
 """
 $(TYPEDSIGNATURES) 
-TODO-now implement
 """
 @recvtime function requestsetlinkstate_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
     myibnag = getibnag(myibnf)
