@@ -55,6 +55,7 @@ $(TYPEDSIGNATURES)
 
 Get the vertex index of the intent DAG node with id `dagnodeid`.
 Errors if UUID doesn't exist.
+It's slow: maybe keep a dict/table ?
 """
 function getidagnodeidx(intentdag::IntentDAG, dagnodeid::UUID)
     return something(findfirst(==(dagnodeid), getidagnodeid.(getidagnodes(intentdag))))
@@ -157,9 +158,13 @@ Return value is true if state is changed.
         if !isnothing(newstate) && newstate != currentstate
             changedstate = true
             pushstatetoidagnode!(idagnode, newstate; @passtime)
-        elseif currentstate != IntentState.Uncompiled
+            # println("$(getidagnodeid(idagnode)) correct state update")
+        elseif isnothing(newstate) && currentstate != IntentState.Uncompiled
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
+            if getintent(idagnode) isa LowLevelIntent
+                println("$(getibnfid(ibnf)), $(getidagnodeid(idagnode)) not so correct state update")
+            end
         end        
     elseif all(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiled

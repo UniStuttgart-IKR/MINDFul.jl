@@ -4,7 +4,7 @@ using DocStringExtensions, UUIDs, Graphs
 import MINDFul as MINDF
 import AttributeGraphs as AG
 
-import MINDFul: getibnag, getoxcview, getrouterview, getstaged, NodeView, getglobalnode, isbordernode, requestlinkstates_init, GlobalEdge, getnodeview, getlinkstates, getibnfhandler, getibnfid, IBNFramework
+import MINDFul: getibnag, getoxcview, getrouterview, getstaged, NodeView, getglobalnode, isbordernode, requestlinkstates_init, GlobalEdge, getnodeview, getlinkstates, getibnfhandler, getibnfid, IBNFramework, getreservations, getidag
 
 # weak dependencies
 using Test, JET
@@ -283,9 +283,26 @@ function testedgeoxclogs(ibnf::IBNFramework)
             edgestatedst = requestlinkstates_init(ibnf, ibnfhandler, GlobalEdge(srcglobalnode, dstglobalnode))
         else
             edgestatedst = getlinkstates(getoxcview(getnodeview(ibnf, dst(ed))), ed)
+
         end
 
         @test getindex.(edgestatesrc, 2) == getindex.(edgestatedst, 2)
+    end
+end
+
+function testoxcllistateconsistency(ibnf::IBNFramework)
+    for nodeview in MINDF.getintranodeviews(getibnag(ibnf))
+        oxcview = getoxcview(nodeview)
+        for (intentuuid,oxclli) in getreservations(oxcview)
+            for ed in edges(getibnag(ibnf))
+                MINDF.oxcllicontainsedge(oxclli, ed) || continue
+                if MINDF.getcurrentlinkstate(ibnf, ed)
+                    @test MINDF.getidagnodestate(getidag(ibnf), intentuuid) == MINDF.IntentState.Installed
+                else
+                    @test MINDF.getidagnodestate(getidag(ibnf), intentuuid) == MINDF.IntentState.Failed
+                end
+            end
+        end
     end
 end
 
