@@ -366,7 +366,8 @@ function getlinkstates(ibnf::IBNFramework, edge::Edge; checkfirst::Bool=true, ve
         else
             getlinkstates(getoxcview(nodeviewdst), edge)
         end
-
+        @show srclinksstates
+        @show dstlinkstates
         @assert(getindex.(srclinksstates, 2) == getindex.(dstlinkstates, 2))
         return srclinksstates
     else

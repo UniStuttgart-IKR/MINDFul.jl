@@ -31,4 +31,10 @@ const UNINSTALL_INTENT = "/api/uninstall_intent"
 
 const UNCOMPILE_INTENT = "/api/uncompile_intent"
 
+const SET_LINKSTATE = "/api/set_linkstate"
+
+const REQ_LINKSTATES = "/api/request_linkstates"
+
+const IDAG = "/api/request_idag"
+
 end

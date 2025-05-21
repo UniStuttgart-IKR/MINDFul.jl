@@ -1,5 +1,4 @@
-using JSON, HTTP, Sockets, Oxygen, SwaggerMarkdown
-using AttributeGraphs
+using JSON, HTTP, Sockets
 
 function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
     url = remotehandler.base_url * endpoint
@@ -26,10 +25,27 @@ function start_ibn_server(myibnf::IBNFramework)
     #@show myibnf.ibnfid, port
     println(" ")
     println("Starting server on $ip_address:$port")
-    Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true)      
+    try
+        Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true)
+    catch e
+        if isa(e, Base.IOError)
+            println("Server at $ip_address:$port is already running")
+        else
+            rethrow(e)  
+        end
+    end
 end
 
-function start_ibn_servers(ibnfs::Vector{IBNFramework}, ibnfs_dict::Dict{Int, IBNFramework})
+function start_ibn_server(ibnfs::Vector{IBNFramework})
+    ibnfs_dict = Dict{Int, IBNFramework}()
+    for ibnf in ibnfs 
+        sel_handler = ibnf.ibnfhandlers[1]
+        base_url = sel_handler.base_url
+        uri = HTTP.URI(base_url)
+        port = parse(Int, uri.port)
+        push!(ibnfs_dict, port => ibnf)
+    end
+
     for ibnf in ibnfs
         sel_handler = ibnf.ibnfhandlers[1]
         base_url = sel_handler.base_url
@@ -47,8 +63,7 @@ function start_ibn_servers(ibnfs::Vector{IBNFramework}, ibnfs_dict::Dict{Int, IB
             else
                 rethrow(e)  
             end
-        end
-        
+        end     
     end
 end
 

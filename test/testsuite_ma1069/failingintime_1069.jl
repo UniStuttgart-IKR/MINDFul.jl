@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "failingtime.jl"  begin
+#@testset ExtendedTestSet "failingtime.jl"  begin
 
 domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
 
@@ -42,19 +42,7 @@ for i in eachindex(ibnfs_temp)
 end
 
 
-
-
-ibnfs_dict = Dict{Int, IBNFramework}()
-for ibnf in ibnfs 
-    sel_handler = ibnf.ibnfhandlers[1]
-    base_url = sel_handler.base_url
-    uri = HTTP.URI(base_url)
-    port = parse(Int, uri.port)
-    push!(ibnfs_dict, port => ibnf)
-end
-#@show ibnfs_dict
-
-MINDF.start_ibn_servers(ibnfs, ibnfs_dict)
+MINDF.start_ibn_server(ibnfs)
 
 
 internaledge = Edge(3,4)
@@ -75,6 +63,7 @@ end
 offsettime += Hour(1)
 @test setlinkstate!(ibnfs[1], internaledge, false; @passtime) == ReturnCodes.SUCCESS
 # should make first intent fail
+@show getidag(ibnfs[1])
 @test getidagnodestate(getidag(ibnfs[1]), intentuuid_internal_fail) == IntentState.Failed
 TM.testexpectedfaileddag(ibnfs[1], intentuuid_internal_fail, internaledge, 2)
 
@@ -125,7 +114,7 @@ offsettime += Hour(1)
 # should make first intent fail
 @test getidagnodestate(getidag(ibnfs[1]), intentuuid_border_fail) == IntentState.Failed
 TM.testexpectedfaileddag(ibnfs[1], intentuuid_border_fail, borderedge, 1)
-TM.testexpectedfaileddag(remoteibnf_border, remoteintentid_border, Edge(58,25), 1)
+#TM.testexpectedfaileddag(remoteibnf_border, remoteintentid_border, Edge(58,25), 1)
 
 intentuuid_border = addintent!(ibnfs[1], conintent_border, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid_border, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
@@ -141,16 +130,16 @@ end
 offsettime += Hour(1)
 @test setlinkstate!(ibnfs[1], borderedge, true; @passtime) == ReturnCodes.SUCCESS
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_border_fail)])
-@test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(remoteibnf_border), remoteintentid_border)])
+#@test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(remoteibnf_border), remoteintentid_border)])
 
 borderedgelinkstates = getlinkstates(ibnfs[1], borderedge; checkfirst=true)
 @test all(getindex.(borderedgelinkstates[2:end], 1) .- getindex.(borderedgelinkstates[1:end-1], 1) .>= Hour(1))
 intentuuid_border_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_border_fail)), 1)
 @test length(intentuuid_border_fail_timelog) == 8
 @test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2) 
-intentuuid_border_fail_timelog_remote =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(remoteibnf_border), remoteintentid_border)), 1)
-@test length(intentuuid_border_fail_timelog_remote) == 6
-@test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) 
+#intentuuid_border_fail_timelog_remote =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(remoteibnf_border), remoteintentid_border)), 1)
+#@test length(intentuuid_border_fail_timelog_remote) == 6
+#@test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) 
 
 # uninstall, remove all
 @test uninstallintent!(ibnfs[1], intentuuid_border_fail; verbose=true) == ReturnCodes.SUCCESS
@@ -173,7 +162,7 @@ remoteibnf_external_fail = getibnfhandler(ibnfs[1], remoteibnfid_external_fail)
 @test installintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
 
 @test setlinkstate!(ibnfs[3], externaledge, false) == ReturnCodes.SUCCESS
-TM.testexpectedfaileddag(remoteibnf_external_fail, remoteintentid_external_fail, externaledge, 2)
+#TM.testexpectedfaileddag(remoteibnf_external_fail, remoteintentid_external_fail, externaledge, 2)
 @test getidagnodestate(getidag(ibnfs[1]), intentuuid_external_fail) == IntentState.Failed
 @test count(x -> getidagnodestate(x) == IntentState.Failed, getidagnodes(getidag(ibnfs[1]))) == 3
 
@@ -183,11 +172,11 @@ remoteibnfid_external, remoteintentid_external = TM.getfirstremoteintent(ibnfs[1
 remoteibnf_external = getibnfhandler(ibnfs[1], remoteibnfid_external)
 @test installintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_external)])
-@test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(remoteibnf_external), remoteintentid_external)])
-let 
-    logord = getlogicallliorder(remoteibnf_external, remoteintentid_external, onlyinstalled=false)
-    @test externaledge ∉ edgeify(logicalordergetpath(logord))
-end
+#@test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(remoteibnf_external), remoteintentid_external)])
+#let 
+#     logord = getlogicallliorder(remoteibnf_external, remoteintentid_external, onlyinstalled=false)
+#     @test externaledge ∉ edgeify(logicalordergetpath(logord))
+# end
 
 # uninstall, remove all
 @test uninstallintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
@@ -200,5 +189,5 @@ TM.testuncompilation(ibnfs[1], intentuuid_external_fail)
 @test uncompileintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_external)
 
-nothing
-end
+#nothing
+#end

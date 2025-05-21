@@ -84,15 +84,9 @@ end
     println(" ")
     @show ibnfs[i].ibnfhandlers
 end=#
-try
-    MINDF.start_ibn_server(ibnfs[1]) #server1
-catch e
-    if isa(e, Base.IOError)
-        println("Server1 is already running")
-    else
-        rethrow(e)  
-    end
-end
+
+MINDF.start_ibn_server(ibnfs[1]) #server1
+
 
 #=try
     MINDF.start_ibn_server(ibnfs[2]) #server2

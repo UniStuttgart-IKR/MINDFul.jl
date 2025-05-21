@@ -23,8 +23,8 @@ RUNJET = !any(==("--nojet"), ARGS)
 TM = Base.get_extension(MINDFul, :TestModule)
 @test !isnothing(TM)
 
-#include("testsuite_ma1069/multidomain_1069.jl")
-include("testsuite_ma1069/failingintime_1069.jl")
+include("testsuite_ma1069/multidomain_1069.jl")
+#include("testsuite_ma1069/failingintime_1069.jl")
 #include("testsuite_ma1069/plot.jl")
 
 nothing

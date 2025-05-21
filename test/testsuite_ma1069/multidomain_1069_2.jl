@@ -94,15 +94,9 @@ catch e
     end
 end=#
 
-try
-    MINDF.start_ibn_server(ibnfs[2]) #server2
-catch e
-    if isa(e, Base.IOError)
-        println("Server2 is already running")
-    else
-        rethrow(e)  
-    end
-end
+
+MINDF.start_ibn_server(ibnfs[2]) #server2
+
 
 # try
 #     MINDF.start_ibn_server(ibnfs[3]) #server3

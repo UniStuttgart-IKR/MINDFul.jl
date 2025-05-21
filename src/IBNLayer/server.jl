@@ -329,6 +329,67 @@ export serve
     end
 
 
+    @post "/api/set_linkstate" function (req; context)
+      ibnf = getmyibnf(req, context)
+      body = HTTP.payload(req)
+      parsed_body = JSON.parse(String(body))
+      ge_data = parsed_body["global_edge"]
+      received_ge = MINDF.GlobalEdge(
+          MINDF.GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
+          MINDF.GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
+      )
+      operatingstate = parsed_body["operatingstate"]
+      src_domain_id = UUID(parsed_body["src_domain"])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      
+      set_linkstate = MINDF.requestsetlinkstate_term!(remoteibnf_handler, ibnf, received_ge, operatingstate)
+      if !isnothing(set_linkstate)
+          return HTTP.Response(200, JSON.json(set_linkstate))
+      else
+          return HTTP.Response(404, "Set link state not possible")
+      end
+    end
+
+
+    @post "/api/request_linkstates" function (req; context)
+      ibnf = getmyibnf(req, context)
+      body = HTTP.payload(req)
+      parsed_body = JSON.parse(String(body))
+      ge_data = parsed_body["global_edge"]
+      received_ge = MINDF.GlobalEdge(
+          MINDF.GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
+          MINDF.GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
+      )
+      src_domain_id = UUID(parsed_body["src_domain"])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      
+      request_linkstates = MINDF.requestlinkstates_term(remoteibnf_handler, ibnf, received_ge)
+      @show request_linkstates
+      if !isnothing(request_linkstates)
+          json_ready = [Dict("datetime" => string(dt), "state" => s) for (dt, s) in request_linkstates]
+          return HTTP.Response(200, JSON.json(json_ready))
+      else
+          return HTTP.Response(404, "Set link state not possible")
+      end
+    end
+    
+
+    @post "/api/request_idag" function (req; context)
+      ibnf = getmyibnf(req, context)
+      body = HTTP.payload(req)
+      parsed_body = JSON.parse(String(body))
+      src_domain_id = UUID(parsed_body["src_domain"])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+
+      idag = MINDF.requestidag_term!(remoteibnf_handler, ibnf)
+      @show idag
+      if !isnothing(idag)
+        return HTTP.Response(200, JSON.json(idag))
+      else
+        return HTTP.Response(404, "Not possible to install the intent")
+      end
+    end
+
     
     # TODO ma1069
     info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
