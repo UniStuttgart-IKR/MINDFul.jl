@@ -113,7 +113,6 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     end
 
     # TODO
-    # - src router port satisfy rate
     # - optical reach
     # - groomed intents do not surpass the resources capacity
 

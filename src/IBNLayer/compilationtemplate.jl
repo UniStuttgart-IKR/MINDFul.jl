@@ -597,12 +597,20 @@ end
 
 """
 $(TYPEDSIGNATURES)
+TODO: 
+- grooming alternative
+- change name
 """
 function prioritizerouterports_first(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
     routerview = getrouterview(getnodeview(getibnag(ibnf), node))
+    portrates = getrate.(getrouterports(routerview))
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
     stagedrouterports = getrouterportindex.(getstaged(routerview))
-    return filter(x -> x ∉ reservedrouterports && x ∉ stagedrouterports, 1:getportnumber(routerview))
+    filteredports = filter(1:getportnumber(routerview)) do x
+        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] > getrate(getintent(idagnode))
+    end
+    sort!(filteredports; by = x -> portrates[x])
+    return filteredports
 end
 
 
