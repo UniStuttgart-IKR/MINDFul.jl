@@ -70,8 +70,8 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @show getidagnodestate(getidag(ibnf), idagnodeid)
-    println("installintent!")
+    #@show getidagnodestate(getidag(ibnf), idagnodeid)
+    #println("installintent!")
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
@@ -207,7 +207,7 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
     remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
-    @show remoteidagnodeid
+    #@show remoteidagnodeid
     # add an idagnode `RemoteIntent`
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
@@ -234,8 +234,8 @@ $(TYPEDSIGNATURES)
 Get the spectrum availability slots vector for `edge`
 """
 function getfiberspectrumavailabilities(ibnf::IBNFramework, edge::Edge{LocalNode}; checkfirst::Bool = true, verbose::Bool=false)
-    @show getibnfid(ibnf)
-    @show edge
+    #@show getibnfid(ibnf)
+    #@show edge
     ibnag = getibnag(ibnf) 
     edsrc = src(edge)
     nodeviewsrc = getnodeview(ibnag, edsrc)

@@ -25,4 +25,10 @@ const REMOTEINTENT_STATEUPDATE = "/api/remoteintent_stateupdate"
 
 const IS_SATISFIED = "/api/requestissatisfied"
 
+const INSTALL_INTENT = "/api/install_intent"
+
+const UNINSTALL_INTENT = "/api/uninstall_intent"
+
+const UNCOMPILE_INTENT = "/api/uncompile_intent"
+
 end

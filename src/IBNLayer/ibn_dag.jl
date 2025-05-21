@@ -71,7 +71,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function getidagnodestate(intentdag::IntentDAG, dagnodeid::UUID)
-    @show getidagnodeid.(getidagnodes(intentdag))
+    #@show getidagnodeid.(getidagnodes(intentdag))
     return getidagnodestate(getidagnode(intentdag, dagnodeid))
 end
 
@@ -200,8 +200,8 @@ Return value is true if state is changed.
         if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode))
             # notify initiator domain
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnode)))
-            @show ibnfhandler
-            @show ibnf.ibnfid
+            #@show ibnfhandler
+            #@show ibnf.ibnfid
             requestremoteintentstateupdate_init!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnode)), getidagnodestate(idagnode); @passtime)
         end
     end

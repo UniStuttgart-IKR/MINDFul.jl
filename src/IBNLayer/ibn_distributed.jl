@@ -1,20 +1,14 @@
 using JSON, HTTP, Sockets, Oxygen, SwaggerMarkdown
 using AttributeGraphs
-#import .Server
 
 function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
-    #remotehandler=ibnf.ibnfhandlers[1]
     url = remotehandler.base_url * endpoint
     body = JSON.json(data)  
-    headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body))) 
+    headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body)
+    println(" ")
     println("Sending request to $url")
-    println("Headers: $headers")
-    println("Body: $body")
-
-    
-    if endpoint == HTTPCodes.REMOTEINTENT_STATEUPDATE && getibnfid(remotehandler) == UUID(0x3) && data["idagnodeid"] == string(UUID(0xc)) && data["newstate"] == string(IntentState.Compiled) 
-        println("QWERTY_SEND_REQUEST")
-    end
+    #println("Headers: $headers")
+    #println("Body: $body")
         
     response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
     #return response.status, JSON.parse(String(response.body)) 
@@ -29,10 +23,10 @@ function start_ibn_server(myibnf::IBNFramework)
     uri = HTTP.URI(base_url)
     ip_address = string(uri.host)
     port = parse(Int, uri.port)
-    @show myibnf.ibnfid, port
+    #@show myibnf.ibnfid, port
+    println(" ")
     println("Starting server on $ip_address:$port")
-    Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true) 
-        
+    Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true)      
 end
 
 function start_ibn_servers(ibnfs::Vector{IBNFramework}, ibnfs_dict::Dict{Int, IBNFramework})
@@ -42,7 +36,8 @@ function start_ibn_servers(ibnfs::Vector{IBNFramework}, ibnfs_dict::Dict{Int, IB
         uri = HTTP.URI(base_url)
         ip_address = string(uri.host)
         port = parse(Int, uri.port)
-        @show ibnf.ibnfid, port
+        #@show ibnf.ibnfid, port
+        println(" ")
         println("Starting server on $ip_address:$port")
         try
             Server.serve(port=port, async=true, context=ibnfs_dict, serialize=false, swagger=true) 
