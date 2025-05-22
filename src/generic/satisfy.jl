@@ -112,7 +112,9 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
         end
     end
 
-
+    # TODO
+    # - optical reach
+    # - groomed intents do not surpass the resources capacity
 
     if noextrallis
         istotalsatisfied &= (length(getidagnodellis(idag, getidagnodeid(idagnode))) == length(orderedllis))
@@ -157,7 +159,7 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
         end
     else
         lliidx1 = findfirst(llis) do lli
-            lli isa RouterPortLLI && getlocalnode(lli) == sourcelocalnode
+            lli isa RouterPortLLI && getlocalnode(lli) == sourcelocalnode && getrouterportrate(ibnf, lli) >= getrate(conintent)
         end
     end
 
@@ -234,6 +236,7 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
             getrouterportindex(lli) == getrouterportindex(rplli) || return false
             transmissionmode = gettransmissionmode(ibnf, lli)
             getrate(transmissionmode) >= getrate(conintent) || return false
+            getrate(transmissionmode) <= getrouterportrate(ibnf, rplli) || return false
             return true
         elseif lli isa RouterPortLLI
             getlocalnode(lli) == getlocalnode(rplli) || return false
@@ -256,6 +259,8 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
         if lli isa RouterPortLLI
             getlocalnode(lli) == getlocalnode(tmlli) || return false
             getrouterportindex(lli) == getrouterportindex(tmlli) || return false
+            transmissionmode = gettransmissionmode(ibnf, tmlli)
+            getrate(transmissionmode) <= getrouterportrate(ibnf, lli) || return false
             return true
         elseif lli isa OXCAddDropBypassSpectrumLLI
             getlocalnode(lli) == getlocalnode(tmlli) || return false
@@ -304,6 +309,9 @@ function logicalordercontainsedge(lo::Vector{<:LowLevelIntent}, edge::Edge)
     return false
 end
 
+"""
+    Return a Vector{Int} with the path given from the logical low level intent order
+"""
 function logicalordergetpath(lo::Vector{<:LowLevelIntent})
     function validnextinsert(nd, p)
         return !iszero(nd) && 
@@ -323,4 +331,22 @@ function logicalordergetpath(lo::Vector{<:LowLevelIntent})
     end
 
     return path
+end
+
+"""
+    Return a Vector{Vector{Int}} being the lightpaths from the logical low level intent order
+"""
+function logicalordergetlightpaths(lo::Vector{<:LowLevelIntent})
+    # find consequetive OXCLLis and pass them to `logicalordergetpaths`
+    oxcblocks = findconsecutiveblocks(x -> x isa OXCAddDropBypassSpectrumLLI, lo)
+    return [logicalordergetpath(lo[oxcblock[1]:oxcblock[2]]) for oxcblock in oxcblocks]
+end
+
+"""
+    Return a Vector{Int} being the nodes that process electrically the signal
+"""
+function logicalordergetelectricalpresence(lo::Vector{<:LowLevelIntent})
+    # find consequetive OXCLLis and pass them to `logicalordergetpaths`
+    routerllis = filter(x -> x isa RouterPortLLI, lo)
+    return unique(getlocalnode.(routerllis))
 end

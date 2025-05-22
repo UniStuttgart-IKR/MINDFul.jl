@@ -60,17 +60,16 @@ prioritizesplitbordernodes(
         returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
         if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
             verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
-            # uncompile
-            @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
-            # find shortest distance neighbor j
-
             # get a node in between the shortest paths
             candidatesplitglobalnodes = prioritizesplitnodes(ibnf, idagnode, intentcompilationalgorithm)
             isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
-            # TODO single try. here there could be a loop
-            splitglobalnode = first(candidatesplitglobalnodes)
-            verbose && @info("Attenmpting splitting intent at GlobalNode", splitglobalnode)
-            returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; verbose, @passtime)
+
+            for splitglobalnode in candidatesplitglobalnodes
+                @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
+                verbose && @info("Attenmpting splitting intent at GlobalNode", splitglobalnode)
+                returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; verbose, @passtime)
+                issuccess(returncode) && break
+            end
         end
         updateidagnodestates!(ibnf, idagnode)
     elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
@@ -83,10 +82,12 @@ prioritizesplitbordernodes(
             # select border node
             candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
             isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
-            # TODO single try. here there could be a loop
-            destinationglobalbordernode = first(candidatedestinationglobalbordernodes)
-            verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
-            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; verbose, @passtime)
+            for destinationglobalbordernode in candidatedestinationglobalbordernodes
+                uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+                verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
+                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; verbose, @passtime)
+                issuccess(returncode) && break
+            end
         end
     end
     return returncode
@@ -174,13 +175,13 @@ function prioritizesplitbordernodes_shortestorshortestrandom(ibnf::IBNFramework,
     borderlocalsofdestdomain = filter(localnode -> getibnfid(getglobalnode(ibnag, localnode)) == getibnfid(destinationglobalnode), borderlocals)
     if !isempty(borderlocalsofdestdomain)
         # known domain
-        dglobalbordernode = argmin(hopdists[borderlocalsofdestdomain])
-        return [getglobalnode(ibnag, borderlocalsofdestdomain[dglobalbordernode])]
+        sort!(borderlocalsofdestdomain; by = x -> hopdists[x])
+        return [getglobalnode(ibnag, blodd) for blodd in borderlocalsofdestdomain]
     else
         # if unknown domain give it shortest distance border node
         borderlocalsofsrcdomain = filter(localnode -> getibnfid(getglobalnode(ibnag, localnode)) == getibnfid(sourceglobalnode), borderlocals)
-        dglobalbordernode = argmin(hopdists[borderlocalsofsrcdomain])
-        return [getglobalnode(ibnag, borderlocalsofsrcdomain[dglobalbordernode])]
+        sort!(borderlocalsofsrcdomain; by = x -> hopdists[x])
+        return [getglobalnode(ibnag, blosd) for blosd in borderlocalsofsrcdomain]
     end
 end
 
@@ -337,7 +338,6 @@ chooseoxcadddropport(
         returncode::Symbol = ReturnCodes.FAIL
         candidatepaths = prioritizepaths(ibnf, idagnode, intentcompilationalgorithm)
 
-        # TODO just add them all in the last bit
         lowlevelintentstoadd = LowLevelIntent[]
 
         transmissionmodulecompat = nothing
@@ -345,6 +345,7 @@ chooseoxcadddropport(
         if !isnothing(opticalinitiateconstraint)
             returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             for path in candidatepaths
+            lowlevelintentsbuffer = LowLevelIntent[]
                 verbose && @info("Testing path $(path)")
                 # find transmission module and mode
                 spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
@@ -368,7 +369,7 @@ chooseoxcadddropport(
 
                 oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
                 foreach(oxcadddropbypassspectrumllis) do lli
-                    push!(lowlevelintentstoadd, lli)
+                    push!(lowlevelintentsbuffer, lli)
                 end
                 verbose && @info("Picked OXC LLIs with initial constraints", spectrumslotsrange)
             
@@ -376,30 +377,34 @@ chooseoxcadddropport(
                 opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
                 if !isnothing(opticalterminateconstraint)
                     # no need to do something more. add intents and return true
-                    foreach(lowlevelintentstoadd) do lli
-                        stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
-                    end
-                    return ReturnCodes.SUCCESS
+                    returncode = ReturnCodes.SUCCESS
                 else
                     opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end-1]
-                    return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
+                    returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentsbuffer, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
+                end
+                if issuccess(returncode) 
+                    push!(lowlevelintentstoadd, lowlevelintentsbuffer...)
+                    break
                 end
             end
         else
             returncode = ReturnCodes.FAIL_SRCROUTERPORT
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
             for sourcerouteridx in sourcerouteridxs
+                lowlevelintentsbuffer1 = LowLevelIntent[]
                 verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
                 sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouteridx)
-                push!(lowlevelintentstoadd, sourcerouterportlli)
+                push!(lowlevelintentsbuffer1, sourcerouterportlli)
 
                 returncode = ReturnCodes.FAIL_CANDIDATEPATHS
                 for path in candidatepaths
+                    lowlevelintentsbuffer2 = LowLevelIntent[]
                     verbose && @info("Testing path $(path)")
                     # find transmission module and mode
                     sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
                     returncode = ReturnCodes.FAIL_SRCTRANSMDL
                     for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode, path)
+                        lowlevelintentsbuffer3 = LowLevelIntent[]
                         sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
                         sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
                         ## define a TransmissionModuleCompatibility for the destination node
@@ -411,7 +416,7 @@ chooseoxcadddropport(
 
                         startingslot = choosespectrum(ibnf, idagnode, intentcompilationalgorithm, path, demandslotsneeded)
                         if isnothing(startingslot)
-                            returncode = ReturnCodes.Fail_SPECTRUM
+                            returncode = ReturnCodes.FAIL_SPECTRUM
                             continue
                         end
 
@@ -425,14 +430,14 @@ chooseoxcadddropport(
                         sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx, sourcerouteridx, sourceadddropport)
                         verbose && @info("Picking transmission module at source node", sourcetransmissionmodulelli)
 
-                        push!(lowlevelintentstoadd, sourcetransmissionmodulelli)
+                        push!(lowlevelintentsbuffer3, sourcetransmissionmodulelli)
 
                         opticalinitincomingnode = nothing
                         spectrumslotsrange = startingslot:(startingslot + demandslotsneeded - 1)
                         oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
 
                         foreach(oxcadddropbypassspectrumllis) do lli
-                            push!(lowlevelintentstoadd, lli)
+                            push!(lowlevelintentsbuffer3, lli)
                         end
                         verbose && @info("Picked OXC LLIs at", spectrumslotsrange)
     
@@ -440,18 +445,30 @@ chooseoxcadddropport(
                         opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
                         if !isnothing(opticalterminateconstraint)
                             # no need to do something more. add intents and return true
-                            foreach(lowlevelintentstoadd) do lli
-                                stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
-                            end
-                            return ReturnCodes.SUCCESS
+                            returncode = ReturnCodes.SUCCESS
                         else
                             # need to allocate a router port, a transmission module and mode, and an OXC configuration
                             opticalincomingnode = path[end-1]
-                            return intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentstoadd, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
+                            returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentsbuffer3, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
+                        end
+                        if issuccess(returncode)
+                            push!(lowlevelintentsbuffer2, lowlevelintentsbuffer3...)
+                            break
                         end
                     end
+                    if issuccess(returncode)
+                        push!(lowlevelintentsbuffer1, lowlevelintentsbuffer2...)
+                        break
+                    end
+                end
+                if issuccess(returncode)
+                    push!(lowlevelintentstoadd, lowlevelintentsbuffer1...)
+                    break
                 end
             end
+        end
+        foreach(lowlevelintentstoadd) do lli
+            stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
         end
         return returncode
     end
@@ -460,6 +477,8 @@ end
 """
 $(TYPEDSIGNATURES)
 Takes care of the final node (destination).
+Return the returncode of the procedure.
+Also mutate `lowlevelintentstoadd` to add the low-level intents found.
 
 The following functions must be passed in (entry point from [`intradomaincompilationtemplate`](@ref))
 
@@ -534,7 +553,6 @@ chooseoxcadddropport(
 
     destavailtransmdlidxs = getavailabletransmissionmoduleviewindex(destnodeview)
     desttransmissionmoduleviewpool = gettransmissionmoduleviewpool(destnodeview)
-    # template intradomaincompilationtemplate_destination!
     destavailtransmdlmodeidxs = prioritizetransmdlmode(ibnf, idagnode, intentcompilationalgorithm, destlocalnode, nothing, transmissionmodulecompat)
     !isempty(destavailtransmdlmodeidxs) || return ReturnCodes.FAIL_DSTTRANSMDL
     destavailtransmdlmodeidx = first(destavailtransmdlmodeidxs)
@@ -550,9 +568,6 @@ chooseoxcadddropport(
     desttransmissionmodulelli = TransmissionModuleLLI(destlocalnode, destavailtransmdlidx, desttransmodeidx, destrouteridx, destadddropport)
     push!(lowlevelintentstoadd, desttransmissionmodulelli)
 
-    foreach(lowlevelintentstoadd) do lli
-        stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
-    end
     return ReturnCodes.SUCCESS
 end
 
@@ -582,12 +597,20 @@ end
 
 """
 $(TYPEDSIGNATURES)
+TODO: 
+- grooming alternative
+- change name
 """
 function prioritizerouterports_first(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
     routerview = getrouterview(getnodeview(getibnag(ibnf), node))
+    portrates = getrate.(getrouterports(routerview))
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
     stagedrouterports = getrouterportindex.(getstaged(routerview))
-    return filter(x -> x ∉ reservedrouterports && x ∉ stagedrouterports, 1:getportnumber(routerview))
+    filteredports = filter(1:getportnumber(routerview)) do x
+        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] > getrate(getintent(idagnode))
+    end
+    sort!(filteredports; by = x -> portrates[x])
+    return filteredports
 end
 
 
@@ -641,8 +664,11 @@ Return the uniformly random available oxc add/drop port and `nothing` if none fo
 function chooseoxcadddropport_first(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
     oxcview = getoxcview(getnodeview(getibnag(ibnf), node))
     reservedoxcadddropports = getadddropport.(values(getreservations(oxcview)))
+    stagedoxcadddropports = getadddropport.(values(getstaged(oxcview)))
     for adddropport in 1:getadddropportnumber(oxcview)
-        adddropport ∉ reservedoxcadddropports && return adddropport
+        if adddropport ∉ reservedoxcadddropports && adddropport ∉ stagedoxcadddropports
+            return adddropport
+        end
     end
     return nothing
 end

@@ -164,5 +164,23 @@ TM.testuncompilation(ibnfs[1], intentuuid_external_fail)
 @test uncompileintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_external)
 
+# test bordernodes have the same logs
+
+# get all link states, set them, and reget
+for ibnf in ibnfs
+    ibnag = getibnag(ibnf)
+    for ed in edges(ibnag)
+        ls1 = getcurrentlinkstate(ibnf, ed)
+        setlinkstate!(ibnf, ed, !ls1)
+        ls2 = getcurrentlinkstate(ibnf, ed)
+        @test ls1 !== ls2
+    end
+end
+
+for ibnf in ibnfs
+    TM.testedgeoxclogs(ibnf)
+    TM.testoxcllistateconsistency(ibnf)
+end
+
 nothing
 end

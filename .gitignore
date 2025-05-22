@@ -4,4 +4,4 @@ Manifest.toml
 .vscode/
 docs/build/
 *.cov
-mynotes.norg
+MYREADME.md

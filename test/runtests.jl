@@ -1,4 +1,3 @@
-# TODO test staged
 include("initialize.jl")
 include("testsuite/physicaltest.jl")
 include("testsuite/basicintenttest.jl")

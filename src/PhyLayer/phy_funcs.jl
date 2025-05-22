@@ -156,7 +156,6 @@ end
 
 """
 $(TYPEDSIGNATURES)
-TODO-now
 Set the operating state of the edge in `oxcview` and trigger the state update of the relevant low level intents.
 """
 @recvtime function setlinkstate!(ibnf::IBNFramework, oxcview::OXCView, edge::Edge, operatingstate::Bool)
@@ -165,7 +164,6 @@ Set the operating state of the edge in `oxcview` and trigger the state update of
         push!(linkstates, (@logtime, operatingstate))
         # update LLIs
         for (lliid, oxclli) in getreservations(oxcview)
-            # TODO-now  if is influenced update
             if oxcllicontainsedge(oxclli, edge)
                 if operatingstate
                     updateidagstates!(ibnf, lliid, IntentState.Installed; @passtime)

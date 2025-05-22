@@ -8,7 +8,7 @@
     TM.testlocalnodeisindex(ibnf1)
     TM.testoxcfiberallocationconsistency(ibnf1)
 
-    conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnf1), 4), GlobalNode(getibnfid(ibnf1), 8), u"100.0Gbps")
+    conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnf1), 4), GlobalNode(getibnfid(ibnf1), 8), u"105.0Gbps")
 
     intentuuid1 = addintent!(ibnf1, conintent1, NetworkOperator())
     @test nv(getidag(ibnf1)) == 1

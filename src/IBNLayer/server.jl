@@ -364,7 +364,7 @@ export serve
       remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
       
       request_linkstates = MINDF.requestlinkstates_term(remoteibnf_handler, ibnf, received_ge)
-      @show request_linkstates
+      #@show request_linkstates
       if !isnothing(request_linkstates)
           json_ready = [Dict("datetime" => string(dt), "state" => s) for (dt, s) in request_linkstates]
           return HTTP.Response(200, JSON.json(json_ready))

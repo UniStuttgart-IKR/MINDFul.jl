@@ -5,6 +5,65 @@ domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-it
 handlers=Vector{MINDFul.RemoteIBNFHandler}()
 hdlr=Vector{MINDFul.RemoteIBNFHandler}()
 ibnfs=Vector{MINDFul.IBNFramework}()
+
+ibnfs_temp = [
+    let
+        ag = name_graph[2]
+        ibnag = MINDF.default_IBNAttributeGraph(ag)
+        ibnf_temp = IBNFramework(ibnag, handlers)
+    end for name_graph in domains_name_graph
+]
+
+# add ibnf handlers
+for i in eachindex(ibnfs_temp)
+    port = 8080 + i
+    URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
+    URI_s=string(URI)
+    push!(hdlr, MINDF.RemoteIBNFHandler(UUID(i), URI_s))
+end
+
+for i in eachindex(ibnfs_temp)
+    temp = Vector{MINDFul.AbstractIBNFHandler}()
+    push!(temp, hdlr[i])
+    
+    #println(" ")
+    for j in eachindex(ibnfs_temp)
+        i == j && continue
+        #if !(hdlr[j] in ibnfs[i].ibnfhandlers)
+        push!(temp, hdlr[j])
+        #end
+    end
+    #@show temp
+    ibnf = IBNFramework(ibnfs_temp[i].ibnag, temp)
+    push!(ibnfs,ibnf)    
+end
+
+
+MINDF.start_ibn_server(ibnfs)
+
+
+#=for i in eachindex(ibnfs_temp)
+    @show ibnfs_temp[i].ibnfhandlers
+    println(" ")
+end=#
+#@show eachindex(ibnfs_temp)
+
+
+#=for i in eachindex(ibnfs_temp)
+    @show hdlr[i]
+    println(" ")
+end=#
+
+
+#=for i in eachindex(ibnfs)
+    println(" ")
+    @show ibnfs[i].ibnfhandlers
+end=#
+
+
+
+
+
 #=counter = 0
 for name_graph in domains_name_graph
     counter = counter + 1
@@ -30,67 +89,6 @@ for name_graph in domains_name_graph
     c=c+1
 end
 =#
-
-
-ibnfs_temp = [
-    let
-        ag = name_graph[2]
-        ibnag = MINDF.default_IBNAttributeGraph(ag)
-        ibnf_temp = IBNFramework(ibnag, handlers)
-    end for name_graph in domains_name_graph
-]
-
-#=for i in eachindex(ibnfs_temp)
-    @show ibnfs_temp[i].ibnfhandlers
-    println(" ")
-end=#
-#@show eachindex(ibnfs_temp)
-
-
-
-# add ibnf handlers
-for i in eachindex(ibnfs_temp)
-    port = 8080 + i
-    URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
-    URI_s=string(URI)
-    push!(hdlr, MINDF.RemoteIBNFHandler(UUID(i), URI_s))
-end
-
-#=for i in eachindex(ibnfs_temp)
-    @show hdlr[i]
-    println(" ")
-end=#
-
-for i in eachindex(ibnfs_temp)
-    temp = Vector{MINDFul.AbstractIBNFHandler}()
-    push!(temp, hdlr[i])
-    
-    println(" ")
-    for j in eachindex(ibnfs_temp)
-        i == j && continue
-        #if !(hdlr[j] in ibnfs[i].ibnfhandlers)
-        push!(temp, hdlr[j])
-        #end
-        
-    end
-    #@show temp
-    ibnf = IBNFramework(ibnfs_temp[i].ibnag, temp)
-    push!(ibnfs,ibnf)    
-end
-
-
-
-#=for i in eachindex(ibnfs)
-    println(" ")
-    @show ibnfs[i].ibnfhandlers
-end=#
-
-
-#@show ibnfs_dict
-
-MINDF.start_ibn_server(ibnfs)
-
-
 
 
 

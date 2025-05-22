@@ -366,8 +366,8 @@ function getlinkstates(ibnf::IBNFramework, edge::Edge; checkfirst::Bool=true, ve
         else
             getlinkstates(getoxcview(nodeviewdst), edge)
         end
-        @show srclinksstates
-        @show dstlinkstates
+        #@show srclinksstates
+        #@show dstlinkstates
         @assert(getindex.(srclinksstates, 2) == getindex.(dstlinkstates, 2))
         return srclinksstates
     else
@@ -382,8 +382,6 @@ end
 """
 $(TYPEDSIGNATURES)
 Set the link state on both OXCView ends of `edge`
-TODO: with recvtime
-TODO: toggle OXCLLI to failed
 """
 @recvtime function setlinkstate!(ibnf::IBNFramework, edge::Edge, operatingstate::Bool)
     ibnag = getibnag(ibnf)
@@ -411,6 +409,26 @@ TODO: toggle OXCLLI to failed
     else
         setlinkstate!(ibnf, getoxcview(nodeviewdst), edge, operatingstate; @passtime)
     end
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get the router port
+"""
+function getrouterport(ibnf::IBNFramework, intent::RouterPortLLI)
+    localnode = getlocalnode(intent)
+    routerview = getrouterview(getnodeview(getibnag(ibnf), localnode))
+    return getrouterport(routerview, getrouterportindex(intent))
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get the router port
+"""
+function getrouterportrate(ibnf::IBNFramework, intent::RouterPortLLI)
+    localnode = getlocalnode(intent)
+    routerview = getrouterview(getnodeview(getibnag(ibnf), localnode))
+    return getrate(getrouterport(routerview, getrouterportindex(intent)))
 end
 
 """

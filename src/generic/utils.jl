@@ -63,6 +63,34 @@ function firstfit(boolvec::AbstractVector{Bool}, lenghrequire::Int)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Return a Vector{Tuple{Int, Int}} with the consecutive blocks that satisfy function `predicate`.
+The first element of the tuple is the starting index and the second the last index of the block.
+"""
+function findconsecutiveblocks(predicate::F, vec::Vector) where F<:Function
+    consblocks = Vector{Tuple{Int, Int}}()
+    i = first(eachindex(vec))
+    while i <= length(vec)
+        if predicate(vec[i])
+            startingindex = i
+            lastindex = length(vec)
+            for j in startingindex+1:length(vec)
+                if !predicate(vec[j])
+                    lastindex = j-1
+                    break
+                end
+            end
+            push!(consblocks, (startingindex, lastindex))
+            i = lastindex + 1
+        else
+            i += 1
+        end
+    end
+    return consblocks
+end
+
 
 """
 $(TYPEDSIGNATURES)

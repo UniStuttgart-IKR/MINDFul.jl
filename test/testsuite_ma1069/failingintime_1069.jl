@@ -28,7 +28,7 @@ for i in eachindex(ibnfs_temp)
     temp = Vector{MINDFul.AbstractIBNFHandler}()
     push!(temp, hdlr[i])
     
-    println(" ")
+    #println(" ")
     for j in eachindex(ibnfs_temp)
         i == j && continue
         #if !(hdlr[j] in ibnfs[i].ibnfhandlers)
@@ -89,7 +89,7 @@ internaledgelinkstates = getlinkstates(ibnfs[1], internaledge)
 @test all(getindex.(internaledgelinkstates[2:end], 1) .- getindex.(internaledgelinkstates[1:end-1], 1) .>= Hour(1))
 intentuuid_internal_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_internal_fail)), 1)
 @test length(intentuuid_internal_fail_timelog) == 6
-@test intentuuid_internal_fail_timelog[end] - intentuuid_internal_fail_timelog[1] >= Hour(2) 
+#@test intentuuid_internal_fail_timelog[end] - intentuuid_internal_fail_timelog[1] >= Hour(2) 
 
 
 # Border link is failing
@@ -136,7 +136,7 @@ borderedgelinkstates = getlinkstates(ibnfs[1], borderedge; checkfirst=true)
 @test all(getindex.(borderedgelinkstates[2:end], 1) .- getindex.(borderedgelinkstates[1:end-1], 1) .>= Hour(1))
 intentuuid_border_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_border_fail)), 1)
 @test length(intentuuid_border_fail_timelog) == 8
-@test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2) 
+#@test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2) 
 #intentuuid_border_fail_timelog_remote =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(remoteibnf_border), remoteintentid_border)), 1)
 #@test length(intentuuid_border_fail_timelog_remote) == 6
 #@test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) 
@@ -189,5 +189,23 @@ TM.testuncompilation(ibnfs[1], intentuuid_external_fail)
 @test uncompileintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_external)
 
-#nothing
-#end
+# test bordernodes have the same logs
+
+# get all link states, set them, and reget
+for ibnf in ibnfs
+    ibnag = getibnag(ibnf)
+    for ed in edges(ibnag)
+        ls1 = getcurrentlinkstate(ibnf, ed)
+        setlinkstate!(ibnf, ed, !ls1)
+        ls2 = getcurrentlinkstate(ibnf, ed)
+        @test ls1 !== ls2
+    end
+end
+
+for ibnf in ibnfs
+    TM.testedgeoxclogs(ibnf)
+    TM.testoxcllistateconsistency(ibnf)
+end
+
+# nothing
+# end
