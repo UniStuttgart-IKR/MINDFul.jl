@@ -73,7 +73,7 @@ $(TYPEDSIGNATURES)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
-            reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
+        reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
     end
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
         return ReturnCodes.SUCCESS
@@ -730,3 +730,110 @@ function getpathdistance(ibnag::IBNAttributeGraph, path::Vector{Int})
     return sum([getindex(ws, nodepair...) for nodepair in zip(path[1:end-1], path[2:end])])
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+If `idagnode` represents a direct parent of LLIs that are a lightpath, add representation to the IntentDAGInfo
+Return `true` if done. Otherwise `false`
+"""
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode)
+    # should be the direct intent DAG
+    lliidagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
+    all(idn ->  getintent(idn) isa LowLevelIntent, lliidagnodechildren) || return false
+    lollis = getlogicallliorder(ibnf, idagnode; onlyinstalled=true)
+    if logicalorderissinglelightpath(lollis)
+        startoptically = first(lollis) isa OXCAddDropBypassSpectrumLLI ? true : false
+        terminatesoptically = last(lollis) isa OXCAddDropBypassSpectrumLLI ? true : false
+        path = logicalordergetlightpaths(lollis)[] # first is unique
+        # totalbandwidth
+        if lollis[2] isa TransmissionModuleLLI
+            totalbandwidth = getrate(gettransmissionmode(ibnf, lollis[2]))
+        elseif lollis[end-1] isa TransmissionModuleLLI
+            totalbandwidth = getrate(gettransmissionmode(ibnf, lollis[end-1]))
+        else # search it in the whole DAG (slow but should be seldom)
+            # search on source or destination
+            allidagnodes = getidagnodes(getidag(ibnf))
+            transmmdllliidx = findfirst(allidagnodes) do idn
+                intent = getintent(idn)
+                intent isa TransmissionModuleLLI || return false
+                if getlocalnode(intent) == path[1]
+                    firstoxc = getfirst(lli -> lli isa OXCAddDropBypassSpectrumLLI, lollis)
+                    if !isnothing(firstoxc)
+                        if getadddropport(intent) == getadddropport(firstoxc)
+                            return true
+                        else
+                            return false
+                        end
+                    end
+                elseif getlocalnode(intent) == path[end]
+                    lastoxc = getfirst(lli -> lli isa OXCAddDropBypassSpectrumLLI, reverse(lollis))
+                    if !isnothing(lastoxc)
+                        if getadddropport(intent) == getadddropport(lastoxc)
+                            return true
+                        else
+                            return false
+                        end
+                    end
+                else 
+                    return false
+                end
+            end
+            isnothing(transmmdllliidx) && return false
+            tlli = allidagnodes[transmmdllliidx]
+            if tlli isa TransmissionModuleLLI # just for to ease the compiler work
+                totalbandwidth = getrate(gettransmissionmode(ibnf, tlli))
+            else
+                totalbandwidth = GBPSf(0) # never comes here (dead code)
+            end
+        end
+        lightpathrepresentation = LightpathRepresentation(path, startoptically, terminatesoptically, totalbandwidth, getidagnodeid.(lliidagnodechildren))
+        installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+        installedlightpaths[getidagnodeid(idagnode)] =  lightpathrepresentation
+    end
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Remove from the installedlightpaths representation if exists
+Return `true` if done. Otherwise `false`
+"""
+function removefrominstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode)
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    idagnodeid = getidagnodeid(idagnode)
+    if haskey(installedlightpaths, idagnodeid)
+        delete!(installedlightpaths, idagnodeid)
+        return true
+    end
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getresidualbandwidth(ibnf::IBNFramework, lightpathuuid::UUID)
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    getresidualbandwidth(ibnf, lightpathuuid, installedlightpaths[lightpathuuid])
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return how much bandwidth is left unused in the lightpath
+"""
+function getresidualbandwidth(ibnf::IBNFramework, lightpathuuid::UUID, lightpathrepresentation::LightpathRepresentation)
+    residualbandwidth = gettotalbandwidth(lightpathrepresentation)
+    for idn in getidagnoderoots(getidag(ibnf), lightpathuuid)
+        intent = getintent(idn)
+        if intent isa ConnectivityIntent
+            subrate = getrate(intent)
+        elseif intent isa RemoteIntent{ConnectivityIntent}
+            subrate = getrate(getintent(getintent(intent)))
+        end
+        residualbandwidth -= getrate(getintent(idn))
+    end
+    # get topmost intents
+    return residualbandwidth
+end

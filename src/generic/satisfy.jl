@@ -310,6 +310,7 @@ function logicalordercontainsedge(lo::Vector{<:LowLevelIntent}, edge::Edge)
 end
 
 """
+$(TYPEDSIGNATURES)
     Return a Vector{Int} with the path given from the logical low level intent order
 """
 function logicalordergetpath(lo::Vector{<:LowLevelIntent})
@@ -334,6 +335,64 @@ function logicalordergetpath(lo::Vector{<:LowLevelIntent})
 end
 
 """
+$(TYPEDSIGNATURES)
+
+    Check that the LowLevelIntents are consisting a single LightPath implementation
+This means that the order of the LLIs should be
+(RouterPortLLI) -> (TransmissionModuleLLI) -> OXCAddDropLLI -> (TranmsissionModuleLLI) -> (RouterPortLLI)
+"""
+function logicalorderissinglelightpath(lo::Vector{<:LowLevelIntent})
+    phase = 1 
+    if first(lo) isa TransmissionModuleLLI || last(lo) isa TransmissionModuleLLI 
+        return false
+    end
+    for loi in lo
+        if phase == 1 # next must be RouterPortLLI or TransmissionModule or OXCAddDrop
+            if loi isa RouterPortLLI
+                phase = 2
+            elseif loi isa TransmissionModuleLLI
+                return false
+            elseif loi isa OXCAddDropBypassSpectrumLLI
+                phase = 4
+            else
+                return false
+            end
+        elseif phase == 2
+            if loi isa TransmissionModuleLLI
+                phase = 3
+            else
+                return false
+            end
+        elseif phase == 3
+            if loi isa OXCAddDropBypassSpectrumLLI
+                phase = 4
+            else
+                return false
+            end
+        elseif phase == 4
+            if loi isa TransmissionModuleLLI
+                phase = 5
+            elseif loi isa OXCAddDropBypassSpectrumLLI
+                phase = 4
+            else
+                return false
+            end
+        elseif phase == 5
+            if loi isa RouterPortLLI
+                phase = 6
+            else
+                return false
+            end
+        elseif phase == 6
+            return false
+        end
+    end
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+
     Return a Vector{Vector{Int}} being the lightpaths from the logical low level intent order
 """
 function logicalordergetlightpaths(lo::Vector{<:LowLevelIntent})

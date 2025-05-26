@@ -46,47 +46,79 @@ prioritizesplitbordernodes(
     verbose::Bool = false,
     intradomainalgfun::F1,
     externaldomainalgkeyword::Symbol,
-    prioritizesplitnodes::F2 = prioritizesplitnodes_longestfirstshortestpath,
-    prioritizesplitbordernodes::F3 = prioritizesplitbordernodes_shortestorshortestrandom
-    ) where{F1<:Function, F2<:Function, F3<:Function}
+    prioritizegrooming::F2 = prioritizegrooming_default,
+    prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
+    prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom
+    ) where{F1<:Function, F2<:Function, F3<:Function, F4<:Function}
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
 
     returncode::Symbol = ReturnCodes.FAIL
     verbose && @info("Compiling intent ", getidagnodeid(idagnode), getintent(idagnode))
 
-    if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
-        # intra-domain
-        returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
-        if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
-            verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
-            # get a node in between the shortest paths
-            candidatesplitglobalnodes = prioritizesplitnodes(ibnf, idagnode, intentcompilationalgorithm)
-            isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
+    # # get grooming possibilites and handle them
+    # # grooming not possible for OpticalInitiateConstraint
+    # if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+    #     groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm)
+    #     @show groomingpossibilities
+    #     for groomingpossibility in groomingpossibilities
+    #         for lightpath in groomingpossibility
+    #             # put NoGroomingConstraint in all Intents Generated here 
+    #             if lightpath isa Edge 
+    #                 lpsourcenode = GlobalNode(getibnfid(ibnf), src(lightpath))
+    #                 lpdstnode = GlobalNode(getibnfid(ibnf), dst(lightpath))
+    #                 lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
+    #                 lpidagnode = addidagnode!(ibnf, lpintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    #                 returncode = intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
+    #                 updateidagnodestates!(ibnf, lpidagnode; @passtime)
+    #             elseif lightpath isa UUID
+    #                 addidagedge!(ibnf, getidagnodeid(idagnode), lightpath)
+    #             end
+    #             if !issuccess(returncode)
+    #                 # TODO uncompile and restart to go to next grooming possibility
+    #                 break
+    #             end
+    #         end
+    #         if issuccess(returncode)
+    #             break
+    #         end
+    #     end
+    # end
+    if !issuccess(returncode)
+        # if didn't groom
+        if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
+            # intra-domain
+            returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
+            if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
+                verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
+                # get a node in between the shortest paths
+                candidatesplitglobalnodes = prioritizesplitnodes(ibnf, idagnode, intentcompilationalgorithm)
+                isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
 
-            for splitglobalnode in candidatesplitglobalnodes
-                @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
-                verbose && @info("Attenmpting splitting intent at GlobalNode", splitglobalnode)
-                returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; verbose, @passtime)
-                issuccess(returncode) && break
+                for splitglobalnode in candidatesplitglobalnodes
+                    @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
+                    verbose && @info("Attenmpting splitting intent at GlobalNode", splitglobalnode)
+                    returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; verbose, @passtime)
+                    issuccess(returncode) && break
+                end
             end
-        end
-        updateidagnodestates!(ibnf, idagnode)
-    elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
-        # source intra-domain , destination cross-domain
-        # border-node
-        if isbordernode(ibnf, destinationglobalnode)
-            verbose && @info("Splitting at the border node")
-            returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; @passtime)
-        else
-            # select border node
-            candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
-            isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
-            for destinationglobalbordernode in candidatedestinationglobalbordernodes
-                uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
-                verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
-                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; verbose, @passtime)
-                issuccess(returncode) && break
+            updateidagnodestates!(ibnf, idagnode)
+        elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
+            # source intra-domain , destination cross-domain
+            # border-node
+            if isbordernode(ibnf, destinationglobalnode)
+                verbose && @info("Splitting at the border node")
+                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; @passtime)
+            else
+                # select border node
+                candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
+                isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
+                for destinationglobalbordernode in candidatedestinationglobalbordernodes
+                    uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+                    verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
+                    returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; verbose, @passtime)
+                    issuccess(returncode) && break
+                end
             end
         end
     end
@@ -149,6 +181,81 @@ $(TYPEDSIGNATURES)
 
     # check state of current internalremoteidagnode
     return returncode
+end
+
+"""
+$(TYPEDSIGNATURES)
+    Return a Vector of grooming possibilities.
+    Suggest grooming only if remains on the same path.
+    Suggest grooming only if one extra router port pair is used.
+
+    Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
+    Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
+"""
+function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
+    intent = getintent(idagnode)
+    srcglobalnode = getsourcenode(intent)
+    dstglobalnode = getdestinationnode(intent)
+    srcnode = getlocalnode(getibnag(ibnf), srcglobalnode)
+    dstnode = getlocalnode(getibnag(ibnf), dstglobalnode)
+
+    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
+
+    getibnfid(ibnf) == getibnfid(srcglobalnode) == getibnfid(dstglobalnode) || return groomingpossibilities
+
+    candidatepaths = prioritizepaths_shortest(ibnf, idagnode, intentcompilationalgorithm)
+
+    # intentuuid => LightpathRepresentation
+    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
+    for candidatepath in candidatepaths
+        containedinstalledlightpaths = filter(installedlightpaths) do (intentid, lightpathrepresentation)
+            issubpath(candidatepath, getpath(lightpathrepresentation)) || return false
+            if getpath(lightpathrepresentation)[end] == dstnode && any(c -> c isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
+                if getterminatessoptically(lightpathrepresentation)
+                    return true
+                else
+                    return false
+                end
+            end
+            return true
+        end
+
+        containedlightpaths = getpath.(getindex.(containedinstalledlightpaths, 2)) 
+        # find the combination of lightaths.
+
+        ## starting lightpaths
+        startinglightpathscollections = consecutivelightpathsidx(containedlightpaths, srcnode; startingnode=true)
+       
+        ## ending lightpaths
+        endinglightpathscollections = consecutivelightpathsidx(containedlightpaths, dstnode; startingnode=false)
+
+        for lightpathcollection in Iterators.flatten((startinglightpathscollections, endinglightpathscollections))
+            # some filtering: e.g. no same lightpath combinations 
+
+            lpc2insert = Vector{Union{UUID, Edge{Int}}}()
+            for lpidx in lightpathcollection
+                push!(lpc2insert, containedinstalledlightpaths[lpidx][1])
+            end
+
+            firstlightpath = containedlightpaths[lightpathcollection[1]]
+            if firstlightpath[1] != srcnode
+                pushfirst!(lpc2insert, Edge(srcnode, firstlightpath[1]))
+            end
+            lastlightpath = containedlightpaths[lightpathcollection[end]]
+            if lastlightpath[end] != dstnode
+                push!(lpc2insert, Edge(lastlightpath[end], dstnode))
+            end
+
+            index = searchsortedfirst(groomingpossibilities, lpc2insert) 
+            # TODO sort grooming options ; by = fewerlightpathsinvolved)
+            if index > length(groomingpossibilities) || groomingpossibilities[index] != lpc2insert #if not already inside
+                insert!(groomingpossibilities, index, lpc2insert)
+            end
+        end
+
+    end
+
+    return groomingpossibilities
 end
 
 """
@@ -313,7 +420,7 @@ chooseoxcadddropport(
 """
 @recvtime function intradomaincompilationtemplate(;
     prioritizepaths = prioritizepaths_shortest,
-    prioritizerouterport = prioritizerouterports_first,
+    prioritizerouterport = prioritizerouterports_lowestrate,
     prioritizetransmdlandmode = prioritizetransmdlmode_cheaplowrate,
     choosespectrum = choosespectrum_firstfit,
     chooseoxcadddropport = chooseoxcadddropport_first,
@@ -342,7 +449,7 @@ chooseoxcadddropport(
 
         transmissionmodulecompat = nothing
         opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
-        if !isnothing(opticalinitiateconstraint)
+        if !isnothing(opticalinitiateconstraint) # cannot groom
             returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             for path in candidatepaths
             lowlevelintentsbuffer = LowLevelIntent[]
@@ -367,6 +474,7 @@ chooseoxcadddropport(
                 sourceadddropport = nothing
                 opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
 
+                # double code with the second if
                 oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
                 foreach(oxcadddropbypassspectrumllis) do lli
                     push!(lowlevelintentsbuffer, lli)
@@ -434,6 +542,8 @@ chooseoxcadddropport(
 
                         opticalinitincomingnode = nothing
                         spectrumslotsrange = startingslot:(startingslot + demandslotsneeded - 1)
+
+                        # double code with the first if
                         oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
 
                         foreach(oxcadddropbypassspectrumllis) do lli
@@ -597,11 +707,8 @@ end
 
 """
 $(TYPEDSIGNATURES)
-TODO: 
-- grooming alternative
-- change name
 """
-function prioritizerouterports_first(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
+function prioritizerouterports_lowestrate(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
     routerview = getrouterview(getnodeview(getibnag(ibnf), node))
     portrates = getrate.(getrouterports(routerview))
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
@@ -612,7 +719,6 @@ function prioritizerouterports_first(ibnf::IBNFramework, idagnode::IntentDAGNode
     sort!(filteredports; by = x -> portrates[x])
     return filteredports
 end
-
 
 """
 $(TYPEDSIGNATURES)

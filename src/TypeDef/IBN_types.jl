@@ -85,8 +85,35 @@ struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
     logstate::IntentLogState{IntentState.T}
 end
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Represents an implementation of a ConnectivityIntent as a lightpath
+"""
+struct LightpathRepresentation
+    "The nodes comprising the lightpath"
+    path::Vector{LocalNode}
+    "`true` if it starts optically (due to `OpticalInitiateConstraint`) or `false` otherwise"
+    startsoptically::Bool
+    "`true` if it terminates optically (due to `OpticalTerminateConstraint`) or `false` otherwise"
+    terminatessoptically::Bool
+    "total bandwidth that can be allocated"
+    totalbandwidth::GBPSf
+    "The LLIs consisting the lightpath"
+    lowlevelintentuuids::Vector{UUID}
+end
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+"""
 mutable struct IntentDAGInfo
+    "The counter of the number of intents to give increasing ids to intents"
     intentcounter::Int
+    "Logical representation of the installed intents as lightpaths (must be direct parent of the LLIs)"
+    installedlightpaths::Dict{UUID, LightpathRepresentation}
 end
 
 """
@@ -95,7 +122,7 @@ $(TYPEDSIGNATURES)
 Empty constructor 
 """
 function IntentDAGInfo()
-    return IntentDAGInfo(0)
+    return IntentDAGInfo(0, Dict{UUID, LightpathRepresentation}())
 end
 
 "An `AttributeGraph` graph used as an intent Directed Acyclic Graph (DAG)"
@@ -133,6 +160,56 @@ struct ConnectivityIntent{T <: AbstractIntentConstraint} <: AbstractIntent
     constraints::Vector{T}
 end
 
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+
+Basically an aggregator of `RouterPortLLI`, `TransmissionModuleLLI`, `OXCAddDropBypassSpectrumLLI` in a node.
+"""
+struct EndNodeAllocations
+    localnode::Int
+    routerportindex::Int
+    transmissionmoduleviewpoolindex::Int
+    transmissionmodesindex::Int
+    localnode_input::Int
+    adddropport::Int
+    localnode_output::Int
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Return true if allocaitons on the node do not influence the electrical devices.
+This is equivalent to the `OpticalInitiateConstraint` and `OpticalTerminateConstraint`
+"""
+function isonlyoptical(ena::EndNodeAllocations)
+    if iszero(getlocalnode(ena)) && iszero(getrouterportindex(ena)) && iszero(gettransmissionmoduleviewpoolindex(ena)) && iszero(gettransmissionmodesindex(ena)) 
+        if iszero(getlocalnode_input(ena)) || iszero(getlocalnode_output(ena))
+            return true
+        end
+    end
+    return false
+end
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+
+Basicaly an aggregator of `LowLevelIntents`.
+One lightpath intent can translate trivially to LowLevelIntents.
+It's core use is for grooming, where several Connectivity Intents can be linked to one LightpathIntent
+If the field does not apply, put `0`
+"""
+struct LightpathIntent <: AbstractIntent
+    sourcenodeallocations::EndNodeAllocations
+    destinationnodeallocations::EndNodeAllocations
+    spectrumslotsrange::UnitRange{Int}
+    path::Vector{LocalNode}
+end
+
 function ConnectivityIntent(sourcenode::GlobalNode, destinationnode::GlobalNode, rate::GBPSf)
     return ConnectivityIntent(sourcenode, destinationnode, rate, AbstractIntentConstraint[])
 end
@@ -150,6 +227,13 @@ function Base.show(io::IO, connectivityintent::ConnectivityIntent)
     end
     print(io, ")")
 end
+
+"""
+$(TYPEDEF)
+
+Constraint that requires the intent is compiled without use of grooming techniques.
+"""
+struct NoGroomingConstraint <: AbstractIntentConstraint end
 
 """
 $(TYPEDEF)
@@ -299,17 +383,4 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
     print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
-end
-
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-
-Expresses an intent for a lightpath.
-Compilation should yield: 
-- source and destination port indices
-- transmissionmodule selection
-"""
-struct LightpathIntent <: AbstractIntent
-    path::Vector{LocalNode}
 end

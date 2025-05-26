@@ -124,6 +124,18 @@ function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentid::Uni
     return getidagnodeid(idagnode)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function addidagedge!(ibnf::IBNFramework, fromnode::UUID, tonode::UUID)
+    idag = getidag(ibnf)
+    fromidx = getidagnodeidx(idag, fromnode)
+    toidx = getidagnodeidx(idag, tonode)
+    add_edge!(idag, fromidx, toidx)
+    updateidagstates!(ibnf, fromnode)
+    return true
+end
+
 function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(intentdag, idagnodeid)
     rem_vertex!(intentdag, vertexidx)
@@ -162,13 +174,11 @@ Return value is true if state is changed.
         elseif isnothing(newstate) && currentstate != IntentState.Uncompiled
             changedstate = true
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
-            if getintent(idagnode) isa LowLevelIntent
-                println("$(getibnfid(ibnf)), $(getidagnodeid(idagnode)) not so correct state update")
-            end
         end        
     elseif all(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiled
             changedstate = true
+            removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
             pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
         end
     elseif all(==(IntentState.Uncompiled), childrenstates)
@@ -179,6 +189,7 @@ Return value is true if state is changed.
     elseif all(==(IntentState.Installed), childrenstates)
         if currentstate != IntentState.Installed
             changedstate = true
+            addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
             pushstatetoidagnode!(idagnode, IntentState.Installed; @passtime)
         end
     elseif any(==(IntentState.Failed), childrenstates)
@@ -322,6 +333,23 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function hasidagnodeparents(idag::IntentDAG, idagnode::IntentDAGNode)
+    idagnodeid = getidagnodeid(idagnode)
+    return hasidagnodeparents(idag, idagnodeid)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function hasidagnodeparents(idag::IntentDAG, idagnodeid::UUID)
+    vertexidx = getidagnodeidx(idag, idagnodeid)
+    parentidxs = Graphs.inneighbors(idag, vertexidx)
+    return !isempty(parentidxs)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getidagnodeparents(idag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(idag, idagnodeid)
     childrenidxs = Graphs.inneighbors(idag, vertexidx)
@@ -374,6 +402,30 @@ function _leafs_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentD
     if hasidagnodechildren(dag, idn)
         for chidn in getidagnodechildren(dag, idn)
             _leafs_recu!(vidns, dag, chidn; exclusive)
+        end
+    else
+        push!(vidns, idn)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get the roots of DAG `dag` starting from node `idn`.
+"""
+function getidagnoderoots(idag::IntentDAG, idagnodeid::UUID)
+    idns = IntentDAGNode[]
+    for paridn in getidagnodeparents(idag, idagnodeid)
+        _parents_recu!(idns, idag, paridn; exclusive)
+    end
+    isempty(idns) && push!(idns, getidagnode(idag, idagnodeid))
+    return idns
+end
+
+function _parents_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentDAGNode)
+    if hasidagnodeparents(dag, idn)
+        for paridn in getidagnodeparents(dag, idn)
+            _parents_recu!(vidns, dag, paridn)
         end
     else
         push!(vidns, idn)

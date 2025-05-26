@@ -71,6 +71,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getinstalledlightpaths(intentdaginfo::IntentDAGInfo)
+    return intentdaginfo.installedlightpaths
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getidagnodeid(idagnode::IntentDAGNode)
     return idagnode.idagnodeid
 end
@@ -247,4 +254,88 @@ $(TYPEDSIGNATURES)
 """
 function getisinitiator(ri::RemoteIntent)
     ri.isinitiator
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getpath(lpr::LightpathRepresentation)
+    return lpr.path
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getstartsoptically(lpr::LightpathRepresentation)
+    return lpr.startsoptically
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getterminatessoptically(lpr::LightpathRepresentation)
+    return lpr.terminatessoptically
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettotalbandwidth(lpr::LightpathRepresentation)
+    return lpr.totalbandwidth
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlowlevelintentuuids(lpr::LightpathRepresentation)
+    return lpr.lowlevelintentuuids
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlocalnode(ena::EndNodeAllocations)
+    return ena.localnode
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getrouterportindex(ena::EndNodeAllocations)
+    return ena.routerportindex
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettransmissionmoduleviewpoolindex(ena::EndNodeAllocations)
+    return ena.transmissionmoduleviewpoolindex
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettransmissionmodesindex(ena::EndNodeAllocations)
+    return ena.transmissionmodesindex
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlocalnode_input(ena::EndNodeAllocations)
+    return ena.localnode_input
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getadddropport(ena::EndNodeAllocations)
+    return ena.adddropport
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlocalnode_output(ena::EndNodeAllocations)
+    return ena.localnode_output
 end
