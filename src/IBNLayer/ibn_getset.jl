@@ -336,6 +336,126 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function getlocalnode_output(ena::EndNodeAllocations)
+function getlocalnode(ena::MutableEndNodeAllocations)
+    return ena.localnode
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getrouterportindex(ena::MutableEndNodeAllocations)
+    return ena.routerportindex
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettransmissionmoduleviewpoolindex(ena::MutableEndNodeAllocations)
+    return ena.transmissionmoduleviewpoolindex
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettransmissionmodesindex(ena::MutableEndNodeAllocations)
+    return ena.transmissionmodesindex
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlocalnode_input(ena::MutableEndNodeAllocations)
+    return ena.localnode_input
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getadddropport(ena::MutableEndNodeAllocations)
+    return ena.adddropport
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlocalnode_output(ena::MutableEndNodeAllocations)
     return ena.localnode_output
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setlocalnode!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.localnode = intval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setrouterportindex!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.routerportindex = intval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function settransmissionmoduleviewpoolindex!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.transmissionmoduleviewpoolindex = intval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function settransmissionmodesindex!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.transmissionmodesindex = intval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setlocalnode_input!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.localnode_input = intval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setadddropport!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.adddropport = intval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setlocalnode_output!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
+    ena.localnode_output = intval
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getsourcenodeallocations(lpintent::LightpathIntent)
+    return lpintent.sourcenodeallocations
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getdestinationnodeallocations(lpintent::LightpathIntent)
+    return lpintent.destinationnodeallocations
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getspectrumslotsrange(lpintent::LightpathIntent)
+    return lpintent.spectrumslotsrange
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getpath(lpintent::LightpathIntent)
+    return lpintent.path
 end

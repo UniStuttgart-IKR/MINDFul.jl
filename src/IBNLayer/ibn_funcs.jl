@@ -40,6 +40,35 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:LightpathIntent}, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
+    lpintent = getintent(idagnode)
+    idagnodeid = getidagnodeid(idagnode)
+    for endnodeallocations in [getsourcenodeallocations(lpintent), getdestinationnodeallocations(lpintent)]
+        if !isonlyoptical(endnodeallocations)
+            routerportlli = getrouterlli(endnodeallocations)
+            stageaddidagnode!(ibnf, routerportlli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+            transmdllli = gettrasmissionmodulelli(endnodeallocations)
+            stageaddidagnode!(ibnf, transmdllli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+        end
+    end
+
+    oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(
+        getpath(lpintent),
+        getspectrumslotsrange(lpintent); 
+        sourceadddropport= getadddropport(getsourcenodeallocations(lpintent)),
+        opticalinitincomingnode = getlocalnode_input(getsourcenodeallocations(lpintent)),
+        destadddropport = getadddropport(getdestinationnodeallocations(lpintent)))
+
+    for lli in oxcadddropbypassspectrumllis
+        stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+    end
+
+    return ReturnCodes.SUCCESS
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
@@ -71,6 +100,7 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    # TODO turn to "PENDING all non-leafs first"
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
@@ -86,7 +116,7 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed])
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed, IntentState.Pending])
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
         reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose, @passtime)
@@ -737,7 +767,56 @@ $(TYPEDSIGNATURES)
 If `idagnode` represents a direct parent of LLIs that are a lightpath, add representation to the IntentDAGInfo
 Return `true` if done. Otherwise `false`
 """
-function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode)
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{LightpathIntent})
+    lpintent = getintent(idagnode)
+    path = getpath(lpintent)
+    startsoptically = isonlyoptical(getsourcenodeallocations(lpintent))
+    terminatesoptically = isonlyoptical(getdestinationnodeallocations(lpintent))
+    lightpathidagnodeid = getidagnodeid(idagnode)
+    # totalbandwidth
+    totalbandwidth = GBPSf(0)
+    if !startsoptically
+        nodeview = getnodeview(getibnag(ibnf), getlocalnode(getsourcenodeallocations(lpintent)))
+        transmissionmodule = gettransmissionmoduleviewpool(nodeview)[gettransmissionmoduleviewpoolindex(getsourcenodeallocations(lpintent))]
+        transmissionmode = gettransmissionmodes(transmissionmodule)[gettransmissionmodesindex(getsourcenodeallocations(lpintent))]
+        totalbandwidth = getrate(transmissionmode)
+    elseif !terminatesoptically
+        nodeview = getnodeview(getibnag(ibnf), getlocalnode(getdestinationnodeallocations(lpintent)))
+        transmissionmodule = gettransmissionmoduleviewpool(nodeview)[gettransmissionmoduleviewpoolindex(getdestinationnodeallocations(lpintent))]
+        transmissionmode = gettransmissionmodes(transmissionmodule)[gettransmissionmodesindex(getdestinationnodeallocations(lpintent))]
+        totalbandwidth = getrate(transmissionmode)
+    else
+        # TODO 
+        # starts and terminates optically meaning it will have a parent intent with IntiateOpticalConstraint with TransmissionModuleCompatibility
+        idagnoderoots = getidagnoderoots(getidag(ibnf), getidagnodeid(idagnode))
+        for idnr in idagnoderoots
+            if getintent(idnr) isa RemoteIntent
+                optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(getintent(idnr))))
+                if !isnothing(optinitconstraint)
+                    totalbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+                end
+            elseif getintent(idnr) isa ConnectivityIntent
+                optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idnr)))
+                if !isnothing(optinitconstraint)
+                    totalbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+                end
+            end
+        end
+    end
+    lightpathrepresentation = LightpathRepresentation(path, startsoptically, terminatesoptically, totalbandwidth)
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+    return true
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+If `idagnode` represents a direct parent of LLIs that are a lightpath, add representation to the IntentDAGInfo
+Return `true` if done. Otherwise `false`
+"""
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent})
     # should be the direct intent DAG
     lliidagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
     all(idn ->  getintent(idn) isa LowLevelIntent, lliidagnodechildren) || return false
@@ -753,39 +832,7 @@ function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode)
             totalbandwidth = getrate(gettransmissionmode(ibnf, lollis[end-1]))
         else # search it in the whole DAG (slow but should be seldom)
             # search on source or destination
-            allidagnodes = getidagnodes(getidag(ibnf))
-            transmmdllliidx = findfirst(allidagnodes) do idn
-                intent = getintent(idn)
-                intent isa TransmissionModuleLLI || return false
-                if getlocalnode(intent) == path[1]
-                    firstoxc = getfirst(lli -> lli isa OXCAddDropBypassSpectrumLLI, lollis)
-                    if !isnothing(firstoxc)
-                        if getadddropport(intent) == getadddropport(firstoxc)
-                            return true
-                        else
-                            return false
-                        end
-                    end
-                elseif getlocalnode(intent) == path[end]
-                    lastoxc = getfirst(lli -> lli isa OXCAddDropBypassSpectrumLLI, reverse(lollis))
-                    if !isnothing(lastoxc)
-                        if getadddropport(intent) == getadddropport(lastoxc)
-                            return true
-                        else
-                            return false
-                        end
-                    end
-                else 
-                    return false
-                end
-            end
-            isnothing(transmmdllliidx) && return false
-            tlli = allidagnodes[transmmdllliidx]
-            if tlli isa TransmissionModuleLLI # just for to ease the compiler work
-                totalbandwidth = getrate(gettransmissionmode(ibnf, tlli))
-            else
-                totalbandwidth = GBPSf(0) # never comes here (dead code)
-            end
+            searchallidagfortransmissionrate(ibnf, lollis)
         end
         lightpathrepresentation = LightpathRepresentation(path, startoptically, terminatesoptically, totalbandwidth, getidagnodeid.(lliidagnodechildren))
         installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
@@ -836,4 +883,18 @@ function getresidualbandwidth(ibnf::IBNFramework, lightpathuuid::UUID, lightpath
     end
     # get topmost intents
     return residualbandwidth
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getrouterlli(ena::EndNodeAllocations)
+    return RouterPortLLI(getlocalnode(ena), getrouterportindex(ena))
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettrasmissionmodulelli(ena::EndNodeAllocations)
+    return TransmissionModuleLLI(getlocalnode(ena), gettransmissionmoduleviewpoolindex(ena), gettransmissionmodesindex(ena), getrouterportindex(ena), getadddropport(ena))
 end

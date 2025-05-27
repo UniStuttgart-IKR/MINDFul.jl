@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "opticalconstraintssingledomain.jl"  begin
+# @testset ExtendedTestSet "opticalconstraintssingledomain.jl"  begin
 domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
 
 
@@ -93,4 +93,4 @@ foreach(ibnfs) do ibnf
 end
 
 nothing
-end
+# end

@@ -191,3 +191,7 @@ function issubpath(path::Vector{Int}, subpath::Vector{Int})
     end
     return true
 end
+
+function iszeroornothing(s)
+    return isnothing(s) || iszero(s)
+end

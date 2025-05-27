@@ -55,7 +55,7 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
 
     istotalsatisfied = true
 
-    isempty(orderedllis) && return false
+    @returnfalseiffalse(verbose, !isempty(orderedllis))
 
 
     # check first
@@ -77,7 +77,7 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
     opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
     if !isnothing(opticalterminateconstraint)
         if !(lastlli isa OXCAddDropBypassSpectrumLLI) || getlocalnode_output(lastlli) != destlocalnode
-            istotalsatisfied = false
+            @returnfalseiffalse(verbose, false)
         end
     else
         if lastlli isa OXCAddDropBypassSpectrumLLI
@@ -86,29 +86,26 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
             globalllinode_output = getglobalnode(ibnag, getlocalnode_output(lastlli))
 
             idagnodeconnectivityintent = getfirst(getidagnodedescendants(idag, getidagnodeid(idagnode))) do idagnodedesc
-                getintent(idagnodedesc) isa ConnectivityIntent || return false
-                globalllinode_output == getsourcenode(getintent(idagnodedesc))  || return false
-                getdestinationnode(getintent(idagnodedesc)) == getdestinationnode(getintent(idagnode)) || return false
+                @returnfalseiffalse(verbose, getintent(idagnodedesc) isa ConnectivityIntent)
+                @returnfalseiffalse(verbose, globalllinode_output == getsourcenode(getintent(idagnodedesc)) ) 
+                @returnfalseiffalse(verbose, getdestinationnode(getintent(idagnodedesc)) == getdestinationnode(getintent(idagnode))) 
                 # there needs to be an OpticalInitiate
                 initconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idagnodedesc)))
-                isnothing(initconstraint) && return false
-                getspectrumslotsrange(lastlli) == getspectrumslotsrange(initconstraint) || return false
-                globalllinode == getglobalnode_input(initconstraint) || return false
+                @returnfalseiffalse(verbose, !isnothing(initconstraint))
+                @returnfalseiffalse(verbose, getspectrumslotsrange(lastlli) == getspectrumslotsrange(initconstraint)) 
+                @returnfalseiffalse(verbose, globalllinode == getglobalnode_input(initconstraint)) 
                 return true
             end
 
-            if isnothing(idagnodeconnectivityintent)
-                istotalsatisfied = false
-            else
-                allowuninstalled = any(getidagnodellis(idag, getidagnodeid(idagnode))) do idagnodelli
-                    if getintent(idagnodelli) ∈ orderedllis
-                        return getidagnodestate(idagnodelli) != IntentState.Installed
-                    end
+            @returnfalseiffalse(verbose, !isnothing(idagnodeconnectivityintent))
+            allowuninstalled = any(getidagnodellis(idag, getidagnodeid(idagnode))) do idagnodelli
+                if getintent(idagnodelli) ∈ orderedllis
+                    return getidagnodestate(idagnodelli) != IntentState.Installed
                 end
-                istotalsatisfied &= issatisfied(ibnf, getidagnodeid(idagnodeconnectivityintent); onlyinstalled = !allowuninstalled, noextrallis, verbose)
             end
+            istotalsatisfied &= issatisfied(ibnf, getidagnodeid(idagnodeconnectivityintent); onlyinstalled = !allowuninstalled, noextrallis, verbose)
         elseif !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
-            istotalsatisfied = false
+            @returnfalseiffalse(verbose, false)
         end
     end
 
@@ -118,6 +115,7 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
 
     if noextrallis
         istotalsatisfied &= (length(getidagnodellis(idag, getidagnodeid(idagnode))) == length(orderedllis))
+        @returniffalse(verbose, istotalsatisfied)
     end
 
     return istotalsatisfied

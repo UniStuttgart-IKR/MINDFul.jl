@@ -100,8 +100,6 @@ struct LightpathRepresentation
     terminatessoptically::Bool
     "total bandwidth that can be allocated"
     totalbandwidth::GBPSf
-    "The LLIs consisting the lightpath"
-    lowlevelintentuuids::Vector{UUID}
 end
 
 """
@@ -125,6 +123,7 @@ function IntentDAGInfo()
     return IntentDAGInfo(0, Dict{UUID, LightpathRepresentation}())
 end
 
+# TODO introduce edge properties
 "An `AttributeGraph` graph used as an intent Directed Acyclic Graph (DAG)"
 const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Nothing, IntentDAGInfo}
 
@@ -169,14 +168,29 @@ Basically an aggregator of `RouterPortLLI`, `TransmissionModuleLLI`, `OXCAddDrop
 """
 struct EndNodeAllocations
     localnode::Int
-    routerportindex::Int
-    transmissionmoduleviewpoolindex::Int
-    transmissionmodesindex::Int
-    localnode_input::Int
-    adddropport::Int
-    localnode_output::Int
+    routerportindex::Union{Nothing, Int}
+    transmissionmoduleviewpoolindex::Union{Nothing, Int}
+    transmissionmodesindex::Union{Nothing, Int}
+    localnode_input::Union{Nothing, Int}
+    adddropport::Union{Nothing, Int}
 end
 
+mutable struct MutableEndNodeAllocations
+    localnode::Int
+    routerportindex::Union{Nothing, Int}
+    transmissionmoduleviewpoolindex::Union{Nothing, Int}
+    transmissionmodesindex::Union{Nothing, Int}
+    localnode_input::Union{Nothing, Int}
+    adddropport::Union{Nothing, Int}
+end
+
+function MutableEndNodeAllocations()
+    return MutableEndNodeAllocations(0, nothing, nothing, nothing, nothing, nothing)
+end
+
+function EndNodeAllocations(mena::MutableEndNodeAllocations)
+    return EndNodeAllocations(mena.localnode, mena.routerportindex, mena.transmissionmoduleviewpoolindex, mena.transmissionmodesindex, mena.localnode_input, mena.adddropport)
+end
 
 """
 $(TYPEDSIGNATURES)
@@ -185,10 +199,8 @@ Return true if allocaitons on the node do not influence the electrical devices.
 This is equivalent to the `OpticalInitiateConstraint` and `OpticalTerminateConstraint`
 """
 function isonlyoptical(ena::EndNodeAllocations)
-    if iszero(getlocalnode(ena)) && iszero(getrouterportindex(ena)) && iszero(gettransmissionmoduleviewpoolindex(ena)) && iszero(gettransmissionmodesindex(ena)) 
-        if iszero(getlocalnode_input(ena)) || iszero(getlocalnode_output(ena))
-            return true
-        end
+    if iszeroornothing(getrouterportindex(ena)) && iszeroornothing(gettransmissionmoduleviewpoolindex(ena)) && iszeroornothing(gettransmissionmodesindex(ena)) 
+        return true
     end
     return false
 end
@@ -208,6 +220,28 @@ struct LightpathIntent <: AbstractIntent
     destinationnodeallocations::EndNodeAllocations
     spectrumslotsrange::UnitRange{Int}
     path::Vector{LocalNode}
+end
+
+function LightpathIntent(srcallocations::MutableEndNodeAllocations, dstallocations::MutableEndNodeAllocations, specrumslotsrange::UnitRange{Int}, path::Vector{LocalNode})
+    srcnodeallocations = EndNodeAllocations(srcallocations)
+    dstnodeallocations = EndNodeAllocations(dstallocations)
+    return LightpathIntent(srcnodeallocations, dstnodeallocations, specrumslotsrange, path)
+end
+
+function Base.show(io::IO, lpt::LightpathIntent)
+    startingoptical = isonlyoptical(lpt.sourcenodeallocations)
+    endingoptical = isonlyoptical(lpt.destinationnodeallocations)
+    description = 
+    if startingoptical && endingoptical
+        "segment"
+    elseif startingoptical
+        "o-starting"
+    elseif endingoptical
+        "o-ending"
+    else
+        "full"
+    end
+    print(io, description, " lightpath ", lpt.path, " ",lpt.spectrumslotsrange)
 end
 
 function ConnectivityIntent(sourcenode::GlobalNode, destinationnode::GlobalNode, rate::GBPSf)

@@ -187,9 +187,12 @@ Return value is true if state is changed.
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end
     elseif all(==(IntentState.Installed), childrenstates)
+        # TODO if in Pending state can change ony
         if currentstate != IntentState.Installed
             changedstate = true
-            addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+            if getintent(idagnode) isa LightpathIntent
+                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+            end
             pushstatetoidagnode!(idagnode, IntentState.Installed; @passtime)
         end
     elseif any(==(IntentState.Failed), childrenstates)
@@ -416,7 +419,7 @@ Get the roots of DAG `dag` starting from node `idn`.
 function getidagnoderoots(idag::IntentDAG, idagnodeid::UUID)
     idns = IntentDAGNode[]
     for paridn in getidagnodeparents(idag, idagnodeid)
-        _parents_recu!(idns, idag, paridn; exclusive)
+        _parents_recu!(idns, idag, paridn)
     end
     isempty(idns) && push!(idns, getidagnode(idag, idagnodeid))
     return idns

@@ -56,34 +56,34 @@ prioritizesplitbordernodes(
     returncode::Symbol = ReturnCodes.FAIL
     verbose && @info("Compiling intent ", getidagnodeid(idagnode), getintent(idagnode))
 
-    # # get grooming possibilites and handle them
-    # # grooming not possible for OpticalInitiateConstraint
-    # if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
-    #     groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm)
-    #     @show groomingpossibilities
-    #     for groomingpossibility in groomingpossibilities
-    #         for lightpath in groomingpossibility
-    #             # put NoGroomingConstraint in all Intents Generated here 
-    #             if lightpath isa Edge 
-    #                 lpsourcenode = GlobalNode(getibnfid(ibnf), src(lightpath))
-    #                 lpdstnode = GlobalNode(getibnfid(ibnf), dst(lightpath))
-    #                 lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
-    #                 lpidagnode = addidagnode!(ibnf, lpintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
-    #                 returncode = intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
-    #                 updateidagnodestates!(ibnf, lpidagnode; @passtime)
-    #             elseif lightpath isa UUID
-    #                 addidagedge!(ibnf, getidagnodeid(idagnode), lightpath)
-    #             end
-    #             if !issuccess(returncode)
-    #                 # TODO uncompile and restart to go to next grooming possibility
-    #                 break
-    #             end
-    #         end
-    #         if issuccess(returncode)
-    #             break
-    #         end
-    #     end
-    # end
+    # get grooming possibilites and handle them
+    # grooming not possible for OpticalInitiateConstraint
+    if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+        groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm)
+        for groomingpossibility in groomingpossibilities
+            for lightpath in groomingpossibility
+                # put NoGroomingConstraint in all Intents Generated here 
+                if lightpath isa Edge 
+                    lpsourcenode = GlobalNode(getibnfid(ibnf), src(lightpath))
+                    lpdstnode = GlobalNode(getibnfid(ibnf), dst(lightpath))
+                    lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
+                    lpidagnode = addidagnode!(ibnf, lpintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+                    returncode = intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
+                    updateidagnodestates!(ibnf, lpidagnode; @passtime)
+                elseif lightpath isa UUID
+                    addidagedge!(ibnf, getidagnodeid(idagnode), lightpath)
+                    returncode = ReturnCodes.SUCCESS
+                end
+                if !issuccess(returncode)
+                    # TODO uncompile and restart to go to next grooming possibility
+                    break
+                end
+            end
+            if issuccess(returncode)
+                break
+            end
+        end
+    end
     if !issuccess(returncode)
         # if didn't groom
         if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
@@ -446,13 +446,22 @@ chooseoxcadddropport(
         candidatepaths = prioritizepaths(ibnf, idagnode, intentcompilationalgorithm)
 
         lowlevelintentstoadd = LowLevelIntent[]
+        srcallocations = MutableEndNodeAllocations()
+        setlocalnode!(srcallocations, sourcelocalnode)
+        dstallocations = MutableEndNodeAllocations()
+        setlocalnode!(dstallocations, destlocalnode)
+        spectrumslotsrange = 0:0
+        lpath = Vector{LocalNode}()
 
-        transmissionmodulecompat = nothing
         opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
         if !isnothing(opticalinitiateconstraint) # cannot groom
+            setrouterportindex!(srcallocations, nothing)
+            settransmissionmoduleviewpoolindex!(srcallocations, nothing)
+            settransmissionmodesindex!(srcallocations, nothing)
             returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             for path in candidatepaths
-            lowlevelintentsbuffer = LowLevelIntent[]
+                lpath = path
+                lowlevelintentsbuffer = LowLevelIntent[]
                 verbose && @info("Testing path $(path)")
                 # find transmission module and mode
                 spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
@@ -472,9 +481,12 @@ chooseoxcadddropport(
                 verbose && @info("Solving for initial transmission module compatibility", transmissionmodulecompat)
 
                 sourceadddropport = nothing
+                setadddropport!(srcallocations, sourceadddropport)
                 opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
+                setlocalnode_input!(srcallocations, opticalinitincomingnode)
 
                 # double code with the second if
+                setadddropport!(dstallocations, nothing)
                 oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
                 foreach(oxcadddropbypassspectrumllis) do lli
                     push!(lowlevelintentsbuffer, lli)
@@ -488,7 +500,7 @@ chooseoxcadddropport(
                     returncode = ReturnCodes.SUCCESS
                 else
                     opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end-1]
-                    returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentsbuffer, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
+                    returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentsbuffer, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
                 end
                 if issuccess(returncode) 
                     push!(lowlevelintentstoadd, lowlevelintentsbuffer...)
@@ -499,6 +511,7 @@ chooseoxcadddropport(
             returncode = ReturnCodes.FAIL_SRCROUTERPORT
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
             for sourcerouteridx in sourcerouteridxs
+                setrouterportindex!(srcallocations, sourcerouteridx)
                 lowlevelintentsbuffer1 = LowLevelIntent[]
                 verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
                 sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouteridx)
@@ -506,6 +519,7 @@ chooseoxcadddropport(
 
                 returncode = ReturnCodes.FAIL_CANDIDATEPATHS
                 for path in candidatepaths
+                    lpath = path
                     lowlevelintentsbuffer2 = LowLevelIntent[]
                     verbose && @info("Testing path $(path)")
                     # find transmission module and mode
@@ -534,13 +548,17 @@ chooseoxcadddropport(
                             returncode = ReturnCodes.FAIL_SRCOXCADDDROPPORT
                             continue
                         end
+                        setadddropport!(srcallocations, sourceadddropport)
 
                         sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx, sourcerouteridx, sourceadddropport)
+                        settransmissionmoduleviewpoolindex!(srcallocations, sourcetransmdlidx)
+                        settransmissionmodesindex!(srcallocations, sourcetransmissiomodeidx)
                         verbose && @info("Picking transmission module at source node", sourcetransmissionmodulelli)
 
                         push!(lowlevelintentsbuffer3, sourcetransmissionmodulelli)
 
                         opticalinitincomingnode = nothing
+                        setlocalnode_input!(srcallocations, opticalinitincomingnode)
                         spectrumslotsrange = startingslot:(startingslot + demandslotsneeded - 1)
 
                         # double code with the first if
@@ -559,7 +577,7 @@ chooseoxcadddropport(
                         else
                             # need to allocate a router port, a transmission module and mode, and an OXC configuration
                             opticalincomingnode = path[end-1]
-                            returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentsbuffer3, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport; verbose, @passtime)
+                            returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentsbuffer3, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
                         end
                         if issuccess(returncode)
                             push!(lowlevelintentsbuffer2, lowlevelintentsbuffer3...)
@@ -577,10 +595,14 @@ chooseoxcadddropport(
                 end
             end
         end
-        foreach(lowlevelintentstoadd) do lli
-            stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
-        end
-        return returncode
+        lpi = LightpathIntent(srcallocations, dstallocations, spectrumslotsrange, lpath)
+        lpidagnode = addidagnode!(ibnf, lpi; parentid=idagnodeid, intentissuer=MachineGenerated(), @passtime)
+        return compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
+        ## add intent and it's LLI
+        # foreach(lowlevelintentstoadd) do lli
+        #     stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+        # end
+        # return returncode
     end
 end
 
@@ -639,12 +661,12 @@ chooseoxcadddropport(
     spectrumslotsrange::UnitRange{Int},
     prioritizerouterport::F1,
     prioritizetransmdlmode::F2,
-    chooseoxcadddropport::F3;
+    chooseoxcadddropport::F3,
+    mena::MutableEndNodeAllocations;
     verbose::Bool = false) where {F1<:Function, F2<:Function, F3<:Function}
 
     verbose && @info("Solving intent at the destination", getidagnodeid(idagnode))
     
-
     ibnag = getibnag(ibnf)
     idag = getidag(ibnf)
     idagnodeid = getidagnodeid(idagnode)
@@ -653,6 +675,8 @@ chooseoxcadddropport(
     destlocalnode = getlocalnode(destinationglobalnode)
     destnodeview = getnodeview(ibnag, destlocalnode)
 
+    setlocalnode!(mena, destlocalnode)
+
     # need to allocate a router port and a transmission module and mode
     # template chooserouterport
     destrouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, destlocalnode)
@@ -660,6 +684,7 @@ chooseoxcadddropport(
     destrouteridx = first(destrouteridxs)
     destrouterportlli = RouterPortLLI(destlocalnode, destrouteridx)
     push!(lowlevelintentstoadd, destrouterportlli)
+    setrouterportindex!(mena, destrouteridx)
 
     destavailtransmdlidxs = getavailabletransmissionmoduleviewindex(destnodeview)
     desttransmissionmoduleviewpool = gettransmissionmoduleviewpool(destnodeview)
@@ -674,9 +699,14 @@ chooseoxcadddropport(
     !isnothing(destadddropport) || return ReturnCodes.FAIL_DSTOXCADDDROPPORT
     oxclli = OXCAddDropBypassSpectrumLLI(destlocalnode, opticalincomingnode, destadddropport, 0, spectrumslotsrange)
     push!(lowlevelintentstoadd, oxclli)
+    setlocalnode_input!(mena, opticalincomingnode)
+    setadddropport!(mena, destadddropport)
+    # setlocalnode_output!(mena, 0)
 
     desttransmissionmodulelli = TransmissionModuleLLI(destlocalnode, destavailtransmdlidx, desttransmodeidx, destrouteridx, destadddropport)
     push!(lowlevelintentstoadd, desttransmissionmodulelli)
+    settransmissionmoduleviewpoolindex!(mena, destavailtransmdlidx)
+    settransmissionmodesindex!(mena, desttransmodeidx)
 
     return ReturnCodes.SUCCESS
 end
