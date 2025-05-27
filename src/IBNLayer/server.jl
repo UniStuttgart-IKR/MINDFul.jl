@@ -4,6 +4,7 @@ using Oxygen, HTTP, SwaggerMarkdown, JSON, UUIDs
 using MINDFul
 using MINDFul: @recvtime, @passtime
 const MINDF = MINDFul
+using Serialization
 
 
 module OxygenInstance using Oxygen; @oxidise end
@@ -38,7 +39,6 @@ export serve
           #@show uri
           port = parse(Int, uri.port)
           ibnf = ibnfs_dict[port]
-          #@show ibnf.ibnfid
           return ibnf
       else
           println("context is of an unexpected type: $(typeof(context))")
@@ -56,8 +56,8 @@ export serve
     """
     @post api("/compilation_algorithms") function (req; context)
         ibnf = getmyibnf(req, context)
-        src_domain_id = UUID(parsed_body["src_domain"])
-        remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+        initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+        remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
         compilation_algorithms = MINDF.requestavailablecompilationalgorithms_term!(remoteibnf_handler, ibnf)
         if !isnothing(compilation_algorithms)
@@ -103,13 +103,15 @@ export serve
         ibnf = getmyibnf(req, context)        
         body = HTTP.payload(req)
         parsed_body = JSON.parse(String(body))
-        ge_data = parsed_body["global_edge"]
+        ge_data = parsed_body[MINDF.HTTPMessages.GLOBAL_EDGE]
         received_ge = MINDF.GlobalEdge(
             MINDF.GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
             MINDF.GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
         )
-        src_domain_id = UUID(parsed_body["src_domain"])
-        remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+        initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+        remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+
+        @show ibnf.ibnfid
         
         spectrum_availability = MINDF.requestspectrumavailability_term!(remoteibnf_handler, ibnf, received_ge)
         #@show spectrum_availability
@@ -122,35 +124,17 @@ export serve
 
 
 
-    @post "/api/ibnattributegraph" function (req; context)
-        ibnf = getmyibnf(req, context)        
-        body = HTTP.payload(req)
-        parsed_body = JSON.parse(String(body))
-        src_domain_id = UUID(parsed_body["src_domain"])
-        remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
-        
-        ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnf_handler, ibnf)
-        #@show spectrum_availability
-        if !isnothing(ibnattributegraph)
-            return HTTP.Response(200, JSON.json(ibnattributegraph))
-        else
-            return HTTP.Response(404, "Spectrum availability not found")
-        end
-    end
-
-
-
     @post "/api/current_linkstate" function (req; context)
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      ge_data = parsed_body["global_edge"]
+      ge_data = parsed_body[MINDF.HTTPMessages.GLOBAL_EDGE]
       received_ge = MINDF.GlobalEdge(
           MINDF.GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
           MINDF.GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
       )
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
       
       current_linkstate = MINDF.requestcurrentlinkstate_term(remoteibnf_handler, ibnf, received_ge)
       if !isnothing(current_linkstate)
@@ -166,11 +150,11 @@ export serve
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      idagnodeid = UUID(parsed_body["idagnodeid"])
-      compilationalgorithmkey = Symbol(parsed_body["compilationalgorithmkey"])
-      compilationalgorithmargs = Tuple(parsed_body["compilationalgorithmargs"])
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
+      compilationalgorithmkey = Symbol(parsed_body[MINDF.HTTPMessages.COMPILATION_KEY])
+      compilationalgorithmargs = Tuple(parsed_body[MINDF.HTTPMessages.COMPILATION_ARGS])
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
       compile_intent = MINDF.requestcompileintent_term!(remoteibnf_handler, ibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs)
       if !isnothing(compile_intent)
@@ -202,8 +186,8 @@ export serve
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      internalidagnodeid = UUID(parsed_body["internalidagnodeid"])
-      intent_data = parsed_body["intent"]
+      internalidagnodeid = UUID(parsed_body[MINDF.HTTPMessages.INTERNAL_IDAGNODEID])
+      intent_data = parsed_body[MINDF.HTTPMessages.INTENT]
       rate = MINDF.GBPSf(parse(Float64, replace(intent_data["rate"], " Gbps" => "")))
       #@show rate
       received_constraints = [reconvert_constraint(constraint) for constraint in intent_data["constraints"]] 
@@ -214,8 +198,8 @@ export serve
           rate,
           received_constraints
       )
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
       delegate_intent = MINDF.requestdelegateintent_term!(remoteibnf_handler, ibnf, received_intent, internalidagnodeid)
       if !isnothing(delegate_intent)
@@ -230,12 +214,12 @@ export serve
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      idagnodeid = UUID(parsed_body["idagnodeid"])
-      newstate = Symbol(parsed_body["newstate"])
+      idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
+      newstate = Symbol(parsed_body[MINDF.HTTPMessages.NEWSTATE])
       state = getfield(MINDF.IntentState, newstate)
       #@show state
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
       #=if idagnodeid == UUID(0xc) && MINDF.getibnfid(ibnf) == UUID(0x3) && state == MINDF.IntentState.Compiled        
         println("TEST CASE QWERTY_SERVER")        
       end=#
@@ -256,11 +240,11 @@ export serve
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
 
-      idagnodeid = UUID(parsed_body["idagnodeid"])
-      onlyinstalled = parsed_body["onlyinstalled"]
-      noextrallis = parsed_body["noextrallis"]
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
+      onlyinstalled = parsed_body[MINDF.HTTPMessages.ONLY_INSTALLED]
+      noextrallis = parsed_body[MINDF.HTTPMessages.NOEXTRALLIS]
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
       issatisfied_result = MINDF.requestissatisfied_term!(remoteibnf_handler, ibnf, idagnodeid; onlyinstalled, noextrallis)
       #@show issatisfied_result
@@ -277,10 +261,10 @@ export serve
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
 
-      idagnodeid = UUID(parsed_body["idagnodeid"])
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
-      verbose = parsed_body["verbose"]
+      idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+      verbose = parsed_body[MINDF.HTTPMessages.VERBOSE]
 
       install_intent = MINDF.requestinstallintent_term!(remoteibnf_handler, ibnf, idagnodeid; verbose)
       if !isnothing(install_intent)
@@ -296,10 +280,10 @@ export serve
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
 
-      idagnodeid = UUID(parsed_body["idagnodeid"])
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
-      verbose = parsed_body["verbose"]
+      idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+      verbose = parsed_body[MINDF.HTTPMessages.VERBOSE]
 
       uninstall_intent = MINDF.requestuninstallintent_term!(remoteibnf_handler, ibnf, idagnodeid; verbose)
       if !isnothing(uninstall_intent)
@@ -315,10 +299,10 @@ export serve
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
 
-      idagnodeid = UUID(parsed_body["idagnodeid"])
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
-      verbose = parsed_body["verbose"]
+      idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+      verbose = parsed_body[MINDF.HTTPMessages.VERBOSE]
 
       uncompile_intent = MINDF.requestuncompileintent_term!(remoteibnf_handler, ibnf, idagnodeid; verbose)
       if !isnothing(uncompile_intent)
@@ -333,14 +317,14 @@ export serve
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      ge_data = parsed_body["global_edge"]
+      ge_data = parsed_body[MINDF.HTTPMessages.GLOBAL_EDGE]
       received_ge = MINDF.GlobalEdge(
           MINDF.GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
           MINDF.GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
       )
-      operatingstate = parsed_body["operatingstate"]
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      operatingstate = parsed_body[MINDF.HTTPMessages.OPERATINGSTATE]
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
       
       set_linkstate = MINDF.requestsetlinkstate_term!(remoteibnf_handler, ibnf, received_ge, operatingstate)
       if !isnothing(set_linkstate)
@@ -355,22 +339,127 @@ export serve
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      ge_data = parsed_body["global_edge"]
+      ge_data = parsed_body[MINDF.HTTPMessages.GLOBAL_EDGE]
       received_ge = MINDF.GlobalEdge(
           MINDF.GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
           MINDF.GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
       )
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
       
       request_linkstates = MINDF.requestlinkstates_term(remoteibnf_handler, ibnf, received_ge)
       #@show request_linkstates
       if !isnothing(request_linkstates)
-          json_ready = [Dict("datetime" => string(dt), "state" => s) for (dt, s) in request_linkstates]
+          json_ready = [Dict(MINDF.HTTPMessages.LINK_DATETIME => string(dt), MINDF.HTTPMessages.LINK_STATE => s) for (dt, s) in request_linkstates]
           return HTTP.Response(200, JSON.json(json_ready))
       else
           return HTTP.Response(404, "Set link state not possible")
       end
+    end
+
+
+    function serialize_idag(idag)
+        #@show typeof(idag)
+        #@show idag.edge_list
+        
+        #@show idag.vertex_attr
+        #@show idag.graph_attr
+        @show idag.edge_attr
+        return Dict(
+            "graph" => serialize_simpledigraph(idag.graph),
+            "nodes" => [serialize_intentdagnode(n) for n in idag.vertex_attr],
+            "info" => serialize_idaginfo(idag.graph_attr)
+        )
+    end
+
+    function serialize_simpledigraph(g)
+        return Dict(
+            "nv" => g.nv,
+            "outneighbors" => g.outneighbors,
+            "inneighbors" => g.inneighbors
+        )
+    end
+
+    function serialize_idaginfo(info)
+        return Dict("count" => info.count)
+    end
+
+    function serialize_intentdagnode(node)
+        return Dict(
+            "type" => string(typeof(node)),
+            "uuid" => string(node.uuid),
+            "data" => serialize_node_data(node.data),
+            "generator" => string(typeof(node.generator)),
+            "statelog" => [Dict("datetime" => string(dt), "state" => string(state)) for (dt, state) in node.statelog]
+        )
+    end
+
+    function serialize_node_data(data)
+        if typeof(data) <: MINDFul.RemoteIntent
+            return serialize_remoteintent(data)
+        elseif typeof(data) <: MINDFul.ConnectivityIntent
+            return serialize_connectivityintent(data)
+        elseif typeof(data) <: MINDFul.RouterPortLLI
+            return serialize_routerportlli(data)
+        elseif typeof(data) <: MINDFul.OXCAddDropBypassSpectrumLLI
+            return serialize_oxcadddropbypassspectrumlli(data)
+        elseif typeof(data) <: MINDFul.TransmissionModuleLLI
+            return serialize_transmissionmodulelli(data)
+        else
+            return string(data)
+        end
+    end
+
+    function serialize_remoteintent(ri)
+        return Dict(
+            "remote_ibnfid" => string(ri.remote_ibnfid),
+            "internal_idagnodeid" => string(ri.internal_idagnodeid),
+            "intent" => serialize_connectivityintent(ri.intent),
+            "is_terminal" => ri.is_terminal
+        )
+    end
+
+    function serialize_connectivityintent(ci)
+        return Dict(
+            "src" => serialize_globalnode(ci.src),
+            "dst" => serialize_globalnode(ci.dst),
+            "rate" => string(ci.rate),
+            "constraints" => [string(c) for c in ci.constraints] # You can expand this if you want detailed constraint serialization
+        )
+    end
+
+    function serialize_globalnode(gn)
+        return Dict(
+            "ibnfid" => string(gn.ibnfid),
+            "localnode" => gn.localnode
+        )
+    end
+
+    function serialize_routerportlli(rp)
+        return Dict(
+            "node" => rp.node,
+            "port" => rp.port
+        )
+    end
+
+    function serialize_oxcadddropbypassspectrumlli(oxc)
+        return Dict(
+            "node" => oxc.node,
+            "port" => oxc.port,
+            "direction" => oxc.direction,
+            "adddrop" => oxc.adddrop,
+            "slots" => collect(oxc.slots)
+        )
+    end
+
+    function serialize_transmissionmodulelli(tm)
+        return Dict(
+            "srcnode" => tm.srcnode,
+            "dstnode" => tm.dstnode,
+            "srcport" => tm.srcport,
+            "dstport" => tm.dstport,
+            "modulation" => tm.modulation
+        )
     end
     
 
@@ -378,16 +467,52 @@ export serve
       ibnf = getmyibnf(req, context)
       body = HTTP.payload(req)
       parsed_body = JSON.parse(String(body))
-      src_domain_id = UUID(parsed_body["src_domain"])
-      remoteibnf_handler = MINDF.getibnfhandler(ibnf, src_domain_id)
+      initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+      remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
-      idag = MINDF.requestidag_term!(remoteibnf_handler, ibnf)
+      idag = MINDF.requestidag_term(remoteibnf_handler, ibnf)
+      @show typeof(idag)
+      @show propertynames(idag)
+      @show fieldnames(typeof(idag))
       @show idag
+
+      io = IOBuffer()
+      serialize(io, idag)
+      raw_bytes = take!(io)
+      #idag_stream::IO
+      #serialize(idag_stream, idag)
+      
+      # serialized_idag = serialize_idag(idag)
+      # @show serialized_idag
       if !isnothing(idag)
-        return HTTP.Response(200, JSON.json(idag))
+        #return HTTP.Response(200, JSON.json(string(idag)))
+        return HTTP.Response(200, raw_bytes)
       else
-        return HTTP.Response(404, "Not possible to install the intent")
+        return HTTP.Response(404, "Not possible to request the idag")
       end
+    end
+
+
+    @post "/api/ibnattributegraph" function (req; context)
+        ibnf = getmyibnf(req, context)        
+        body = HTTP.payload(req)
+        parsed_body = JSON.parse(String(body))
+        initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+        remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+        
+        ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnf_handler, ibnf)
+        @show typeof(ibnattributegraph)
+
+        io = IOBuffer()
+        serialize(io, ibnattributegraph)
+        raw_bytes = take!(io)
+        if !isnothing(ibnattributegraph)
+            #return HTTP.Response(200, JSON.json(string(ibnattributegraph)))
+            return HTTP.Response(200, raw_bytes)
+
+        else
+            return HTTP.Response(404, "Spectrum availability not found")
+        end
     end
 
     

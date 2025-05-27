@@ -6,6 +6,7 @@ using UUIDs
 using Graphs
 using DataStructures
 using Unitful, UnitfulData
+using Serialization
 
 import Dates: DateTime, now
 
@@ -41,6 +42,6 @@ include("IBNLayer/IBNLayer.jl")
 include("generic/satisfy.jl")
 include("generic/copyboilerplate.jl")
 include("generic/defaults.jl")
-include("TypeDef/HTTPCodes.jl")
+include("TypeDef/HTTPMessages.jl")
 
 end

@@ -1,17 +1,36 @@
 using JSON, HTTP, Sockets
 
-function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
+@recvtime function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
     url = remotehandler.base_url * endpoint
+
+    
+    if isnothing(offsettime)
+        push!(data, "offsettime" => "nothing")
+    else
+        push!(data, "offsettime" => string(@logtime))
+    end
     body = JSON.json(data)  
     headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body)
     println(" ")
-    println("Sending request to $url")
+    println("SENDING REQUEST TO $url")
     #println("Headers: $headers")
     #println("Body: $body")
+
+    @show offsettime
+    # @show typeof(offsettime)
+    @show @logtime
+    # @show typeof(@logtime)
         
     response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
     #return response.status, JSON.parse(String(response.body)) 
     return response
+end
+
+
+@recvtime function send_request_dummy()
+    @show offsettime
+    sleep(5)
+    return @logtime
 end
 
 
@@ -36,7 +55,7 @@ function start_ibn_server(myibnf::IBNFramework)
     end
 end
 
-function start_ibn_server(ibnfs::Vector{IBNFramework})
+function start_ibn_server(ibnfs::Vector{<:IBNFramework})
     ibnfs_dict = Dict{Int, IBNFramework}()
     for ibnf in ibnfs 
         sel_handler = ibnf.ibnfhandlers[1]
@@ -56,7 +75,7 @@ function start_ibn_server(ibnfs::Vector{IBNFramework})
         println(" ")
         println("Starting server on $ip_address:$port")
         try
-            Server.serve(port=port, async=true, context=ibnfs_dict, serialize=false, swagger=true) 
+            Server.serve(port=port, async=true, context=ibnfs_dict, serialize=false, swagger=true, access_log=nothing) 
         catch e
             if isa(e, Base.IOError)
                 println("Server at $ip_address:$port is already running")
