@@ -80,7 +80,7 @@ $(TYPEDSIGNATURES)
 
 Return the `IntentDAGNode`
 """
-@recvtime function addidagnode!(ibnf::IBNFramework, intent::AbstractIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+@recvtime function addidagnode!(ibnf::IBNFramework, intent::AbstractIntent; parentids::Vector{UUID} = UUID[], childids::Vector{UUID} = UUID[], intentissuer = MachineGenerated())
     intentdag = getidag(ibnf)
     intentcounter = increaseidagcounter!(intentdag)
     if intent isa LowLevelIntent
@@ -93,10 +93,16 @@ Return the `IntentDAGNode`
     newidagnodeidx = nv(intentdag)
     push!(getidagnodes(intentdag), idagnode)
 
-    if !isnothing(parentid)
+    for parentid in parentids
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
         updateidagstates!(ibnf, parentid)
+    end
+
+    for childid in childids
+        childidx = getidagnodeidx(intentdag, childid)
+        add_edge!(intentdag, newidagnodeidx, childidx)
+        updateidagstates!(ibnf, getidagnodeid(idagnode))
     end
 
     return idagnode
@@ -107,7 +113,7 @@ $(TYPEDSIGNATURES)
 
 Return the `UUID`
 """
-function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
+function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentids::Vector{UUID} = UUID[], childids::Vector{UUID} = UUID[], intentissuer = MachineGenerated())
     intentdag = getidag(ibnf)
     intentcounter = increaseidagcounter!(intentdag)
 
@@ -115,10 +121,16 @@ function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentid::Uni
     newidagnodeidx = nv(intentdag)
     push!(getidagnodes(intentdag), idagnode)
 
-    if !isnothing(parentid)
+    for parentid in parentids
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
         updateidagstates!(ibnf, parentid)
+    end
+
+    for childid in childids
+        childidx = getidagnodeidx(intentdag, childid)
+        add_edge!(intentdag, newidagnodeidx, childidx)
+        updateidagstates!(ibnf, getidagnodeid(idagnode))
     end
 
     return getidagnodeid(idagnode)
@@ -127,12 +139,22 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function addidagedge!(ibnf::IBNFramework, fromnode::UUID, tonode::UUID)
+@recvtime function addidagedge!(ibnf::IBNFramework, fromnode::UUID, tonode::UUID)
     idag = getidag(ibnf)
     fromidx = getidagnodeidx(idag, fromnode)
     toidx = getidagnodeidx(idag, tonode)
     add_edge!(idag, fromidx, toidx)
-    updateidagstates!(ibnf, fromnode)
+    updateidagstates!(ibnf, fromnode; @passtime)
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function removeidagedge!(idag::IntentDAG, fromnode::UUID, tonode::UUID)
+    fromidx = getidagnodeidx(idag, fromnode)
+    toidx = getidagnodeidx(idag, tonode)
+    rem_edge!(idag, fromidx, toidx)
     return true
 end
 
@@ -149,74 +171,110 @@ function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     return ReturnCodes.SUCCESS
 end
 
-@recvtime function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID, newstate::Union{Nothing, IntentState.T} = nothing)
+@recvtime function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID, makestate::Union{Nothing, IntentState.T} = nothing)
     idag = getidag(ibnf)
     idagnode = getidagnode(idag, idagnodeid)
-    return updateidagnodestates!(ibnf, idagnode, newstate; @passtime)
+    return updateidagnodestates!(ibnf, idagnode, makestate; @passtime)
 end
 
 """
 $(TYPEDSIGNATURES)
 Return value is true if state is changed.
 """
-@recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode, newstate::Union{Nothing, IntentState.T} = nothing)
+@recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode, makestate::Union{Nothing, IntentState.T} = nothing)
     idag = getidag(ibnf)
     idagnodeid = getidagnodeid(idagnode)
     idagnodechildren = getidagnodechildren(idag, idagnodeid)
     childrenstates = getidagnodestate.(idagnodechildren)
     currentstate = getidagnodestate(idagnode)
     changedstate = false
-    if length(childrenstates) == 0
-        if !isnothing(newstate) && newstate != currentstate
+    newstate::Union{Nothing, IntentState.T} = nothing
+
+    if makestate == IntentState.Installing # only state that propagates down the DAG
+        if currentstate == IntentState.Compiled
             changedstate = true
+            newstate = makestate
             pushstatetoidagnode!(idagnode, newstate; @passtime)
-            # println("$(getidagnodeid(idagnode)) correct state update")
-        elseif isnothing(newstate) && currentstate != IntentState.Uncompiled
+        end
+    elseif makestate == IntentState.Compiled && currentstate in [IntentState.Installed, IntentState.Failed]
+        changedstate = true
+        newstate = makestate
+        pushstatetoidagnode!(idagnode, newstate; @passtime)
+    elseif length(childrenstates) == 0
+        if !isnothing(makestate) && makestate != currentstate
             changedstate = true
+            newstate = makestate
+            pushstatetoidagnode!(idagnode, makestate; @passtime)
+        elseif isnothing(makestate) && currentstate != IntentState.Uncompiled
+            changedstate = true
+            newstate = IntentState.Uncompiled
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end        
     elseif all(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiled
             changedstate = true
-            removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
+            newstate = IntentState.Compiled
             pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
         end
-    elseif all(==(IntentState.Uncompiled), childrenstates)
+    elseif any(==(IntentState.Uncompiled), childrenstates)
         if currentstate != IntentState.Uncompiled
             changedstate = true
+            newstate = IntentState.Uncompiled
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end
     elseif all(==(IntentState.Installed), childrenstates)
-        # TODO if in Pending state can change ony
-        if currentstate != IntentState.Installed
+        if currentstate == IntentState.Uncompiled
             changedstate = true
-            if getintent(idagnode) isa LightpathIntent
-                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
-            end
+            newstate = IntentState.Compiled
+            pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
+        elseif currentstate != IntentState.Installed && currentstate != IntentState.Compiled
+            changedstate = true
+            newstate = IntentState.Installed
             pushstatetoidagnode!(idagnode, IntentState.Installed; @passtime)
         end
+    elseif all(x -> x in [IntentState.Installed, IntentState.Compiled], childrenstates)
+        newstate = IntentState.Compiled
+        pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
     elseif any(==(IntentState.Failed), childrenstates)
-        if currentstate != IntentState.Failed
+        if currentstate != IntentState.Failed && currentstate != IntentState.Compiled
             changedstate = true
+            newstate = IntentState.Failed
             pushstatetoidagnode!(idagnode, IntentState.Failed; @passtime)
         end
     elseif any(==(IntentState.Pending), childrenstates)
-        if currentstate != IntentState.Pending
+        if currentstate != IntentState.Pending && currentstate != IntentState.Compiled && currentstate != IntentState.Uncompiled
             changedstate = true
+            newstate = IntentState.Pending
             pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
         end
     else
-        if currentstate != IntentState.Pending
+        if currentstate != IntentState.Pending  && currentstate != IntentState.Compiled && currentstate != IntentState.Uncompiled
             changedstate = true
+            newstate = IntentState.Pending
             pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
         end
     end
     if changedstate
-        foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-            updateidagnodestates!(ibnf, idagnodeparent; @passtime)
+        if newstate == IntentState.Installing # go down the DAG
+            foreach(getidagnodechildren(idag, idagnodeid)) do idagnodechild
+                updateidagnodestates!(ibnf, idagnodechild, IntentState.Installing; @passtime)
+            end
+        else # go up the DAG
+            foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
+                updateidagnodestates!(ibnf, idagnodeparent; @passtime)
+            end
         end
-        if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode))
-            # notify initiator domain
+        if newstate == IntentState.Installed && getintent(idagnode) isa LightpathIntent
+            if !isonlyoptical(getsourcenodeallocations(getintent(idagnode))) && !isonlyoptical(getdestinationnodeallocations(getintent(idagnode)))
+                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+            end
+        elseif newstate == IntentState.Installed && getintent(idagnode) isa CrossLightpathIntent
+            addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+        end
+        if newstate == IntentState.Compiled && (getintent(idagnode) isa LightpathIntent || getintent(idagnode) isa CrossLightpathIntent)
+            removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
+        end
+        if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode)) # notify initiator domain
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnode)))
             requestremoteintentstateupdate!(ibnf, ibnfhandler, getidagnodeid(getintent(idagnode)), getidagnodestate(idagnode); @passtime)
         end
@@ -229,22 +287,26 @@ $(TYPEDSIGNATURES)
 
 Get all descendants of DAG `dag` starting from node `idagnodeid`
 Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
+Set `parentsfirst=true` to get the upper level children first and false to get the leafs first.
 """
-function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false, includeroot=false)
+function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false, includeroot=false, parentsfirst=true)
     idns = Vector{IntentDAGNode}()
-    includeroot && push!(idns, getidagnode(idag, idagnodeid))
+    parentsfirst && includeroot && push!(idns, getidagnode(idag, idagnodeid))
     for chidn in getidagnodechildren(idag, idagnodeid)
-        _descendants_recu!(idns, idag, getidagnodeid(chidn); exclusive)
+        _descendants_recu!(idns, idag, getidagnodeid(chidn); exclusive, parentsfirst)
     end
+    !parentsfirst && includeroot && push!(idns, getidagnode(idag, idagnodeid))
     return idns
 end
 
-function _descendants_recu!(vidns::Vector{IntentDAGNode}, idag::IntentDAG, idagnodeid::UUID; exclusive)
+function _descendants_recu!(vidns::Vector{IntentDAGNode}, idag::IntentDAG, idagnodeid::UUID; exclusive, parentsfirst=true)
     exclusive && length(getidagnodeparents(idag, idagnodeid)) > 1 && return
-    push!(vidns, getidagnode(idag, idagnodeid))
+    idn = getidagnode(idag, idagnodeid)
+    any(x -> x === idn, vidns) || parentsfirst && push!(vidns, idn)
     for chidn in getidagnodechildren(idag, idagnodeid)
-        _descendants_recu!(vidns, idag, getidagnodeid(chidn); exclusive)
+        _descendants_recu!(vidns, idag, getidagnodeid(chidn); exclusive, parentsfirst)
     end
+    any(x -> x === idn, vidns) || !parentsfirst && push!(vidns, idn)
 end
 
 """
@@ -265,7 +327,7 @@ end
 
 function _descendants_recu_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeidx::Int; exclusive)
     exclusive && length(Graphs.inneighbors(idag, idagnodeidx)) > 1 && return
-    push!(vidxs, idagnodeidx)
+    any(x -> x === idagnodeidx, vidxs) || push!(vidxs, idagnodeidx)
     for chididx in Graphs.outneighbors(idag, idagnodeidx)
         _descendants_recu_idxs!(vidxs, idag, chididx; exclusive)
     end
@@ -407,7 +469,7 @@ function _leafs_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentD
             _leafs_recu!(vidns, dag, chidn; exclusive)
         end
     else
-        push!(vidns, idn)
+        any(x -> x === idn, vidns) || push!(vidns, idn)
     end
 end
 
@@ -431,7 +493,19 @@ function _parents_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::Inten
             _parents_recu!(vidns, dag, paridn)
         end
     else
-        push!(vidns, idn)
+        any(x -> x === idn, vidns) || push!(vidns, idn)
     end
+end
+
+function issubdaggrooming(idag::IntentDAG, idagnodeid::UUID)
+    for idagnode in getidagnodedescendants(idag, idagnodeid)
+        idagnodeidx = getidagnodeidx(idag, getidagnodeid(idagnode))
+        if length(Graphs.inneighbors(idag, idagnodeidx)) > 1
+            if length(getidagnoderoots(idag, getidagnodeid(idagnode))) > 1
+                return true
+            end
+        end
+    end
+    return false
 end
 

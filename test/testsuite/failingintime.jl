@@ -30,7 +30,7 @@ entrytime = now()
 conintent_internal = ConnectivityIntent(GlobalNode(UUID(1), 14), GlobalNode(UUID(1), 1), u"100.0Gbps")
 intentuuid_internal_fail = addintent!(ibnfs[1], conintent_internal, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid_internal_fail, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
-@test installintent!(ibnfs[1], intentuuid_internal_fail; verbose=true, @passtime) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid_internal_fail; verbose=false, @passtime) == ReturnCodes.SUCCESS
 let 
     logord = getlogicallliorder(ibnfs[1], intentuuid_internal_fail, onlyinstalled=false)
     @test internaledge ∈ edgeify(logicalordergetpath(logord))
@@ -52,7 +52,7 @@ let
     @test internaledge ∉ edgeify(logicalordergetpath(logord))
 end
 
-@test installintent!(ibnfs[1], intentuuid_internal; verbose=true, @passtime) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid_internal; verbose=false, @passtime) == ReturnCodes.SUCCESS
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_internal)])
 
 # should make the intent installed again
@@ -63,7 +63,7 @@ offsettime += Hour(1)
 internaledgelinkstates = getlinkstates(ibnfs[1], internaledge)
 @test all(getindex.(internaledgelinkstates[2:end], 1) .- getindex.(internaledgelinkstates[1:end-1], 1) .>= Hour(1))
 intentuuid_internal_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_internal_fail)), 1)
-@test length(intentuuid_internal_fail_timelog) == 6
+@test length(intentuuid_internal_fail_timelog) == 7
 @test intentuuid_internal_fail_timelog[end] - intentuuid_internal_fail_timelog[1] >= Hour(2) 
 
 
@@ -82,7 +82,7 @@ intentuuid_border_fail = addintent!(ibnfs[1], conintent_border, NetworkOperator(
 remoteibnfid_border, remoteintentid_border = TM.getfirstremoteintent(ibnfs[1], intentuuid_border_fail)
 remoteibnf_border = getibnfhandler(ibnfs[1], remoteibnfid_border)
 
-@test installintent!(ibnfs[1], intentuuid_border_fail; verbose=true, @passtime) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid_border_fail; verbose=false, @passtime) == ReturnCodes.SUCCESS
 
 offsettime += Hour(1)
 @test setlinkstate!(ibnfs[1], borderedge, false; @passtime) == ReturnCodes.SUCCESS
@@ -97,7 +97,7 @@ let
     logord = getlogicallliorder(ibnfs[1], intentuuid_border, onlyinstalled=false)
     @test borderedge ∉ edgeify(logicalordergetpath(logord))
 end
-@test installintent!(ibnfs[1], intentuuid_border; verbose=true, @passtime) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid_border; verbose=false, @passtime) == ReturnCodes.SUCCESS
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_border)])
 
 
@@ -110,21 +110,21 @@ offsettime += Hour(1)
 borderedgelinkstates = getlinkstates(ibnfs[1], borderedge; checkfirst=true)
 @test all(getindex.(borderedgelinkstates[2:end], 1) .- getindex.(borderedgelinkstates[1:end-1], 1) .>= Hour(1))
 intentuuid_border_fail_timelog =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_border_fail)), 1)
-@test length(intentuuid_border_fail_timelog) == 8
+@test length(intentuuid_border_fail_timelog) == 9
 @test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2) 
 intentuuid_border_fail_timelog_remote =  getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(remoteibnf_border), remoteintentid_border)), 1)
-@test length(intentuuid_border_fail_timelog_remote) == 6
+@test length(intentuuid_border_fail_timelog_remote) == 7
 @test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) 
 
 # uninstall, remove all
-@test uninstallintent!(ibnfs[1], intentuuid_border_fail; verbose=true) == ReturnCodes.SUCCESS
+@test uninstallintent!(ibnfs[1], intentuuid_border_fail; verbose=false) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_border_fail; withremote=true)
-@test uninstallintent!(ibnfs[1], intentuuid_border; verbose=true) == ReturnCodes.SUCCESS
+@test uninstallintent!(ibnfs[1], intentuuid_border; verbose=false) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_border; withremote=true)
 
-@test uncompileintent!(ibnfs[1], intentuuid_border_fail; verbose=true) == ReturnCodes.SUCCESS
+@test uncompileintent!(ibnfs[1], intentuuid_border_fail; verbose=false) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_border_fail)
-@test uncompileintent!(ibnfs[1], intentuuid_border; verbose=true) == ReturnCodes.SUCCESS
+@test uncompileintent!(ibnfs[1], intentuuid_border; verbose=false) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_border)
 
 # External link is failing (ibnfs[3])
@@ -134,18 +134,18 @@ intentuuid_external_fail = addintent!(ibnfs[1], conintent_external, NetworkOpera
 @test compileintent!(ibnfs[1], intentuuid_external_fail, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 remoteibnfid_external_fail, remoteintentid_external_fail = TM.getfirstremoteintent(ibnfs[1], intentuuid_external_fail)
 remoteibnf_external_fail = getibnfhandler(ibnfs[1], remoteibnfid_external_fail)
-@test installintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid_external_fail; verbose=false) == ReturnCodes.SUCCESS
 
 @test setlinkstate!(ibnfs[3], externaledge, false) == ReturnCodes.SUCCESS
 TM.testexpectedfaileddag(remoteibnf_external_fail, remoteintentid_external_fail, externaledge, 2)
 @test getidagnodestate(getidag(ibnfs[1]), intentuuid_external_fail) == IntentState.Failed
-@test count(x -> getidagnodestate(x) == IntentState.Failed, getidagnodes(getidag(ibnfs[1]))) == 3
+@test count(x -> getidagnodestate(x) == IntentState.Failed, getidagnodes(getidag(ibnfs[1]))) == 4
 
 intentuuid_external = addintent!(ibnfs[1], conintent_external, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid_external, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 remoteibnfid_external, remoteintentid_external = TM.getfirstremoteintent(ibnfs[1], intentuuid_external)
 remoteibnf_external = getibnfhandler(ibnfs[1], remoteibnfid_external)
-@test installintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid_external; verbose=false) == ReturnCodes.SUCCESS
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_external)])
 @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(remoteibnf_external), remoteintentid_external)])
 let 
@@ -154,14 +154,14 @@ let
 end
 
 # uninstall, remove all
-@test uninstallintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
+@test uninstallintent!(ibnfs[1], intentuuid_external_fail; verbose=false) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_external_fail; withremote=true)
-@test uninstallintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
+@test uninstallintent!(ibnfs[1], intentuuid_external; verbose=false) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_external; withremote=true)
 
-@test uncompileintent!(ibnfs[1], intentuuid_external_fail; verbose=true) == ReturnCodes.SUCCESS
+@test uncompileintent!(ibnfs[1], intentuuid_external_fail; verbose=false) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_external_fail)
-@test uncompileintent!(ibnfs[1], intentuuid_external; verbose=true) == ReturnCodes.SUCCESS
+@test uncompileintent!(ibnfs[1], intentuuid_external; verbose=false) == ReturnCodes.SUCCESS
 TM.testuncompilation(ibnfs[1], intentuuid_external)
 
 # test bordernodes have the same logs

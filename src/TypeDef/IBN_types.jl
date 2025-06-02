@@ -7,6 +7,7 @@ Another intent state schema could be defined.
     Uncompiled
     Pending
     Compiled
+    Installing
     Installed
     Failed
 end
@@ -100,6 +101,13 @@ struct LightpathRepresentation
     terminatessoptically::Bool
     "total bandwidth that can be allocated"
     totalbandwidth::GBPSf
+    """
+    final node of the signal entering this lightpath.
+    This could be a GlobalNode intrnally in the domain for a single lightpath.
+    Or an external GlobalNode in a different domain for a cross-lightpath.
+    In the second case, the signal might go over different lightpaths to reach the destination.
+    """
+    destinationnode::GlobalNode
 end
 
 """
@@ -123,7 +131,6 @@ function IntentDAGInfo()
     return IntentDAGInfo(0, Dict{UUID, LightpathRepresentation}())
 end
 
-# TODO introduce edge properties
 "An `AttributeGraph` graph used as an intent Directed Acyclic Graph (DAG)"
 const IntentDAG = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{IntentDAGNode}, Nothing, IntentDAGInfo}
 
@@ -205,6 +212,7 @@ function isonlyoptical(ena::EndNodeAllocations)
     return false
 end
 
+
 """
 $(TYPEDEF)
 
@@ -274,8 +282,16 @@ $(TYPEDEF)
 
 Constraint that requires the intent to terminate optically one node before the destination.
 It's combined with an (@ref)[`OpticalInitiateConstraint`] after.
+
+$(TYPEDFIELDS)
 """
-struct OpticalTerminateConstraint <: AbstractIntentConstraint end
+struct OpticalTerminateConstraint <: AbstractIntentConstraint
+    """
+    The final destination (intra domain or inter-domain)
+    Used primarily for grooming cross lightpaths.
+    """
+    finaldestination::GlobalNode
+end
 
 """
 $(TYPEDEF)
@@ -312,6 +328,18 @@ struct RemoteIntent{I<:AbstractIntent} <: AbstractIntent
     intent::I
     "`true` if the intent originates here and `false` otherwise"
     isinitiator::Bool
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+The only intent that is being built from its children to be offered as a straight grooming possibility.
+It is composed by a `LightpathIntent` and a `RemoteIntent` which are also its children intents.
+"""
+struct CrossLightpathIntent{C1<:ConnectivityIntent, C2<:ConnectivityIntent, } <: AbstractIntent
+    lightpathconnectivityintent::C2
+    remoteconnectivityintent::C1
 end
 
 """
@@ -418,3 +446,4 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
 end
+

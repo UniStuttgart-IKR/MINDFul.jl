@@ -184,7 +184,9 @@ function issubpath(path::Vector{Int}, subpath::Vector{Int})
     for i in eachindex(path)
         if path[i] == subpath[1]
             for j in 2:length(subpath)
-                path[i-1+j] == subpath[j] || return false
+                pathindex = i - 1 + j
+                pathindex <= length(path) || return false
+                path[pathindex] == subpath[j] || return false
             end
             break
         end

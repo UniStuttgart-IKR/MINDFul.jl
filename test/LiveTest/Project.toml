@@ -11,6 +11,7 @@ JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 MINDFul = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
 MINDFulMakie = "23b02573-35f2-499b-a490-fd32d1f018b6"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 TestSetExtensions = "98d24dd4-01ad-11ea-1b02-c9a08f80db04"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
@@ -18,4 +19,5 @@ UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 
 [sources]
 MINDFul = {path = "../.."}
-MINDFulMakie = {url = "https://github.com/UniStuttgart-IKR/MINDFulMakie.jl", rev="main"}
+# MINDFulMakie = {rev = "main", url = "https://github.com/UniStuttgart-IKR/MINDFulMakie.jl"}
+MINDFulMakie = {path = "../../../MINDFulMakie.jl"}

@@ -5,7 +5,7 @@
  """
 module ReturnCodes
 
-public SUCCESS, FAIL, FAIL_SPECTRUM, FAIL_OPTICALREACH, FAIL_SPECTRUM_OPTINIT, FAIL_OPTICALREACH_OPTINIT, FAIL_OPTICALREACH_OPTINIT_RETRY, FAIL_SRCROUTERPORT, FAIL_OPTICALREACH_OPTINIT_NONODESPLIT, FAIL_DSTROUTERPORT, FAIL_DSTOXCADDDROPPORT, FAIL_DSTTRANSMDL, FAIL_SRCTRANSMDL, FAIL_SRCOXCADDDROPPORT, FAIL_CANDIDATEPATHS
+public SUCCESS, FAIL, FAIL_SPECTRUM, FAIL_OPTICALREACH, FAIL_SPECTRUM_OPTINIT, FAIL_OPTICALREACH_OPTINIT, FAIL_OPTICALREACH_OPTINIT_RETRY, FAIL_SRCROUTERPORT, FAIL_OPTICALREACH_OPTINIT_NONODESPLIT, FAIL_DSTROUTERPORT, FAIL_DSTOXCADDDROPPORT, FAIL_DSTTRANSMDL, FAIL_SRCTRANSMDL, FAIL_SRCOXCADDDROPPORT, FAIL_CANDIDATEPATHS, FAIL_SAMEOXCLLI, FAIL_GROOMEDREMOTEINTENTSTATE
 
 "Signifies everything worked as planned"
 const SUCCESS = :Success
@@ -21,6 +21,9 @@ const FAIL_OPTICALREACH = :Fail_opticalreach
 
 "No available connection for the specturm slots, coming from an initiate optical constraint, was found"
 const FAIL_SPECTRUM_OPTINIT = :Fail_spectrum_optinit
+
+"The same OXC LLI trying to be allocated already exists"
+const FAIL_SAMEOXCLLI = :Fail_sameoxclli
 
 "No available connection for the given optical reach, coming from an initiate optical constraint, was found"
 const FAIL_OPTICALREACH_OPTINIT = :Fail_opticalreach_optinit
@@ -51,5 +54,8 @@ const FAIL_SRCOXCADDDROPPORT = :Fail_srcoxcadddropport
 
 "Destination OXC Add/Drop port not found"
 const FAIL_DSTOXCADDDROPPORT = :Fail_dstoxcadddropport
+
+"Used a remote intent to groom and that remote intent state was not installed or compiled"
+const FAIL_GROOMEDREMOTEINTENTSTATE = :Fail_groomedremoteintentstate
 
 end

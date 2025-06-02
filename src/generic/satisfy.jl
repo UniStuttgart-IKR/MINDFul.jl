@@ -23,7 +23,7 @@ The following cases are not covered:
 - transmission module compatibility
 - optical reach
 """
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
     idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
     if length(idagnodechildren) == 1 && getintent(idagnodechildren[1]) isa RemoteIntent
         return issatisfied(ibnf, idagnodechildren[1]; onlyinstalled, noextrallis, verbose)
@@ -45,10 +45,14 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}
     end
 end
 
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
     idag = getidag(ibnf)
     ibnag = getibnag(ibnf)
-    conintent = getintent(idagnode)
+    if getintent(idagnode) isa ConnectivityIntent
+        conintent = getintent(idagnode)
+    elseif getintent(idagnode) isa CrossLightpathIntent
+        conintent = getlightpathconnectivityintent(getintent(idagnode))
+    end
     sourcelocalnode = getlocalnode(ibnag, getsourcenode(conintent))
     destlocalnode = getlocalnode(ibnag, getdestinationnode(conintent))
     constraints = getconstraints(conintent)
@@ -85,12 +89,13 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
             globalllinode = getglobalnode(ibnag, getlocalnode(lastlli))
             globalllinode_output = getglobalnode(ibnag, getlocalnode_output(lastlli))
 
-            idagnodeconnectivityintent = getfirst(getidagnodedescendants(idag, getidagnodeid(idagnode))) do idagnodedesc
-                @returnfalseiffalse(verbose, getintent(idagnodedesc) isa ConnectivityIntent)
-                @returnfalseiffalse(verbose, globalllinode_output == getsourcenode(getintent(idagnodedesc)) ) 
-                @returnfalseiffalse(verbose, getdestinationnode(getintent(idagnodedesc)) == getdestinationnode(getintent(idagnode))) 
+            idagnodeconnectivityintent = getfirst(getidagnodedescendants(idag, getidagnodeid(idagnode); includeroot=true)) do idagnodedesc
+                @returnfalseiffalse(verbose, getintent(idagnodedesc) isa ConnectivityIntent || getintent(idagnodedesc) isa CrossLightpathIntent)
+                conintent = getintent(idagnodedesc) isa ConnectivityIntent ? getintent(idagnodedesc) : getremoteconnectivityintent(getintent(idagnodedesc)) 
+                @returnfalseiffalse(verbose, globalllinode_output == getsourcenode(conintent)) 
+                @returnfalseiffalse(verbose, getdestinationnode(conintent) == getdestinationnode(getintent(idagnode))) 
                 # there needs to be an OpticalInitiate
-                initconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idagnodedesc)))
+                initconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(conintent))
                 @returnfalseiffalse(verbose, !isnothing(initconstraint))
                 @returnfalseiffalse(verbose, getspectrumslotsrange(lastlli) == getspectrumslotsrange(initconstraint)) 
                 @returnfalseiffalse(verbose, globalllinode == getglobalnode_input(initconstraint)) 
@@ -103,7 +108,13 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityI
                     return getidagnodestate(idagnodelli) != IntentState.Installed
                 end
             end
-            istotalsatisfied &= issatisfied(ibnf, getidagnodeid(idagnodeconnectivityintent); onlyinstalled = !allowuninstalled, noextrallis, verbose)
+            if getintent(idagnodeconnectivityintent) isa CrossLightpathIntent
+                remoteidagnode = getfirst(x -> getintent(x) isa RemoteIntent, getidagnodechildren(idag, getidagnodeid(idagnodeconnectivityintent)))
+                @returnfalseiffalse(verbose, !isnothing(remoteidagnode))
+                istotalsatisfied &= issatisfied(ibnf, getidagnodeid(remoteidagnode); onlyinstalled = !allowuninstalled, noextrallis, verbose)
+            else
+                istotalsatisfied &= issatisfied(ibnf, getidagnodeid(idagnodeconnectivityintent); onlyinstalled = !allowuninstalled, noextrallis, verbose)
+            end
         elseif !(lastlli isa RouterPortLLI) || getlocalnode(lastlli) != destlocalnode
             @returnfalseiffalse(verbose, false)
         end
@@ -127,7 +138,7 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Remote
     return getlogicallliorder(ibnf, idagnodechildren[1]; onlyinstalled, verbose)
 end
 
-function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; onlyinstalled = true, verbose::Bool = false)
+function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}; onlyinstalled = true, verbose::Bool = false)
     idag = getidag(ibnf)
     ibnag = getibnag(ibnf)
 
@@ -143,7 +154,13 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
     end
     llis = getintent.(idagnodellis)
 
-    conintent = getintent(idagnode)
+
+    if getintent(idagnode) isa ConnectivityIntent
+        conintent = getintent(idagnode)
+    elseif getintent(idagnode) isa CrossLightpathIntent
+        conintent = getlightpathconnectivityintent(getintent(idagnode))
+    end
+
     sourcelocalnode = getlocalnode(ibnag, getsourcenode(conintent))
     destlocalnode = getlocalnode(ibnag, getdestinationnode(conintent))
     constraints = getconstraints(conintent)
@@ -174,7 +191,7 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Connec
             # there are only two points. Will pick the one that gives a longer series.
             series1 = _getlogicallliorder_coreloop(ibnf, deepcopy(llis), conintent, lliidx1_cands[1]) 
             series2 = _getlogicallliorder_coreloop(ibnf, deepcopy(llis), conintent, lliidx1_cands[2]) 
-            series1 > series2 ? lliidx1_cands[1] : lliidx1_cands[2]
+            length(series1) > length(series2) ? lliidx1_cands[1] : lliidx1_cands[2]
         else
             nothing
         end
@@ -284,6 +301,7 @@ function getafterlliidx(ibnf::IBNFramework, conintent::ConnectivityIntent, llis,
     lli_idx = findall(llis) do lli
         if lli isa OXCAddDropBypassSpectrumLLI
             getlocalnode(lli) == getlocalnode_output(oxclli) || return false
+            getlocalnode_input(lli) == getlocalnode(oxclli) || return false
             getspectrumslotsrange(lli) == getspectrumslotsrange(oxclli) || return false
             return true
         elseif lli isa TransmissionModuleLLI

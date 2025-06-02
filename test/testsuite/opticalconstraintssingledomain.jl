@@ -1,4 +1,4 @@
-# @testset ExtendedTestSet "opticalconstraintssingledomain.jl"  begin
+@testset ExtendedTestSet "opticalconstraintssingledomain.jl"  begin
 domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
 
 
@@ -34,7 +34,7 @@ intentuuid1 = addintent!(ibnfs[1], conintent_intra, NetworkOperator())
 
 
 # intradomain with `OpticalTerminateConstraint`
-conintent_intra_optterm = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint()])
+conintent_intra_optterm = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(GlobalNode(UUID(1), 22))])
 intentuuid2 = addintent!(ibnfs[1], conintent_intra_optterm, NetworkOperator())
 # kspffintradomain_2!(ibnfs[1], getidagnode(getidag(ibnfs[1]), intentuuid2), KShorestPathFirstFitCompilation(10))
 @test compileintent!(ibnfs[1], intentuuid2, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
@@ -68,7 +68,7 @@ oxcllifinishprevious3 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 21:26)
 @test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3, UUID(0xfffffff); verbose = true))
 
 # intradomain with `OpticalInitaiteConstraint and OpticalTerminateConstraint`
-conintent_intra_optseg = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(), OpticalInitiateConstraint(GlobalNode(UUID(1), 2), 31:34, u"500.0km", TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
+conintent_intra_optseg = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(GlobalNode(UUID(1), 22)), OpticalInitiateConstraint(GlobalNode(UUID(1), 2), 31:34, u"500.0km", TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
 intentuuid4 = addintent!(ibnfs[1], conintent_intra_optseg, NetworkOperator())
 @test compileintent!(ibnfs[1], intentuuid4, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
 orderedllis4 = getlogicallliorder(ibnfs[1], intentuuid4; onlyinstalled=false)
@@ -93,4 +93,4 @@ foreach(ibnfs) do ibnf
 end
 
 nothing
-# end
+end

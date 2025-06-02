@@ -234,6 +234,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getdestinationnode(otc::OpticalTerminateConstraint)
+    return otc.finaldestination
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getintent(ri::RemoteIntent)
     ri.intent
 end
@@ -287,8 +294,8 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function getlowlevelintentuuids(lpr::LightpathRepresentation)
-    return lpr.lowlevelintentuuids
+function getdestinationnode(lpr::LightpathRepresentation)
+    return lpr.destinationnode
 end
 
 """
@@ -458,4 +465,18 @@ $(TYPEDSIGNATURES)
 """
 function getpath(lpintent::LightpathIntent)
     return lpintent.path
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlightpathconnectivityintent(clpi::CrossLightpathIntent)
+    return clpi.lightpathconnectivityintent
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getremoteconnectivityintent(clpi::CrossLightpathIntent)
+    return clpi.remoteconnectivityintent
 end

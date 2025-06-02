@@ -66,6 +66,7 @@ $(TYPEDSIGNATURES)
 @recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffcomp::KShorestPathFirstFitCompilation; verbose::Bool = false)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_shortest,
+        prioritizegrooming = prioritizegrooming_default,
         prioritizerouterport = prioritizerouterports_lowestrate,
         prioritizetransmdlandmode = prioritizetransmdlmode_cheaplowrate,
         choosespectrum = choosespectrum_firstfit,

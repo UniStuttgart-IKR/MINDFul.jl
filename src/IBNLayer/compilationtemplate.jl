@@ -56,37 +56,10 @@ prioritizesplitbordernodes(
     returncode::Symbol = ReturnCodes.FAIL
     verbose && @info("Compiling intent ", getidagnodeid(idagnode), getintent(idagnode))
 
-    # get grooming possibilites and handle them
-    # grooming not possible for OpticalInitiateConstraint
-    if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
-        groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm)
-        for groomingpossibility in groomingpossibilities
-            for lightpath in groomingpossibility
-                # put NoGroomingConstraint in all Intents Generated here 
-                if lightpath isa Edge 
-                    lpsourcenode = GlobalNode(getibnfid(ibnf), src(lightpath))
-                    lpdstnode = GlobalNode(getibnfid(ibnf), dst(lightpath))
-                    lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
-                    lpidagnode = addidagnode!(ibnf, lpintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
-                    returncode = intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
-                    updateidagnodestates!(ibnf, lpidagnode; @passtime)
-                elseif lightpath isa UUID
-                    addidagedge!(ibnf, getidagnodeid(idagnode), lightpath)
-                    returncode = ReturnCodes.SUCCESS
-                end
-                if !issuccess(returncode)
-                    # TODO uncompile and restart to go to next grooming possibility
-                    break
-                end
-            end
-            if issuccess(returncode)
-                break
-            end
-        end
-    end
     if !issuccess(returncode)
         # if didn't groom
-        if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
+        # if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
+        if isinternalorborderintent(ibnf, getintent(idagnode); noremoteintent=true)
             # intra-domain
             returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
             if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
@@ -105,10 +78,11 @@ prioritizesplitbordernodes(
             updateidagnodestates!(ibnf, idagnode)
         elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
             # source intra-domain , destination cross-domain
+            # TODO cross-lightpath grooming with strict same destination
             # border-node
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
-                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; @passtime)
+                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; verbose, @passtime)
             else
                 # select border node
                 candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
@@ -136,13 +110,13 @@ Splits connectivity intent on `splitglobalnode`
     intent = getintent(idagnode)
     idag = getidag(ibnf)
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), getconstraints(intent))
-    firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose)
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
-    secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose)
     updateidagnodestates!(ibnf, secondhalfidagnode; @passtime)
     return returncode
@@ -157,105 +131,65 @@ $(TYPEDSIGNATURES)
     intent = getintent(idagnode)
     returncode::Symbol = ReturnCodes.FAIL
 
-    internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint()))
+    internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint(getdestinationnode(intent))))
 
-    internalidagnode = addidagnode!(ibnf, internalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    internalidagnode = addidagnode!(ibnf, internalintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, internalidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, internalidagnode; @passtime)
 
     issuccess(returncode) || return returncode
+
+    # TODO if is groomed no need to continue
+    any(x -> getintent(x) isa CrossLightpathIntent, getidagnodedescendants(idag, getidagnodeid(internalidagnode))) && return returncode
    
     # need first to compile that to get the optical choice
     opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
     externalintent = ConnectivityIntent(mediatorbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
-    externalidagnode = addidagnode!(ibnf, externalintent; parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+    externalidagnode = addidagnode!(ibnf, externalintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     remoteibnfid = getibnfid(getdestinationnode(intent))
     internalremoteidagnode = remoteintent!(ibnf, externalidagnode, remoteibnfid; @passtime)
-    # getintent brings in the internal RemoteIntent
-    externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
 
-    # compile internalremoteidagnode
-    remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-    # compilationaglorithmkeyword = getcompilationalgorithmkeyword(intentcompilationalgorithm)
-    returncode = requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, externaldomainalgkeyword, getdefaultcompilationalgorithmargs(Val(externaldomainalgkeyword)); verbose, @passtime)
+    # make a CrossLightpathIntent parent of last LightpathIntent and the Remote Intent
+    # find the pair LightPathIntent for the RemoteIntent
+    lpidagnode = getfirst(getidagnodedescendants(getidag(ibnf), getidagnodeid(internalidagnode))) do idagnode
+        lightpathintent = getintent(idagnode)
+        lightpathintent isa LightpathIntent || return false
+        isonlyoptical(getdestinationnodeallocations(lightpathintent)) || return false
+        lightpath = getpath(lightpathintent)
+        length(lightpath) > 1 || return false
+        getglobalnode(getibnag(ibnf), lightpath[end]) == mediatorbordernode || return false
+        getglobalnode(getibnag(ibnf), lightpath[end-1]) == getglobalnode_input(opticalinitiateconstraint) || return false
+        getspectrumslotsrange(lightpathintent) == getspectrumslotsrange(opticalinitiateconstraint) || return false
+        return true
+    end
+    @assert !isnothing(lpidagnode)
+    # remove previous idagnodes
+    # @info "removing", getntent(externalidagnode)
+    # removeidagnode!(idag, getidagnodeid(externalidagnode))
+    idagnodelpparents = getidagnodeparents(idag, getidagnodeid(lpidagnode))
+    @assert length(idagnodelpparents) == 1
+    lpparentidagnode = first(idagnodelpparents)
+    # removeidagnode!(idag, lpparentidagnodeid)
+    # add crosslightpath substitute
+    crosslightpathintent = CrossLightpathIntent(getintent(lpparentidagnode), externalintent)
+    crosslpidagnode = addidagnode!(ibnf, crosslightpathintent; parentids=[getidagnodeid(idagnode)] ,childids = [getidagnodeid(internalremoteidagnode), getidagnodeid(lpidagnode)], intentissuer = MachineGenerated(), @passtime)
+
+
+
+
+    if getidagnodestate(internalremoteidagnode) == IntentState.Uncompiled
+        # getintent brings in the internal RemoteIntent
+        externalremoteidagnodeid = getidagnodeid(getintent(internalremoteidagnode))
+        # compile internalremoteidagnode
+        remoteibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+        # compilationaglorithmkeyword = getcompilationalgorithmkeyword(intentcompilationalgorithm)
+        returncode = requestcompileintent_init!(ibnf, remoteibnfhandler, externalremoteidagnodeid, externaldomainalgkeyword, getdefaultcompilationalgorithmargs(Val(externaldomainalgkeyword)); verbose, @passtime)
+    else
+        returncode = getidagnodestate(internalremoteidagnode) in [IntentState.Installed, IntentState.Compiled] ? ReturnCodes.SUCCESS : ReturnCodes.FAIL_GROOMEDREMOTEINTENTSTATE
+    end
 
     # check state of current internalremoteidagnode
     return returncode
-end
-
-"""
-$(TYPEDSIGNATURES)
-    Return a Vector of grooming possibilities.
-    Suggest grooming only if remains on the same path.
-    Suggest grooming only if one extra router port pair is used.
-
-    Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
-    Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
-"""
-function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
-    intent = getintent(idagnode)
-    srcglobalnode = getsourcenode(intent)
-    dstglobalnode = getdestinationnode(intent)
-    srcnode = getlocalnode(getibnag(ibnf), srcglobalnode)
-    dstnode = getlocalnode(getibnag(ibnf), dstglobalnode)
-
-    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
-
-    getibnfid(ibnf) == getibnfid(srcglobalnode) == getibnfid(dstglobalnode) || return groomingpossibilities
-
-    candidatepaths = prioritizepaths_shortest(ibnf, idagnode, intentcompilationalgorithm)
-
-    # intentuuid => LightpathRepresentation
-    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
-    for candidatepath in candidatepaths
-        containedinstalledlightpaths = filter(installedlightpaths) do (intentid, lightpathrepresentation)
-            issubpath(candidatepath, getpath(lightpathrepresentation)) || return false
-            if getpath(lightpathrepresentation)[end] == dstnode && any(c -> c isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
-                if getterminatessoptically(lightpathrepresentation)
-                    return true
-                else
-                    return false
-                end
-            end
-            return true
-        end
-
-        containedlightpaths = getpath.(getindex.(containedinstalledlightpaths, 2)) 
-        # find the combination of lightaths.
-
-        ## starting lightpaths
-        startinglightpathscollections = consecutivelightpathsidx(containedlightpaths, srcnode; startingnode=true)
-       
-        ## ending lightpaths
-        endinglightpathscollections = consecutivelightpathsidx(containedlightpaths, dstnode; startingnode=false)
-
-        for lightpathcollection in Iterators.flatten((startinglightpathscollections, endinglightpathscollections))
-            # some filtering: e.g. no same lightpath combinations 
-
-            lpc2insert = Vector{Union{UUID, Edge{Int}}}()
-            for lpidx in lightpathcollection
-                push!(lpc2insert, containedinstalledlightpaths[lpidx][1])
-            end
-
-            firstlightpath = containedlightpaths[lightpathcollection[1]]
-            if firstlightpath[1] != srcnode
-                pushfirst!(lpc2insert, Edge(srcnode, firstlightpath[1]))
-            end
-            lastlightpath = containedlightpaths[lightpathcollection[end]]
-            if lastlightpath[end] != dstnode
-                push!(lpc2insert, Edge(lastlightpath[end], dstnode))
-            end
-
-            index = searchsortedfirst(groomingpossibilities, lpc2insert) 
-            # TODO sort grooming options ; by = fewerlightpathsinvolved)
-            if index > length(groomingpossibilities) || groomingpossibilities[index] != lpc2insert #if not already inside
-                insert!(groomingpossibilities, index, lpc2insert)
-            end
-        end
-
-    end
-
-    return groomingpossibilities
 end
 
 """
@@ -369,6 +303,16 @@ prioritizepaths(
 ) -> Vector{Vector{LocalNode}}
 ```
 
+Return a Vector of grooming possibilities.
+Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
+Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
+```
+prioritizegrooming(
+    ibnf::IBNFramework, 
+    idagnode::IntentDAGNode{<:ConnectivityIntent}, 
+    intentcompilationalgorithm::IntentCompilationAlgorithm)
+```
+
 Return the candidate router ports with highest priority first
 Return empty collection if non available.
 ```
@@ -420,6 +364,7 @@ chooseoxcadddropport(
 """
 @recvtime function intradomaincompilationtemplate(;
     prioritizepaths = prioritizepaths_shortest,
+    prioritizegrooming = prioritizegrooming_default,
     prioritizerouterport = prioritizerouterports_lowestrate,
     prioritizetransmdlandmode = prioritizetransmdlmode_cheaplowrate,
     choosespectrum = choosespectrum_firstfit,
@@ -452,6 +397,7 @@ chooseoxcadddropport(
         setlocalnode!(dstallocations, destlocalnode)
         spectrumslotsrange = 0:0
         lpath = Vector{LocalNode}()
+        usedgrooming = false
 
         opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
         if !isnothing(opticalinitiateconstraint) # cannot groom
@@ -461,7 +407,6 @@ chooseoxcadddropport(
             returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             for path in candidatepaths
                 lpath = path
-                lowlevelintentsbuffer = LowLevelIntent[]
                 verbose && @info("Testing path $(path)")
                 # find transmission module and mode
                 spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
@@ -483,14 +428,23 @@ chooseoxcadddropport(
                 sourceadddropport = nothing
                 setadddropport!(srcallocations, sourceadddropport)
                 opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
+                if length(path) == 1
+                    oxcview = getoxcview(getnodeview(ibnag, path[]))
+                    hassameallocation = any(values(getreservations(oxcview))) do oxclli
+                        getlocalnode_input(oxclli) == opticalinitincomingnode || return false
+                        getlocalnode(oxclli) == path[] || return false
+                        getspectrumslotsrange(oxclli) == spectrumslotsrange || return false
+                        return true
+                    end
+                    if hassameallocation
+                        returncode = ReturnCodes.FAIL_SAMEOXCLLI
+                        continue
+                    end
+                end
                 setlocalnode_input!(srcallocations, opticalinitincomingnode)
 
                 # double code with the second if
                 setadddropport!(dstallocations, nothing)
-                oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
-                foreach(oxcadddropbypassspectrumllis) do lli
-                    push!(lowlevelintentsbuffer, lli)
-                end
                 verbose && @info("Picked OXC LLIs with initial constraints", spectrumslotsrange)
             
                 # successful source-path configuration
@@ -500,33 +454,54 @@ chooseoxcadddropport(
                     returncode = ReturnCodes.SUCCESS
                 else
                     opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end-1]
-                    returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm,lowlevelintentsbuffer, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
+                    returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
                 end
-                if issuccess(returncode) 
-                    push!(lowlevelintentstoadd, lowlevelintentsbuffer...)
-                    break
-                end
+                issuccess(returncode) && break
             end
         else
             returncode = ReturnCodes.FAIL_SRCROUTERPORT
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
+
+            groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm)
+            groomingpossibilitiesidxs = collect(eachindex(groomingpossibilities))
+            shortestpathdists = Graphs.johnson_shortest_paths(getibnag(ibnf)).dists
+
             for sourcerouteridx in sourcerouteridxs
                 setrouterportindex!(srcallocations, sourcerouteridx)
-                lowlevelintentsbuffer1 = LowLevelIntent[]
                 verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
-                sourcerouterportlli = RouterPortLLI(sourcelocalnode, sourcerouteridx)
-                push!(lowlevelintentsbuffer1, sourcerouterportlli)
 
                 returncode = ReturnCodes.FAIL_CANDIDATEPATHS
                 for path in candidatepaths
                     lpath = path
-                    lowlevelintentsbuffer2 = LowLevelIntent[]
                     verbose && @info("Testing path $(path)")
+
+                    # try grooming
+                    if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+                        usedgrooming = true
+                        groomingpossibilitiesidxs2dlt = empty(groomingpossibilitiesidxs)
+                        for (groomingpossibilityidxidx, groomingpossibilityidx) in enumerate(groomingpossibilitiesidxs)
+                            push!(groomingpossibilitiesidxs2dlt, groomingpossibilityidxidx)
+                            groomingpossibility = groomingpossibilities[groomingpossibilityidx]
+                            nogroomingnewhops = sum(shortestpathdists[src(e),dst(e)] for e in Iterators.filter(x -> x isa Edge, groomingpossibility); init=0.0)
+                            if nogroomingnewhops < length(path) # do grooming
+                                returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#"; verbose, @passtime)
+                                if issuccess(returncode)
+                                    break
+                                end
+                            end
+                        end
+                        # put groomingpossibilityidx out of the list for the next time 
+                        # TODO try out other grooming techniques after normal intent
+                        deleteat!(groomingpossibilitiesidxs, groomingpossibilitiesidxs2dlt)
+                    end
+
+                    issuccess(returncode) && break
+                    usedgrooming = false
+
                     # find transmission module and mode
                     sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
                     returncode = ReturnCodes.FAIL_SRCTRANSMDL
                     for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode, path)
-                        lowlevelintentsbuffer3 = LowLevelIntent[]
                         sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
                         sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
                         ## define a TransmissionModuleCompatibility for the destination node
@@ -555,18 +530,11 @@ chooseoxcadddropport(
                         settransmissionmodesindex!(srcallocations, sourcetransmissiomodeidx)
                         verbose && @info("Picking transmission module at source node", sourcetransmissionmodulelli)
 
-                        push!(lowlevelintentsbuffer3, sourcetransmissionmodulelli)
-
                         opticalinitincomingnode = nothing
                         setlocalnode_input!(srcallocations, opticalinitincomingnode)
                         spectrumslotsrange = startingslot:(startingslot + demandslotsneeded - 1)
 
                         # double code with the first if
-                        oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(path, spectrumslotsrange; sourceadddropport, opticalinitincomingnode, destadddropport = nothing)
-
-                        foreach(oxcadddropbypassspectrumllis) do lli
-                            push!(lowlevelintentsbuffer3, lli)
-                        end
                         verbose && @info("Picked OXC LLIs at", spectrumslotsrange)
     
                         # successful source-path configuration
@@ -577,33 +545,75 @@ chooseoxcadddropport(
                         else
                             # need to allocate a router port, a transmission module and mode, and an OXC configuration
                             opticalincomingnode = path[end-1]
-                            returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, lowlevelintentsbuffer3, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
+                            returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
                         end
+                        issuccess(returncode) && break
+                    end
+                    issuccess(returncode) && break
+                end
+                issuccess(returncode) && break
+            end
+            if !issuccess(returncode)
+                # try out all grooming options
+                usedgrooming = true
+                if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+                    for groomingpossibilityidx in groomingpossibilitiesidxs
+                        groomingpossibility = groomingpossibilities[groomingpossibilityidx]
+                        returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#"; verbose, @passtime)
                         if issuccess(returncode)
-                            push!(lowlevelintentsbuffer2, lowlevelintentsbuffer3...)
                             break
                         end
                     end
-                    if issuccess(returncode)
-                        push!(lowlevelintentsbuffer1, lowlevelintentsbuffer2...)
-                        break
-                    end
-                end
-                if issuccess(returncode)
-                    push!(lowlevelintentstoadd, lowlevelintentsbuffer1...)
-                    break
                 end
             end
         end
-        lpi = LightpathIntent(srcallocations, dstallocations, spectrumslotsrange, lpath)
-        lpidagnode = addidagnode!(ibnf, lpi; parentid=idagnodeid, intentissuer=MachineGenerated(), @passtime)
-        return compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
-        ## add intent and it's LLI
-        # foreach(lowlevelintentstoadd) do lli
-        #     stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
-        # end
-        # return returncode
+        if issuccess(returncode) && !usedgrooming
+            lpi = LightpathIntent(srcallocations, dstallocations, spectrumslotsrange, lpath)
+            lpidagnode = addidagnode!(ibnf, lpi; parentids=[idagnodeid], intentissuer=MachineGenerated(), @passtime)
+            returncode = compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
+        end
+
+        return  returncode
     end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns ReturnCode on whether it managed to compile the grooming possibility passed.
+"""
+@recvtime function compilegroomingpossibility(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, groomingpossibility::Vector{Union{Edge{Int}, UUID}} ,intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F; verbose::Bool=false) where {F<:Function}
+    returncode = ReturnCodes.FAIL
+    lplength = length(groomingpossibility)
+    for (lpidx, lightpath) in enumerate(groomingpossibility)
+        # put NoGroomingConstraint in all Intents Generated here 
+        if lightpath isa Edge 
+            lpsourcenode = getglobalnode(getibnag(ibnf), src(lightpath))
+            lpdstnode = getglobalnode(getibnag(ibnf), dst(lightpath))
+            if lpidx == lplength
+                opttermconstraint = getfirst(x -> x isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
+                if !isnothing(opttermconstraint)
+                    lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint(), opttermconstraint])
+                else
+                    lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
+                end
+            else
+                lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
+            end
+            lpidagnode = addidagnode!(ibnf, lpintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
+            # var#self# is the non documented way to reference the self anonymous function
+            returncode = intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm; verbose, @passtime)
+            updateidagnodestates!(ibnf, lpidagnode; @passtime)
+        elseif lightpath isa UUID
+            addidagedge!(ibnf, getidagnodeid(idagnode), lightpath; @passtime)
+            returncode = ReturnCodes.SUCCESS
+        end
+        if !issuccess(returncode)
+            @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
+            break
+        end
+    end
+    return returncode
 end
 
 """
@@ -655,7 +665,6 @@ chooseoxcadddropport(
     ibnf::IBNFramework, 
     idagnode::IntentDAGNode{<:ConnectivityIntent},
     intentcompilationalgorithm::IntentCompilationAlgorithm,
-    lowlevelintentstoadd,
     transmissionmodulecompat,
     opticalincomingnode::Int,
     spectrumslotsrange::UnitRange{Int},
@@ -683,7 +692,6 @@ chooseoxcadddropport(
     !isempty(destrouteridxs) || return ReturnCodes.FAIL_DSTROUTERPORT
     destrouteridx = first(destrouteridxs)
     destrouterportlli = RouterPortLLI(destlocalnode, destrouteridx)
-    push!(lowlevelintentstoadd, destrouterportlli)
     setrouterportindex!(mena, destrouteridx)
 
     destavailtransmdlidxs = getavailabletransmissionmoduleviewindex(destnodeview)
@@ -698,13 +706,11 @@ chooseoxcadddropport(
     destadddropport = chooseoxcadddropport(ibnf, idagnode, intentcompilationalgorithm, destlocalnode)
     !isnothing(destadddropport) || return ReturnCodes.FAIL_DSTOXCADDDROPPORT
     oxclli = OXCAddDropBypassSpectrumLLI(destlocalnode, opticalincomingnode, destadddropport, 0, spectrumslotsrange)
-    push!(lowlevelintentstoadd, oxclli)
     setlocalnode_input!(mena, opticalincomingnode)
     setadddropport!(mena, destadddropport)
     # setlocalnode_output!(mena, 0)
 
     desttransmissionmodulelli = TransmissionModuleLLI(destlocalnode, destavailtransmdlidx, desttransmodeidx, destrouteridx, destadddropport)
-    push!(lowlevelintentstoadd, desttransmissionmodulelli)
     settransmissionmoduleviewpoolindex!(mena, destavailtransmdlidx)
     settransmissionmodesindex!(mena, desttransmodeidx)
 
@@ -733,6 +739,102 @@ function prioritizepaths_shortest(ibnf::IBNFramework, idagnode::IntentDAGNode{<:
     end
 
     return operatingpaths
+end
+
+"Don't do grooming"
+function prioritizegrooming_none(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
+    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
+    return groomingpossibilities
+end
+
+"""
+$(TYPEDSIGNATURES)
+    Return a Vector of grooming possibilities.
+    Suggest grooming only if remains on the same path.
+    Suggest grooming only if one extra router port pair is used.
+
+    Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
+    Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
+"""
+function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
+    intent = getintent(idagnode)
+    srcglobalnode = getsourcenode(intent)
+    dstglobalnode = getdestinationnode(intent)
+    srcnode = getlocalnode(getibnag(ibnf), srcglobalnode)
+    dstnode = getlocalnode(getibnag(ibnf), dstglobalnode)
+
+    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
+
+    if !(getibnfid(ibnf) == getibnfid(srcglobalnode) == getibnfid(dstglobalnode)) 
+        if isbordernode(ibnf, srcglobalnode) 
+            any(x -> x isa OpticalInitiateConstraint, getconstraints(intent)) || return groomingpossibilities 
+        elseif isbordernode(ibnf, dstglobalnode)
+            any(x -> x isa OpticalTerminateConstraint, getconstraints(intent)) || return groomingpossibilities 
+        else
+            # TODO what about that ?
+            # cross domain intent
+            # find lightpath combinations regardless of paths
+            return groomingpossibilities
+        end
+    end
+
+    candidatepaths = prioritizepaths_shortest(ibnf, idagnode, intentcompilationalgorithm)
+
+    # intentuuid => LightpathRepresentation
+    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
+    filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
+        getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled=false) >= getrate(intent)
+    end
+
+    for candidatepath in candidatepaths
+        containedinstalledlightpaths = filter(installedlightpaths) do (intentid, lightpathrepresentation)
+            issubpath(candidatepath, getpath(lightpathrepresentation)) || return false
+            opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
+            if getpath(lightpathrepresentation)[end] == dstnode && !isnothing(opttermconstraint)
+                if getterminatessoptically(lightpathrepresentation) && getdestinationnode(lightpathrepresentation) == getdestinationnode(opttermconstraint)
+                    return true
+                else
+                    return false
+                end
+            end
+            return true
+        end
+
+        containedlightpaths = getpath.(getindex.(containedinstalledlightpaths, 2)) 
+        # find the combination of lightaths.
+
+        ## starting lightpaths
+        startinglightpathscollections = consecutivelightpathsidx(containedlightpaths, srcnode; startingnode=true)
+       
+        ## ending lightpaths
+        endinglightpathscollections = consecutivelightpathsidx(containedlightpaths, dstnode; startingnode=false)
+
+        for lightpathcollection in Iterators.flatten((startinglightpathscollections, endinglightpathscollections))
+            lpc2insert = Vector{Union{UUID, Edge{Int}}}()
+            for lpidx in lightpathcollection
+                push!(lpc2insert, containedinstalledlightpaths[lpidx][1])
+            end
+
+            firstlightpath = containedlightpaths[lightpathcollection[1]]
+            if firstlightpath[1] != srcnode
+                pushfirst!(lpc2insert, Edge(srcnode, firstlightpath[1]))
+            end
+            lastlightpath = containedlightpaths[lightpathcollection[end]]
+            if lastlightpath[end] != dstnode
+                push!(lpc2insert, Edge(lastlightpath[end], dstnode))
+            end
+
+            # is it low-priority or high-priority ?
+            index = searchsortedfirst(groomingpossibilities, lpc2insert; by = length) 
+            # TODO sort grooming options ; by = fewerlightpathsinvolved)
+            if index > length(groomingpossibilities) || groomingpossibilities[index] != lpc2insert #if not already inside
+                insert!(groomingpossibilities, index, lpc2insert)
+            end
+        end
+
+    end
+
+    return groomingpossibilities
 end
 
 """

@@ -27,8 +27,38 @@ function requestidag_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
     return requestidag_term(myibnfhandler, remoteibnf)
 end
 
+
 function requestidag_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
     return getidag(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the handlers of the handler
+"""
+function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestibnfhandlers_term(myibnfhandler, remoteibnf)
+end
+
+
+function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
+    return getibnfhandlers(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request logical low level intent sequence
+"""
+function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestlogicallliorder_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled, verbose)
+end
+
+function requestlogicallliorder_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    return getlogicallliorder(myibnf, intentuuid; onlyinstalled, verbose)
 end
 
 """
@@ -266,7 +296,7 @@ end
 $(TYPEDSIGNATURES) 
 """
 @recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose=false, @passtime)
+    return requestuninstallintent_term!(myibnf, remoteibnf, idagnodeid; verbose, @passtime)
 end
 
 """
@@ -301,7 +331,7 @@ $(TYPEDSIGNATURES)
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """
-function requestissatisfied(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
+function requestissatisfied(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool=true, noextrallis::Bool=true)
     return issatisfied(remoteibnf, idagnodeid; onlyinstalled, noextrallis)
 end
 
