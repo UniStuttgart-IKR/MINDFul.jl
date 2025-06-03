@@ -37,8 +37,74 @@ function requestidag_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
     return requestidag_term(myibnfhandler, remoteibnf)
 end
 
+
 function requestidag_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
     return getidag(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the handlers of the handler
+"""
+function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestibnfhandlers_term(myibnfhandler, remoteibnf)
+end
+
+function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+    initiator_ibnfid = string(myibnf.ibnfid)
+    resp = send_request(remoteibnfhandler, HTTPMessages.REQUEST_HANDLERS, Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
+
+    return JSON.parse(String(resp.body))
+end
+
+function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
+    return getibnfhandlers(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+Request logical low level intent sequence
+"""
+function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestlogicallliorder_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled, verbose)
+end
+
+function parse_lowlevelintent(dict)
+    if dict["type"] == "OXCAddDropBypassSpectrumLLI"
+        return MINDFul.OXCAddDropBypassSpectrumLLI(
+            dict["node"], dict["input"], dict["adddropport"], dict["output"], dict["slots"]["spectrumslotsrange"][1]:constraint["spectrumslotsrange"][2]
+        )
+    elseif dict["type"] == "TransmissionModuleLLI"
+        return MINDFul.TransmissionModuleLLI(
+            dict["srcnode"], dict["dstnode"], dict["srcport"], dict["dstport"], dict["modulation"]
+        )
+    elseif dict["type"] == "RouterPortLLI"
+        return MINDFul.RouterPortLLI(
+            dict["node"], dict["port"]
+        )
+    else
+        error("Unknown LowLevelIntent type: $(dict["type"])")
+    end
+end
+
+function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    initiator_ibnfid = string(myibnf.ibnfid)
+    resp = send_request(remoteibnfhandler, HTTPMessages.LOGICAL_ORDER, 
+        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
+        HTTPMessages.ONLY_INSTALLED => onlyinstalled, 
+        HTTPMessages.VERBOSE => verbose, 
+        HTTPMessages.INTENTUUID => string(intentuuid)))
+        
+    parsed_json = JSON.parse(String(resp.body))
+    logical_order = [parse_lowlevelintent(d) for d in parsed_json]
+    return logical_order
+end
+
+function requestlogicallliorder_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    return getlogicallliorder(myibnf, intentuuid; onlyinstalled, verbose)
 end
 
 """
@@ -327,7 +393,7 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
-    return requestuninstallintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose=false, @passtime)
+    return requestuninstallintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose, @passtime)
 end
 
 @recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; verbose::Bool=false)
@@ -382,7 +448,7 @@ $(TYPEDSIGNATURES)
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """
-function requestissatisfied(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
+function requestissatisfied(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool=true, noextrallis::Bool=true)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestissatisfied_term!(myibnfhandler, remoteibnf, idagnodeid; onlyinstalled, noextrallis)
 end

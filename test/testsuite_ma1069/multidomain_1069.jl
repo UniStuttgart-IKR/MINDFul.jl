@@ -40,7 +40,7 @@ TM.testcompilation(ibnfs[1], intentuuid_bordernode; withremote=true)
 # install
 @test installintent!(ibnfs[1], intentuuid_bordernode; verbose=true) == ReturnCodes.SUCCESS
 TM.testinstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
-#=
+
 # uninstall
 @test uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true) == ReturnCodes.SUCCESS
 TM.testuninstallation(ibnfs[1], intentuuid_bordernode; withremote=true)
@@ -71,9 +71,9 @@ TM.testuncompilation(ibnfs[1], intentuuid_neigh)
 # to unknown domain
  
 foreach(ibnfs) do ibnf
-    #TM.testoxcfiberallocationconsistency(ibnf)
+    TM.testoxcfiberallocationconsistency(ibnf)
     TM.testzerostaged(ibnf)
 end
-=#
+
 
 end

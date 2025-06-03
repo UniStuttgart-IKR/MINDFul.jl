@@ -10,11 +10,13 @@ import MINDFul: getibnag, getoxcview, getrouterview, getstaged, NodeView, getglo
 using Test, JET
 
 
+function islowlevelintentdagnodeinstalled(ibnf::MINDF.IBNFramework, lli::MINDF.LowLevelIntent)
+    return islowlevelintentdagnodeinstalled(getibnag(ibnf), lli)
+end
 """
 $(TYPEDSIGNATURES)
 """
-function islowlevelintentdagnodeinstalled(ibnf::MINDF.IBNFramework, lli::MINDF.LowLevelIntent)
-    ibnag = MINDF.getibnag(ibnf)
+function islowlevelintentdagnodeinstalled(ibnag::MINDF.IBNAttributeGraph, lli::MINDF.LowLevelIntent)
     nodeview = MINDF.getnodeview(ibnag, MINDF.getlocalnode(lli))
     if lli isa MINDF.RouterPortLLI
         routerview = MINDF.getrouterview(nodeview)
@@ -27,11 +29,14 @@ function islowlevelintentdagnodeinstalled(ibnf::MINDF.IBNFramework, lli::MINDF.L
     end
 end
 
+function nothingisallocated(ibnf::MINDF.IBNFramework)
+    return nothingisallocated(getibnag(ibnf))
+end
+
 """
 $(TYPEDSIGNATURES)
 """
-function nothingisallocated(ibnf::MINDF.IBNFramework)
-    ibnag = MINDF.getibnag(ibnf)
+function nothingisallocated(ibnag::MINDF.IBNAttributeGraph)
     for nodeview in MINDF.getintranodeviews(ibnag)
         @test isempty(MINDF.getreservations(nodeview))
         routerview = MINDF.getrouterview(nodeview)
@@ -99,7 +104,14 @@ function testoxcfiberallocationconsistency(ibnf)
     borderglobaledges = MINDF.getborderglobaledges(ibnf)
     ibnag = MINDF.getibnag(ibnf)
     for ge in borderglobaledges
+        firstenter = true
         for ibnfhandler in MINDF.getibnfhandlers(ibnf)
+            if !(ibnfhandler isa IBNFramework) # if there are HTTP handlers the first one is the self
+                if firstenter 
+                    firstenter = false
+                    continue
+                end
+            end
             if MINDF.getibnfid(ibnfhandler) == MINDF.getibnfid(src(ge)) 
                 remotespecavail = MINDF.requestspectrumavailability_init!(ibnf, ibnfhandler, ge)
                 le = Edge(MINDF.getlocalnode(ibnag, src(ge)), MINDF.getlocalnode(ibnag, dst(ge)))
@@ -124,9 +136,15 @@ $(TYPEDSIGNATURES)
 function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote::Bool=false)
     @test MINDF.getidagnodestate(MINDF.getidagnode(MINDF.getidag(ibnf), idagnodeid)) == MINDF.IntentState.Compiled
     @test !isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))
-    @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
+    if !MINDF.issubdaggrooming(getidag(ibnf), idagnodeid)
+        @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
+    else
+        @test all(x -> x in [MINDF.IntentState.Compiled, MINDF.IntentState.Installed],MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)))
+    end
     @test MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=false, noextrallis=false)
-    @test !MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=true, noextrallis=false)
+    if !MINDF.issubdaggrooming(getidag(ibnf), idagnodeid)
+        @test !MINDF.issatisfied(ibnf, idagnodeid; onlyinstalled=true, noextrallis=false)
+    end
 
     if withremote
         foreach(MINDF.getidagnodeid.(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))) do intentuuid
@@ -139,9 +157,12 @@ function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote:
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
         @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
-        if ibnfhandler_bordernode isa MINDF.IBNFramework
-            @test MINDF.issatisfied(ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
-            @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
+        # if ibnfhandler_bordernode isa MINDF.IBNFramework
+        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+        if !MINDF.issubdaggrooming(getidag(ibnf), idagnodeid)
+            @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
+        else
+            @test all(x -> x in [MINDF.IntentState.Compiled, MINDF.IntentState.Installed],MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
         end
     end
 end
@@ -181,20 +202,20 @@ function testinstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote
         
         @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
         
-        if ibnfhandler_bordernode isa MINDF.IBNFramework
-            @test MINDF.issatisfied(ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
-            @test all(==(MINDF.IntentState.Installed),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.getidag(ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
-        
-            orderedllis = MINDF.getlogicallliorder(ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, verbose=false)
-            foreach(orderedllis) do olli
-                islowlevelintentdagnodeinstalled(ibnfhandler_bordernode, olli)
-            end
+        # if ibnfhandler_bordernode isa MINDF.IBNFramework
+        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+        @test all(==(MINDF.IntentState.Installed),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
     
-            # check that allocations are non empty
-            @test any(nodeview -> !isempty(MINDF.getreservations(nodeview)), MINDF.getintranodeviews(MINDF.getibnag(ibnfhandler_bordernode)))
-            @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getrouterview(nodeview))), MINDF.getintranodeviews(MINDF.getibnag(ibnfhandler_bordernode)))
-            @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getoxcview(nodeview))), MINDF.getintranodeviews(MINDF.getibnag(ibnfhandler_bordernode)))
+        ibnfhandler_bordernode_ibnag = MINDF.requestibnattributegraph(ibnf, ibnfhandler_bordernode)
+        orderedllis = MINDF.requestlogicallliorder_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, verbose=false)
+        foreach(orderedllis) do olli
+            islowlevelintentdagnodeinstalled(ibnfhandler_bordernode_ibnag, olli)
         end
+
+        # check that allocations are non empty
+        @test any(nodeview -> !isempty(MINDF.getreservations(nodeview)), MINDF.getintranodeviews(ibnfhandler_bordernode_ibnag))
+        @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getrouterview(nodeview))), MINDF.getintranodeviews(ibnfhandler_bordernode_ibnag))
+        @test any(nodeview -> !isempty(MINDF.getreservations(MINDF.getoxcview(nodeview))), MINDF.getintranodeviews(ibnfhandler_bordernode_ibnag))
     end
 end
 
@@ -219,11 +240,9 @@ function testuninstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremo
         remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
-
-        if ibnfhandler_bordernode isa MINDF.IBNFramework
-            if shouldempty
-                nothingisallocated(ibnfhandler_bordernode)
-            end
+        
+        if shouldempty
+            nothingisallocated(MINDF.requestibnattributegraph(ibn, ibnfhandler_bordernode))
         end
     end
 end

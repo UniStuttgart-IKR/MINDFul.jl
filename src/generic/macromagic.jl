@@ -4,6 +4,7 @@ $(TYPEDSIGNATURES)
 Return a `return ReturnCodes.Fail` if the expression `ex` evaluates to false.
 If `verbose=true` print the statement and the location.
 If the expression passed is `true` do nothing.
+TODO: have also a helper message be printed
 """
 macro returniffalse(verbose, ex)
     return quote

@@ -515,6 +515,79 @@ export serve
         end
     end
 
+    @post "/api/request_handlers" function (req; context)
+        ibnf = getmyibnf(req, context)        
+        body = HTTP.payload(req)
+        parsed_body = JSON.parse(String(body))
+        initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+        remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+        
+        ibnfhandlers = MINDF.requestibnfhandlers_term(remoteibnf_handler, ibnf)
+
+        @show ibnfhandlers
+      
+        if !isnothing(ibnfhandlers)
+            #return HTTP.Response(200, JSON.json(string(ibnattributegraph)))
+            return HTTP.Response(200, ibnfhandlers)
+
+        else
+            return HTTP.Response(404, "Handlers not found")
+        end
+    end
+
+    function serialize_lowlevelintent(ll)
+        if ll isa MINDFul.OXCAddDropBypassSpectrumLLI
+            return Dict(
+                "type" => "OXCAddDropBypassSpectrumLLI",
+                "node" => ll.localnode,
+                "input" => ll.localnode_input,
+                "adddropport" => ll.adddropport,
+                "output" => ll.localnode_output,
+                "slots" => [ll.spectrumslotsrange.start, ll.spectrumslotsrange.stop]
+            )
+        elseif ll isa MINDFul.TransmissionModuleLLI
+            return Dict(
+                "type" => "TransmissionModuleLLI",
+                "node" => ll.localnode,
+                "poolindex" => ll.transmissionmoduleviewpoolindex,
+                "modesindex" => ll.transmissionmodesindex,
+                "port" => ll.routerportindex,
+                "adddropport" => ll.adddropport
+            )
+        elseif ll isa MINDFul.RouterPortLLI
+            return Dict(
+                "type" => "RouterPortLLI",
+                "node" => ll.localnode,
+                "port" => ll.routerportindex
+            )
+        else
+            error("Unknown LowLevelIntent type: $(typeof(ll))")
+        end
+    end
+
+    @post "/api/logical_order" function (req; context)
+        ibnf = getmyibnf(req, context)        
+        body = HTTP.payload(req)
+        parsed_body = JSON.parse(String(body))
+        initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
+        remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
+        
+        intentuuid = UUID(parsed_body[MINDF.HTTPMessages.INTENTUUID])
+        onlyinstalled = parsed_body[MINDF.HTTPMessages.ONLY_INSTALLED]
+        verbose = parsed_body[MINDF.HTTPMessages.VERBOSE]
+        logical_order = MINDF.requestlogicallliorder_term(remoteibnf_handler, ibnf, intentuuid; onlyinstalled, verbose)
+
+        @show logical_order
+      
+        if !isnothing(logical_order)
+            json_ready = [serialize_lowlevelintent(ll) for ll in logical_order]
+            return HTTP.Response(200, JSON.json(json_ready))
+
+        else
+            return HTTP.Response(404, "Handlers not found")
+        end
+    end
+
     
     # TODO ma1069
     info = Dict("title" => "MINDFul Api", "version" => "1.0.0")

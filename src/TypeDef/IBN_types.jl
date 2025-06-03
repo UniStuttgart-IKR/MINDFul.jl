@@ -7,6 +7,7 @@ Another intent state schema could be defined.
     Uncompiled
     Pending
     Compiled
+    Installing
     Installed
     Failed
 end
@@ -85,8 +86,40 @@ struct IntentDAGNode{I <: AbstractIntent, II <: IntentIssuer}
     logstate::IntentLogState{IntentState.T}
 end
 
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Represents an implementation of a ConnectivityIntent as a lightpath
+"""
+struct LightpathRepresentation
+    "The nodes comprising the lightpath"
+    path::Vector{LocalNode}
+    "`true` if it starts optically (due to `OpticalInitiateConstraint`) or `false` otherwise"
+    startsoptically::Bool
+    "`true` if it terminates optically (due to `OpticalTerminateConstraint`) or `false` otherwise"
+    terminatessoptically::Bool
+    "total bandwidth that can be allocated"
+    totalbandwidth::GBPSf
+    """
+    final node of the signal entering this lightpath.
+    This could be a GlobalNode intrnally in the domain for a single lightpath.
+    Or an external GlobalNode in a different domain for a cross-lightpath.
+    In the second case, the signal might go over different lightpaths to reach the destination.
+    """
+    destinationnode::GlobalNode
+end
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+"""
 mutable struct IntentDAGInfo
+    "The counter of the number of intents to give increasing ids to intents"
     intentcounter::Int
+    "Logical representation of the installed intents as lightpaths (must be direct parent of the LLIs)"
+    installedlightpaths::Dict{UUID, LightpathRepresentation}
 end
 
 """
@@ -95,7 +128,7 @@ $(TYPEDSIGNATURES)
 Empty constructor 
 """
 function IntentDAGInfo()
-    return IntentDAGInfo(0)
+    return IntentDAGInfo(0, Dict{UUID, LightpathRepresentation}())
 end
 
 "An `AttributeGraph` graph used as an intent Directed Acyclic Graph (DAG)"
@@ -133,6 +166,92 @@ struct ConnectivityIntent{T <: AbstractIntentConstraint} <: AbstractIntent
     constraints::Vector{T}
 end
 
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+
+Basically an aggregator of `RouterPortLLI`, `TransmissionModuleLLI`, `OXCAddDropBypassSpectrumLLI` in a node.
+"""
+struct EndNodeAllocations
+    localnode::Int
+    routerportindex::Union{Nothing, Int}
+    transmissionmoduleviewpoolindex::Union{Nothing, Int}
+    transmissionmodesindex::Union{Nothing, Int}
+    localnode_input::Union{Nothing, Int}
+    adddropport::Union{Nothing, Int}
+end
+
+mutable struct MutableEndNodeAllocations
+    localnode::Int
+    routerportindex::Union{Nothing, Int}
+    transmissionmoduleviewpoolindex::Union{Nothing, Int}
+    transmissionmodesindex::Union{Nothing, Int}
+    localnode_input::Union{Nothing, Int}
+    adddropport::Union{Nothing, Int}
+end
+
+function MutableEndNodeAllocations()
+    return MutableEndNodeAllocations(0, nothing, nothing, nothing, nothing, nothing)
+end
+
+function EndNodeAllocations(mena::MutableEndNodeAllocations)
+    return EndNodeAllocations(mena.localnode, mena.routerportindex, mena.transmissionmoduleviewpoolindex, mena.transmissionmodesindex, mena.localnode_input, mena.adddropport)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return true if allocaitons on the node do not influence the electrical devices.
+This is equivalent to the `OpticalInitiateConstraint` and `OpticalTerminateConstraint`
+"""
+function isonlyoptical(ena::EndNodeAllocations)
+    if iszeroornothing(getrouterportindex(ena)) && iszeroornothing(gettransmissionmoduleviewpoolindex(ena)) && iszeroornothing(gettransmissionmodesindex(ena)) 
+        return true
+    end
+    return false
+end
+
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+
+Basicaly an aggregator of `LowLevelIntents`.
+One lightpath intent can translate trivially to LowLevelIntents.
+It's core use is for grooming, where several Connectivity Intents can be linked to one LightpathIntent
+If the field does not apply, put `0`
+"""
+struct LightpathIntent <: AbstractIntent
+    sourcenodeallocations::EndNodeAllocations
+    destinationnodeallocations::EndNodeAllocations
+    spectrumslotsrange::UnitRange{Int}
+    path::Vector{LocalNode}
+end
+
+function LightpathIntent(srcallocations::MutableEndNodeAllocations, dstallocations::MutableEndNodeAllocations, specrumslotsrange::UnitRange{Int}, path::Vector{LocalNode})
+    srcnodeallocations = EndNodeAllocations(srcallocations)
+    dstnodeallocations = EndNodeAllocations(dstallocations)
+    return LightpathIntent(srcnodeallocations, dstnodeallocations, specrumslotsrange, path)
+end
+
+function Base.show(io::IO, lpt::LightpathIntent)
+    startingoptical = isonlyoptical(lpt.sourcenodeallocations)
+    endingoptical = isonlyoptical(lpt.destinationnodeallocations)
+    description = 
+    if startingoptical && endingoptical
+        "segment"
+    elseif startingoptical
+        "o-starting"
+    elseif endingoptical
+        "o-ending"
+    else
+        "full"
+    end
+    print(io, description, " lightpath ", lpt.path, " ",lpt.spectrumslotsrange)
+end
+
 function ConnectivityIntent(sourcenode::GlobalNode, destinationnode::GlobalNode, rate::GBPSf)
     return ConnectivityIntent(sourcenode, destinationnode, rate, AbstractIntentConstraint[])
 end
@@ -154,10 +273,25 @@ end
 """
 $(TYPEDEF)
 
+Constraint that requires the intent is compiled without use of grooming techniques.
+"""
+struct NoGroomingConstraint <: AbstractIntentConstraint end
+
+"""
+$(TYPEDEF)
+
 Constraint that requires the intent to terminate optically one node before the destination.
 It's combined with an (@ref)[`OpticalInitiateConstraint`] after.
+
+$(TYPEDFIELDS)
 """
-struct OpticalTerminateConstraint <: AbstractIntentConstraint end
+struct OpticalTerminateConstraint <: AbstractIntentConstraint
+    """
+    The final destination (intra domain or inter-domain)
+    Used primarily for grooming cross lightpaths.
+    """
+    finaldestination::GlobalNode
+end
 
 """
 $(TYPEDEF)
@@ -194,6 +328,18 @@ struct RemoteIntent{I<:AbstractIntent} <: AbstractIntent
     intent::I
     "`true` if the intent originates here and `false` otherwise"
     isinitiator::Bool
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+The only intent that is being built from its children to be offered as a straight grooming possibility.
+It is composed by a `LightpathIntent` and a `RemoteIntent` which are also its children intents.
+"""
+struct CrossLightpathIntent{C1<:ConnectivityIntent, C2<:ConnectivityIntent, } <: AbstractIntent
+    lightpathconnectivityintent::C2
+    remoteconnectivityintent::C1
 end
 
 """
@@ -316,17 +462,4 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
     print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
-end
-
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-
-Expresses an intent for a lightpath.
-Compilation should yield: 
-- source and destination port indices
-- transmissionmodule selection
-"""
-struct LightpathIntent <: AbstractIntent
-    path::Vector{LocalNode}
 end

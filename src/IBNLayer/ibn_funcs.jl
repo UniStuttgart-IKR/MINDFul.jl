@@ -13,6 +13,7 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function removeintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
+    @returniffalse(verbose, length(getidagnodechildren(getidag(ibnf), idagnodeid)) == 0)
     return removeidagnode!(getidag(ibnf), idagnodeid)
 end
 
@@ -30,7 +31,7 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
     if !getisinitiator(getintent(idagnode))
-        idagnodechild = addidagnode!(ibnf, getintent(getintent(idagnode)); parentid = getidagnodeid(idagnode), intentissuer = MachineGenerated(), @passtime)
+        idagnodechild = addidagnode!(ibnf, getintent(getintent(idagnode)); parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
         return compileintent!(ibnf, idagnodechild, algorithm; verbose, @passtime)
     else
         return ReturnCodes.FAIL
@@ -40,9 +41,39 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:LightpathIntent}, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
+    lpintent = getintent(idagnode)
+    idagnodeid = getidagnodeid(idagnode)
+    for endnodeallocations in [getsourcenodeallocations(lpintent), getdestinationnodeallocations(lpintent)]
+        if !isonlyoptical(endnodeallocations)
+            routerportlli = getrouterlli(endnodeallocations)
+            stageaddidagnode!(ibnf, routerportlli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+            transmdllli = gettrasmissionmodulelli(endnodeallocations)
+            stageaddidagnode!(ibnf, transmdllli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+        end
+    end
+
+    oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(
+        getpath(lpintent),
+        getspectrumslotsrange(lpintent); 
+        sourceadddropport= getadddropport(getsourcenodeallocations(lpintent)),
+        opticalinitincomingnode = getlocalnode_input(getsourcenodeallocations(lpintent)),
+        destadddropport = getadddropport(getdestinationnodeallocations(lpintent)))
+
+    for lli in oxcadddropbypassspectrumllis
+        stageaddidagnode!(ibnf, lli; parentid = idagnodeid, intentissuer = MachineGenerated(), @passtime)
+    end
+
+    return ReturnCodes.SUCCESS
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
-    idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid)
+    deletenodesedgesuntilgroomingfound(getidag(ibnf), idagnodeid)
+    idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid; parentsfirst=false)
     foreach(idagnodedescendants) do idagnodedescendant
         if getintent(idagnodedescendant) isa RemoteIntent
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnodedescendant)))
@@ -52,6 +83,7 @@ $(TYPEDSIGNATURES)
             end
         else
             @returniffalse(verbose, getidagnodestate(idagnodedescendant) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
+            @assert iszero(hasidagnodechildren(getidag(ibnf), idagnodedescendant))
             removeidagnode!(getidag(ibnf), getidagnodeid(idagnodedescendant))
             if getintent(idagnodedescendant) isa LowLevelIntent
                 stageunstageleafintent!(ibnf, getintent(idagnodedescendant), false)
@@ -68,15 +100,89 @@ end
 
 """
 $(TYPEDSIGNATURES)
+Delete all nodes and edges until the grooming node is found.
+If no grooming node is found, delete nothing.
+Start from `idagnodeid`
+"""
+function deletenodesedgesuntilgroomingfound(idag::IntentDAG, idagnodeid::UUID)
+    idagnodeid2dlt = UUID[]
+    idagedge2dlt = UUID[]
+    for idagnode in getidagnodechildren(idag, idagnodeid)
+        nidagnodeid = getidagnodeid(idagnode)
+        groomingfound = _rec_deletenodesedgesuntilgroomingfound!(idag, nidagnodeid, idagnodeid2dlt)
+        groomingfound && push!(idagedge2dlt, nidagnodeid)
+    end
+    for idagnodeedgedst2dlt in idagedge2dlt
+        removeidagedge!(idag, idagnodeid, idagnodeedgedst2dlt)
+    end
+    for idagnodeid in idagnodeid2dlt
+        removeidagnode!(idag, idagnodeid)
+    end
+end
+
+function deletenodesedgesuntilgroomingfound_fake(idag::IntentDAG, idagnodeid::UUID)
+    idagnodeid2dlt = UUID[]
+    idagedge2dlt = UUID[]
+    for idagnode in getidagnodechildren(idag, idagnodeid)
+        nidagnodeid = getidagnodeid(idagnode)
+        groomingfound = _rec_deletenodesedgesuntilgroomingfound!(idag, nidagnodeid, idagnodeid2dlt)
+        groomingfound && push!(idagedge2dlt, nidagnodeid)
+    end
+    for idagnodeedgedst2dlt in idagedge2dlt
+        @info "deleting edge",  idagnodeid, idagnodeedgedst2dlt
+    end
+    for idagnodeid in idagnodeid2dlt
+        @info "deleteing node", idagnodeid
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns true if grooming is found and the `idagnodeid` to delete
+"""
+function _rec_deletenodesedgesuntilgroomingfound!(idag::IntentDAG, idagnodeid::UUID, idagnodeid2dlt::Vector{UUID})
+    idagnodeidx = getidagnodeidx(idag, idagnodeid)
+    if length(Graphs.inneighbors(idag, idagnodeidx)) > 1
+        if length(getidagnoderoots(idag, idagnodeid)) > 1
+            return true
+        end
+    end
+    allgroomingfound = true
+    investigatedchildren = false
+    for idagnode in getidagnodechildren(idag, idagnodeid)
+        investigatedchildren = true
+        nidagnodeid = getidagnodeid(idagnode)
+        # all children must be grooming in order to delete the parent
+        allgroomingfound &= _rec_deletenodesedgesuntilgroomingfound!(idag, nidagnodeid, idagnodeid2dlt)
+    end
+    allgroomingfound &= investigatedchildren
+    allgroomingfound && push!(idagnodeid2dlt, idagnodeid)
+
+    return allgroomingfound
+end
+
+"""
+$(TYPEDSIGNATURES)
 """
 @recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    #@show getidagnodestate(getidag(ibnf), idagnodeid)
-    #println("installintent!")
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Compiled, IntentState.Installing])
+    # unblock from the Compiled state
+    updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime)
+    # run once to sync with idag
     idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
+        if getidagnodestate(idagnodeleaf) == IntentState.Installing
             reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
+        end
     end
+
+    for idagnodex in getidagnodedescendants(getidag(ibnf), idagnodeid; includeroot=true)
+        if getidagnodestate(idagnodex) == IntentState.Installing
+            updateidagstates!(ibnf, getidagnodeid(idagnodex); @passtime)
+        end
+    end
+
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
         return ReturnCodes.SUCCESS
     else
@@ -88,11 +194,23 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed])
-    idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
-    foreach(idagnodeleafs) do idagnodeleaf
-        reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose, @passtime)
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed, IntentState.Pending])
+    if all( x -> getidagnodestate(x) == IntentState.Compiled, getidagnodeparents(getidag(ibnf), idagnodeid))
+        idagnodechildren = getidagnodechildren(getidag(ibnf), idagnodeid)
+        if length(idagnodechildren) == 0
+            reserveunreserveleafintents!(ibnf, getidagnode(getidag(ibnf), idagnodeid), false; verbose, @passtime)
+        else
+            updateidagstates!(ibnf, idagnodeid, IntentState.Compiled; @passtime)
+            for idagnodechild in idagnodechildren
+                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose)
+            end
+        end
     end
+
+    # idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
+    # foreach(idagnodeleafs) do idagnodeleaf
+    #     reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose, @passtime)
+    # end
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
         return ReturnCodes.SUCCESS
     else
@@ -165,7 +283,8 @@ Stage lli as compiled in the equipment and add LLI in the intent DAG.
 Staged LLIs are not reserved but used to know that they will be in the future.
 """
 @recvtime function stageaddidagnode!(ibnf::IBNFramework, lli::LowLevelIntent; parentid::Union{Nothing, UUID} = nothing, intentissuer = MachineGenerated())
-    idagnode = addidagnode!(ibnf, lli; parentid, intentissuer, @passtime)
+    parentids = isnothing(parentid) ? UUID[] : [parentid]
+    idagnode = addidagnode!(ibnf, lli; parentids, intentissuer, @passtime)
     stageunstageleafintent!(ibnf, lli, true)
 end
 
@@ -204,18 +323,33 @@ $(TYPEDSIGNATURES)
 Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remoteibndif`
 """
 @recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
-    ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-    internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-    remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
-    #@show remoteidagnodeid
-    # add an idagnode `RemoteIntent`
-    remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
+    # check if intent should be groomed on another already existing RemoteIntent
+    # TODO probably delete this because cross grooming will happen elsewhere
+    groomedidagnoderemote = getfirst(getidagnodes(getidag(ibnf))) do idagnodex
+        getintent(idagnodex) isa RemoteIntent{<:ConnectivityIntent} || return false
+        getibnfid(getintent(idagnodex)) == remoteibnfid || return false
+        areintentsequal(getintent(getintent(idagnodex)), getintent(idagnode)) || return false
+        getresidualbandwidth(ibnf, idagnodex) >= getrate(getintent(getintent(idagnodex))) || return false
+        return true
+    end
 
-    # add in DAG
-    internalidagnode = addidagnode!(ibnf, remoteintent; parentid=getidagnodeid(idagnode), intentissuer=MachineGenerated(), @passtime)
-    @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
+    if !isnothing(groomedidagnoderemote)
+        addidagedge!(ibnf, getidagnodeid(idagnode), getidagnodeid(groomedidagnoderemote); @passtime)
+        return groomedidagnoderemote
+    else
+        ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+        internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
+        remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
 
-    return internalidagnode
+        # add an idagnode `RemoteIntent`
+        remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
+
+        # add in DAG
+        internalidagnode = addidagnode!(ibnf, remoteintent; parentids=[getidagnodeid(idagnode)], intentissuer=MachineGenerated(), @passtime)
+        @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
+
+        return internalidagnode
+    end
 end
 
 """
@@ -234,8 +368,6 @@ $(TYPEDSIGNATURES)
 Get the spectrum availability slots vector for `edge`
 """
 function getfiberspectrumavailabilities(ibnf::IBNFramework, edge::Edge{LocalNode}; checkfirst::Bool = true, verbose::Bool=false)
-    #@show getibnfid(ibnf)
-    #@show edge
     ibnag = getibnag(ibnf) 
     edsrc = src(edge)
     nodeviewsrc = getnodeview(ibnag, edsrc)
@@ -366,8 +498,7 @@ function getlinkstates(ibnf::IBNFramework, edge::Edge; checkfirst::Bool=true, ve
         else
             getlinkstates(getoxcview(nodeviewdst), edge)
         end
-        #@show srclinksstates
-        #@show dstlinkstates
+
         @assert(getindex.(srclinksstates, 2) == getindex.(dstlinkstates, 2))
         return srclinksstates
     else
@@ -720,11 +851,26 @@ end
 $(TYPEDSIGNATURES)
 
 Return true if at least source or destination is internal.
+Pass `; noremoteintent=true` to check whether there is an `OpticalTerminateConstraint` or an `OpticalInitiateConstraint` such that no `RemoteIntent` is needed.
 """
-function isinternalorborderintent(ibnf::IBNFramework, connectivityintent::ConnectivityIntent)
+function isinternalorborderintent(ibnf::IBNFramework, connectivityintent::ConnectivityIntent; noremoteintent=false)
     sourceglobalnode = getsourcenode(connectivityintent)
     destinationglobalnode = getdestinationnode(connectivityintent)
-    return getibnfid(ibnf) == getibnfid(sourceglobalnode) || getibnfid(ibnf) == getibnfid(destinationglobalnode)
+    if noremoteintent
+        if !isinternalnode(ibnf, sourceglobalnode)
+            if !(isbordernode(ibnf, sourceglobalnode) && any(x -> x isa OpticalInitiateConstraint, getconstraints(connectivityintent)))
+                return false
+            end
+        end
+        if !isinternalnode(ibnf, destinationglobalnode)
+            if !(isbordernode(ibnf, destinationglobalnode) && any(x -> x isa OpticalTerminateConstraint, getconstraints(connectivityintent)))
+                return false
+            end
+        end
+        return true
+    else
+        return getibnfid(ibnf) == getibnfid(sourceglobalnode) || getibnfid(ibnf) == getibnfid(destinationglobalnode)
+    end
 end
 
 """
@@ -735,3 +881,183 @@ function getpathdistance(ibnag::IBNAttributeGraph, path::Vector{Int})
     return sum([getindex(ws, nodepair...) for nodepair in zip(path[1:end-1], path[2:end])])
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+If `idagnode` represents a direct parent of LLIs that are a lightpath, add representation to the IntentDAGInfo
+Return `true` if done. Otherwise `false`
+"""
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{LightpathIntent,CrossLightpathIntent}})
+    if getintent(idagnode) isa LightpathIntent
+        lpintent = getintent(idagnode)
+    elseif getintent(idagnode) isa CrossLightpathIntent
+        lpintent = getintent(something(getfirst(x -> getintent(x) isa LightpathIntent, getidagnodechildren(getidag(ibnf), getidagnodeid(idagnode)))))
+    end
+    path = getpath(lpintent)
+    startsoptically = isonlyoptical(getsourcenodeallocations(lpintent))
+    terminatesoptically = isonlyoptical(getdestinationnodeallocations(lpintent))
+    lightpathidagnodeid = getidagnodeid(idagnode)
+    # totalbandwidth
+    totalbandwidth = GBPSf(0)
+    if !startsoptically
+        nodeview = getnodeview(getibnag(ibnf), getlocalnode(getsourcenodeallocations(lpintent)))
+        transmissionmodule = gettransmissionmoduleviewpool(nodeview)[gettransmissionmoduleviewpoolindex(getsourcenodeallocations(lpintent))]
+        transmissionmode = gettransmissionmodes(transmissionmodule)[gettransmissionmodesindex(getsourcenodeallocations(lpintent))]
+        totalbandwidth = getrate(transmissionmode)
+    elseif !terminatesoptically
+        nodeview = getnodeview(getibnag(ibnf), getlocalnode(getdestinationnodeallocations(lpintent)))
+        transmissionmodule = gettransmissionmoduleviewpool(nodeview)[gettransmissionmoduleviewpoolindex(getdestinationnodeallocations(lpintent))]
+        transmissionmode = gettransmissionmodes(transmissionmodule)[gettransmissionmodesindex(getdestinationnodeallocations(lpintent))]
+        totalbandwidth = getrate(transmissionmode)
+    else
+        # starts and terminates optically meaning it will have a parent intent with IntiateOpticalConstraint with TransmissionModuleCompatibility
+        idagnoderoots = getidagnoderoots(getidag(ibnf), getidagnodeid(idagnode))
+        for idnr in idagnoderoots
+            if getintent(idnr) isa RemoteIntent
+                optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(getintent(idnr))))
+                if !isnothing(optinitconstraint)
+                    totalbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+                end
+            elseif getintent(idnr) isa ConnectivityIntent
+                optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idnr)))
+                if !isnothing(optinitconstraint)
+                    totalbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+                end
+            end
+        end
+    end
+    if getintent(idagnode) isa LightpathIntent
+        lightpathrepresentation = LightpathRepresentation(path, startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), path[end]))
+    elseif getintent(idagnode) isa CrossLightpathIntent
+        lightpathrepresentation = LightpathRepresentation(path, startsoptically, terminatesoptically, totalbandwidth, getdestinationnode(getremoteconnectivityintent(getintent(idagnode))))
+    end
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+    return true
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+If `idagnode` represents a direct parent of LLIs that are a lightpath, add representation to the IntentDAGInfo
+Return `true` if done. Otherwise `false`
+"""
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent})
+    # should be the direct intent DAG
+    lliidagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
+    all(idn ->  getintent(idn) isa LowLevelIntent, lliidagnodechildren) || return false
+    lollis = getlogicallliorder(ibnf, idagnode; onlyinstalled=true)
+    if logicalorderissinglelightpath(lollis)
+        startoptically = first(lollis) isa OXCAddDropBypassSpectrumLLI ? true : false
+        terminatesoptically = last(lollis) isa OXCAddDropBypassSpectrumLLI ? true : false
+        path = logicalordergetlightpaths(lollis)[] # first is unique
+        # totalbandwidth
+        if lollis[2] isa TransmissionModuleLLI
+            totalbandwidth = getrate(gettransmissionmode(ibnf, lollis[2]))
+        elseif lollis[end-1] isa TransmissionModuleLLI
+            totalbandwidth = getrate(gettransmissionmode(ibnf, lollis[end-1]))
+        else # search it in the whole DAG (slow but should be seldom)
+            # search on source or destination
+            searchallidagfortransmissionrate(ibnf, lollis)
+        end
+        lightpathrepresentation = LightpathRepresentation(path, startoptically, terminatesoptically, totalbandwidth, getidagnodeid.(lliidagnodechildren))
+        installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+        installedlightpaths[getidagnodeid(idagnode)] =  lightpathrepresentation
+    end
+    return true
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Remove from the installedlightpaths representation if exists
+Return `true` if done. Otherwise `false`
+"""
+function removefrominstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode)
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    idagnodeid = getidagnodeid(idagnode)
+    if haskey(installedlightpaths, idagnodeid)
+        delete!(installedlightpaths, idagnodeid)
+        return true
+    end
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return 0 GBPS if invalid intent
+"""
+function getresidualbandwidth(ibnf::IBNFramework, intentuuid::UUID; onlyinstalled=false)
+    idagnode = getidagnode(getidag(ibnf), intentuuid)
+    return getresidualbandwidth(ibnf, idagnode; onlyinstalled)
+end
+
+function getresidualbandwidth(ibnf::IBNFramework, idagnode::IntentDAGNode; onlyinstalled=false)
+    intentuuid = getidagnodeid(idagnode)
+    intent = getintent(idagnode)
+    if intent isa LightpathIntent || intent isa CrossLightpathIntent
+        installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+        residualbandwidth = gettotalbandwidth(installedlightpaths[intentuuid])
+        return getresidualbandwidth(ibnf, intentuuid, residualbandwidth; onlyinstalled)
+    elseif intent isa RemoteIntent{<:ConnectivityIntent}
+        optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(intent)))
+        if !isnothing(optinitconstraint)
+            residualbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+            return getresidualbandwidth(ibnf, intentuuid, residualbandwidth; onlyinstalled)
+        end
+    end
+    return GBPSf(0)
+end
+
+function getresidualbandwidth(ibnf::IBNFramework, lightpathuuid::UUID, lightpathRepresentation::LightpathRepresentation; onlyinstalled=false)
+    residualbandwidth = gettotalbandwidth(lightpathRepresentation)
+    return getresidualbandwidth(ibnf, lightpathuuid, residualbandwidth; onlyinstalled)
+end
+"""
+$(TYPEDSIGNATURES)
+
+Return how much bandwidth is left unused in the lightpath
+"""
+function getresidualbandwidth(ibnf::IBNFramework, lightpathuuid::UUID, residualbandwidth::GBPSf; onlyinstalled=false)
+    for idn in getidagnoderoots(getidag(ibnf), lightpathuuid)
+        onlyinstalled && getidagnodestate(idn) != IntentState.Installed && continue
+        intent = getintent(idn)
+        if intent isa ConnectivityIntent
+            subrate = getrate(intent)
+        elseif intent isa RemoteIntent{ConnectivityIntent}
+            subrate = getrate(getintent(getintent(intent)))
+        else
+            subrate = GBPSf(0)
+        end
+        residualbandwidth -= subrate
+    end
+    # get topmost intents
+    return residualbandwidth
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getrouterlli(ena::EndNodeAllocations)
+    return RouterPortLLI(getlocalnode(ena), getrouterportindex(ena))
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function gettrasmissionmodulelli(ena::EndNodeAllocations)
+    return TransmissionModuleLLI(getlocalnode(ena), gettransmissionmoduleviewpoolindex(ena), gettransmissionmodesindex(ena), getrouterportindex(ena), getadddropport(ena))
+end
+
+function areintentsequal(conintent1::ConnectivityIntent, conintent2::ConnectivityIntent)
+    getsourcenode(conintent1) == getsourcenode(conintent2) || return false
+    getdestinationnode(conintent1) == getdestinationnode(conintent2) || return false
+    getrate(conintent1) == getrate(conintent2) || return false
+    length(getconstraints(conintent1)) == length(getconstraints(conintent1)) || return false
+    return all(zip(getconstraints(conintent1), getconstraints(conintent2))) do (c1,c2)
+        c1 == c2
+    end
+end

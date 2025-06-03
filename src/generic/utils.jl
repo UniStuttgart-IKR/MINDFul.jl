@@ -112,3 +112,88 @@ function issuccess(s::Symbol)
     s === ReturnCodes.SUCCESS
 end
 
+"""
+    Pass a `Vector{Vector{Int}}` where `Int` are the nodes of each lightpath.
+    Return a `Vector{Vector{Int}}` where `Int` is the index of the contained lightpaths.
+    if `startingnode = true`, `node` is starting else is ending.
+"""
+function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, node::Int; startingnode=true)
+    firstorlast = startingnode ? first : last
+    startinglightpathscollections = Vector{Vector{Int}}()
+    buildinglightpathscollections = Vector{Vector{Int}}()
+    for lp in Iterators.filter(i -> firstorlast(containedlightpaths[i]) == node, eachindex(containedlightpaths))
+        push!(buildinglightpathscollections, [lp])
+    end
+    while true
+        _coreloop_consecutivelightpathsidx!(startinglightpathscollections, containedlightpaths, buildinglightpathscollections; startingnode)
+        isempty(buildinglightpathscollections) && break
+    end
+    return startinglightpathscollections
+end
+
+function _coreloop_consecutivelightpathsidx!(startinglightpathscollections::Vector{Vector{Int}}, containedlightpaths::Vector{Vector{Int}}, buildinglightpathscollections::Vector{Vector{Int}}; startingnode=true)
+    firstorlast = startingnode ? first : last
+    # find all lightpaths that start with the last node
+    eachindexcollections = eachindex(buildinglightpathscollections)
+    for buildinglightpathscollectionidx in eachindexcollections
+        buildinglightpathscollection = buildinglightpathscollections[buildinglightpathscollectionidx]
+        # get the last node of the investigated lightpath collection (or the first node)
+        gluenode = startingnode ? containedlightpaths[buildinglightpathscollection[end]][end] : containedlightpaths[buildinglightpathscollection[1]][1]
+        lpfounder = Iterators.filter(eachindex(containedlightpaths)) do i
+            firstorlast(containedlightpaths[i]) == gluenode || return false
+            cyclicnode = false
+            for v in containedlightpaths[i]
+                v == gluenode && continue
+                for lpidx in buildinglightpathscollection
+                    if v ∈ containedlightpaths[lpidx]
+                        return false
+                    end
+                end
+                cyclicnode && break
+            end
+            return true
+        end
+        for lp in lpfounder
+            if lp ∉ buildinglightpathscollection
+                newlightpathcollection = vcat(buildinglightpathscollection, lp)
+                if startingnode
+                    push!(buildinglightpathscollections, vcat(buildinglightpathscollection, lp)) 
+                else
+                    push!(buildinglightpathscollections, vcat(lp, buildinglightpathscollection)) 
+                end
+            end
+        end
+    end
+    # delete all old entries
+    for buildinglightpathscollectionidx in eachindexcollections
+        push!(startinglightpathscollections, buildinglightpathscollections[buildinglightpathscollectionidx])
+    end
+    deleteat!(buildinglightpathscollections, eachindexcollections)
+
+    return nothing
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+    Return `true` if `subpath` is contained in `path`
+"""
+function issubpath(path::Vector{Int}, subpath::Vector{Int})
+    length(subpath) <= length(path) || return false
+    iscontained = true
+    for i in eachindex(path)
+        if path[i] == subpath[1]
+            for j in 2:length(subpath)
+                pathindex = i - 1 + j
+                pathindex <= length(path) || return false
+                path[pathindex] == subpath[j] || return false
+            end
+            break
+        end
+    end
+    return true
+end
+
+function iszeroornothing(s)
+    return isnothing(s) || iszero(s)
+end

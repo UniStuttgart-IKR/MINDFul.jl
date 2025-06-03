@@ -34,6 +34,10 @@ const REQ_LINKSTATES = "/api/request_linkstates"
 
 const IDAG = "/api/request_idag"
 
+const REQUEST_HANDLERS = "/api/request_handlers"
+
+const LOGICAL_ORDER = "/api/logical_order"
+
 
 const INITIATOR_IBNFID = "initiator_ibnfid"
 
@@ -48,6 +52,8 @@ const IDAGNODEID = "idagnodeid"
 const INTERNAL_IDAGNODEID = "internalidagnodeid"
 
 const INTENT = "intent"
+
+const INTENTUUID = "intentuuid"
 
 const COMPILATION_KEY = "compilationalgorithmkey"
 
