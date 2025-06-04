@@ -323,33 +323,18 @@ $(TYPEDSIGNATURES)
 Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remoteibndif`
 """
 @recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
-    # check if intent should be groomed on another already existing RemoteIntent
-    # TODO probably delete this because cross grooming will happen elsewhere
-    groomedidagnoderemote = getfirst(getidagnodes(getidag(ibnf))) do idagnodex
-        getintent(idagnodex) isa RemoteIntent{<:ConnectivityIntent} || return false
-        getibnfid(getintent(idagnodex)) == remoteibnfid || return false
-        areintentsequal(getintent(getintent(idagnodex)), getintent(idagnode)) || return false
-        getresidualbandwidth(ibnf, idagnodex) >= getrate(getintent(getintent(idagnodex))) || return false
-        return true
-    end
+    ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+    internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
+    remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
 
-    if !isnothing(groomedidagnoderemote)
-        addidagedge!(ibnf, getidagnodeid(idagnode), getidagnodeid(groomedidagnoderemote); @passtime)
-        return groomedidagnoderemote
-    else
-        ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-        internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-        remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
+    # add an idagnode `RemoteIntent`
+    remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
-        # add an idagnode `RemoteIntent`
-        remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
+    # add in DAG
+    internalidagnode = addidagnode!(ibnf, remoteintent; parentids=[getidagnodeid(idagnode)], intentissuer=MachineGenerated(), @passtime)
+    @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
 
-        # add in DAG
-        internalidagnode = addidagnode!(ibnf, remoteintent; parentids=[getidagnodeid(idagnode)], intentissuer=MachineGenerated(), @passtime)
-        @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
-
-        return internalidagnode
-    end
+    return internalidagnode
 end
 
 """

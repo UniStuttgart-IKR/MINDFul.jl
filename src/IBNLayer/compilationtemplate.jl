@@ -139,7 +139,7 @@ $(TYPEDSIGNATURES)
 
     issuccess(returncode) || return returncode
 
-    # TODO if is groomed no need to continue
+    # if is groomed no need to continue
     any(x -> getintent(x) isa CrossLightpathIntent, getidagnodedescendants(idag, getidagnodeid(internalidagnode))) && return returncode
    
     # need first to compile that to get the optical choice
@@ -491,7 +491,6 @@ chooseoxcadddropport(
                             end
                         end
                         # put groomingpossibilityidx out of the list for the next time 
-                        # TODO try out other grooming techniques after normal intent
                         deleteat!(groomingpossibilitiesidxs, groomingpossibilitiesidxs2dlt)
                     end
 
@@ -755,6 +754,10 @@ $(TYPEDSIGNATURES)
 
     Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
     Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
+
+    Sorting of the grooming possibilities is done just by minimizing lightpaths used
+
+    # TODO exclude failed grooming possibilities
 """
 function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
     intent = getintent(idagnode)
@@ -825,8 +828,9 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
             end
 
             # is it low-priority or high-priority ?
+            # TODO: prioritize shortest paths as well
             index = searchsortedfirst(groomingpossibilities, lpc2insert; by = length) 
-            # TODO sort grooming options ; by = fewerlightpathsinvolved)
+
             if index > length(groomingpossibilities) || groomingpossibilities[index] != lpc2insert #if not already inside
                 insert!(groomingpossibilities, index, lpc2insert)
             end
