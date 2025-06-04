@@ -236,10 +236,14 @@ Return value is true if state is changed.
         newstate = IntentState.Compiled
         pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
     elseif any(==(IntentState.Failed), childrenstates)
-        if currentstate != IntentState.Failed && currentstate != IntentState.Compiled
+        if currentstate != IntentState.Failed && currentstate != IntentState.Compiled 
             changedstate = true
-            newstate = IntentState.Failed
-            pushstatetoidagnode!(idagnode, IntentState.Failed; @passtime)
+            if currentstate == IntentState.Uncompiled
+                newstate = IntentState.Compiled
+            else
+                newstate = IntentState.Failed
+            end
+            pushstatetoidagnode!(idagnode, newstate; @passtime)
         end
     elseif any(==(IntentState.Pending), childrenstates)
         if currentstate != IntentState.Pending && currentstate != IntentState.Compiled && currentstate != IntentState.Uncompiled

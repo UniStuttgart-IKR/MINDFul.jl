@@ -756,8 +756,6 @@ $(TYPEDSIGNATURES)
     Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
 
     Sorting of the grooming possibilities is done just by minimizing lightpaths used
-
-    # TODO exclude failed grooming possibilities
 """
 function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
     intent = getintent(idagnode)
@@ -774,19 +772,20 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
         elseif isbordernode(ibnf, dstglobalnode)
             any(x -> x isa OpticalTerminateConstraint, getconstraints(intent)) || return groomingpossibilities 
         else
-            # TODO what about that ?
             # cross domain intent
             # find lightpath combinations regardless of paths
             return groomingpossibilities
         end
     end
 
+    # these are already fail-free
     candidatepaths = prioritizepaths_shortest(ibnf, idagnode, intentcompilationalgorithm)
 
     # intentuuid => LightpathRepresentation
     installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
     filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
-        getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled=false) >= getrate(intent)
+        getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled=false) >= getrate(intent) &&
+        getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
     end
 
     for candidatepath in candidatepaths
