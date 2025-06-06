@@ -11,8 +11,10 @@
 `MINDFul.jl` is a young project aiming to research coordination algorithms of intent-driven multi-domain (MD) networks.
 It offers interfaces for the development of resource-allocation algorithms and MD coordination mechanisms.
 
-For now, `MINDFul.jl` only supports simulation, but [future work](https://unistuttgart-ikr.github.io/MINDFul.jl/dev/roadmap/) may bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers. 
-Currently there are some efforts to bind it with [TeraFlowSDN](https://www.teraflow-h2020.eu/).
+For now, `MINDFul.jl` only supports simulation, but future work will bind `MINDFul.jl` with real-life Software Defined Network (SDN) controllers. 
+Currently there are [efforts](https://github.com/UniStuttgart-IKR/MINDFulTeraFlowSDN.jl) to bind it with [TeraFlowSDN](https://www.teraflow-h2020.eu/).
+At the same time, [ongoing efforts](https://github.com/UniStuttgart-IKR/MINDFul.jl/pull/16) will enable distributed use of MINDFul.jl
+
 
 This package is in an early development stage and might break often.
 If you have problems, try updating to the latest Julia version, as we closely follow the new releases and backwards compatibility is not promised.
@@ -22,12 +24,11 @@ Some of the following repositories are still not updated.
 
 Companion repositories:
 - [MINDFulMakie.jl](https://github.com/UniStuttgart-IKR/MINDFulMakie.jl) for visualization purposes
-- [MINDFulCompanion.jl](https://github.com/UniStuttgart-IKR/MINDFulCompanion.jl) planned for several algorithms and utilities.
+- [MINDFulCompanion.jl](https://github.com/UniStuttgart-IKR/MINDFulCompanion.jl) planned for several algorithms and utilities. (obselete)
 - [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) for some examples in the form of [Pluto](https://github.com/fonsp/Pluto.jl) notebooks.\
-For example, [have a look](https://unistuttgart-ikr.github.io/MINDFulNotebookExamples.jl/intentDAGinMD.html) in a notebook related to our latest work on using intent DAGs in multi-domain IP-optical networks.
-- [MINDFulGLMakieApp.jl](https://github.com/UniStuttgart-IKR/MINDFulGLMakieApp.jl) for a (WIP) experimental GUI application.
+For example, [have a look](https://unistuttgart-ikr.github.io/MINDFulNotebookExamples.jl/intentDAGinMD.html) in a notebook related to our latest work on using intent DAGs in multi-domain IP-optical networks. (obselete)
+- [MINDFulGLMakieApp.jl](https://github.com/UniStuttgart-IKR/MINDFulGLMakieApp.jl) (obselete)
 
-Currently, as you will find in [MINDFulNotebookExamples](https://github.com/UniStuttgart-IKR/MINDFulNotebookExamples.jl) there are some workflow dependencies on forked/unregistered packages due to pending PRs. These will be handled in time.
 
 Watch our JuliaCon2023 presentation to learn more on [YouTube](https://www.youtube.com/watch?v=LrCFRWym0Lc)
 
