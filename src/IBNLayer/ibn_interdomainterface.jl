@@ -75,11 +75,12 @@ end
 function parse_lowlevelintent(dict)
     if dict["type"] == "OXCAddDropBypassSpectrumLLI"
         return MINDFul.OXCAddDropBypassSpectrumLLI(
-            dict["node"], dict["input"], dict["adddropport"], dict["output"], dict["slots"]["spectrumslotsrange"][1]:constraint["spectrumslotsrange"][2]
+            dict["node"], dict["input"], dict["adddropport"], dict["output"], dict["slotstart"]:dict["slotend"]
+            #dict["slots"][1]:["slots"][2]
         )
     elseif dict["type"] == "TransmissionModuleLLI"
         return MINDFul.TransmissionModuleLLI(
-            dict["srcnode"], dict["dstnode"], dict["srcport"], dict["dstport"], dict["modulation"]
+            dict["node"], dict["poolindex"], dict["modesindex"], dict["port"], dict["adddropport"]
         )
     elseif dict["type"] == "RouterPortLLI"
         return MINDFul.RouterPortLLI(
@@ -245,7 +246,6 @@ function requestlinkstates_init(myibnf::IBNFramework, remoteibnfhandler::RemoteI
     if resp.status == 200
         parsed = JSON.parse(String(resp.body))
         result = [(DateTime(item[HTTPMessages.LINK_DATETIME]), Bool(item[HTTPMessages.LINK_STATE])) for item in parsed]
-        #@show result
         return result
     else
         error("Failed to set link state: $(resp.body)")
@@ -360,7 +360,6 @@ The initiator domain `remoteibnf` asks this domain `myibnf` to compile the inter
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
     intent_return = compileintent!(myibnf, idagnodeid, compilationalgorithm; verbose, @passtime)
-    #@show intent_return
     return intent_return
 end
 
@@ -512,15 +511,8 @@ MA1069 implementation
 """
 function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
     resp = send_request(remoteibnfhandler, HTTPMessages.IDAG, Dict(HTTPMessages.INITIATOR_IBNFID => string(myibnf.ibnfid)))
-    #resp_body = JSON.parse(String(resp.body))
-    #@show resp_body
-    #return resp_body
-    #return JSON.parse(String(resp.body))
-
     
     idag = deserialize(IOBuffer(resp.body))
-    #idag = deserialize(resp.body)
-    #@show idag
     return idag
 end
 """

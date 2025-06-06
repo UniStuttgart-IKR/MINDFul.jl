@@ -351,7 +351,7 @@ end
 # - do not groom if external lightpath is failed
 
 
-ibnfs = loadmultidomaintestibnfs()
+ibnfs = loadmultidomaintestidistributedbnfs()
 testsuitegrooming!(ibnfs)
 
 # TODO MA1069 : rerun testinterface with 

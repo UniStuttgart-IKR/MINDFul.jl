@@ -323,33 +323,18 @@ $(TYPEDSIGNATURES)
 Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remoteibndif`
 """
 @recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
-    # check if intent should be groomed on another already existing RemoteIntent
-    # TODO probably delete this because cross grooming will happen elsewhere
-    groomedidagnoderemote = getfirst(getidagnodes(getidag(ibnf))) do idagnodex
-        getintent(idagnodex) isa RemoteIntent{<:ConnectivityIntent} || return false
-        getibnfid(getintent(idagnodex)) == remoteibnfid || return false
-        areintentsequal(getintent(getintent(idagnodex)), getintent(idagnode)) || return false
-        getresidualbandwidth(ibnf, idagnodex) >= getrate(getintent(getintent(idagnodex))) || return false
-        return true
-    end
+    ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+    internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
+    remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
 
-    if !isnothing(groomedidagnoderemote)
-        addidagedge!(ibnf, getidagnodeid(idagnode), getidagnodeid(groomedidagnoderemote); @passtime)
-        return groomedidagnoderemote
-    else
-        ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-        internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-        remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
+    # add an idagnode `RemoteIntent`
+    remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
 
-        # add an idagnode `RemoteIntent`
-        remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
+    # add in DAG
+    internalidagnode = addidagnode!(ibnf, remoteintent; parentids=[getidagnodeid(idagnode)], intentissuer=MachineGenerated(), @passtime)
+    @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
 
-        # add in DAG
-        internalidagnode = addidagnode!(ibnf, remoteintent; parentids=[getidagnodeid(idagnode)], intentissuer=MachineGenerated(), @passtime)
-        @assert internalnextidagnodeid == getidagnodeid(internalidagnode)
-
-        return internalidagnode
-    end
+    return internalidagnode
 end
 
 """
@@ -459,6 +444,44 @@ function getcurrentlinkstate(ibnf::IBNFramework, edge::Edge; checkfirst::Bool=tr
         end
 
         @assert(srclinksstate == dstlinkstate)
+        return srclinksstate
+    else
+        if !issrcbordernode
+            return getcurrentlinkstate(getoxcview(nodeviewsrc), edge)
+        elseif !isdstbordernode
+            return getcurrentlinkstate(getoxcview(nodeviewdst), edge)
+        end
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Same as `getcurrentlinkstate(ibnf::IBNFramework)` but doesn't send a request to other domains.
+"""
+function getcurrentlinkstate(ibnag::IBNAttributeGraph, edge::Edge; checkfirst::Bool=true, verbose::Bool=false)
+    edsrc = src(edge)
+    nodeviewsrc = getnodeview(ibnag, edsrc)
+    eddst = dst(edge)
+    nodeviewdst = getnodeview(ibnag, eddst)
+    issrcbordernode = isbordernode(ibnag, edsrc)
+    isdstbordernode = isbordernode(ibnag, eddst)
+    @returniffalse(verbose, !(issrcbordernode && isdstbordernode))
+    if checkfirst
+        globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
+        srclinksstate = if issrcbordernode  
+            nothing
+        else 
+            getcurrentlinkstate(getoxcview(nodeviewsrc), edge)
+        end
+
+        dstlinkstate = if isdstbordernode  
+            nothing
+        else
+            getcurrentlinkstate(getoxcview(nodeviewdst), edge)
+        end
+
+        @assert(srclinksstate == dstlinkstate && !isnothing(srclinksstate))
         return srclinksstate
     else
         if !issrcbordernode
@@ -648,6 +671,16 @@ Return boolean if `localnode` is in `ibnf` as a border node
 """
 function isbordernode(ibnf::IBNFramework, localnode::LocalNode)
     return isbordernode(ibnf, getglobalnode(getibnag(ibnf), localnode))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return boolean if `localnode` is in `ibnf` as a border node
+"""
+function isbordernode(ibnag::IBNAttributeGraph, localnode::LocalNode)
+    nodeview = getnodeview(ibnag, localnode)
+    return !isnodeviewinternal(nodeview)
 end
 
 """

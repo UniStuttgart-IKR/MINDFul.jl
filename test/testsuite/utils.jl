@@ -1,3 +1,5 @@
+@testset ExtendedTestSet "utils.jl"  begin
+
 startingconsecutivelightpaths = let
    lps = [[1,0,3], [1,2,3], [3,4,5], [7, 12, 1], [2,3,4], [3,6,7], [7,8,9]]
    cons = MINDF.consecutivelightpathsidx(lps, 1; startingnode=true)
@@ -27,3 +29,5 @@ end
     [[7, 12, 1], [1, 0, 3]],
     [[7, 12, 1], [1, 2, 3]],
 ]
+
+end

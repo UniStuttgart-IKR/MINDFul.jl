@@ -34,9 +34,7 @@ export serve
           #println("context is of type Dict{Int, MINDF.IBNFramework}")
           ibnfs_dict :: Dict{Int, MINDF.IBNFramework} = context
           host = Dict(req.headers)["Host"]
-          #@show host
           uri = HTTP.URI("http://$host")
-          #@show uri
           port = parse(Int, uri.port)
           ibnf = ibnfs_dict[port]
           return ibnf
@@ -110,11 +108,8 @@ export serve
         )
         initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
         remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
-
-        @show ibnf.ibnfid
         
         spectrum_availability = MINDF.requestspectrumavailability_term!(remoteibnf_handler, ibnf, received_ge)
-        #@show spectrum_availability
         if !isnothing(spectrum_availability)
             return HTTP.Response(200, JSON.json(spectrum_availability))
         else
@@ -189,9 +184,7 @@ export serve
       internalidagnodeid = UUID(parsed_body[MINDF.HTTPMessages.INTERNAL_IDAGNODEID])
       intent_data = parsed_body[MINDF.HTTPMessages.INTENT]
       rate = MINDF.GBPSf(parse(Float64, replace(intent_data["rate"], " Gbps" => "")))
-      #@show rate
       received_constraints = [reconvert_constraint(constraint) for constraint in intent_data["constraints"]] 
-      #@show received_constraints
       received_intent = MINDF.ConnectivityIntent(
           MINDF.GlobalNode(UUID(intent_data["src"]["ibnfid"]), intent_data["src"]["localnode"]),
           MINDF.GlobalNode(UUID(intent_data["dst"]["ibnfid"]), intent_data["dst"]["localnode"]),
@@ -217,7 +210,7 @@ export serve
       idagnodeid = UUID(parsed_body[MINDF.HTTPMessages.IDAGNODEID])
       newstate = Symbol(parsed_body[MINDF.HTTPMessages.NEWSTATE])
       state = getfield(MINDF.IntentState, newstate)
-      #@show state
+
       initiator_ibnfid = UUID(parsed_body[MINDF.HTTPMessages.INITIATOR_IBNFID])
       remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
       #=if idagnodeid == UUID(0xc) && MINDF.getibnfid(ibnf) == UUID(0x3) && state == MINDF.IntentState.Compiled        
@@ -225,7 +218,6 @@ export serve
       end=#
 
       updated_state = MINDF.requestremoteintentstateupdate_term!(remoteibnf_handler, ibnf, idagnodeid, state)
-      #@show updated_state
       if !isnothing(updated_state)
         return HTTP.Response(200, JSON.json(updated_state))
       else
@@ -247,7 +239,6 @@ export serve
       remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
       issatisfied_result = MINDF.requestissatisfied_term!(remoteibnf_handler, ibnf, idagnodeid; onlyinstalled, noextrallis)
-      #@show issatisfied_result
       if !isnothing(issatisfied_result)
         return HTTP.Response(200, JSON.json(issatisfied_result))
       else
@@ -348,7 +339,6 @@ export serve
       remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
       
       request_linkstates = MINDF.requestlinkstates_term(remoteibnf_handler, ibnf, received_ge)
-      #@show request_linkstates
       if !isnothing(request_linkstates)
           json_ready = [Dict(MINDF.HTTPMessages.LINK_DATETIME => string(dt), MINDF.HTTPMessages.LINK_STATE => s) for (dt, s) in request_linkstates]
           return HTTP.Response(200, JSON.json(json_ready))
@@ -358,7 +348,7 @@ export serve
     end
 
 
-    function serialize_idag(idag)
+ #=   function serialize_idag(idag)
         #@show typeof(idag)
         #@show idag.edge_list
         
@@ -461,6 +451,7 @@ export serve
             "modulation" => tm.modulation
         )
     end
+    =#
     
 
     @post "/api/request_idag" function (req; context)
@@ -471,21 +462,16 @@ export serve
       remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
 
       idag = MINDF.requestidag_term(remoteibnf_handler, ibnf)
-      @show typeof(idag)
-      @show propertynames(idag)
-      @show fieldnames(typeof(idag))
-      @show idag
+      # @show typeof(idag)
+      # @show propertynames(idag)
+      # @show fieldnames(typeof(idag))
+      # @show idag
 
       io = IOBuffer()
       serialize(io, idag)
       raw_bytes = take!(io)
-      #idag_stream::IO
-      #serialize(idag_stream, idag)
-      
-      # serialized_idag = serialize_idag(idag)
-      # @show serialized_idag
+  
       if !isnothing(idag)
-        #return HTTP.Response(200, JSON.json(string(idag)))
         return HTTP.Response(200, raw_bytes)
       else
         return HTTP.Response(404, "Not possible to request the idag")
@@ -501,15 +487,14 @@ export serve
         remoteibnf_handler = MINDF.getibnfhandler(ibnf, initiator_ibnfid)
         
         ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnf_handler, ibnf)
-        @show typeof(ibnattributegraph)
+        #@show typeof(ibnattributegraph)
 
         io = IOBuffer()
         serialize(io, ibnattributegraph)
         raw_bytes = take!(io)
+        
         if !isnothing(ibnattributegraph)
-            #return HTTP.Response(200, JSON.json(string(ibnattributegraph)))
             return HTTP.Response(200, raw_bytes)
-
         else
             return HTTP.Response(404, "Spectrum availability not found")
         end
@@ -527,8 +512,7 @@ export serve
         @show ibnfhandlers
       
         if !isnothing(ibnfhandlers)
-            #return HTTP.Response(200, JSON.json(string(ibnattributegraph)))
-            return HTTP.Response(200, ibnfhandlers)
+            return HTTP.Response(200, JSON.json(ibnfhandlers))
 
         else
             return HTTP.Response(404, "Handlers not found")
@@ -543,7 +527,9 @@ export serve
                 "input" => ll.localnode_input,
                 "adddropport" => ll.adddropport,
                 "output" => ll.localnode_output,
-                "slots" => [ll.spectrumslotsrange.start, ll.spectrumslotsrange.stop]
+                #"slots" => [ll.spectrumslotsrange.start, ll.spectrumslotsrange.stop]
+                "slotstart" => ll.spectrumslotsrange.start,
+                "slotend" => ll.spectrumslotsrange.stop,
             )
         elseif ll isa MINDFul.TransmissionModuleLLI
             return Dict(
@@ -576,8 +562,6 @@ export serve
         onlyinstalled = parsed_body[MINDF.HTTPMessages.ONLY_INSTALLED]
         verbose = parsed_body[MINDF.HTTPMessages.VERBOSE]
         logical_order = MINDF.requestlogicallliorder_term(remoteibnf_handler, ibnf, intentuuid; onlyinstalled, verbose)
-
-        @show logical_order
       
         if !isnothing(logical_order)
             json_ready = [serialize_lowlevelintent(ll) for ll in logical_order]

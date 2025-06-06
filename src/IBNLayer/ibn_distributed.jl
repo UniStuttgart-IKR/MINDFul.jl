@@ -11,14 +11,15 @@ using JSON, HTTP, Sockets
     end
     body = JSON.json(data)  
     headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body)
-    println(" ")
-    println("SENDING REQUEST TO $url")
+    #println(" ")
+    #println("SENDING REQUEST TO $url")
+    
     #println("Headers: $headers")
     #println("Body: $body")
 
-    @show offsettime
+    #@show offsettime
     # @show typeof(offsettime)
-    @show @logtime
+    #@show @logtime
     # @show typeof(@logtime)
         
     response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
