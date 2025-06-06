@@ -255,8 +255,8 @@ function testuncompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID)
     @test isempty(MINDF.getidagnodechildren(MINDF.getidag(ibnf), idagnodeid))
 end
 
-function testexpectedfaileddag(ibnf::MINDF.IBNFramework, idagnodeid::UUID, failededge::Edge, numberoffailedoxcllis::Int)
-    oxclliidagnodewithedge = filter(MINDF.getidagnodedescendants(MINDF.getidag(ibnf), idagnodeid)) do idagnode
+function testexpectedfaileddag(idag::MINDF.IntentDAG, idagnodeid::UUID, failededge::Edge, numberoffailedoxcllis::Int)
+    oxclliidagnodewithedge = filter(MINDF.getidagnodedescendants(idag, idagnodeid)) do idagnode
         MINDF.getintent(idagnode) isa MINDF.OXCAddDropBypassSpectrumLLI && MINDF.oxcllicontainsedge(MINDF.getintent(idagnode), failededge)
     end
     @test length(oxclliidagnodewithedge) == numberoffailedoxcllis
