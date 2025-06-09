@@ -88,8 +88,8 @@ end
 
 #include("testsuite_ma1069/test_multidomain_1069.jl")
 #include("testsuite_ma1069/multidomain_1069.jl")
-#include("testsuite_ma1069/failingintime_1069.jl")
-include("testsuite_ma1069/grooming_1069.jl")
+include("testsuite_ma1069/failingintime_1069.jl")
+#include("testsuite_ma1069/grooming_1069.jl")
 #include("testsuite_ma1069/interface_1069.jl")
 #include("testsuite_ma1069/plot.jl")
 

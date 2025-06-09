@@ -18,7 +18,7 @@ function testsuitefailingintime!(ibnfs)
     @test setlinkstate!(ibnfs[1], internaledge, false; @passtime) == ReturnCodes.SUCCESS
     # should make first intent fail
     @test getidagnodestate(getidag(ibnfs[1]), intentuuid_internal_fail) == IntentState.Failed
-    TM.testexpectedfaileddag(ibnfs[1], intentuuid_internal_fail, internaledge, 2)
+    TM.testexpectedfaileddag(getidag(ibnfs[1]), intentuuid_internal_fail, internaledge, 2)
 
     # second intent should avoud using the failed link
     intentuuid_internal = addintent!(ibnfs[1], conintent_internal, NetworkOperator())
@@ -66,8 +66,8 @@ function testsuitefailingintime!(ibnfs)
     @test setlinkstate!(ibnfs[1], borderedge, false; @passtime) == ReturnCodes.SUCCESS
     # should make first intent fail
     @test getidagnodestate(getidag(ibnfs[1]), intentuuid_border_fail) == IntentState.Failed
-    TM.testexpectedfaileddag(ibnfs[1], intentuuid_border_fail, borderedge, 1)
-    #TM.testexpectedfaileddag(remoteibnf_border, remoteintentid_border, Edge(58,25), 1)
+    TM.testexpectedfaileddag(getidag(ibnfs[1]), intentuuid_border_fail, borderedge, 1)
+    TM.testexpectedfaileddag(MINDF.requestidag_init(ibnfs[1], remoteibnf_border), remoteintentid_border, Edge(58,25), 1)
 
     intentuuid_border = addintent!(ibnfs[1], conintent_border, NetworkOperator())
     @test compileintent!(ibnfs[1], intentuuid_border, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
@@ -115,7 +115,7 @@ function testsuitefailingintime!(ibnfs)
     @test installintent!(ibnfs[1], intentuuid_external_fail; verbose=false) == ReturnCodes.SUCCESS
 
     @test setlinkstate!(ibnfs[3], externaledge, false) == ReturnCodes.SUCCESS
-    #TM.testexpectedfaileddag(remoteibnf_external_fail, remoteintentid_external_fail, externaledge, 2)
+    TM.testexpectedfaileddag(MINDF.requestidag_init(ibnfs[1], remoteibnf_external_fail), remoteintentid_external_fail, externaledge, 2)
     @test getidagnodestate(getidag(ibnfs[1]), intentuuid_external_fail) == IntentState.Failed
     @test count(x -> getidagnodestate(x) == IntentState.Failed, getidagnodes(getidag(ibnfs[1]))) == 4
 
