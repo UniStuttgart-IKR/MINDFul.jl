@@ -58,7 +58,7 @@ function testsuiteinterface!(ibnfs)
             end
             @test !isnothing(aglobaledge)
             # here all the requests
-            @test MINDF.requestspectrumavailability(ibnf, ibnfhandler, aglobaledge) == MINDF.requestspectrumavailability(ibnf, ibnfhandlerframework, aglobaledge)
+            @test MINDF.requestspectrumavailability_init!(ibnf, ibnfhandler, aglobaledge) == MINDF.requestspectrumavailability_init!(ibnf, ibnfhandlerframework, aglobaledge)
             @test MINDF.requestcurrentlinkstate_init(ibnf, ibnfhandler, aglobaledge) == MINDF.requestcurrentlinkstate_init(ibnf, ibnfhandlerframework, aglobaledge)
             @test MINDF.requestlinkstates_init(ibnf, ibnfhandler, aglobaledge) == MINDF.requestlinkstates_init(ibnf, ibnfhandlerframework, aglobaledge)
             MINDF.requestsetlinkstate_init!(ibnf, ibnfhandler, aglobaledge, false)
@@ -66,7 +66,7 @@ function testsuiteinterface!(ibnfs)
 
             @test MINDF.requestibnattributegraph(ibnf, ibnfhandler) == MINDF.requestibnattributegraph(ibnf, ibnfhandlerframework)
             @test MINDF.requestidag_init(ibnf, ibnfhandler) == MINDF.requestidag_init(ibnf, ibnfhandlerframework)
-            @test MINDF.requestibnfhandlers_term(ibnf, ibnfhandler) == MINDF.requestibnfhandlers_term(ibnf, ibnfhandlerframework)
+            @test MINDF.requestibnfhandlers_init(ibnf, ibnfhandler) == MINDF.requestibnfhandlers_init(ibnf, ibnfhandlerframework)
 
             for idagnode in someidagnodes
                 @test MINDF.requestlogicallliorder_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestlogicallliorder_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 
@@ -83,7 +83,7 @@ end
 @testset ExtendedTestSet "interface.jl"  begin
 
 
-ibnfs = loadmultidomaintestibnfs()
+ibnfs = loadmultidomaintestidistributedbnfs()
 testsuiteinterface!(ibnfs)
 
 # TODO MA1069 : rerun testinterface with 

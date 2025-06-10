@@ -18,13 +18,10 @@ function requestibnattributegraph(myibnf::IBNFramework, remoteibnf::IBNFramework
     return requestibnattributegraph_term!(myibnfhandler, remoteibnf)
 end
 
-function requestibnattributegraph(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+function requestibnattributegraph(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.IBNAGRAPH, Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
-    
-    #return JSON.parse(string(resp.body))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
     return deserialize(IOBuffer(resp.body))
-    #return getibnag(remoteibnf)
 end
 
 """
@@ -52,11 +49,11 @@ function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnf::IBNFramework
     return requestibnfhandlers_term(myibnfhandler, remoteibnf)
 end
 
-function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.REQUEST_HANDLERS, Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
-
-    return JSON.parse(String(resp.body))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
+    ibnfhandlers = [RemoteIBNFHandler(UUID(d["ibnfid"]["value"]), d["baseurl"]) for d in JSON.parse(String(resp.body))]
+    return ibnfhandlers
 end
 
 function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
@@ -72,35 +69,16 @@ function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnf::IBNFramew
     return requestlogicallliorder_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled, verbose)
 end
 
-function parse_lowlevelintent(dict)
-    if dict["type"] == "OXCAddDropBypassSpectrumLLI"
-        return MINDFul.OXCAddDropBypassSpectrumLLI(
-            dict["node"], dict["input"], dict["adddropport"], dict["output"], dict["slotstart"]:dict["slotend"]
-            #dict["slots"][1]:["slots"][2]
-        )
-    elseif dict["type"] == "TransmissionModuleLLI"
-        return MINDFul.TransmissionModuleLLI(
-            dict["node"], dict["poolindex"], dict["modesindex"], dict["port"], dict["adddropport"]
-        )
-    elseif dict["type"] == "RouterPortLLI"
-        return MINDFul.RouterPortLLI(
-            dict["node"], dict["port"]
-        )
-    else
-        error("Unknown LowLevelIntent type: $(dict["type"])")
-    end
-end
-
-function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.LOGICAL_ORDER, 
-        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.ONLY_INSTALLED => onlyinstalled, 
-        HTTPMessages.VERBOSE => verbose, 
-        HTTPMessages.INTENTUUID => string(intentuuid)))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_LOGICALORDER, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled, 
+        HTTPMessages.KEY_VERBOSE => verbose, 
+        HTTPMessages.KEY_INTENTUUID => string(intentuuid)))
         
     parsed_json = JSON.parse(String(resp.body))
-    logical_order = [parse_lowlevelintent(d) for d in parsed_json]
+    logical_order = [deserializelowlevelintent(d) for d in parsed_json]
     return logical_order
 end
 
@@ -117,23 +95,6 @@ Need to check whether `ge` is indeed an edge shared with `myibnf`
 function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestspectrumavailability_term!(myibnfhandler, remoteibnf, ge)
-
-    #=remoteibnag = getibnag(remoteibnf)
-    nodeviewsrc = getnodeview(remoteibnag, src(ge))
-    nodeviewdst = getnodeview(remoteibnag, dst(ge))
-    localnodesrc = something(getlocalnode(remoteibnag, src(ge)))
-    localnodedst = something(getlocalnode(remoteibnag, dst(ge)))
-    le = Edge(localnodesrc, localnodedst)
-
-    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(myibnf)
-        # src is remote, dst is intra
-        return getlinkspectrumavailabilities(something(getoxcview(nodeviewdst)))[le]
-    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(myibnf)
-        # dst is remote, src is intra
-        return getlinkspectrumavailabilities(something(getoxcview(nodeviewsrc)))[le]
-    end
-
-    return nothing=#
 end
 
 """
@@ -144,6 +105,18 @@ Request the path that is implementing intent `intentuuid` in the remote IBN fram
 function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestintentglobalpath_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled::Bool = true)
+    initiator_ibnfid = string(myibnf.ibnfid)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_INTENTGLOBALPATH, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
+        HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
+    
+    parsed_json = JSON.parse(String(resp.body))
+    intentglobalpath = [GlobalNode(UUID(path["ibnfid"]), path["localnode"]) for path in parsed_json]
+    return intentglobalpath
 end
 
 """
@@ -165,6 +138,18 @@ function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteib
     return requestglobalnodeelectricalpresence_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
 end
 
+function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled::Bool = true)
+    initiator_ibnfid = string(myibnf.ibnfid)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_ELECTRICALPRESENCE, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
+        HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
+    
+    parsed_json = JSON.parse(String(resp.body))
+    electricalpresence = [GlobalNode(UUID(path["ibnfid"]), path["localnode"]) for path in parsed_json]
+    return electricalpresence
+end
+
 """
 $(TYPEDSIGNATURES) 
 """
@@ -181,6 +166,18 @@ Request the path that is implementing intent `intentuuid` in the remote IBN fram
 function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestintentgloballightpaths_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled::Bool = true)
+    initiator_ibnfid = string(myibnf.ibnfid)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_LIGHTPATHS, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
+        HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
+    
+    parsed_json = JSON.parse(String(resp.body))
+    lightpaths = [GlobalNode[GlobalNode(UUID(node["ibnfid"]), node["localnode"]) for node in path] for path in parsed_json]
+    return lightpaths
 end
 
 """
@@ -233,19 +230,18 @@ Request all the link states of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
 function requestlinkstates_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
-    #println("requestlinkstates_init")
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestlinkstates_term(myibnfhandler, remoteibnf, ge)
 end
 
-function requestlinkstates_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
+function requestlinkstates_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, ge::GlobalEdge)
     ge_data = serialize_globaledge(ge)
     initiator_ibnfid = string(myibnf.ibnfid)
 
-    resp = send_request(remoteibnfhandler, HTTPMessages.REQ_LINKSTATES, Dict(HTTPMessages.GLOBAL_EDGE => ge_data, HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_REQLINKSTATES, Dict(HTTPMessages.KEY_GLOBALEDGE => ge_data, HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
     if resp.status == 200
         parsed = JSON.parse(String(resp.body))
-        result = [(DateTime(item[HTTPMessages.LINK_DATETIME]), Bool(item[HTTPMessages.LINK_STATE])) for item in parsed]
+        result = [(DateTime(item[HTTPMessages.KEY_LINKDATETIME]), Bool(item[HTTPMessages.KEY_LINKSTATE])) for item in parsed]
         return result
     else
         error("Failed to set link state: $(resp.body)")
@@ -277,19 +273,18 @@ $(TYPEDSIGNATURES)
 Request to set the state of the neighboring link
 """
 @recvtime function requestsetlinkstate_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
-    #println("requestsetlinkstate_init")
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestsetlinkstate_term!(myibnfhandler, remoteibnf, ge, operatingstate; @passtime)
 end
 
-@recvtime function requestsetlinkstate_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge, operatingstate::Bool)
+@recvtime function requestsetlinkstate_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, ge::GlobalEdge, operatingstate::Bool)
     ge_data = serialize_globaledge(ge)
     initiator_ibnfid = string(myibnf.ibnfid)
 
-    resp = send_request(remoteibnfhandler, HTTPMessages.SET_LINKSTATE, 
-        Dict(HTTPMessages.GLOBAL_EDGE => ge_data, 
-        HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.OPERATINGSTATE => operatingstate))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_SETLINKSTATE, 
+        Dict(HTTPMessages.KEY_GLOBALEDGE => ge_data, 
+        HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_OPERATINGSTATE => operatingstate))
     if resp.status == 200
         return Symbol(JSON.parse(String(resp.body)))
     else
@@ -371,12 +366,12 @@ $(TYPEDSIGNATURES)
     return requestinstallintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
-@recvtime function requestinstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function requestinstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool=false)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.INSTALL_INTENT, 
-        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.IDAGNODEID => string(idagnodeid), 
-        HTTPMessages.VERBOSE => verbose))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_INSTALLINTENT, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
+        HTTPMessages.KEY_VERBOSE => verbose))
     return JSON.parse(String(resp.body))
 end
 
@@ -395,12 +390,12 @@ $(TYPEDSIGNATURES)
     return requestuninstallintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose, @passtime)
 end
 
-@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool=false)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.UNINSTALL_INTENT, 
-        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.IDAGNODEID => string(idagnodeid), 
-        HTTPMessages.VERBOSE => verbose))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_UNINSTALLINTENT, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
+        HTTPMessages.KEY_VERBOSE => verbose))
     return JSON.parse(String(resp.body))
 end
 
@@ -419,12 +414,12 @@ $(TYPEDSIGNATURES)
     return requestuncompileintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose=false, @passtime)
 end
 
-@recvtime function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool=false)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.UNCOMPILE_INTENT, 
-        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.IDAGNODEID => string(idagnodeid), 
-        HTTPMessages.VERBOSE => verbose))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_UNCOMPILEINTENT, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
+        HTTPMessages.KEY_VERBOSE => verbose))
     return_compile_init = JSON.parse(String(resp.body))
     return Symbol(return_compile_init)
 end
@@ -457,29 +452,17 @@ $(TYPEDSIGNATURES)
 
 Request the initiator `remoteibnf` to update the state of its mirrored remote intent
 """
-# @recvtime function requestremoteintentstateupdate!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
-#     oldstate = getidagnodestate(getidag(remoteibnf), idagnodeid)
-#     if oldstate != newstate
-#         idagnode = getidagnode(getidag(remoteibnf), idagnodeid)
-#         pushstatetoidagnode!(idagnode, newstate; @passtime)
-#         foreach(getidagnodeparents(getidag(remoteibnf), idagnodeid)) do idagnodeparent
-#             updateidagnodestates!(remoteibnf, idagnodeparent; @passtime)
-#         end
-#     end
-#     return oldstate != newstate
-# end
-
 @recvtime function requestremoteintentstateupdate_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     requestremoteintentstateupdate_term!(myibnfhandler, remoteibnf, idagnodeid, newstate; @passtime)
 end
 
-@recvtime function requestremoteintentstateupdate_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, newstate::IntentState.T)   
+@recvtime function requestremoteintentstateupdate_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID, newstate::IntentState.T)   
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.REMOTEINTENT_STATEUPDATE, 
-        Dict(HTTPMessages.IDAGNODEID => string(idagnodeid), 
-        HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.NEWSTATE => string(newstate)); @passtime)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_REMOTEINTENTSTATEUPDATE, 
+        Dict(HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
+        HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_NEWSTATE => string(newstate)); @passtime)
     return Bool.(JSON.parse(String(resp.body)))
 end
 
@@ -509,9 +492,8 @@ end
 """
 MA1069 implementation
 """
-function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
-    resp = send_request(remoteibnfhandler, HTTPMessages.IDAG, Dict(HTTPMessages.INITIATOR_IBNFID => string(myibnf.ibnfid)))
-    
+function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_REQUESTIDAG, Dict(HTTPMessages.KEY_INITIATORIBNFID => string(myibnf.ibnfid)))
     idag = deserialize(IOBuffer(resp.body))
     return idag
 end
@@ -523,28 +505,12 @@ MA1069 implementation
 Request spectrum slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
-
-function serialize_globaledge(edge::GlobalEdge)
-    return Dict(
-        "src" => serialize_globalnode(edge.src),  # Serialize the source node
-        "dst" => serialize_globalnode(edge.dst)   # Serialize the destination node
-    )
-end
-
-function serialize_globalnode(node::GlobalNode)
-    return Dict(
-        "ibnfid" => string(node.ibnfid),  # Convert UUID to string
-        "localnode" => node.localnode    # Keep localnode as Int64
-    )
-end
-
-
-function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
+function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, ge::GlobalEdge)
     ge_data = serialize_globaledge(ge)
     initiator_ibnfid = string(myibnf.ibnfid)
     
-    resp = send_request(remoteibnfhandler, HTTPMessages.SPECTRUM_AVAILABILITY, 
-        Dict(HTTPMessages.GLOBAL_EDGE => ge_data, HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_SPECTRUMAVAILABILITY, 
+        Dict(HTTPMessages.KEY_GLOBALEDGE => ge_data, HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))
     else
@@ -572,47 +538,6 @@ function requestspectrumavailability_term!(remoteibnfhandler::AbstractIBNFHandle
     return nothing
 end
 
-"""
-$(TYPEDSIGNATURES) 
-
-MA1069 implementation
-"""
-
-function serialize_connectivity_intent(intent::ConnectivityIntent)
-    return Dict(
-        "src" => serialize_globalnode(intent.sourcenode),
-        "dst" => serialize_globalnode(intent.destinationnode),
-        "rate" => string(intent.rate),
-        "constraints" => [serialize_constraint(constraint) for constraint in intent.constraints]
-    )
-end
-
-function serialize_constraint(constraint::AbstractIntentConstraint)
-    if constraint isa OpticalInitiateConstraint
-        return Dict(
-            "type" => "OpticalInitiateConstraint",
-            "globalnode_input" => serialize_globalnode(constraint.globalnode_input),
-            "spectrumslotsrange" => [constraint.spectrumslotsrange.start, constraint.spectrumslotsrange.stop],
-            "opticalreach" => string(constraint.opticalreach),
-            "transmissionmodulecompat" => serialize_transmissionmodulecompatibility(constraint.transmissionmodulecompat)
-        )
-    elseif constraint isa OpticalTerminateConstraint
-        return Dict(
-            "type" => "OpticalTerminateConstraint"
-        )
-    else
-        error("Unsupported constraint type: $(typeof(constraint))")
-    end
-end
-
-function serialize_transmissionmodulecompatibility(transmissionmodulecompat::TransmissionModuleCompatibility)
-    return Dict(
-        "rate" => string(transmissionmodulecompat.rate),
-        "spectrumslotsneeded" => transmissionmodulecompat.spectrumslotsneeded,
-        "name" => transmissionmodulecompat.name,
-    )
-end
-        
         
 """
 $(TYPEDSIGNATURES) 
@@ -623,14 +548,14 @@ Delegates an intent to another domain
 
 Return the id of the new dag node if successful and `nothing` otherwise
 """
-function requestdelegateintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, intent::AbstractIntent, internalidagnodeid::UUID)
+function requestdelegateintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intent::AbstractIntent, internalidagnodeid::UUID)
     initiator_ibnfid = string(myibnf.ibnfid)
     serialized_intent = serialize_connectivity_intent(intent)
     
-    resp = send_request(remoteibnfhandler, HTTPMessages.DELEGATE_INTENT, 
-        Dict(HTTPMessages.INTERNAL_IDAGNODEID => string(internalidagnodeid), 
-        HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.INTENT => serialized_intent))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_DELEGATEINTENT, 
+        Dict(HTTPMessages.KEY_INTERNALIDAGNODEID => string(internalidagnodeid), 
+        HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_INTENT => serialized_intent))
     uuid_returned = JSON.parse(String(resp.body))
     
     return UUID(uuid_returned["value"])
@@ -638,9 +563,7 @@ end
 
 @recvtime function requestdelegateintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
     remoteintent = RemoteIntent(getibnfid(remoteibnfhandler), internalidagnodeid, intent, false)
-    #remoteintentdagnode = addidagnode!(getidag(myibnf), remoteintent; @passtime)
     remoteintentdagnode = addidagnode!(myibnf, remoteintent; @passtime)
-    
     return getidagnodeid(remoteintentdagnode)
 end
 
@@ -649,9 +572,9 @@ $(TYPEDSIGNATURES)
 
 MA1069 implementation
 """
-function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler)
+function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.COMPILATION_ALGORITHMS, Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_COMPILATIONALGORITHMS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
     return JSON.parse(String(resp.body))
 end
 
@@ -666,13 +589,13 @@ $(TYPEDSIGNATURES)
 MA1069 implementation
 """
 
-@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.COMPILE_INTENT, 
-        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.IDAGNODEID => string(idagnodeid), 
-        HTTPMessages.COMPILATION_KEY => string(compilationalgorithmkey), 
-        HTTPMessages.COMPILATION_ARGS => JSON.json(compilationalgorithmargs)); @passtime)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_COMPILEINTENT, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
+        HTTPMessages.KEY_COMPILATIONKEY => string(compilationalgorithmkey), 
+        HTTPMessages.KEY_COMPILATIONARGS => JSON.json(compilationalgorithmargs)); @passtime)
 
     return_compile_init = JSON.parse(String(resp.body))
     return Symbol(return_compile_init)
@@ -685,16 +608,24 @@ $(TYPEDSIGNATURES)
 MA1069 implementation
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
-""" #before, here it was idagnode::IntentDAGNode, i dont know if it was an error
-function requestissatisfied(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
+"""
+function requestissatisfied(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; onlyinstalled::Bool=true, noextrallis::Bool=true)
     initiator_ibnfid = string(myibnf.ibnfid)
-    resp = send_request(remoteibnfhandler, HTTPMessages.IS_SATISFIED, 
-        Dict(HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid, 
-        HTTPMessages.IDAGNODEID => string(idagnodeid), 
-        HTTPMessages.ONLY_INSTALLED => onlyinstalled, 
-        HTTPMessages.NOEXTRALLIS => noextrallis)
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_ISSATISFIED, 
+        Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid, 
+        HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
+        HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled, 
+        HTTPMessages.KEY_NOEXTRALLIS => noextrallis)
     )
-    return JSON.parse(String(resp.body))
+    issatisfied_return = JSON.parse(String(resp.body))
+    if issatisfied_return == true
+        return true
+    elseif issatisfied_return == false
+        return false
+    else
+        return Symbol(issatisfied_return)
+    end
+    
 end
 
 function requestissatisfied_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
@@ -702,12 +633,11 @@ function requestissatisfied_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf
 end
 
 
-
-function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::RemoteIBNFHandler, ge::GlobalEdge)
+function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, ge::GlobalEdge)
     ge_data = serialize_globaledge(ge)
     initiator_ibnfid = string(myibnf.ibnfid)
 
-    resp = send_request(remoteibnfhandler, HTTPMessages.CURRENT_LINKSTATE, Dict(HTTPMessages.GLOBAL_EDGE => ge_data, HTTPMessages.INITIATOR_IBNFID => initiator_ibnfid))
+    resp = send_request(remoteibnfhandler, HTTPMessages.URI_CURRENTLINKSTATE, Dict(HTTPMessages.KEY_GLOBALEDGE => ge_data, HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
     
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))

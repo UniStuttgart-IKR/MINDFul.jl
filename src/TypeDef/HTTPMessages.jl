@@ -6,68 +6,74 @@ module HTTPMessages
 
 #export IBNAGRAPH, SPECTRUM_AVAILABILITY, COMPILATION_ALGORITHMS
 
-const IBNAGRAPH = "/api/ibnattributegraph"
+const URI_IBNAGRAPH = "/api/ibnattributegraph"
 
-const SPECTRUM_AVAILABILITY = "/api/spectrum_availability"
+const URI_SPECTRUMAVAILABILITY = "/api/spectrum_availability"
 
-const COMPILATION_ALGORITHMS = "/api/compilation_algorithms"
+const URI_COMPILATIONALGORITHMS = "/api/compilation_algorithms"
 
-const COMPILE_INTENT = "/api/compile_intent"
+const URI_COMPILEINTENT = "/api/compile_intent"
 
-const CURRENT_LINKSTATE = "/api/current_linkstate"
+const URI_CURRENTLINKSTATE = "/api/current_linkstate"
 
-const DELEGATE_INTENT = "/api/delegate_intent"
+const URI_DELEGATEINTENT = "/api/delegate_intent"
 
-const REMOTEINTENT_STATEUPDATE = "/api/remoteintent_stateupdate"
+const URI_REMOTEINTENTSTATEUPDATE = "/api/remoteintent_stateupdate"
 
-const IS_SATISFIED = "/api/requestissatisfied"
+const URI_ISSATISFIED = "/api/requestissatisfied"
 
-const INSTALL_INTENT = "/api/install_intent"
+const URI_INSTALLINTENT = "/api/install_intent"
 
-const UNINSTALL_INTENT = "/api/uninstall_intent"
+const URI_UNINSTALLINTENT = "/api/uninstall_intent"
 
-const UNCOMPILE_INTENT = "/api/uncompile_intent"
+const URI_UNCOMPILEINTENT = "/api/uncompile_intent"
 
-const SET_LINKSTATE = "/api/set_linkstate"
+const URI_SETLINKSTATE = "/api/set_linkstate"
 
-const REQ_LINKSTATES = "/api/request_linkstates"
+const URI_REQLINKSTATES = "/api/request_linkstates"
 
-const IDAG = "/api/request_idag"
+const URI_REQUESTIDAG = "/api/request_idag"
 
-const REQUEST_HANDLERS = "/api/request_handlers"
+const URI_REQUESTHANDLERS = "/api/request_handlers"
 
-const LOGICAL_ORDER = "/api/logical_order"
+const URI_LOGICALORDER = "/api/logical_order"
+
+const URI_LIGHTPATHS = "/api/lightpaths"
+
+const URI_INTENTGLOBALPATH = "/api/intentglobalpath"
+
+const URI_ELECTRICALPRESENCE = "/api/electricalpresence"
 
 
-const INITIATOR_IBNFID = "initiator_ibnfid"
+const KEY_INITIATORIBNFID = "initiator_ibnfid"
 
-const GLOBAL_EDGE = "global_edge"
+const KEY_GLOBALEDGE = "global_edge"
 
-const NEWSTATE = "newstate"
+const KEY_NEWSTATE = "newstate"
 
-const OPERATINGSTATE = "operatingstate"
+const KEY_OPERATINGSTATE = "operatingstate"
 
-const IDAGNODEID = "idagnodeid"
+const KEY_IDAGNODEID = "idagnodeid"
 
-const INTERNAL_IDAGNODEID = "internalidagnodeid"
+const KEY_INTERNALIDAGNODEID = "internalidagnodeid"
 
-const INTENT = "intent"
+const KEY_INTENT = "intent"
 
-const INTENTUUID = "intentuuid"
+const KEY_INTENTUUID = "intentuuid"
 
-const COMPILATION_KEY = "compilationalgorithmkey"
+const KEY_COMPILATIONKEY = "compilationalgorithmkey"
 
-const COMPILATION_ARGS = "compilationalgorithmargs"
+const KEY_COMPILATIONARGS = "compilationalgorithmargs"
 
-const ONLY_INSTALLED = "onlyinstalled"
+const KEY_ONLYINSTALLED = "onlyinstalled"
 
-const NOEXTRALLIS = "noextrallis"
+const KEY_NOEXTRALLIS = "noextrallis"
 
-const VERBOSE = "verbose"
+const KEY_VERBOSE = "verbose"
 
-const LINK_DATETIME = "linkdatetime"
+const KEY_LINKDATETIME = "linkdatetime"
 
-const LINK_STATE = "linkstate"
+const KEY_LINKSTATE = "linkstate"
 
 
 

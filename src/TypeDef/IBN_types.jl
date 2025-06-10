@@ -359,13 +359,32 @@ $(TYPEDFIELDS)
 Fabian Gobantes implementation.
 Should consist of basic information all handlers should have (e.g. `ibnfid`).
 And a parametric type specific to the protocol used.
-"""
 
-"""
-Abstract type for communication protocols between IBN Frameworks.
-"""
-abstract type AbstractIBNFComm end
+```julia
+    struct HandlerProperties
+        ibnfid::UUID
+        # ...
+    end
 
+    struct IBNFHTTP2Comm <: AbstractIBNFComm
+        # example
+    end
+
+    struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
+        # this can  be the new dummy and substitute the current dummy implementation
+        ibng::T
+    end
+
+    struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
+        handlerproperties::HandlerProperties
+        ibnfcomm::T
+    end
+```
+"""
+struct RemoteHTTPHandler <: AbstractIBNFHandler
+    ibnfid::UUID
+    baseurl::String
+end
 
 """
     The graph of the IBN Framework is expressed with this `AttributeGraph`.
@@ -396,40 +415,6 @@ struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <:
     "SDN controller handle"
     sdncontroller::S
 end
-
-struct HandlerProperties
-    ibnfid::UUID
-    base_url::String
-end
-
-struct IBNFHTTP2Comm <: AbstractIBNFComm
-    base_url::String # Base URL of the remote IBN Framework (e.g., "http://192.168.1.2:8081")
-end
-
-struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
-    # this can  be the new dummy and substitute the current dummy implementation
-    ibng::T
-end
-
-#=struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
-    handlerproperties::HandlerProperties
-    ibnfcomm::T
-end=#
-
-struct RemoteIBNFHandler <: AbstractIBNFHandler
-    ibnfid::UUID
-    base_url::String
-end
-
-
-
-#struct RemoteIBNFHandler <: AbstractIBNFHandler
-#end
-
-"""
-$(TYPEDEF)
-$(TYPEDFIELDS)
-"""
 
 """
 $(TYPEDSIGNATURES) 
@@ -463,3 +448,4 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
 end
+

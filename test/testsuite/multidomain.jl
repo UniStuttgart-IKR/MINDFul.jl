@@ -48,7 +48,7 @@ end
 @testset ExtendedTestSet "multidomain.jl"  begin
 
 
-ibnfs = loadmultidomaintestibnfs()
+ibnfs = loadmultidomaintestidistributedbnfs()
 testsuitemultidomain!(ibnfs)
 
 # TODO MA1069 : rerun testinterface with 

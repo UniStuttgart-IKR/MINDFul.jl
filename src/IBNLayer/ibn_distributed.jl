@@ -1,9 +1,6 @@
-using JSON, HTTP, Sockets
+@recvtime function send_request(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
+    url = remotehandler.baseurl * endpoint
 
-@recvtime function send_request(remotehandler::RemoteIBNFHandler, endpoint::String, data::Dict)
-    url = remotehandler.base_url * endpoint
-
-    
     if isnothing(offsettime)
         push!(data, "offsettime" => "nothing")
     else
@@ -23,30 +20,21 @@ using JSON, HTTP, Sockets
     # @show typeof(@logtime)
         
     response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
-    #return response.status, JSON.parse(String(response.body)) 
     return response
 end
 
 
-@recvtime function send_request_dummy()
-    @show offsettime
-    sleep(5)
-    return @logtime
-end
-
-
-
-function start_ibn_server(myibnf::IBNFramework)
+function startibnserver!(myibnf::IBNFramework)
     sel_handler = myibnf.ibnfhandlers[1]
-    base_url = sel_handler.base_url
-    uri = HTTP.URI(base_url)
+    baseurl = sel_handler.baseurl
+    uri = HTTP.URI(baseurl)
     ip_address = string(uri.host)
     port = parse(Int, uri.port)
-    #@show myibnf.ibnfid, port
+    
     println(" ")
     println("Starting server on $ip_address:$port")
     try
-        Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true)
+        Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing)
     catch e
         if isa(e, Base.IOError)
             println("Server at $ip_address:$port is already running")
@@ -56,23 +44,23 @@ function start_ibn_server(myibnf::IBNFramework)
     end
 end
 
-function start_ibn_server(ibnfs::Vector{<:IBNFramework})
+function startibnserver!(ibnfs::Vector{<:IBNFramework})
     ibnfs_dict = Dict{Int, IBNFramework}()
     for ibnf in ibnfs 
         sel_handler = ibnf.ibnfhandlers[1]
-        base_url = sel_handler.base_url
-        uri = HTTP.URI(base_url)
+        baseurl = sel_handler.baseurl
+        uri = HTTP.URI(baseurl)
         port = parse(Int, uri.port)
         push!(ibnfs_dict, port => ibnf)
     end
 
     for ibnf in ibnfs
         sel_handler = ibnf.ibnfhandlers[1]
-        base_url = sel_handler.base_url
-        uri = HTTP.URI(base_url)
+        baseurl = sel_handler.baseurl
+        uri = HTTP.URI(baseurl)
         ip_address = string(uri.host)
         port = parse(Int, uri.port)
-        #@show ibnf.ibnfid, port
+        
         println(" ")
         println("Starting server on $ip_address:$port")
         try
@@ -88,200 +76,222 @@ function start_ibn_server(ibnfs::Vector{<:IBNFramework})
 end
 
 
-#=function serialize_attributegraph(graph::AttributeGraphs.AttributeGraph)
+
+function serialize_globaledge(edge::GlobalEdge)
     return Dict(
-        "nodes" => collect(Graphs.vertices(graph)),  # Serialize nodes
-        "edges" => [(e.src, e.dst) for e in Graphs.edges(graph)],  # Serialize edges
-        #"attributes" => graph.attributes  # Serialize attributes
+        "src" => serialize_globalnode(edge.src),  # Serialize the source node
+        "dst" => serialize_globalnode(edge.dst)   # Serialize the destination node
     )
-end=#
+end
+
+function serialize_globalnode(node::GlobalNode)
+    return Dict(
+        "ibnfid" => string(node.ibnfid),  # Convert UUID to string
+        "localnode" => node.localnode    # Keep localnode as Int64
+    )
+end
 
 
+function serialize_connectivity_intent(intent::ConnectivityIntent)
+    return Dict(
+        "src" => serialize_globalnode(intent.sourcenode),
+        "dst" => serialize_globalnode(intent.destinationnode),
+        "rate" => string(intent.rate),
+        "constraints" => [serialize_constraint(constraint) for constraint in intent.constraints]
+    )
+end
 
-
-#=function response(req::HTTP.Request, ibnf::IBNFramework, parsed_body::Dict)
-    
-    if req.target == "/api/ibnattributegraph"
-        """ Handle request for IBN Attribute Graph """
-        #graph = getibnag(ibnf)
-        #serialized_graph = serialize_attributegraph(graph)
-        #return HTTP.Response(200, JSON.json(serialized_graph))
-    elseif req.target == "/api/compilation_algorithms"
-        """ Handle request for compilation algorithms """
-        compilation_algorithms = requestavailablecompilationalgorithms_term!()
-        if compilation_algorithms !== nothing
-            return HTTP.Response(200, JSON.json(compilation_algorithms))
-        else
-            return HTTP.Response(404, "Compilation algorithms not found")
-        end
-    elseif req.target == "/api/spectrum_availability"
-            """ Handle request for link spectrum availability """
-            #body = JSON.parse(String(req.body))
-            ge_data = parsed_body["global_edge"]
-            received_ge = GlobalEdge(
-                GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
-                GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
-            )
-            spectrum_availability = requestspectrumavailability_term!(ibnf, received_ge)
-            if spectrum_availability !== nothing
-                return HTTP.Response(200, JSON.json(spectrum_availability))
-            else
-                return HTTP.Response(404, "Spectrum availability not found")
-            end
-    else
-        return HTTP.Response(404, "Not Found")
-    end
-end=#
-
-
-#= function request(req::HTTP.Request, remoteibnf::IBNFramework, parsed_body::Dict)
-    """ Handle request for IBN Attribute Graph """
-    if req.target == "/api/ibnattributegraph"
-        response = send_request(remoteibnf, "/api/ibnattributegraph", Dict("func" => "response"))
-        if response.status == 200
-            return HTTP.Response(response.body)
-        else
-            error("Failed to request atrribute graph")
-        end 
-    
-    elseif req.target == "/api/compilation_algorithms"
-        response = send_request(remoteibnf, "/api/compilation_algorithms", Dict("func" => "response"))
-        if response.status == 200
-            return HTTP.Response(response.body)
-        else
-            error("Failed to request compilation algorithms")
-        end 
-    
-    elseif req.target == "/api/spectrum_availability"
-        #body = JSON.parse(String(req.body))
-        received_ge = parsed_body["global_edge"]
-        
-        response = send_request(remoteibnf, "/api/spectrum_availability", Dict("func" => "response", "global_edge" => received_ge))
-        if response.status == 200
-            return HTTP.Response(response.body)
-        else
-            error("Failed to request spectrum availability")
-        end 
-    else
-        return HTTP.Response(404, "Not Found")
-    end
-end =#
-
-
-#=""" function to start a REST API server for an IBNFramework"""
-function start_ibn_server_1(myibnf::IBNFramework)
-    sel_handler = myibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    #@show ip_address
-    #@show port
-
-    println("Starting server on $ip_address:$port")
-    HTTP.serve!(ip_address, port) do req
-        body = HTTP.payload(req)
-        parsed_body = JSON.parse(String(body))
-        #@show parsed_body
-        #func_value = parsed_body["func"]
-        #@show func_value
-        #if func_value == "request"
-        #    return request(req, remoteibnf, parsed_body)
-        #else
-        return response(req, myibnf, parsed_body)
-        #end
-    end
-end=#
-
-
-
-
-#=function start_ibn_server_2(myibnf::IBNFramework)
-    sel_handler = myibnf.ibnfhandlers[1]
-    base_url = sel_handler.handlerproperties.base_url
-    uri = HTTP.URI(base_url)
-    ip_address = string(uri.host)
-    port = parse(Int, uri.port)
-    
-    api = router("/api", tags=["api endpoint"])
-    
-    @swagger """
-    /api/compilation_algorithms: 
-      post:
-        description: Return the available compilation algorithms        
-        responses:
-          "200":
-            description: Successfully returned the compilation algorithms.
-    """
-    @post api("/compilation_algorithms") function (req)
-        compilation_algorithms = requestavailablecompilationalgorithms_term!()
-        if compilation_algorithms !== nothing
-            return HTTP.Response(200, JSON.json(compilation_algorithms))
-        else
-            return HTTP.Response(404, JSON.json(Dict("error" => "Compilation algorithms not found")))
-        end
-    end
-
-    
-    @swagger """
-    /api/spectrum_availability:
-      post:
-        description: Return the spectrum availability
-        requestBody:
-          description: The global edge for which to check spectrum availability
-          required: true
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  src:
-                    type: object
-                    properties:
-                      ibnfid:
-                        type: string
-                      localnode:
-                        type: integer
-                  dst:
-                    type: object
-                    properties:
-                      ibnfid:
-                        type: string
-                      localnode:
-                        type: integer
-        responses:
-          "200":
-            description: Successfully returned the spectrum availability.
-    """    
-    @post "/api/spectrum_availability" function (req; context)
-        #body = JSON.parse(String(req.body))
-        ibnf :: IBNFramework = context
-        body = HTTP.payload(req)
-        parsed_body = JSON.parse(String(body))
-        ge_data = parsed_body["global_edge"]
-        received_ge = GlobalEdge(
-            GlobalNode(UUID(ge_data["src"]["ibnfid"]), ge_data["src"]["localnode"]),
-            GlobalNode(UUID(ge_data["dst"]["ibnfid"]), ge_data["dst"]["localnode"])
+function serialize_constraint(constraint::AbstractIntentConstraint)
+    if constraint isa OpticalInitiateConstraint
+        return Dict(
+            "type" => "OpticalInitiateConstraint",
+            "globalnode_input" => serialize_globalnode(constraint.globalnode_input),
+            "spectrumslotsrange" => [constraint.spectrumslotsrange.start, constraint.spectrumslotsrange.stop],
+            "opticalreach" => string(constraint.opticalreach),
+            "transmissionmodulecompat" => serialize_transmissionmodulecompatibility(constraint.transmissionmodulecompat)
         )
-        spectrum_availability = requestspectrumavailability_term!(ibnf, received_ge)
-        if spectrum_availability !== nothing
-            return HTTP.Response(200, JSON.json(spectrum_availability))
-        else
-            return HTTP.Response(404, "Spectrum availability not found")
-        end
+    elseif constraint isa OpticalTerminateConstraint
+        return Dict(
+            "type" => "OpticalTerminateConstraint"
+        )
+    else
+        error("Unsupported constraint type: $(typeof(constraint))")
     end
+end
 
-    info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
-    openApi = OpenAPI("3.0", info)
-    swagger_document = build(openApi)
-    # merge the SwaggerMarkdown schema with the internal schema
-    mergeschema(swagger_document)
+function serialize_transmissionmodulecompatibility(transmissionmodulecompat::TransmissionModuleCompatibility)
+    return Dict(
+        "rate" => string(transmissionmodulecompat.rate),
+        "spectrumslotsneeded" => transmissionmodulecompat.spectrumslotsneeded,
+        "name" => transmissionmodulecompat.name,
+    )
+end
+
+function serialize_lowlevelintent(ll)
+    if ll isa OXCAddDropBypassSpectrumLLI
+        return Dict(
+            "type" => "OXCAddDropBypassSpectrumLLI",
+            "node" => ll.localnode,
+            "input" => ll.localnode_input,
+            "adddropport" => ll.adddropport,
+            "output" => ll.localnode_output,
+            "slotstart" => ll.spectrumslotsrange.start,
+            "slotend" => ll.spectrumslotsrange.stop,
+        )
+    elseif ll isa TransmissionModuleLLI
+        return Dict(
+            "type" => "TransmissionModuleLLI",
+            "node" => ll.localnode,
+            "poolindex" => ll.transmissionmoduleviewpoolindex,
+            "modesindex" => ll.transmissionmodesindex,
+            "port" => ll.routerportindex,
+            "adddropport" => ll.adddropport
+        )
+    elseif ll isa RouterPortLLI
+        return Dict(
+            "type" => "RouterPortLLI",
+            "node" => ll.localnode,
+            "port" => ll.routerportindex
+        )
+    else
+        error("Unknown LowLevelIntent type: $(typeof(ll))")
+    end
+end
+
+function deserializelowlevelintent(dict)
+    if dict["type"] == "OXCAddDropBypassSpectrumLLI"
+        return MINDFul.OXCAddDropBypassSpectrumLLI(
+            dict["node"], dict["input"], dict["adddropport"], dict["output"], dict["slotstart"]:dict["slotend"]
+        )
+    elseif dict["type"] == "TransmissionModuleLLI"
+        return MINDFul.TransmissionModuleLLI(
+            dict["node"], dict["poolindex"], dict["modesindex"], dict["port"], dict["adddropport"]
+        )
+    elseif dict["type"] == "RouterPortLLI"
+        return MINDFul.RouterPortLLI(
+            dict["node"], dict["port"]
+        )
+    else
+        error("Unknown LowLevelIntent type: $(dict["type"])")
+    end
+end
+
+function reconvert_constraint(constraint)
+    if constraint["type"] == "OpticalInitiateConstraint"
+        return OpticalInitiateConstraint(
+            GlobalNode(UUID(constraint["globalnode_input"]["ibnfid"]), constraint["globalnode_input"]["localnode"]),
+            constraint["spectrumslotsrange"][1]:constraint["spectrumslotsrange"][2],
+            KMf(parse(Float64, replace(constraint["opticalreach"], " km" => ""))),
+            TransmissionModuleCompatibility(GBPSf(parse(Float64, replace(constraint["transmissionmodulecompat"]["rate"], " Gbps" => ""))), constraint["transmissionmodulecompat"]["spectrumslotsneeded"], constraint["transmissionmodulecompat"]["name"])
+        )
+    elseif constraint["type"] == "OpticalTerminateConstraint"
+        return nothing
+    else
+        error("Unknown constraint type")
+    end
+end
+
+#=   function serialize_idag(idag)
+    #@show typeof(idag)
+    #@show idag.edge_list
     
-    println("Starting server on $ip_address:$port")
-    serve(port=port, async=true, context=myibnf, serialize=false, swagger=true) 
-        
-end=#
+    #@show idag.vertex_attr
+    #@show idag.graph_attr
+    @show idag.edge_attr
+    return Dict(
+        "graph" => serialize_simpledigraph(idag.graph),
+        "nodes" => [serialize_intentdagnode(n) for n in idag.vertex_attr],
+        "info" => serialize_idaginfo(idag.graph_attr)
+    )
+end
 
+function serialize_simpledigraph(g)
+    return Dict(
+        "nv" => g.nv,
+        "outneighbors" => g.outneighbors,
+        "inneighbors" => g.inneighbors
+    )
+end
 
+function serialize_idaginfo(info)
+    return Dict("count" => info.count)
+end
 
+function serialize_intentdagnode(node)
+    return Dict(
+        "type" => string(typeof(node)),
+        "uuid" => string(node.uuid),
+        "data" => serialize_node_data(node.data),
+        "generator" => string(typeof(node.generator)),
+        "statelog" => [Dict("datetime" => string(dt), "state" => string(state)) for (dt, state) in node.statelog]
+    )
+end
 
+function serialize_node_data(data)
+    if typeof(data) <: MINDFul.RemoteIntent
+        return serialize_remoteintent(data)
+    elseif typeof(data) <: MINDFul.ConnectivityIntent
+        return serialize_connectivityintent(data)
+    elseif typeof(data) <: MINDFul.RouterPortLLI
+        return serialize_routerportlli(data)
+    elseif typeof(data) <: MINDFul.OXCAddDropBypassSpectrumLLI
+        return serialize_oxcadddropbypassspectrumlli(data)
+    elseif typeof(data) <: MINDFul.TransmissionModuleLLI
+        return serialize_transmissionmodulelli(data)
+    else
+        return string(data)
+    end
+end
+
+function serialize_remoteintent(ri)
+    return Dict(
+        "remote_ibnfid" => string(ri.remote_ibnfid),
+        "internal_idagnodeid" => string(ri.internal_idagnodeid),
+        "intent" => serialize_connectivityintent(ri.intent),
+        "is_terminal" => ri.is_terminal
+    )
+end
+
+function serialize_connectivityintent(ci)
+    return Dict(
+        "src" => serialize_globalnode(ci.src),
+        "dst" => serialize_globalnode(ci.dst),
+        "rate" => string(ci.rate),
+        "constraints" => [string(c) for c in ci.constraints] # You can expand this if you want detailed constraint serialization
+    )
+end
+
+function serialize_globalnode(gn)
+    return Dict(
+        "ibnfid" => string(gn.ibnfid),
+        "localnode" => gn.localnode
+    )
+end
+
+function serialize_routerportlli(rp)
+    return Dict(
+        "node" => rp.node,
+        "port" => rp.port
+    )
+end
+
+function serialize_oxcadddropbypassspectrumlli(oxc)
+    return Dict(
+        "node" => oxc.node,
+        "port" => oxc.port,
+        "direction" => oxc.direction,
+        "adddrop" => oxc.adddrop,
+        "slots" => collect(oxc.slots)
+    )
+end
+
+function serialize_transmissionmodulelli(tm)
+    return Dict(
+        "srcnode" => tm.srcnode,
+        "dstnode" => tm.dstnode,
+        "srcport" => tm.srcport,
+        "dstport" => tm.dstport,
+        "modulation" => tm.modulation
+    )
+end
+=#

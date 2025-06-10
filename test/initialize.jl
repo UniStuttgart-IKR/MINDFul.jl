@@ -6,6 +6,7 @@ using JLD2, UUIDs
 using Unitful, UnitfulData
 import Dates: now, Hour
 import Random: MersenneTwister, randperm
+using HTTP
 
 import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo,getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst
 
@@ -55,13 +56,32 @@ function loadmultidomaintestidistributedbnfs()
 
 
     # MA1069 instantiate with HTTPHandler
+    hdlr=Vector{MINDFul.RemoteHTTPHandler}()
+
     ibnfs = [
         let
             ag = name_graph[2]
             ibnag = MINDF.default_IBNAttributeGraph(ag)
-            ibnf = IBNFramework(ibnag)
+            ibnf = IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
         end for name_graph in domains_name_graph
     ]
+
+    for i in eachindex(ibnfs)
+        port = 8080 + i
+        URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
+        URI_s=string(URI)
+        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URI_s))
+    end
+
+    for i in eachindex(ibnfs)
+        push!(getibnfhandlers(ibnfs[i]), hdlr[i])
+        for j in eachindex(ibnfs)
+            i == j && continue
+            push!(getibnfhandlers(ibnfs[i]), hdlr[j])
+        end
+    end
+
+    MINDF.startibnserver!(ibnfs)
 
     return ibnfs
 end
