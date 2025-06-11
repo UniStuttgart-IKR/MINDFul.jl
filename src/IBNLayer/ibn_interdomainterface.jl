@@ -52,7 +52,7 @@ end
 function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiator_ibnfid = string(myibnf.ibnfid)
     resp = send_request(remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiator_ibnfid))
-    ibnfhandlers = [RemoteIBNFHandler(UUID(d["ibnfid"]["value"]), d["baseurl"]) for d in JSON.parse(String(resp.body))]
+    ibnfhandlers = [RemoteHTTPHandler(UUID(d["ibnfid"]["value"]), d["baseurl"]) for d in JSON.parse(String(resp.body))]
     return ibnfhandlers
 end
 
