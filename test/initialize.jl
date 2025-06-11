@@ -69,8 +69,8 @@ function loadmultidomaintestidistributedbnfs()
     for i in eachindex(ibnfs)
         port = 8080 + i
         URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
-        URI_s=string(URI)
-        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URI_s))
+        URIstring=string(URI)
+        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URIstring))
     end
 
     for i in eachindex(ibnfs)

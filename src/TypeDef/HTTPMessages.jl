@@ -8,35 +8,35 @@ module HTTPMessages
 
 const URI_IBNAGRAPH = "/api/ibnattributegraph"
 
-const URI_SPECTRUMAVAILABILITY = "/api/spectrum_availability"
+const URI_SPECTRUMAVAILABILITY = "/api/spectrumavailability"
 
-const URI_COMPILATIONALGORITHMS = "/api/compilation_algorithms"
+const URI_COMPILATIONALGORITHMS = "/api/compilationalgorithms"
 
-const URI_COMPILEINTENT = "/api/compile_intent"
+const URI_COMPILEINTENT = "/api/compileintent"
 
-const URI_CURRENTLINKSTATE = "/api/current_linkstate"
+const URI_CURRENTLINKSTATE = "/api/currentlinkstate"
 
-const URI_DELEGATEINTENT = "/api/delegate_intent"
+const URI_DELEGATEINTENT = "/api/delegateintent"
 
-const URI_REMOTEINTENTSTATEUPDATE = "/api/remoteintent_stateupdate"
+const URI_REMOTEINTENTSTATEUPDATE = "/api/remoteintentstateupdate"
 
 const URI_ISSATISFIED = "/api/requestissatisfied"
 
-const URI_INSTALLINTENT = "/api/install_intent"
+const URI_INSTALLINTENT = "/api/installintent"
 
-const URI_UNINSTALLINTENT = "/api/uninstall_intent"
+const URI_UNINSTALLINTENT = "/api/uninstallintent"
 
-const URI_UNCOMPILEINTENT = "/api/uncompile_intent"
+const URI_UNCOMPILEINTENT = "/api/uncompileintent"
 
-const URI_SETLINKSTATE = "/api/set_linkstate"
+const URI_SETLINKSTATE = "/api/setlinkstate"
 
-const URI_REQLINKSTATES = "/api/request_linkstates"
+const URI_REQUESTLINKSTATES = "/api/requestlinkstates"
 
-const URI_REQUESTIDAG = "/api/request_idag"
+const URI_REQUESTIDAG = "/api/requestidag"
 
-const URI_REQUESTHANDLERS = "/api/request_handlers"
+const URI_REQUESTHANDLERS = "/api/requesthandlers"
 
-const URI_LOGICALORDER = "/api/logical_order"
+const URI_LOGICALORDER = "/api/logicalorder"
 
 const URI_LIGHTPATHS = "/api/lightpaths"
 
@@ -75,6 +75,69 @@ const KEY_LINKDATETIME = "linkdatetime"
 
 const KEY_LINKSTATE = "linkstate"
 
+const KEY_IBNFID = "ibnfid"
+
+const KEY_VALUE = "value"
+
+const KEY_BASEURL = "baseurl"
+
+const KEY_LOCALNODE = "localnode"
+
+const KEY_OFFSETTIME = "offsettime"
+
+const KEY_NOTHING = "nothing"
+
+const KEY_SRC = "src"
+
+const KEY_DST = "dst"
+
+const KEY_RATE = "rate"
+
+const KEY_CONSTRAINTS = "constraints"
+
+const KEY_TYPE = "type"
+
+const KEY_GNI = "globalnode_input"
+
+const KEY_SSR = "spectrumslotsrange"
+
+const KEY_OPTICALREACH = "opticalreach"
+
+const KEY_TMC = "transmissionmodulecompat"
+
+const KEY_SSN = "spectrumslotsneeded"
+
+const KEY_NAME = "name"
+
+const KEY_NODE = "node"
+
+const KEY_INPUT = "input"
+
+const KEY_ADDDROPPORT = "adddropport"
+
+const KEY_OUTPUT = "output"
+
+const KEY_SLOTSTART = "slotstart"
+
+const KEY_SLOTEND = "slotend"
+
+const KEY_POOLINDEX = "poolindex"
+
+const KEY_MODESINDEX = "modesindex"
+
+const KEY_PORT = "port"
+
+const KEY_HOST = "Host"
+
+const KEY_OPTICALINITIATECONSTRAINT = "OpticalInitiateConstraint"
+
+const KEY_OPTICALTERMINATECONSTRAINT = "OpticalTerminateConstraint"
+
+const KEY_ADBYPASSSPECTRUM = "OXCAddDropBypassSpectrumLLI"
+
+const KEY_TRANSMISSIONMODULE = "TransmissionModuleLLI"
+
+const KEY_ROUTERPORT = "RouterPortLLI"
 
 
 end
