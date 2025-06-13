@@ -82,7 +82,3 @@ deploydocs(
     repo = "https://github.com/fgobantes/MINDFul.jl.git",
     #repo = "https://github.com/fgobantes/MINDFul.jl/tree/ma1069/docs"
 )
-
-deploydocs(
-    repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git",
-)
