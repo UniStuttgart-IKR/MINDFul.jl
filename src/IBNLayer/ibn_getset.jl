@@ -480,3 +480,10 @@ $(TYPEDSIGNATURES)
 function getremoteconnectivityintent(clpi::CrossLightpathIntent)
     return clpi.remoteconnectivityintent
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getbaseurl(remotehandler::AbstractIBNFHandler)
+    return remotehandler.baseurl
+end

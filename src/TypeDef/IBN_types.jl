@@ -381,7 +381,9 @@ And a parametric type specific to the protocol used.
     end
 ```
 """
-struct RemoteIBNFHandler <: AbstractIBNFHandler
+struct RemoteHTTPHandler <: AbstractIBNFHandler
+    ibnfid::UUID
+    baseurl::String
 end
 
 """
