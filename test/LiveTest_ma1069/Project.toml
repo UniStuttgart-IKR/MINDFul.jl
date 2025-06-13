@@ -20,3 +20,4 @@ UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 
 [sources]
 MINDFul = {path = "../.."}
+MINDFulMakie = {path = "../../../MINDFulMakie.jl"}
