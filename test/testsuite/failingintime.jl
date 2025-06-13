@@ -163,10 +163,10 @@ end
 
 @testset ExtendedTestSet "failingtime.jl"  begin
 
-ibnfs = loadmultidomaintestidistributedbnfs()
+ibnfs = loadmultidomaintestibnfs()
 testsuitefailingintime!(ibnfs)
 
 # TODO MA1069 : rerun testinterface with 
-# ibnfs = loadmultidomaintestidistributedbnfs()
-# testsuitefailingintime!!(ibnfs)
+ibnfs = loadmultidomaintestidistributedbnfs()
+testsuitefailingintime!(ibnfs)
 end

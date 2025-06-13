@@ -50,7 +50,7 @@ export serve
         remoteibnfhandler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
 
         if parsedbody[MINDF.HTTPMessages.KEY_OFFSETTIME] == MINDF.HTTPMessages.KEY_NOTHING
-            otime = now()
+            otime = nothing
         else
             otime = DateTime(parsedbody[MINDF.HTTPMessages.KEY_OFFSETTIME])
         end

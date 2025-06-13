@@ -61,7 +61,8 @@ function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf
 end
 
 """
-$(TYPEDSIGNATURES) 
+$(TYPEDSIGNATURES)
+
 Request logical low level intent sequence
 """
 function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
@@ -161,6 +162,7 @@ end
 
 """
 $(TYPEDSIGNATURES) 
+
 Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
 """
 function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
@@ -210,7 +212,6 @@ function requestcurrentlinkstate_term(remoteibnfhandler::AbstractIBNFHandler, my
     localnodesrc = something(getlocalnode(myibnag, src(ge)))
     localnodedst = something(getlocalnode(myibnag, dst(ge)))
     le = Edge(localnodesrc, localnodedst)
- 
 
     if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
         # src is remote, dst is intra
@@ -324,8 +325,6 @@ Return the id of the new dag node if successful and `nothing` otherwise
     return requestdelegateintent_term!(myibnfhandler, remoteibnf, intent, internalidagnodeid; @passtime)
 end
 
-
-
 """
 $(TYPEDSIGNATURES)
 
@@ -354,8 +353,7 @@ The initiator domain `remoteibnf` asks this domain `myibnf` to compile the inter
 @recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     # get the algorithm
     compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    intentreturn = compileintent!(myibnf, idagnodeid, compilationalgorithm; verbose, @passtime)
-    return intentreturn
+     return compileintent!(myibnf, idagnodeid, compilationalgorithm; verbose, @passtime)
 end
 
 """
@@ -503,7 +501,7 @@ $(TYPEDSIGNATURES)
 
 MA1069 implementation
 
-Request spectrum slot availabilities of the border edge
+Request spectr /um slot availabilities of the border edge
 Need to check whether `ge` is indeed an edge shared with `myibnf`
 """
 function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, ge::GlobalEdge)
@@ -517,7 +515,6 @@ function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandl
     else
         error("Failed to request spectrum availability: $(resp.body)")
     end
-    
 end
 
 function requestspectrumavailability_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
@@ -535,7 +532,6 @@ function requestspectrumavailability_term!(remoteibnfhandler::AbstractIBNFHandle
         # dst is remote, src is intra
         return getlinkspectrumavailabilities(something(getoxcview(nodeviewsrc)))[le]
     end
-
     return nothing
 end
 
@@ -589,7 +585,6 @@ $(TYPEDSIGNATURES)
 
 MA1069 implementation
 """
-
 @recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     initiatoribnfid = string(getibnfid(myibnf))
     resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_COMPILEINTENT, 
@@ -600,7 +595,6 @@ MA1069 implementation
 
     returncompileinit = JSON.parse(String(resp.body))
     return Symbol(returncompileinit)
-    
 end
 
 """
