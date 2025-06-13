@@ -7,7 +7,6 @@
 # the operation might  depend on the relation of `myibnf`, and `remoteibnf`.
 
 # TODO make a macro for the generation of the init/term function ?
-
 """
 $(TYPEDSIGNATURES) 
 
@@ -81,6 +80,50 @@ function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::Re
     parsedjson = JSON.parse(String(resp.body))
     logicalorder = [deserializelowlevelintent(d) for d in parsedjson]
     return logicalorder
+end
+
+function requestlogicallliorder_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    return getlogicallliorder(myibnf, intentuuid; onlyinstalled, verbose)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request intent dag information
+"""
+function requestidag_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestidag_term(myibnfhandler, remoteibnf)
+end
+
+
+function requestidag_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
+    return getidag(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the handlers of the handler
+"""
+function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestibnfhandlers_term(myibnfhandler, remoteibnf)
+end
+
+
+function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
+    return getibnfhandlers(myibnf)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request logical low level intent sequence
+"""
+function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
+    myibnfhandler = getibnfhandler(remoteibnf)
+    return requestlogicallliorder_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled, verbose)
 end
 
 function requestlogicallliorder_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
@@ -291,6 +334,158 @@ end
     else
         error("Failed to set link state: $(resp.body)")
     end
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+@recvtime function requestsetlinkstate_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return setlinkstate!(myibnf, something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return setlinkstate!(myibnf, something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestintentglobalpath_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestintentglobalpath_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodepath = logicalordergetpath(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodepath = map(ln -> getglobalnode(getibnag(myibnf), ln), localnodepath)
+    return globalnodepath
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestglobalnodeelectricalpresence_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestglobalnodeelectricalpresence_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodeelectricalpresence = logicalordergetelectricalpresence(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodepaelectricalpresence = map(ln -> getglobalnode(getibnag(myibnf), ln), localnodeelectricalpresence)
+    return globalnodepaelectricalpresence
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the path that is implementing intent `intentuuid` in the remote IBN framework as global node vector
+"""
+function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestintentgloballightpaths_term(myibnfhandler, remoteibnf, intentuuid; onlyinstalled)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestintentgloballightpaths_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled::Bool = true)
+    localnodelightpaths = logicalordergetlightpaths(getlogicallliorder(myibnf, intentuuid; onlyinstalled))
+    globalnodelightpaths = [map(ln -> getglobalnode(getibnag(myibnf), ln), localnodelightpath) for localnodelightpath in localnodelightpaths]
+    return globalnodelightpaths
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request the link state of the border edge
+Need to check whether `ge` is indeed an edge shared with `myibnf`
+"""
+function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestcurrentlinkstate_term(myibnfhandler, remoteibnf, ge)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function requestcurrentlinkstate_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewdst)), le)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getcurrentlinkstate(something(getoxcview(nodeviewsrc)), le)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Request all the link states of the border edge
+Need to check whether `ge` is indeed an edge shared with `myibnf`
+"""
+function requestlinkstates_init(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestlinkstates_term(myibnfhandler, remoteibnf, ge)
+end
+
+function requestlinkstates_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, ge::GlobalEdge)
+    myibnag = getibnag(myibnf)
+    nodeviewsrc = getnodeview(myibnag, src(ge))
+    nodeviewdst = getnodeview(myibnag, dst(ge))
+    localnodesrc = something(getlocalnode(myibnag, src(ge)))
+    localnodedst = something(getlocalnode(myibnag, dst(ge)))
+    le = Edge(localnodesrc, localnodedst)
+
+    if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
+        # src is remote, dst is intra
+        return getlinkstates(something(getoxcview(nodeviewdst)), le)
+    elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
+        # dst is remote, src is intra
+        return getlinkstates(something(getoxcview(nodeviewsrc)), le)
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Request to set the state of the neighboring link
+"""
+@recvtime function requestsetlinkstate_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, ge::GlobalEdge, operatingstate::Bool)
+    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    return requestsetlinkstate_term!(myibnfhandler, remoteibnf, ge, operatingstate; @passtime)
 end
 
 """
