@@ -24,7 +24,7 @@ export serve
           ibnfs :: Vector{MINDF.IBNFramework} = context
           host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
           for ibnftemp in ibnfs
-            if MINDF.getbaseurl(MINDF.getibnfhandlers(ibnftemp)[1]) == "http://$host"
+            if MINDF.getbaseurl(MINDF.getibnfhandlers(ibnftemp)[1]) == "https://$host"
               ibnf = ibnftemp
             end
           end
@@ -33,7 +33,7 @@ export serve
           #println("context is of type Dict{Int, MINDF.IBNFramework}")
           ibnfsdict :: Dict{Int, MINDF.IBNFramework} = context
           host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
-          uri = HTTP.URI("http://$host")
+          uri = HTTP.URI("https://$host")
           port = parse(Int, uri.port)
           ibnf = ibnfsdict[port]
           return ibnf

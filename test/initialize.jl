@@ -53,7 +53,7 @@ end
 
 function loadmultidomaintestidistributedbnfs()
     domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
-
+    ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "127.0.0.1, localhost, 0.0.0.0"
 
     # MA1069 instantiate with HTTPHandler
     hdlr=Vector{MINDFul.RemoteHTTPHandler}()
@@ -68,7 +68,7 @@ function loadmultidomaintestidistributedbnfs()
 
     for i in eachindex(ibnfs)
         port = 8080 + i
-        URI = HTTP.URI(; scheme="http", host="127.0.0.1", port=string(port))
+        URI = HTTP.URI(; scheme="https", host="0.0.0.0", port=string(port))
         URIstring=string(URI)
         push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URIstring))
     end

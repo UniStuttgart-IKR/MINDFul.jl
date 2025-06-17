@@ -6,7 +6,7 @@ using UUIDs
 using Graphs
 using DataStructures
 using Unitful, UnitfulData
-using Serialization, JSON, HTTP, Sockets
+using Serialization, JSON, HTTP, Sockets, MbedTLS
 
 import Dates: DateTime, now
 

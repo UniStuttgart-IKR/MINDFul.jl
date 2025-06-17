@@ -7,7 +7,7 @@
         push!(data, HTTPMessages.KEY_OFFSETTIME => string(@logtime))
     end
     body = JSON.json(data)  
-    headers = Dict("Content-Type" => "application/json") # "Content-Length" => string(length(body)
+    headers = Dict("Content-Type" => "application/json", "Connection" => "close") # "Content-Length" => string(length(body)
     
     hasverbose = haskey(data, HTTPMessages.KEY_VERBOSE) 
     if hasverbose && data[HTTPMessages.KEY_VERBOSE] == true
@@ -17,8 +17,11 @@
         logtime = @logtime
         println("Logtime = $logtime")
     end
-
-    response = HTTP.post(url, headers, body;  http_version=HTTP.Strings.HTTPVersion("1.0"))
+    
+    response = HTTP.post(url, headers, body; idle_timeout=10)
+    #keepalive=false,
+    #http_version=HTTP.Strings.HTTPVersion("1.0")
+    #require_ssl_verification=false
     return response
 end
 
@@ -32,7 +35,7 @@ function startibnserver!(myibnf::IBNFramework)
     println(" ")
     println("Starting server on 0.0.0.0:$port")
     try
-        Server.serve(host="0.0.0.0", port=port, async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing)
+        Server.serve(host="0.0.0.0", port=port, sslconfig=MbedTLS.SSLConfig("/home/ubuntu/workspace/MINDFul.jl/test/selfsigned.cert", "/home/ubuntu/workspace/MINDFul.jl/test/selfsigned.key"), async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing)
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")
@@ -43,6 +46,7 @@ function startibnserver!(myibnf::IBNFramework)
 end
 
 function startibnserver!(ibnfs::Vector{<:IBNFramework})
+    #@show @__DIR__
     ibnfsdict = Dict{Int, IBNFramework}()
     for ibnf in ibnfs 
         selectedhandler = getibnfhandlers(ibnf)[1]
@@ -61,7 +65,13 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework})
         println(" ")
         println("Starting server on 0.0.0.0:$port")
         try
-            Server.serve(host="0.0.0.0", port=port, sslconfig=tlsconfig, async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing) 
+            Server.serve(host="0.0.0.0", 
+            port=port, 
+            sslconfig=MbedTLS.SSLConfig("/home/ubuntu/workspace/MINDFul.jl/test/selfsigned.cert", "/home/ubuntu/workspace/MINDFul.jl/test/selfsigned.key"),
+            #keepalive=false, 
+            #readtimeout=15,
+            #keepalive_timeout=10,
+            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing) 
         catch e
             if isa(e, Base.IOError)
                 println("Server at 0.0.0.0:$port is already running")
