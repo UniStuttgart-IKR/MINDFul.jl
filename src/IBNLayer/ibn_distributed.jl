@@ -61,7 +61,7 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework})
         println(" ")
         println("Starting server on 0.0.0.0:$port")
         try
-            Server.serve(host="0.0.0.0", port=port, async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing) 
+            Server.serve(host="0.0.0.0", port=port, sslconfig=tlsconfig, async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing) 
         catch e
             if isa(e, Base.IOError)
                 println("Server at 0.0.0.0:$port is already running")
