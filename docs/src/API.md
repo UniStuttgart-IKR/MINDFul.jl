@@ -21,6 +21,13 @@ Private = false
 Order   = [:module, :constant, :type, :function, :macro]
 ```
 
+## Public HTTP codes
+```@autodocs
+Modules = [MINDFul.HTTPCodes]
+Private = false
+Order   = [:module, :constant, :type, :function, :macro]
+```
+
 ## Non-public interface
 
 ```@autodocs

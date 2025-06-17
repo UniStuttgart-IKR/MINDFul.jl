@@ -325,7 +325,7 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
 @recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-    remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
+    remoteidagnodeid = requestdelegateintent_init!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
 
     # add an idagnode `RemoteIntent`
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)
@@ -367,7 +367,7 @@ function getfiberspectrumavailabilities(ibnf::IBNFramework, edge::Edge{LocalNode
         srclinkspectrumavailabilities = if issrcbordernode  
             remoteibnfid = getibnfid(getglobalnode(ibnag, src(edge)))
             ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
+            something(requestspectrumavailability_init!(ibnf, ibnfhandler, globaledge))
         else 
             getlinkspectrumavailabilities(getoxcview(nodeviewsrc))[edge]
         end
@@ -375,7 +375,7 @@ function getfiberspectrumavailabilities(ibnf::IBNFramework, edge::Edge{LocalNode
         dstlinkspectrumavailabilities = if isdstbordernode  
             remoteibnfid = getibnfid(getglobalnode(ibnag, dst(edge)))
             ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-            something(requestspectrumavailability(ibnf, ibnfhandler, globaledge))
+            something(requestspectrumavailability_init!(ibnf, ibnfhandler, globaledge))
         else
             getlinkspectrumavailabilities(getoxcview(nodeviewdst))[edge]
         end
