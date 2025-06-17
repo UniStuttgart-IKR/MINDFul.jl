@@ -27,16 +27,15 @@ function startibnserver!(myibnf::IBNFramework)
     selectedhandler = getibnfhandlers(myibnf)[1]
     baseurl = getbaseurl(selectedhandler)
     uri = HTTP.URI(baseurl)
-    ipaddress = string(uri.host)
     port = parse(Int, uri.port)
     
     println(" ")
-    println("Starting server on $ipaddress:$port")
+    println("Starting server on 0.0.0.0:$port")
     try
-        Server.serve(port=port, async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing)
+        Server.serve(host="0.0.0.0", port=port, async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing)
     catch e
         if isa(e, Base.IOError)
-            println("Server at $ipaddress:$port is already running")
+            println("Server at 0.0.0.0:$port is already running")
         else
             rethrow(e)  
         end
@@ -57,16 +56,15 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework})
         selectedhandler = getibnfhandlers(ibnf)[1]
         baseurl = getbaseurl(selectedhandler)
         uri = HTTP.URI(baseurl)
-        ipaddress = string(uri.host)
         port = parse(Int, uri.port)
         
         println(" ")
-        println("Starting server on $ipaddress:$port")
+        println("Starting server on 0.0.0.0:$port")
         try
-            Server.serve(port=port, async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing) 
+            Server.serve(host="0.0.0.0", port=port, async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing) 
         catch e
             if isa(e, Base.IOError)
-                println("Server at $ipaddress:$port is already running")
+                println("Server at 0.0.0.0:$port is already running")
             else
                 rethrow(e)  
             end

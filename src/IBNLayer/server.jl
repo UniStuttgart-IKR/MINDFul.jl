@@ -16,7 +16,7 @@ export serve
 
     function getmyibnf(req, context)
       if context isa MINDF.IBNFramework
-          println("context is of type MINDF.IBNFramework")
+          #println("context is of type MINDF.IBNFramework")
           ibnf :: MINDF.IBNFramework = context
           return ibnf
       elseif context isa Vector{MINDF.IBNFramework}
