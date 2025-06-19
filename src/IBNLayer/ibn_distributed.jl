@@ -18,11 +18,27 @@
         println("Logtime = $logtime")
     end
     
-    response = HTTP.post(url, headers, body; keepalive=false)
+    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
     #keepalive=false,
     #http_version=HTTP.Strings.HTTPVersion("1.0")
     #require_ssl_verification=false
     return response
+end
+
+function ipfiltering(tcp)
+    if tcp isa MbedTLS.SSLContext
+        socket = tcp.bio
+    else
+        socket = tcp
+    end
+    host, port = Sockets.getpeername(socket)
+    println("Request from... $host:$port")
+    
+    # if startswith(string(host), "192.168.")
+    #     println("Blocked connection from $host")
+    #     return false
+    # end
+    return false
 end
 
 
@@ -36,7 +52,8 @@ function startibnserver!(myibnf::IBNFramework)
     println("Starting server on 0.0.0.0:$port")
     try
         Server.serve(host="0.0.0.0", port=port;
-            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
+            async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, 
+            tcpisvalid= tcp->ipfiltering(tcp),
             sslconfig=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key"),
             ) 
     catch e
@@ -66,22 +83,11 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework})
         dir = @__DIR__
         println(" ")
         println("Starting server on 0.0.0.0:$port")
-
-        function allow_localhost(socket)
-            if socket isa MbedTLS.SSLContext
-                tcp = socket.bio
-            else
-                tcp = socket
-            end
-            host, port = Sockets.getpeername(tcp)
-            println("Request from... $host:$port")
-            #return client_ip == ip"127.0.0.1"
-            return true
-        end
+ 
         try
             Server.serve(host="0.0.0.0", port=port;
             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
-            tcpisvalid= tcp->allow_localhost(tcp),
+            tcpisvalid= tcp->ipfiltering(tcp),
             #tcpisvalid = tcp->true,
             sslconfig=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key"),
             #keepalive=false, 

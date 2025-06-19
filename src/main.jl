@@ -2,7 +2,7 @@ using YAML, JLD2, HTTP, UUIDs, MINDFul, Unitful, UnitfulData
 const MINDF = MINDFul
 
 function main()
-    # Check for arguments
+    # Checking for arguments
     if length(ARGS) < 2
         error("Usage: julia main.jl <config.yaml> <domainnumber>")
     end
@@ -14,16 +14,14 @@ function main()
 
     domainnumber = parse(Int, ARGS[2])
     
-    # Load YAML configuration
     config = YAML.load_file(config_path)
-
-    # Extract IPs and ports
     ips = config["ips"]
     ports = config["ports"]
     domainfile = config["domainfile"]
-    
 
     domains_name_graph = first(JLD2.load(domainfile))[2]
+    #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "127.0.0.1, localhost, 0.0.0.0"
+    #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = ips[1]*", "*ips[2]*", "*ips[3]
 
     hdlr=Vector{MINDFul.RemoteHTTPHandler}()
 
@@ -37,7 +35,7 @@ function main()
 
     for i in eachindex(ibnfs)
         port = ports[i]
-        URI = HTTP.URI(; scheme="http", host=ips[i], port=string(port))
+        URI = HTTP.URI(; scheme="https", host=ips[i], port=string(port))
         URIstring=string(URI)
         push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URIstring))
     end
