@@ -1,72 +1,86 @@
-using YAML, JLD2, HTTP, UUIDs, MINDFul, Unitful, UnitfulData
-const MINDF = MINDFul
-
-function main()
+function main(configpath)
     # Checking for arguments
-    if length(ARGS) < 2
-        error("Usage: julia main.jl <config.yaml> <domainnumber>")
+    #=if length(ARGS) < 1
+        error("Usage: julia MINDFul.main <config.yaml>")
     end
 
-    config_path = ARGS[1]
+    configpath = ARGS[1]
     if !isfile(config_path)
-        error("Configuration file not found: $config_path")
-    end
+        error("Configuration file not found: $configpath")
+    end=#
 
-    domainnumber = parse(Int, ARGS[2])
+    #domainnumber = parse(Int, ARGS[2])
     
-    config = YAML.load_file(config_path)
-    ips = config["ips"]
-    ports = config["ports"]
+    config = YAML.load_file(configpath)
     domainfile = config["domainfile"]
-
+    localip = config["local"][1]["ip"]
+    localport = config["local"][2]["port"]
+    localid = config["local"][3]["id"]
+ 
+    neighbourips = config["neighbours"][1]["ips"]
+    neighbourports = config["neighbours"][2]["ports"]
+    neighbourids = config["neighbours"][3]["ids"]
+   
     domains_name_graph = first(JLD2.load(domainfile))[2]
     #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "127.0.0.1, localhost, 0.0.0.0"
     #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = ips[1]*", "*ips[2]*", "*ips[3]
 
     hdlr=Vector{MINDFul.RemoteHTTPHandler}()
+    temp=Vector{MINDFul.RemoteHTTPHandler}()
 
     ibnfs = [
         let
             ag = name_graph[2]
-            ibnag = MINDF.default_IBNAttributeGraph(ag)
-            ibnf = MINDF.IBNFramework(ibnag, Vector{MINDF.RemoteHTTPHandler}())
+            ibnag = MINDFul.default_IBNAttributeGraph(ag)
+            ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
         end for name_graph in domains_name_graph
     ]
 
-    for i in eachindex(ibnfs)
-        port = ports[i]
-        URI = HTTP.URI(; scheme="https", host=ips[i], port=string(port))
+    localURI = HTTP.URI(; scheme="https", host=localip, port=string(localport))
+    localURIstring = string(localURI)
+    push!(temp, MINDFul.RemoteHTTPHandler(UUID(localid), localURIstring))
+    for i in eachindex(neighbourips)
+        URI = HTTP.URI(; scheme="https", host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URIstring))
+        push!(temp, MINDFul.RemoteHTTPHandler(UUID(neighbourids[i]), URIstring))
     end
 
     for i in eachindex(ibnfs)
-        push!(MINDF.getibnfhandlers(ibnfs[i]), hdlr[i])
         for j in eachindex(ibnfs)
-            i == j && continue
-            push!(MINDF.getibnfhandlers(ibnfs[i]), hdlr[j])
+            if temp[j].ibnfid == UUID(i)
+                push!(hdlr, temp[j])
+            end
         end
     end
 
-    MINDF.startibnserver!(ibnfs[domainnumber])
+    for i in eachindex(ibnfs)
+        push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[i])
+        for j in eachindex(ibnfs)
+            i == j && continue
+            push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[j])
+        end
+    end
+    
 
-    if domainnumber == 1
-        conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100.0Gbps")
-        intentuuid_bordernode = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
+    MINDFul.startibnserver!(ibnfs[localid])
 
-        @show MINDF.compileintent!(ibnfs[1], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10))
+    if localport == 8081
+        conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
+        intentuuid_bordernode = MINDFul.addintent!(ibnfs[1], conintent_bordernode, MINDFul.NetworkOperator())
+
+        @show MINDFul.compileintent!(ibnfs[1], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
         
         # install
-        MINDF.installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+        MINDFul.installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 
         # uninstall
-        MINDF.uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+        MINDFul.uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
     
         # uncompile
-        MINDF.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+        MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
     end
 
-    wait()
+    #wait()
 end
 
-main()
+#main()

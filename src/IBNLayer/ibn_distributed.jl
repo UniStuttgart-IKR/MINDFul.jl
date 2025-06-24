@@ -38,7 +38,7 @@ function ipfiltering(tcp)
     #     println("Blocked connection from $host")
     #     return false
     # end
-    return false
+    return true
 end
 
 

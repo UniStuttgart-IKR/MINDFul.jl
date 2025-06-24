@@ -152,6 +152,7 @@ export serve
 
 
     @post MINDF.HTTPMessages.URI_COMPILEINTENT function (req; context)
+      #return HTTP.Response(403, "Not possible to compile the intent")
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
