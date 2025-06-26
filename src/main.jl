@@ -1,18 +1,21 @@
-function main(configpath)
-    # Checking for arguments
-    #=if length(ARGS) < 1
+function main()
+    #Checking for arguments
+    if length(ARGS) < 1
         error("Usage: julia MINDFul.main <config.yaml>")
     end
 
     configpath = ARGS[1]
-    if !isfile(config_path)
+    if !isfile(configpath)
         error("Configuration file not found: $configpath")
-    end=#
+    end
 
     #domainnumber = parse(Int, ARGS[2])
     
     config = YAML.load_file(configpath)
     domainfile = config["domainfile"]
+    encryption = config["encryption"]
+    permissions = config["permissions"]
+    
     localip = config["local"][1]["ip"]
     localport = config["local"][2]["port"]
     localid = config["local"][3]["id"]
@@ -36,11 +39,17 @@ function main(configpath)
         end for name_graph in domains_name_graph
     ]
 
-    localURI = HTTP.URI(; scheme="https", host=localip, port=string(localport))
+    if encryption
+        urischeme = "https"
+    else
+        urischeme = "http"
+    end
+
+    localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
     push!(temp, MINDFul.RemoteHTTPHandler(UUID(localid), localURIstring))
     for i in eachindex(neighbourips)
-        URI = HTTP.URI(; scheme="https", host=neighbourips[i], port=string(neighbourports[i]))
+        URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
         push!(temp, MINDFul.RemoteHTTPHandler(UUID(neighbourids[i]), URIstring))
     end
@@ -62,7 +71,24 @@ function main(configpath)
     end
     
 
-    MINDFul.startibnserver!(ibnfs[localid])
+    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption)
+    #sleep(5)
+    
+
+    if permissions
+        # for i in eachindex(neighbourips)
+        #     initiatoribnfid = string(getibnfid(ibnfs[localid]))
+        #     token = "mindfull"
+        #     resp = sendrequest(temp[i+1], HTTPMessages.URI_HANDSHAKE, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+        # end
+        initiatoribnfid = string(getibnfid(ibnfs[localid]))
+        token = "mindfull"
+        HTTPMessages.generatedtokens[string(getibnfid(temp[3]))] = token
+        resp = sendrequest(temp[3], HTTPMessages.URI_HANDSHAKE, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_TOKEN => token))
+        @show resp
+    else
+        println("Permissions are disabled.")
+    end
 
     if localport == 8081
         conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
@@ -79,8 +105,5 @@ function main(configpath)
         # uncompile
         MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
     end
-
-    #wait()
+    return httpserver
 end
-
-#main()

@@ -1,5 +1,6 @@
 @recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
     url = getbaseurl(remotehandler) * endpoint
+    @show HTTPMessages.receivedtokens
     
     if offsettime == now()
         push!(data, HTTPMessages.KEY_OFFSETTIME => HTTPMessages.KEY_NOTHING)
@@ -26,6 +27,7 @@
 end
 
 function ipfiltering(tcp)
+    @show tcp
     if tcp isa MbedTLS.SSLContext
         socket = tcp.bio
     else
@@ -42,20 +44,27 @@ function ipfiltering(tcp)
 end
 
 
-function startibnserver!(myibnf::IBNFramework)
+function startibnserver!(myibnf::IBNFramework, encryption)
     selectedhandler = getibnfhandlers(myibnf)[1]
     baseurl = getbaseurl(selectedhandler)
     uri = HTTP.URI(baseurl)
     port = parse(Int, uri.port)
     dir = @__DIR__
+    if encryption
+        sslconf=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key")
+        #sslconf=MbedTLS.SSLConfig()
+    else
+        sslconf=nothing
+    end
     println(" ")
     println("Starting server on 0.0.0.0:$port")
     try
-        Server.serve(host="0.0.0.0", port=port;
+        httpserver = Server.serve(host="0.0.0.0", port=port;
             async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, 
             tcpisvalid= tcp->ipfiltering(tcp),
-            sslconfig=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key"),
-            ) 
+            sslconfig=sslconf,
+            )
+        return httpserver
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")

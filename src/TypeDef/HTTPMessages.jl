@@ -44,6 +44,8 @@ const URI_INTENTGLOBALPATH = "/api/intentglobalpath"
 
 const URI_ELECTRICALPRESENCE = "/api/electricalpresence"
 
+const URI_HANDSHAKE = "/api/handshake"
+
 
 const KEY_INITIATORIBNFID = "initiator_ibnfid"
 
@@ -139,5 +141,8 @@ const KEY_TRANSMISSIONMODULE = "TransmissionModuleLLI"
 
 const KEY_ROUTERPORT = "RouterPortLLI"
 
+const KEY_TOKEN = "token"
 
+const generatedtokens = Dict{String, String}()  # ibnfid => token
+const receivedtokens = Dict{String, String}()  # ibnfid => token
 end

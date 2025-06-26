@@ -1,19 +1,19 @@
 domainfile: "test/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"
 encryption: true
-permissions: true
+permissions: false
 local:
   - ip: "127.0.0.1"
-  - port: 8081
-  - id: 1
+  - port: 8082
+  - id: 2
 neighbours:
   - ips: 
       - "127.0.0.1"
       - "127.0.0.1"
   - ports:
-      - 8082
+      - 8081
       - 8083
   - ids:
-      - 2
+      - 1
       - 3
 
       

@@ -64,6 +64,35 @@ export serve
         return (ibnf, parsedbody, remoteibnfhandler, verbose, otime)
     end
 
+    function checktoken(parsedbody)
+        initiatoribnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
+        if haskey(MINDF.HTTPMessages.generatedtokens, initiatoribnfid) 
+            if MINDF.HTTPMessages.generatedtokens[initiatoribnfid] == token
+              return true
+            else
+              return false
+            end
+        else
+            return true
+        end
+    end
+
+
+    @post MINDF.HTTPMessages.URI_HANDSHAKE function (req; context)
+        ibnf = getmyibnf(req, context)
+        parsedbody = JSON.parse(String(HTTP.payload(req)))
+        initiatoribnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
+
+        if !isnothing(token)
+          MINDF.HTTPMessages.receivedtokens[initiatoribnfid] = token
+            
+          
+        end
+        return HTTP.Response(200, "Handshake successful")
+    end
+
     
     @swagger """
     /api/compilationalgorithms: 
@@ -119,6 +148,9 @@ export serve
     """    
     @post MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
 
         gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
         receivedge = MINDF.GlobalEdge(
@@ -136,6 +168,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_CURRENTLINKSTATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
       receivedge = MINDF.GlobalEdge(
@@ -154,6 +189,9 @@ export serve
     @post MINDF.HTTPMessages.URI_COMPILEINTENT function (req; context)
       #return HTTP.Response(403, "Not possible to compile the intent")
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
       compilationalgorithmkey = Symbol(parsedbody[MINDF.HTTPMessages.KEY_COMPILATIONKEY])
@@ -170,6 +208,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_DELEGATEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
       
       internalidagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTERNALIDAGNODEID])
       intentdata = parsedbody[MINDF.HTTPMessages.KEY_INTENT]
@@ -192,6 +233,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
       newstate = Symbol(parsedbody[MINDF.HTTPMessages.KEY_NEWSTATE])
@@ -208,6 +252,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_ISSATISFIED function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
       onlyinstalled = parsedbody[MINDF.HTTPMessages.KEY_ONLYINSTALLED]
@@ -223,6 +270,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_INSTALLINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
       installintent = MINDF.requestinstallintent_term!(remoteibnfhandler, ibnf, idagnodeid; verbose, offsettime=otime)
@@ -236,6 +286,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_UNINSTALLINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
       uninstallintent = MINDF.requestuninstallintent_term!(remoteibnfhandler, ibnf, idagnodeid; verbose, offsettime=otime)
@@ -249,6 +302,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_UNCOMPILEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
       uncompileintent = MINDF.requestuncompileintent_term!(remoteibnfhandler, ibnf, idagnodeid; verbose, offsettime=otime)
@@ -262,6 +318,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_SETLINKSTATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
       receivedge = MINDF.GlobalEdge(
@@ -280,6 +339,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_REQUESTLINKSTATES function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
       
       gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
       receivedge = MINDF.GlobalEdge(
@@ -298,6 +360,9 @@ export serve
     
     @post MINDF.HTTPMessages.URI_REQUESTIDAG function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+      if checktoken(parsedbody) == false
+        return HTTP.Response(403, "Forbidden: Invalid token")
+      end
 
       idag = MINDF.requestidag_term(remoteibnfhandler, ibnf)
       # @show typeof(idag)
@@ -319,6 +384,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_IBNAGRAPH function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
         
         ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnfhandler, ibnf)
         #@show typeof(ibnattributegraph)
@@ -337,6 +405,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_REQUESTHANDLERS function (req; context)
        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+       if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+       end  
         
         ibnfhandlers = MINDF.requestibnfhandlers_term(remoteibnfhandler, ibnf)      
         if !isnothing(ibnfhandlers)
@@ -350,6 +421,9 @@ export serve
     
     @post MINDF.HTTPMessages.URI_LOGICALORDER function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
         onlyinstalled = parsedbody[MINDF.HTTPMessages.KEY_ONLYINSTALLED]
@@ -367,6 +441,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_INTENTGLOBALPATH function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
         onlyinstalled = parsedbody[MINDF.HTTPMessages.KEY_ONLYINSTALLED]
@@ -382,6 +459,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_ELECTRICALPRESENCE function (req; context)
        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
         onlyinstalled = parsedbody[MINDF.HTTPMessages.KEY_ONLYINSTALLED]
@@ -397,6 +477,9 @@ export serve
 
     @post MINDF.HTTPMessages.URI_LIGHTPATHS function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(parsedbody) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
         onlyinstalled = parsedbody[MINDF.HTTPMessages.KEY_ONLYINSTALLED]
