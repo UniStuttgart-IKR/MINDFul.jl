@@ -23,7 +23,7 @@ Order   = [:module, :constant, :type, :function, :macro]
 
 ## Public HTTP codes
 ```@autodocs
-Modules = [MINDFul.HTTPCodes]
+Modules = [MINDFul.HTTPMessages]
 Private = false
 Order   = [:module, :constant, :type, :function, :macro]
 ```
