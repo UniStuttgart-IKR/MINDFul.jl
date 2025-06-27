@@ -87,8 +87,6 @@ export serve
 
         if !isnothing(token)
           MINDF.HTTPMessages.receivedtokens[initiatoribnfid] = token
-            
-          
         end
         return HTTP.Response(200, "Handshake successful")
     end

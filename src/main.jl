@@ -15,7 +15,7 @@ function main()
     domainfile = config["domainfile"]
     encryption = config["encryption"]
     permissions = config["permissions"]
-    
+
     localip = config["local"][1]["ip"]
     localport = config["local"][2]["port"]
     localid = config["local"][3]["id"]
@@ -41,6 +41,7 @@ function main()
 
     if encryption
         urischeme = "https"
+        run(`./src/generatecerts.sh`)
     else
         urischeme = "http"
     end
