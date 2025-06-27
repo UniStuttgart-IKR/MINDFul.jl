@@ -43,12 +43,12 @@ end
 
 
 
-open("src/swagger.json", "w") do file
+open(joinpath(@__DIR__, "src", "swagger.json"), "w") do file
     swagger_document = MINDFul.Server.OxygenInstance.getschema()
     JSON.print(file, swagger_document)
 end
 
-generate_swagger_html("src/swagger.html", "swagger.json")
+generate_swagger_html(joinpath(@__DIR__, "src", "swagger.html"), "swagger.json")
 
 
 #=Documenter.HTML(assets = [
