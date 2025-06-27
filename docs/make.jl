@@ -66,7 +66,7 @@ makedocs(
         "Developing" => "dev.md",
         "ROADMap" => "roadmap.md",
         "API" => "API.md",
-        "HTTP API" => [
+        "Distributed API" => [
             "HTTP" => "HTTP.md",
             "OxygenInstance" => "OxygenInstance.md",
         ],
