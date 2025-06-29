@@ -74,8 +74,13 @@ function startibnserver!(myibnf::IBNFramework, encryption)
     end
 end
 
-function startibnserver!(ibnfs::Vector{<:IBNFramework})
+function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption)
     ibnfsdict = Dict{Int, IBNFramework}()
+    if encryption
+        sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
+    else
+        sslconf=nothing
+    end
     for ibnf in ibnfs 
         selectedhandler = getibnfhandlers(ibnf)[1]
         baseurl = getbaseurl(selectedhandler)
@@ -98,7 +103,7 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework})
             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
             tcpisvalid= tcp->ipfiltering(tcp),
             #tcpisvalid = tcp->true,
-            sslconfig=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key"),
+            sslconfig=sslconf,
             #keepalive=false, 
             #readtimeout=10,
             #keepalive_timeout=10,
