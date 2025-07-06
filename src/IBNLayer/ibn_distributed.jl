@@ -1,9 +1,10 @@
 @recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
     if getibnfhandlertokenrecv(remotehandler) == String[]
+        #@show remotehandler
         initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
         token = handshake_init(initiatoribnfid, remotehandler)
     else
-        token = getibnfhandlertokenrecv(remotehandler)[1]
+        token = last(getibnfhandlertokenrecv(remotehandler))
     end
     push!(data, HTTPMessages.KEY_TOKEN => token)
     
@@ -33,24 +34,30 @@
     return response
 end
 
-function ipfiltering(tcp)
+function ipfiltering(tcp, neighbourips)
     if tcp isa MbedTLS.SSLContext
         socket = tcp.bio
     else
         socket = tcp
     end
     host, port = Sockets.getpeername(socket)
+
+    if string(host) == "127.0.0.1" || string(host) in neighbourips
+        #println("Request from... $host:$port")
+        return true
+    else 
+        return false
+    end
     #println("Request from... $host:$port")
     
     # if startswith(string(host), "192.168.")
     #     println("Blocked connection from $host")
     #     return false
     # end
-    return true
 end
 
 
-function startibnserver!(myibnf::IBNFramework, encryption)
+function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
     selectedhandler = getibnfhandlers(myibnf)[1]
     baseurl = getbaseurl(selectedhandler)
     uri = HTTP.URI(baseurl)
@@ -68,7 +75,7 @@ function startibnserver!(myibnf::IBNFramework, encryption)
     try
         httpserver = Server.serve(host="0.0.0.0", port=port;
             async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, 
-            tcpisvalid= tcp->ipfiltering(tcp),
+            tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
             sslconfig=sslconf,
             )
         return httpserver
@@ -81,7 +88,7 @@ function startibnserver!(myibnf::IBNFramework, encryption)
     end
 end
 
-function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption)
+function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, neighbourips)
     ibnfsdict = Dict{Int, IBNFramework}()
     if encryption
         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
@@ -108,7 +115,7 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption)
         try
             Server.serve(host="0.0.0.0", port=port;
             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
-            tcpisvalid= tcp->ipfiltering(tcp),
+            tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
             #tcpisvalid = tcp->true,
             sslconfig=sslconf,
             #keepalive=false, 

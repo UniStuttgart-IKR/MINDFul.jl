@@ -25,7 +25,7 @@ function main()
 
     neighbourips = String[]
     neighbourports = Int[]
-    neighbourids = Any[]  # Use Int[] or String[] if you know the type
+    neighbourids = Any[]  
     neigbhbourpermissions = String[]
 
     for n in config["remote"]["neighbours"]
@@ -87,7 +87,7 @@ function main()
     end
     
 
-    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption)    
+    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption, neighbourips)   
     
     # for i in eachindex(neighbourips)
     #     initiatoribnfid = string(getibnfid(ibnfs[localid]))
@@ -99,6 +99,7 @@ function main()
     
 
     if localport == 8081
+        #@show ibnfs[1].ibnfhandlers
         conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
         intentuuid_bordernode = MINDFul.addintent!(ibnfs[1], conintent_bordernode, MINDFul.NetworkOperator())
 
@@ -114,7 +115,7 @@ function main()
         MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 
         println("\n\n")
-        @show getibnfhandlers(ibnfs[1])
+        #@show getibnfhandlers(ibnfs[1])
     end
 
     # if localport == 8083
@@ -135,5 +136,5 @@ function main()
     #     println("\n\n")
     #     @show getibnfhandlers(ibnfs[3])
     # end
-    return httpserver
+    #return httpserver
 end

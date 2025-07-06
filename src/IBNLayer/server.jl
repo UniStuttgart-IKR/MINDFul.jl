@@ -69,7 +69,7 @@ export serve
         recvtoken = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         handler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
 
-        if recvtoken == MINDF.getibnfhandlertokengen(handler)[1]
+        if recvtoken == last(MINDF.getibnfhandlertokengen(handler))
             if MINDF.getibnfhandlerperm(handler) == "none"
                 return false
             elseif MINDF.getibnfhandlerperm(handler) == "full"
