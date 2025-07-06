@@ -1,7 +1,7 @@
 function main()
     #Checking for arguments
     if length(ARGS) < 1
-        error("Usage: julia MINDFul.main <config.yaml>")
+        error("Usage: julia MINDFul.main <config.toml>")
     end
 
     configpath = ARGS[1]
@@ -11,25 +11,36 @@ function main()
 
     #domainnumber = parse(Int, ARGS[2])
     
-    config = YAML.load_file(configpath)
+    config = TOML.parsefile(configpath)
     domainfile = config["domainfile"]
     encryption = config["encryption"]
-    permissions = config["permissions"]
 
-    localip = config["local"][1]["ip"]
-    localport = config["local"][2]["port"]
-    localid = config["local"][3]["id"]
+    localip = config["local"]["ip"]
+    localport = config["local"]["port"]
+    localid = config["local"]["ibnfid"]
  
-    neighbourips = config["neighbours"][1]["ips"]
-    neighbourports = config["neighbours"][2]["ports"]
-    neighbourids = config["neighbours"][3]["ids"]
+    # neighbourips = config["neighbours"][1]["ips"]
+    # neighbourports = config["neighbours"][2]["ports"]
+    # neighbourids = config["neighbours"][3]["ids"]
+
+    neighbourips = String[]
+    neighbourports = Int[]
+    neighbourids = Any[]  # Use Int[] or String[] if you know the type
+    neigbhbourpermissions = String[]
+
+    for n in config["remote"]["neighbours"]
+        push!(neighbourips, n["ip"])
+        push!(neighbourports, n["port"])
+        push!(neighbourids, n["ibnfid"])
+        push!(neigbhbourpermissions, n["permission"])
+    end
    
     domains_name_graph = first(JLD2.load(domainfile))[2]
     #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "127.0.0.1, localhost, 0.0.0.0"
     #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = ips[1]*", "*ips[2]*", "*ips[3]
 
     hdlr=Vector{MINDFul.RemoteHTTPHandler}()
-    temp=Vector{MINDFul.RemoteHTTPHandler}()
+    #temp=Vector{MINDFul.RemoteHTTPHandler}()
 
     ibnfs = [
         let
@@ -48,48 +59,44 @@ function main()
 
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(temp, MINDFul.RemoteHTTPHandler(UUID(localid), localURIstring))
+    push!(hdlr, MINDFul.RemoteHTTPHandler(UUID(localid), localURIstring, "full", Vector{String}(), Vector{String}()))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(temp, MINDFul.RemoteHTTPHandler(UUID(neighbourids[i]), URIstring))
+        push!(hdlr, MINDFul.RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], Vector{String}(), Vector{String}()))
     end
 
-    for i in eachindex(ibnfs)
-        for j in eachindex(ibnfs)
-            if temp[j].ibnfid == UUID(i)
-                push!(hdlr, temp[j])
-            end
-        end
-    end
+    # for i in eachindex(ibnfs)
+    #     for j in eachindex(ibnfs)
+    #         if temp[j].ibnfid == UUID(i)
+    #             push!(hdlr, temp[j])
+    #         end
+    #     end
+    # end
+
+    # for i in eachindex(ibnfs)
+    #     push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[i])
+    #     for j in eachindex(ibnfs)
+    #         i == j && continue
+    #         push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[j])
+    #     end
+    # end
 
     for i in eachindex(ibnfs)
-        push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[i])
-        for j in eachindex(ibnfs)
-            i == j && continue
-            push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[j])
-        end
+        push!(MINDFul.getibnfhandlers(ibnfs[localid]), hdlr[i])
     end
     
 
-    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption)
-    #sleep(5)
+    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption)    
     
-
-    if permissions
-        # for i in eachindex(neighbourips)
-        #     initiatoribnfid = string(getibnfid(ibnfs[localid]))
-        #     token = "mindfull"
-        #     resp = sendrequest(temp[i+1], HTTPMessages.URI_HANDSHAKE, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
-        # end
-        initiatoribnfid = string(getibnfid(ibnfs[localid]))
-        token = "mindfull"
-        HTTPMessages.generatedtokens[string(getibnfid(temp[3]))] = token
-        resp = sendrequest(temp[3], HTTPMessages.URI_HANDSHAKE, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_TOKEN => token))
-        @show resp
-    else
-        println("Permissions are disabled.")
-    end
+    # for i in eachindex(neighbourips)
+    #     initiatoribnfid = string(getibnfid(ibnfs[localid]))
+    #     token = "mindfull"
+    #     resp = sendrequest(temp[i+1], HTTPMessages.URI_HANDSHAKE, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    # end
+    
+    #@show resp
+    
 
     if localport == 8081
         conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
@@ -105,6 +112,28 @@ function main()
     
         # uncompile
         MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+
+        println("\n\n")
+        @show getibnfhandlers(ibnfs[1])
     end
+
+    # if localport == 8083
+    #     conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(3), 25), MINDFul.GlobalNode(UUID(1), 4), u"100.0Gbps")
+    #     intentuuid_bordernode = MINDFul.addintent!(ibnfs[3], conintent_bordernode, MINDFul.NetworkOperator())
+
+    #     @show MINDFul.compileintent!(ibnfs[3], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
+        
+    #     # install
+    #     MINDFul.installintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
+
+    #     # uninstall
+    #     MINDFul.uninstallintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
+    
+    #     # uncompile
+    #     MINDFul.uncompileintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
+
+    #     println("\n\n")
+    #     @show getibnfhandlers(ibnfs[3])
+    # end
     return httpserver
 end

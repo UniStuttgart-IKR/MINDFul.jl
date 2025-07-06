@@ -487,3 +487,15 @@ $(TYPEDSIGNATURES)
 function getbaseurl(remotehandler::AbstractIBNFHandler)
     return remotehandler.baseurl
 end
+
+function getibnfhandlerperm(remotehandler::AbstractIBNFHandler)
+    return remotehandler.permission
+end
+
+function getibnfhandlertokengen(remotehandler::AbstractIBNFHandler)
+    return remotehandler.gentoken
+end
+
+function getibnfhandlertokenrecv(remotehandler::AbstractIBNFHandler)
+    return remotehandler.recvtoken
+end

@@ -384,6 +384,9 @@ And a parametric type specific to the protocol used.
 struct RemoteHTTPHandler <: AbstractIBNFHandler
     ibnfid::UUID
     baseurl::String
+    permission::String
+    gentoken::Vector{String}
+    recvtoken::Vector{String}
 end
 
 """

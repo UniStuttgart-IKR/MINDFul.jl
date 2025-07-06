@@ -1,6 +1,13 @@
 @recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
+    if getibnfhandlertokenrecv(remotehandler) == String[]
+        initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
+        token = handshake_init(initiatoribnfid, remotehandler)
+    else
+        token = getibnfhandlertokenrecv(remotehandler)[1]
+    end
+    push!(data, HTTPMessages.KEY_TOKEN => token)
+    
     url = getbaseurl(remotehandler) * endpoint
-    #@show HTTPMessages.receivedtokens
     
     if offsettime == now()
         push!(data, HTTPMessages.KEY_OFFSETTIME => HTTPMessages.KEY_NOTHING)
@@ -18,7 +25,7 @@
         logtime = @logtime
         println("Logtime = $logtime")
     end
-    
+
     response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
     #keepalive=false,
     #http_version=HTTP.Strings.HTTPVersion("1.0")
