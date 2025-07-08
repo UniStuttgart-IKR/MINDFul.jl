@@ -1,5 +1,5 @@
-domainfile: "data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"
-encryption: false
+domainfile = "data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"
+encryption = true
 
 [domains]
 
@@ -7,7 +7,7 @@ encryption: false
 ip = "0.0.0.0"
 port = 8081
 ibnfid = 0x1
-permissions = ["limited", "limited"]
+permissions = ["full", "full"]
 
 [[domains.config]]
 ip = "0.0.0.0"

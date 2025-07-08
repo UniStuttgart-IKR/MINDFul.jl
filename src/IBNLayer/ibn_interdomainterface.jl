@@ -761,13 +761,8 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
 end
 
 
-# function handshake_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
-#     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
-#     return handshake_term(myibnfhandler, remoteibnf)
-# end
-
 function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
-
+    myibnfid = string(initiatoribnfid)
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
 
     if getibnfhandlerperm(remoteibnfhandler) == "none"
@@ -775,7 +770,7 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
     elseif getibnfhandlerperm(remoteibnfhandler) == "full"
         availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
     else
-        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS  # Only IBNAGraph and SpectrumAvailability
+        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS 
     end 
     
     #gentoken = "mindless"
@@ -792,7 +787,8 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
         parsedresponse = JSON.parse(String(response.body))
         functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
         remoteibnfid = string(getibnfid(remoteibnfhandler))
-        println("\nAvailable functions for domain $remoteibnfid: $functions \n")
+        #println("\nAvailable functions in domain $myibnfid for domain $remoteibnfid: $functions \n")
+        println("\nDomain $myibnfid has access to the following functions in domain $remoteibnfid: $functions \n")
         recvtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
         push!(getibnfhandlertokenrecv(remoteibnfhandler), recvtoken)
         return recvtoken
@@ -811,7 +807,7 @@ function handshake_term(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
     elseif getibnfhandlerperm(remoteibnfhandler) == "full"
         availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
     else
-        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS  # Only IBNAGraph and SpectrumAvailability
+        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS
     end 
     
     #gentoken = "mindfull"

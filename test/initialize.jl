@@ -6,7 +6,7 @@ using JLD2, UUIDs
 using Unitful, UnitfulData
 import Dates: now, Hour
 import Random: MersenneTwister, randperm
-using HTTP, YAML
+using HTTP, TOML
 
 import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo,getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst
 
@@ -52,15 +52,21 @@ function loadmultidomaintestibnfs()
 end
 
 function loadmultidomaintestidistributedbnfs()
-    #domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
-    #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "127.0.0.1, localhost, 0.0.0.0"
-    config = YAML.load_file("config.yaml")
+    config = TOML.parsefile("config.toml")
     domainfile = config["domainfile"]
     encryption = config["encryption"]
-    permissions = config["permissions"]
-    
-    ips = config["ips"]
-    ports = config["ports"]
+
+    ips = Vector{String}()
+    ports = Vector{Int}()
+    ibnfids = Vector{Int}()
+    permissions = Vector{String}()
+
+    for n in config["domains"]["config"]
+        push!(ips, n["ip"])
+        push!(ports, n["port"])
+        push!(ibnfids, n["ibnfid"])
+        append!(permissions, n["permissions"])
+    end
 
     domains_name_graph = first(JLD2.load(domainfile))[2]
     if encryption
@@ -69,50 +75,31 @@ function loadmultidomaintestidistributedbnfs()
     else
         urischeme = "http"
     end
-    # MA1069 instantiate with HTTPHandler
-    hdlr=Vector{MINDFul.RemoteHTTPHandler}()
+
 
     ibnfs = [
         let
             ag = name_graph[2]
-            ibnag = MINDF.default_IBNAttributeGraph(ag)
-            ibnf = IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
+            ibnag = MINDFul.default_IBNAttributeGraph(ag)
+            ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
         end for name_graph in domains_name_graph
     ]
-
+    
+    index = 1
     for i in eachindex(ibnfs)
-        URI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
-        URIstring=string(URI)
-        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(i), URIstring))
-    end
-
-    for i in eachindex(ibnfs)
-        push!(getibnfhandlers(ibnfs[i]), hdlr[i])
+        localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+        localURIstring=string(localURI)
+        push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", Vector{String}(), Vector{String}()))
         for j in eachindex(ibnfs)
             i == j && continue
-            push!(getibnfhandlers(ibnfs[i]), hdlr[j])
+            URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+            URIstring=string(URI)
+            push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], Vector{String}(), Vector{String}()))
+            index += 1
         end
     end
 
-    MINDF.startibnserver!(ibnfs, encryption)
-
-    
-    # if permissions
-    #     tokens = ["token1", "token2", "token3"]
-    #     for i in eachindex(ibnfs)
-    #         for j in eachindex(ibnfs)
-    #             if i == j
-    #                 continue
-    #             end
-    #             HTTPMessages.generatedtokens[string(getibnfid(ibns[j]))] = tokens[i]
-    #             HTTPMessages.recevieddtokens[string(getibnfid(ibns[i]))] = token[sj]
-    #         end
-    #     end
-    #     @show HTTPMessages.generatedtokens
-    #     @show HTTPMessages.recevieddtokens
-    # else
-    #     println("Permissions are disabled.")
-    # end
+    MINDF.startibnserver!(ibnfs, encryption, ips)
 
     return ibnfs
 end

@@ -22,15 +22,13 @@
     if hasverbose && data[HTTPMessages.KEY_VERBOSE] == true
         println(" ")
         println("SENDING REQUEST TO $url")
-        println("Body: $body")
+        #println("Body: $body")
         logtime = @logtime
         println("Logtime = $logtime")
     end
 
     response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
-    #keepalive=false,
     #http_version=HTTP.Strings.HTTPVersion("1.0")
-    #require_ssl_verification=false
     return response
 end
 
@@ -48,8 +46,6 @@ function ipfiltering(tcp, neighbourips)
     else 
         return false
     end
-    #println("Request from... $host:$port")
-    
     # if startswith(string(host), "192.168.")
     #     println("Blocked connection from $host")
     #     return false
@@ -88,7 +84,7 @@ function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
     end
 end
 
-function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, neighbourips)
+function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     ibnfsdict = Dict{Int, IBNFramework}()
     if encryption
         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
@@ -115,7 +111,7 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, neighbourips
         try
             Server.serve(host="0.0.0.0", port=port;
             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
-            tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
+            tcpisvalid= tcp->ipfiltering(tcp, ips),
             #tcpisvalid = tcp->true,
             sslconfig=sslconf,
             #keepalive=false, 
@@ -137,15 +133,15 @@ end
 
 function serializeglobaledge(edge::GlobalEdge)
     return Dict(
-        HTTPMessages.KEY_SRC => serializeglobalnode(edge.src),  # Serialize the source node
-        HTTPMessages.KEY_DST => serializeglobalnode(edge.dst)   # Serialize the destination node
+        HTTPMessages.KEY_SRC => serializeglobalnode(edge.src),  # Serializing the source node
+        HTTPMessages.KEY_DST => serializeglobalnode(edge.dst)   # Serializing the destination node
     )
 end
 
 function serializeglobalnode(node::GlobalNode)
     return Dict(
-        HTTPMessages.KEY_IBNFID => string(node.ibnfid),  # Convert UUID to string
-        HTTPMessages.KEY_LOCALNODE => node.localnode    # Keep localnode as Int64
+        HTTPMessages.KEY_IBNFID => string(node.ibnfid),  # UUID to string
+        HTTPMessages.KEY_LOCALNODE => node.localnode    # localnode as Int64
     )
 end
 

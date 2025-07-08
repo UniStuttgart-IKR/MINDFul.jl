@@ -99,11 +99,13 @@ export serve
 
     @post MINDF.HTTPMessages.URI_HANDSHAKE function (req; context)
         ibnf = getmyibnf(req, context)
+        myibnfid = string(MINDF.getibnfid(ibnf))
         parsedbody = JSON.parse(String(HTTP.payload(req)))
         remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-        println("\nAvailable functions for domain $remoteibnfid: $availablefunctions \n")
+        #println("\nAvailable functions in domain $remoteibnfid for domain $myibnfid: $availablefunctions \n")
+        println("\nDomain $myibnfid has access to the following functions in domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
         if !isnothing(token)
@@ -126,9 +128,10 @@ export serve
             description: Successfully returned the compilation algorithms.
     """
     @post api("/compilationalgorithms") function (req; context)
-        ibnf = getmyibnf(req, context)
-        initiatoribnfid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID])
-        remoteibnfhandler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
+        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
+        if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
+            return HTTP.Response(403, "Forbidden: Invalid token")
+        end
 
         compilationalgorithms = MINDF.requestavailablecompilationalgorithms_term!(remoteibnfhandler, ibnf)
         if !isnothing(compilationalgorithms)
