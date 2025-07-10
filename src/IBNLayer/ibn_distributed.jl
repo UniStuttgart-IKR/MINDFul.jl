@@ -1,9 +1,9 @@
 @recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
-    if getibnfhandlertokenrecv(remotehandler) == String[]
+    if getibnfhandlertokenrecv(remotehandler) == ""
         initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
         token = handshake_init(initiatoribnfid, remotehandler)
     else
-        token = last(getibnfhandlertokenrecv(remotehandler))
+        token = getibnfhandlertokenrecv(remotehandler)
     end
     push!(data, HTTPMessages.KEY_TOKEN => token)
     
@@ -21,13 +21,11 @@
     if hasverbose && data[HTTPMessages.KEY_VERBOSE] == true
         println(" ")
         println("SENDING REQUEST TO $url")
-        #println("Body: $body")
         logtime = @logtime
         println("Logtime = $logtime")
     end
 
     response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
-    #http_version=HTTP.Strings.HTTPVersion("1.0")
     return response
 end
 
@@ -45,10 +43,6 @@ function ipfiltering(tcp, neighbourips)
     else 
         return false
     end
-    # if startswith(string(host), "192.168.")
-    #     println("Blocked connection from $host")
-    #     return false
-    # end
 end
 
 

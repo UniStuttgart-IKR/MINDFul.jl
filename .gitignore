@@ -1,8 +1,10 @@
 Manifest.toml
 *.html
 *.pdf
+*.json
+*.cert
+*.key
 .vscode/
 docs/build/
 *.cov
 MYREADME.md
-*.json
