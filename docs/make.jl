@@ -80,7 +80,7 @@ makedocs(
 
 deploydocs(
     #branch = "gh-pages",
-    devbranch = "testsecurity",
+    devbranch = "ma1069",
     repo = "github.com/fgobantes/MINDFul.jl.git"
     #repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git"
 )
