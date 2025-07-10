@@ -64,9 +64,10 @@ function testsuiteinterface!(ibnfs)
             MINDF.requestsetlinkstate_init!(ibnf, ibnfhandler, aglobaledge, false)
             @test MINDF.requestcurrentlinkstate_init(ibnf, ibnfhandler, aglobaledge) == MINDF.requestcurrentlinkstate_init(ibnf, ibnfhandlerframework, aglobaledge) == false
 
-            @test MINDF.requestibnattributegraph(ibnf, ibnfhandler) == MINDF.requestibnattributegraph(ibnf, ibnfhandlerframework)
-            @test MINDF.requestidag_init(ibnf, ibnfhandler) == MINDF.requestidag_init(ibnf, ibnfhandlerframework)
+            @test MINDF.isthesame(MINDF.requestibnattributegraph(ibnf, ibnfhandler), MINDF.requestibnattributegraph(ibnf, ibnfhandlerframework))
+            @test MINDF.isthesame(MINDF.requestidag_init(ibnf, ibnfhandler),  MINDF.requestidag_init(ibnf, ibnfhandlerframework))
             @test MINDF.requestibnfhandlers_init(ibnf, ibnfhandler) == MINDF.requestibnfhandlers_init(ibnf, ibnfhandlerframework)
+            #@test MINDF.isthesame(MINDF.requestibnfhandlers_init(ibnf, ibnfhandler), MINDF.requestibnfhandlers_init(ibnf, ibnfhandlerframework))
 
             for idagnode in someidagnodes
                 @test MINDF.requestlogicallliorder_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestlogicallliorder_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 

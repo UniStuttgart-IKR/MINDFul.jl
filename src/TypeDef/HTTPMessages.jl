@@ -144,6 +144,12 @@ const KEY_TOKEN = "token"
 
 const KEY_AVAILABLEFUNCTIONS = "availablefunctions"
 
+const KEY_PERMISSION = "permission"
+
+const KEY_GENTOKEN = "gentoken"
+
+const KEY_RECVTOKEN = "recvtoken"
+
 const LIST_ALLFUNCTIONS = [
     URI_IBNAGRAPH,
     URI_SPECTRUMAVAILABILITY,

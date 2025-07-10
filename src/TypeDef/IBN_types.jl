@@ -389,6 +389,15 @@ struct RemoteHTTPHandler <: AbstractIBNFHandler
     recvtoken::Vector{String}
 end
 
+# import Base: ==
+# function ==(a::RemoteHTTPHandler, b::RemoteHTTPHandler)
+#     return a.ibnfid == b.ibnfid &&
+#            a.baseurl == b.baseurl &&
+#            a.permission == b.permission &&
+#            a.gentoken == b.gentoken &&
+#            a.recvtoken == b.recvtoken
+# end
+
 """
     The graph of the IBN Framework is expressed with this `AttributeGraph`.
     Border nodes are assumed to be visible from both sides.

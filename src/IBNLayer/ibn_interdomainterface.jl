@@ -65,7 +65,11 @@ function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::Remot
     #     token = HTTPMessages.KEY_NOTHING
     # end
     resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
-    ibnfhandlers = [RemoteHTTPHandler(UUID(d[HTTPMessages.KEY_IBNFID][HTTPMessages.KEY_VALUE]), d[HTTPMessages.KEY_BASEURL]) for d in JSON.parse(String(resp.body))]
+    ibnfhandlers = [RemoteHTTPHandler(UUID(d[HTTPMessages.KEY_IBNFID][HTTPMessages.KEY_VALUE]), 
+                    d[HTTPMessages.KEY_BASEURL], 
+                    d[HTTPMessages.KEY_PERMISSION], 
+                    d[HTTPMessages.KEY_GENTOKEN],
+                    d[HTTPMessages.KEY_RECVTOKEN]) for d in JSON.parse(String(resp.body))]
     return ibnfhandlers
 end
 
@@ -773,7 +777,6 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
         availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS 
     end 
     
-    #gentoken = "mindless"
     gentoken = string(uuid4())
     push!(getibnfhandlertokengen(remoteibnfhandler), gentoken)
     
@@ -810,7 +813,6 @@ function handshake_term(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
         availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS
     end 
     
-    #gentoken = "mindfull"
     gentoken = string(uuid4())
     push!(getibnfhandlertokengen(remoteibnfhandler), gentoken)
 

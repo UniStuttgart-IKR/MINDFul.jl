@@ -66,6 +66,12 @@ function main()
         push!(hdlr, MINDFul.RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], Vector{String}(), Vector{String}()))
     end
 
+    for i in eachindex(ibnfs)
+        push!(MINDFul.getibnfhandlers(ibnfs[localid]), hdlr[i])
+    end
+
+    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption, neighbourips) 
+
     # for i in eachindex(ibnfs)
     #     for j in eachindex(ibnfs)
     #         if temp[j].ibnfid == UUID(i)
@@ -82,12 +88,7 @@ function main()
     #     end
     # end
 
-    for i in eachindex(ibnfs)
-        push!(MINDFul.getibnfhandlers(ibnfs[localid]), hdlr[i])
-    end
-    
-
-    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption, neighbourips)   
+      
     
     # for i in eachindex(neighbourips)
     #     initiatoribnfid = string(getibnfid(ibnfs[localid]))
