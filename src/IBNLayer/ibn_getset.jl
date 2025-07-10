@@ -499,3 +499,7 @@ end
 function getibnfhandlertokenrecv(remotehandler::AbstractIBNFHandler)
     return remotehandler.recvtoken
 end
+
+function getibnfhandlerport(remotehandler::AbstractIBNFHandler)
+    return parse(Int, HTTP.URI(remotehandler.baseurl).port) 
+end

@@ -6,7 +6,7 @@ using UUIDs
 using Graphs
 using DataStructures
 using Unitful, UnitfulData
-using Serialization, JSON, HTTP, Sockets, MbedTLS, YAML, JLD2, TOML
+using Serialization, JSON, HTTP, Sockets, MbedTLS, JLD2, TOML
 
 import Dates: DateTime, now
 

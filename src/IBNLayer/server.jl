@@ -520,15 +520,11 @@ export serve
 
     
     # TODO ma1069
+    # Generating and integrating OpenAPI (Swagger) documentation the HTTP API endpoints:
     info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
     openApi = OpenAPI("3.0", info)
     swaggerdocument = build(openApi)
-    #open("swagger.json", "w") do file
-    #    JSON.print(file, swagger_document)
-    #end
-    #println("Swagger documentation saved to swagger.json")
-    # merge the SwaggerMarkdown schema with the internal schema
+    
+    # Merging the SwaggerMarkdown schema with the internal schema
     OxygenInstance.mergeschema(swaggerdocument) 
-     
-
 end

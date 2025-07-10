@@ -1,6 +1,5 @@
 @recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
     if getibnfhandlertokenrecv(remotehandler) == String[]
-        #@show remotehandler
         initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
         token = handshake_init(initiatoribnfid, remotehandler)
     else
@@ -55,19 +54,14 @@ end
 
 function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
     selectedhandler = getibnfhandlers(myibnf)[1]
-    baseurl = getbaseurl(selectedhandler)
-    uri = HTTP.URI(baseurl)
-    port = parse(Int, uri.port)
+    port = getibnfhandlerport(selectedhandler)
     dir = @__DIR__
     if encryption
-        #sslconf=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key")
         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
-        #sslconf=MbedTLS.SSLConfig()
     else
         sslconf=nothing
     end
-    println(" ")
-    println("Starting server on 0.0.0.0:$port")
+    
     try
         httpserver = Server.serve(host="0.0.0.0", port=port;
             async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, 
@@ -88,22 +82,20 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     ibnfsdict = Dict{Int, IBNFramework}()
     if encryption
         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
+        #sslconf=MbedTLS.SSLConfig()
+        #sslconf=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key")
     else
         sslconf=nothing
     end
     for ibnf in ibnfs 
         selectedhandler = getibnfhandlers(ibnf)[1]
-        baseurl = getbaseurl(selectedhandler)
-        uri = HTTP.URI(baseurl)
-        port = parse(Int, uri.port)
+        port = getibnfhandlerport(selectedhandler)
         push!(ibnfsdict, port => ibnf)
     end
 
     for ibnf in ibnfs
         selectedhandler = getibnfhandlers(ibnf)[1]
-        baseurl = getbaseurl(selectedhandler)
-        uri = HTTP.URI(baseurl)
-        port = parse(Int, uri.port)
+        port = getibnfhandlerport(selectedhandler)
         dir = @__DIR__
         println(" ")
         println("Starting server on 0.0.0.0:$port")
@@ -112,9 +104,7 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
             Server.serve(host="0.0.0.0", port=port;
             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
             tcpisvalid= tcp->ipfiltering(tcp, ips),
-            #tcpisvalid = tcp->true,
             sslconfig=sslconf,
-            #keepalive=false, 
             #readtimeout=10,
             #keepalive_timeout=10,
             #idle_timeout=10
@@ -181,7 +171,7 @@ function serializetransmissionmodulecompatibility(transmissionmodulecompat::Tran
     )
 end
 
-function serializelowlevelintent(ll)
+function serializelowlevelintent(ll::LowLevelIntent)
     if ll isa OXCAddDropBypassSpectrumLLI
         return Dict(
             HTTPMessages.KEY_TYPE => HTTPMessages.KEY_ADBYPASSSPECTRUM,
@@ -212,7 +202,7 @@ function serializelowlevelintent(ll)
     end
 end
 
-function deserializelowlevelintent(dict)
+function deserializelowlevelintent(dict::Dict{String, Any})
     if dict[HTTPMessages.KEY_TYPE] == HTTPMessages.KEY_ADBYPASSSPECTRUM
         return MINDFul.OXCAddDropBypassSpectrumLLI(
             dict[HTTPMessages.KEY_NODE], dict[HTTPMessages.KEY_INPUT], dict[HTTPMessages.KEY_ADDDROPPORT], dict[HTTPMessages.KEY_OUTPUT], dict[HTTPMessages.KEY_SLOTSTART]:dict[HTTPMessages.KEY_SLOTEND]
@@ -230,7 +220,7 @@ function deserializelowlevelintent(dict)
     end
 end
 
-function reconvertconstraint(constraint)
+function reconvertconstraint(constraint::Dict{String, Any})
     if constraint[HTTPMessages.KEY_TYPE] == HTTPMessages.KEY_OPTICALINITIATECONSTRAINT
         return OpticalInitiateConstraint(
             GlobalNode(UUID(constraint[HTTPMessages.KEY_GNI][HTTPMessages.KEY_IBNFID]), constraint[HTTPMessages.KEY_GNI][HTTPMessages.KEY_LOCALNODE]),
