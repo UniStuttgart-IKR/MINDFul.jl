@@ -43,12 +43,12 @@ end
 
 
 
-open("src/swagger.json", "w") do file
+open(joinpath(@__DIR__, "src", "swagger.json"), "w") do file
     swagger_document = MINDFul.Server.OxygenInstance.getschema()
     JSON.print(file, swagger_document)
 end
 
-generate_swagger_html("src/swagger.html", "swagger.json")
+generate_swagger_html(joinpath(@__DIR__, "src", "swagger.html"), "swagger.json")
 
 
 #=Documenter.HTML(assets = [
@@ -66,9 +66,10 @@ makedocs(
         "Developing" => "dev.md",
         "ROADMap" => "roadmap.md",
         "API" => "API.md",
-        "HTTP API" => [
+        "Distributed API" => [
             "HTTP" => "HTTP.md",
             "OxygenInstance" => "OxygenInstance.md",
+            "Docker" => "Docker.md",
         ],
     ],
 
@@ -78,7 +79,8 @@ makedocs(
 
 
 deploydocs(
-    branch = "gh-pages-1069",
-    repo = "https://github.com/fgobantes/MINDFul.jl.git",
-    #repo = "https://github.com/fgobantes/MINDFul.jl/tree/ma1069/docs"
+    #branch = "gh-pages",
+    devbranch = "testsecurity",
+    repo = "github.com/fgobantes/MINDFul.jl.git"
+    #repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git"
 )

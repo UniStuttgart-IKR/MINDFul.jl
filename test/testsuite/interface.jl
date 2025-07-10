@@ -64,7 +64,7 @@ function testsuiteinterface!(ibnfs)
             MINDF.requestsetlinkstate_init!(ibnf, ibnfhandler, aglobaledge, false)
             @test MINDF.requestcurrentlinkstate_init(ibnf, ibnfhandler, aglobaledge) == MINDF.requestcurrentlinkstate_init(ibnf, ibnfhandlerframework, aglobaledge) == false
 
-            @test MINDF.isthesame(MINDF.requestibnattributegraph(ibnf, ibnfhandler), MINDF.requestibnattributegraph(ibnf, ibnfhandlerframework))
+            @test MINDF.isthesame(MINDF.requestibnattributegraph_init(ibnf, ibnfhandler), MINDF.requestibnattributegraph_init(ibnf, ibnfhandlerframework))
             @test MINDF.isthesame(MINDF.requestidag_init(ibnf, ibnfhandler),  MINDF.requestidag_init(ibnf, ibnfhandlerframework))
             @test MINDF.requestibnfhandlers_init(ibnf, ibnfhandler) == MINDF.requestibnfhandlers_init(ibnf, ibnfhandlerframework)
 
@@ -73,7 +73,7 @@ function testsuiteinterface!(ibnfs)
                 @test MINDF.requestintentglobalpath_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestintentglobalpath_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 
                 @test MINDF.requestglobalnodeelectricalpresence_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestglobalnodeelectricalpresence_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 
                 @test MINDF.requestintentgloballightpaths_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestintentgloballightpaths_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 
-                @test MINDF.requestissatisfied(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestissatisfied(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 
+                @test MINDF.requestissatisfied_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestissatisfied_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 
 
             end
         end
