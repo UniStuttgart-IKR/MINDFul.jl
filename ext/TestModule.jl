@@ -156,9 +156,9 @@ function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote:
         remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
         # if ibnfhandler_bordernode isa MINDF.IBNFramework
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
         if !MINDF.issubdaggrooming(getidag(ibnf), idagnodeid)
             @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
         else
@@ -200,13 +200,13 @@ function testinstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
         
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
         
         # if ibnfhandler_bordernode isa MINDF.IBNFramework
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
         @test all(==(MINDF.IntentState.Installed),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
     
-        ibnfhandler_bordernode_ibnag = MINDF.requestibnattributegraph(ibnf, ibnfhandler_bordernode)
+        ibnfhandler_bordernode_ibnag = MINDF.requestibnattributegraph_init(ibnf, ibnfhandler_bordernode)
         orderedllis = MINDF.requestlogicallliorder_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, verbose=false)
         foreach(orderedllis) do olli
             islowlevelintentdagnodeinstalled(ibnfhandler_bordernode_ibnag, olli)
@@ -242,7 +242,7 @@ function testuninstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremo
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
         
         if shouldempty
-            nothingisallocated(MINDF.requestibnattributegraph(ibn, ibnfhandler_bordernode))
+            nothingisallocated(MINDF.requestibnattributegraph_init(ibn, ibnfhandler_bordernode))
         end
     end
 end

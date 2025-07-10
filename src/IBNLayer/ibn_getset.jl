@@ -503,3 +503,11 @@ end
 function getibnfhandlerport(remotehandler::AbstractIBNFHandler)
     return parse(Int, HTTP.URI(remotehandler.baseurl).port) 
 end
+
+function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
+    for ibnf in ibnfs
+        if getibnfid(ibnf) == ibnfid
+            return ibnf
+        end
+    end
+end

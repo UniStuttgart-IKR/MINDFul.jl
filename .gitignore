@@ -6,3 +6,5 @@ docs/build/
 *.cov
 MYREADME.md
 *.json
+*.cert
+*.key

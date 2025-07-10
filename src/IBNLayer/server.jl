@@ -16,11 +16,9 @@ export serve
 
     function getmyibnf(req, context)
       if context isa MINDF.IBNFramework
-          #println("context is of type MINDF.IBNFramework")
           ibnf :: MINDF.IBNFramework = context
           return ibnf
       elseif context isa Vector{MINDF.IBNFramework}
-          println("context is of type Vector{MINDF.IBNFramework}")
           ibnfs :: Vector{MINDF.IBNFramework} = context
           host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
           for ibnftemp in ibnfs
@@ -30,7 +28,6 @@ export serve
           end
           return ibnf
       elseif context isa Dict{Int, MINDF.IBNFramework}
-          #println("context is of type Dict{Int, MINDF.IBNFramework}")
           ibnfsdict :: Dict{Int, MINDF.IBNFramework} = context
           host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
           uri = HTTP.URI("https://$host")
@@ -69,7 +66,7 @@ export serve
         recvtoken = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         handler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
 
-        if recvtoken == last(MINDF.getibnfhandlertokengen(handler))
+        if recvtoken == MINDF.getibnfhandlertokengen(handler)
             if MINDF.getibnfhandlerperm(handler) == "none"
                 return false
             elseif MINDF.getibnfhandlerperm(handler) == "full"
@@ -84,16 +81,6 @@ export serve
         else
             return false
         end
-
-        # if haskey(MINDF.HTTPMessages.generatedtokens, initiatoribnfid) 
-        #     if MINDF.HTTPMessages.generatedtokens[initiatoribnfid] == token
-        #       return true
-        #     else
-        #       return false
-        #     end
-        # else
-        #     return true
-        # end
     end
 
 
@@ -104,12 +91,11 @@ export serve
         remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-        #println("\nAvailable functions in domain $remoteibnfid for domain $myibnfid: $availablefunctions \n")
-        println("\nDomain $myibnfid has access to the following functions in domain $remoteibnfid: $availablefunctions \n")
+        println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
         if !isnothing(token)
-            push!(MINDF.getibnfhandlertokenrecv(remotehandler), token)
+            remotehandler.recvtoken = token
             myibnfid = string(MINDF.getibnfid(ibnf))
             gentoken, availablefunctions = MINDF.handshake_term(myibnfid, remotehandler)
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => gentoken,MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
@@ -213,7 +199,6 @@ export serve
 
 
     @post MINDF.HTTPMessages.URI_COMPILEINTENT function (req; context)
-      #return HTTP.Response(403, "Not possible to compile the intent")
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILEINTENT) == false
         return HTTP.Response(403, "Forbidden: Invalid token")
@@ -391,10 +376,6 @@ export serve
       end
 
       idag = MINDF.requestidag_term(remoteibnfhandler, ibnf)
-      # @show typeof(idag)
-      # @show propertynames(idag)
-      # @show fieldnames(typeof(idag))
-      # @show idag
 
       io = IOBuffer()
       serialize(io, idag)
@@ -415,7 +396,6 @@ export serve
         end
         
         ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnfhandler, ibnf)
-        #@show typeof(ibnattributegraph)
 
         io = IOBuffer()
         serialize(io, ibnattributegraph)

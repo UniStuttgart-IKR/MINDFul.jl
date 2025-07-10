@@ -69,6 +69,7 @@ makedocs(
         "Distributed API" => [
             "HTTP" => "HTTP.md",
             "OxygenInstance" => "OxygenInstance.md",
+            "Docker" => "Docker.md",
         ],
     ],
 
@@ -78,8 +79,8 @@ makedocs(
 
 
 deploydocs(
-    branch = "gh-pages",
+    #branch = "gh-pages",
     devbranch = "testsecurity",
     repo = "github.com/fgobantes/MINDFul.jl.git"
-    #repo = "https://github.com/fgobantes/MINDFul.jl/tree/ma1069/docs"
+    #repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git"
 )

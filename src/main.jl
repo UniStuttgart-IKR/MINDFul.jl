@@ -8,8 +8,6 @@ function main()
     if !isfile(configpath)
         error("Configuration file not found: $configpath")
     end
-
-    #domainnumber = parse(Int, ARGS[2])
     
     config = TOML.parsefile(configpath)
     domainfile = config["domainfile"]
@@ -18,10 +16,6 @@ function main()
     localip = config["local"]["ip"]
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
- 
-    # neighbourips = config["neighbours"][1]["ips"]
-    # neighbourports = config["neighbours"][2]["ports"]
-    # neighbourids = config["neighbours"][3]["ids"]
 
     neighbourips = String[]
     neighbourports = Int[]
@@ -36,67 +30,34 @@ function main()
     end
    
     domains_name_graph = first(JLD2.load(domainfile))[2]
-    #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "127.0.0.1, localhost, 0.0.0.0"
-    #ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = ips[1]*", "*ips[2]*", "*ips[3]
-
-    hdlr=Vector{MINDFul.RemoteHTTPHandler}()
-    #temp=Vector{MINDFul.RemoteHTTPHandler}()
 
     ibnfs = [
         let
             ag = name_graph[2]
-            ibnag = MINDFul.default_IBNAttributeGraph(ag)
-            ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
+            ibnag = default_IBNAttributeGraph(ag)
+            ibnf = IBNFramework(ibnag, Vector{RemoteHTTPHandler}())
         end for name_graph in domains_name_graph
     ]
 
     if encryption
         urischeme = "https"
-        run(`./src/generatecerts.sh`)
+        run(`./test/data/generatecerts.sh`)
     else
         urischeme = "http"
     end
 
+    localibnf = getibnfwithid(ibnfs, UUID(localid))
+
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(hdlr, MINDFul.RemoteHTTPHandler(UUID(localid), localURIstring, "full", Vector{String}(), Vector{String}()))
+    push!(getibnfhandlers(localibnf), RemoteHTTPHandler(UUID(localid), localURIstring, "full", "", ""))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(hdlr, MINDFul.RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], Vector{String}(), Vector{String}()))
+        push!(getibnfhandlers(localibnf), RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
     end
 
-    for i in eachindex(ibnfs)
-        push!(MINDFul.getibnfhandlers(ibnfs[localid]), hdlr[i])
-    end
-
-    httpserver = MINDFul.startibnserver!(ibnfs[localid], encryption, neighbourips) 
-
-    # for i in eachindex(ibnfs)
-    #     for j in eachindex(ibnfs)
-    #         if temp[j].ibnfid == UUID(i)
-    #             push!(hdlr, temp[j])
-    #         end
-    #     end
-    # end
-
-    # for i in eachindex(ibnfs)
-    #     push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[i])
-    #     for j in eachindex(ibnfs)
-    #         i == j && continue
-    #         push!(MINDFul.getibnfhandlers(ibnfs[i]), hdlr[j])
-    #     end
-    # end
-
-      
-    
-    # for i in eachindex(neighbourips)
-    #     initiatoribnfid = string(getibnfid(ibnfs[localid]))
-    #     token = "mindfull"
-    #     resp = sendrequest(temp[i+1], HTTPMessages.URI_HANDSHAKE, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
-    # end
-    
-    #@show resp
+    httpserver = startibnserver!(localibnf, encryption, neighbourips) 
     
 
     if localport == 8081
