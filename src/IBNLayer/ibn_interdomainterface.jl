@@ -697,7 +697,7 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
         parsedresponse = JSON.parse(String(response.body))
         functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
         remoteibnfid = string(getibnfid(remoteibnfhandler))
-        println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
+        # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
         recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
         remoteibnfhandler.recvtoken = recievedtoken
         return recievedtoken

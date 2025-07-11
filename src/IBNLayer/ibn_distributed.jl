@@ -37,7 +37,7 @@ function ipfiltering(tcp, neighbourips)
     end
     host, port = Sockets.getpeername(socket)
 
-    if string(host) == "127.0.0.1" || string(host) in neighbourips
+    if host == Sockets.localhost || string(host) in neighbourips
         #println("Request from... $host:$port")
         return true
     else 
@@ -62,7 +62,7 @@ function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
             tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
             sslconfig=sslconf,
             )
-        return httpserver
+        push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")
@@ -90,12 +90,11 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     for ibnf in ibnfs
         selectedhandler = getibnfhandlers(ibnf)[1]
         port = getibnfhandlerport(selectedhandler)
-        dir = @__DIR__
         println(" ")
         println("Starting server on 0.0.0.0:$port")
  
         try
-            Server.serve(host="0.0.0.0", port=port;
+            httpserver = Server.serve(host="0.0.0.0", port=port;
             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
             tcpisvalid= tcp->ipfiltering(tcp, ips),
             sslconfig=sslconf,
@@ -103,6 +102,7 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
             #keepalive_timeout=10,
             #idle_timeout=10
             ) 
+            push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
         catch e
             if isa(e, Base.IOError)
                 println("Server at 0.0.0.0:$port is already running")
@@ -113,6 +113,11 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     end
 end
 
+function closeservers()
+    for server in HTTPMessages.GLOBAL_SERVERS
+        close(server)
+    end
+end
 
 
 function serializeglobaledge(edge::GlobalEdge)

@@ -4,6 +4,7 @@
  """
 module HTTPMessages
 
+const GLOBAL_SERVERS = Vector{Any}()
 
 const URI_IBNAGRAPH = "/api/ibnattributegraph"
 

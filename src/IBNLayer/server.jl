@@ -12,7 +12,7 @@ import .OxygenInstance: @get, @put, @post, @delete, mergeschema, serve, router
 
 export serve
 
-    api = OxygenInstance.router("/api", tags=["api endpoint"])
+    api = OxygenInstance.router("/api", tags=["API handshake endpoint"])
 
     function getmyibnf(req, context)
       if context isa MINDF.IBNFramework
@@ -83,15 +83,40 @@ export serve
         end
     end
 
-
-    @post MINDF.HTTPMessages.URI_HANDSHAKE function (req; context)
+    @swagger """
+    /api/handshake:
+      post:
+        description: Handshake exchange with remote IBNF
+        requestBody:
+          description: The remote IBNF ID, token and available functions
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+                  availablefunctions:
+                    type: array
+                    items:
+                      type: string
+        responses:
+          "200":
+            description: Successfully initiated handshake.
+          "403":
+            description: Forbidden: Token not received.
+    """
+    @post api("/handshake") function (req; context)
         ibnf = getmyibnf(req, context)
         myibnfid = string(MINDF.getibnfid(ibnf))
         parsedbody = JSON.parse(String(HTTP.payload(req)))
         remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-        println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
+        #println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
         if !isnothing(token)
@@ -109,11 +134,27 @@ export serve
     /api/compilationalgorithms: 
       post:
         description: Return the available compilation algorithms
+        requestBody:
+          description: .
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
         responses:
           "200":
             description: Successfully returned the compilation algorithms.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Compilation algorithms not found.
     """
-    @post api("/compilationalgorithms") function (req; context)
+    @post HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
             return HTTP.Response(403, "Forbidden: Invalid token")
@@ -140,6 +181,10 @@ export serve
               schema:
                 type: object
                 properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
                   src:
                     type: object
                     properties:
@@ -157,6 +202,10 @@ export serve
         responses:
           "200":
             description: Successfully returned the spectrum availability.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Spectrum availability not found.
     """    
     @post MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
@@ -177,7 +226,44 @@ export serve
         end
     end
 
-
+    @swagger """
+    /api/currentlinkstate:
+      post:
+        description: Return the current link state
+        requestBody:
+          description: The global edge for which to check the current link state
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  src:
+                    type: object
+                    properties:
+                      ibnfid:
+                        type: string
+                      localnode:
+                        type: integer
+                  dst:
+                    type: object
+                    properties:
+                      ibnfid:
+                        type: string
+                      localnode:
+                        type: integer
+        responses:
+          "200":
+            description: Successfully returned the current link state.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Currently link not available.
+    """
     @post MINDF.HTTPMessages.URI_CURRENTLINKSTATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_CURRENTLINKSTATE) == false
@@ -197,7 +283,38 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/compileintent:
+      post:
+        description: Compile an intent
+        requestBody:
+          description: The intent to compile
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  idagnodeid:
+                    type: string
+                  compilationalgorithmkey:
+                    type: string
+                  compilationalgorithmargs:
+                    type: array
+                    items:
+                      type: any
+        responses:
+          "200":
+            description: Successfully compiled the intent.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to compile the intent.
+    """
     @post MINDF.HTTPMessages.URI_COMPILEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILEINTENT) == false
@@ -216,7 +333,55 @@ export serve
       
     end
 
-
+    @swagger """
+    /api/delegateintent:
+      post:
+        description: Delegate an intent to a remote IBNF
+        requestBody:
+          description: The intent to delegate
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  internalidagnodeid:
+                    type: string
+                  intent:
+                    type: object
+                    properties:
+                      src:
+                        type: object
+                        properties:
+                          ibnfid:
+                            type: string
+                          localnode:
+                            type: integer
+                      dst:
+                        type: object
+                        properties:
+                          ibnfid:
+                            type: string
+                          localnode:
+                            type: integer
+                      rate:
+                        type: string
+                      constraints:
+                        type: array
+                        items:
+                          type: any
+        responses:
+          "200":
+            description: Successfully delegated the intent.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Delegation not worked.
+    """
     @post MINDF.HTTPMessages.URI_DELEGATEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_DELEGATEINTENT) == false
@@ -241,7 +406,34 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/remoteintentstateupdate:
+      post:
+        description: Update the state of a remote intent
+        requestBody:
+          description: The idganodeid and the new state
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  idagnodeid:
+                    type: string
+                  newstate:
+                    type: string
+        responses:
+          "200":
+            description: Successfully updated the intent state.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to update the intent state.
+    """
     @post MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE) == false
@@ -260,7 +452,36 @@ export serve
       
     end
 
-
+    @swagger """
+    /api/issatisfied:
+      post:
+        description: Check if an intent is satisfied
+        requestBody:
+          description: The idagnodeid and flags for checking only installed intents and using all LLIs
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  idagnodeid:
+                    type: string
+                  onlyinstalled:
+                    type: boolean
+                  noextrallis:
+                    type: boolean
+        responses:
+          "200":
+            description: Successfully checked if the intent is satisfied.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to check if the intent is satisfied.
+    """
     @post MINDF.HTTPMessages.URI_ISSATISFIED function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ISSATISFIED) == false
@@ -278,7 +499,32 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/installintent:
+      post:
+        description: Install an intent on a remote IBNF
+        requestBody:
+          description: The idagnodeid of the intent to install
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  idagnodeid:
+                    type: string
+        responses:
+          "200":
+            description: Successfully installed the intent.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to install the intent.
+    """
     @post MINDF.HTTPMessages.URI_INSTALLINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INSTALLINTENT) == false
@@ -294,7 +540,32 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/uninstallintent:
+      post:
+        description: Uninstall an intent from a remote IBNF
+        requestBody:
+          description: The idagnodeid of the intent to uninstall
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  idagnodeid:
+                    type: string
+        responses:
+          "200":
+            description: Successfully uninstalled the intent.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to uninstall the intent.
+    """
     @post MINDF.HTTPMessages.URI_UNINSTALLINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNINSTALLINTENT) == false
@@ -310,7 +581,32 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/uncompileintent:
+      post:
+        description: Uncompile an intent from a remote IBNF
+        requestBody:
+          description: The idagnodeid of the intent to uncompile
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  idagnodeid:
+                    type: string
+        responses:
+          "200":
+            description: Successfully uncompiled the intent.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to install the intent.
+    """
     @post MINDF.HTTPMessages.URI_UNCOMPILEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNCOMPILEINTENT) == false
@@ -326,7 +622,49 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/setlinkstate:
+      post:
+        description: Set the state of a link
+        requestBody:
+          description: The global edge and the operating state to set
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  globaledge:
+                    type: object
+                    properties:
+                      src:
+                        type: object
+                        properties:
+                          ibnfid:
+                            type: string
+                          localnode:
+                            type: integer
+                      dst:
+                        type: object
+                        properties:
+                          ibnfid:
+                            type: string
+                          localnode:
+                            type: integer
+                  operatingstate:
+                    type: string
+        responses:
+          "200":
+            description: Successfully set the link state.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Set link state not possible.
+    """
     @post MINDF.HTTPMessages.URI_SETLINKSTATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SETLINKSTATE) == false
@@ -347,7 +685,47 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/requestlinkstates:
+      post:
+        description: Request the link states for a global edge
+        requestBody:
+          description: The global edge for which to request link states
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  globaledge:
+                    type: object
+                    properties:
+                      src:
+                        type: object
+                        properties:
+                          ibnfid:
+                            type: string
+                          localnode:
+                            type: integer
+                      dst:
+                        type: object
+                        properties:
+                          ibnfid:
+                            type: string
+                          localnode:
+                            type: integer
+        responses:
+          "200":
+            description: Successfully returned the link states.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Set link state not possible.
+    """
     @post MINDF.HTTPMessages.URI_REQUESTLINKSTATES function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTLINKSTATES) == false
@@ -368,7 +746,30 @@ export serve
       end
     end
 
-    
+    @swagger """
+    /api/requestidag:
+      post:
+        description: Request the IBNF's Intent Directed Acyclic Graph (IDAG)
+        requestBody:
+          description: .
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+        responses:
+          "200":
+            description: Successfully returned the IDAG.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the IDAG.
+    """
     @post MINDF.HTTPMessages.URI_REQUESTIDAG function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTIDAG) == false
@@ -388,7 +789,30 @@ export serve
       end
     end
 
-
+    @swagger """
+    /api/ibnattributegraph:
+      post:
+        description: Request the IBNF's attribute graph
+        requestBody:
+          description: .
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+        responses:
+          "200":
+            description: Successfully returned the IBNF's attribute graph.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the IBNF's attribute graph.
+    """
     @post MINDF.HTTPMessages.URI_IBNAGRAPH function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_IBNAGRAPH) == false
@@ -408,7 +832,30 @@ export serve
         end
     end
 
-
+    @swagger """
+    /api/ibnfhandlers:
+      post:
+        description: Request the IBNF handlers
+        requestBody:
+          description: . 
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+        responses:
+          "200":
+            description: Successfully returned the IBNF handlers.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the IBNF handlers.
+    """
     @post MINDF.HTTPMessages.URI_REQUESTHANDLERS function (req; context)
        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
        if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTHANDLERS) == false
@@ -424,7 +871,34 @@ export serve
         end
     end
 
-    
+    @swagger """
+    /api/logicallliorder:
+      post:
+        description: Request the logical LLI order
+        requestBody:
+          description: The intent UUID and flags for only installed intents
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+                  intentuuid:
+                    type: string
+                  onlyinstalled:
+                    type: boolean
+        responses:
+          "200":
+            description: Successfully returned the logical LLI order.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the logical LLI order.
+    """
     @post MINDF.HTTPMessages.URI_LOGICALORDER function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LOGICALORDER) == false
@@ -440,11 +914,38 @@ export serve
             return HTTP.Response(200, JSON.json(jsonready))
 
         else
-            return HTTP.Response(404, "Handlers not found")
+            return HTTP.Response(404, "Not possible to request the logical LLI order")
         end
     end
 
-
+    @swagger """
+    /api/intentglobalpath:
+      post:
+        description: Request the intent global path
+        requestBody:
+          description: The intent UUID and flags for only installed intents
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+                  intentuuid:
+                    type: string
+                  onlyinstalled:
+                    type: boolean
+        responses:
+          "200":
+            description: Successfully returned the intent global path.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the intent global path.
+    """
     @post MINDF.HTTPMessages.URI_INTENTGLOBALPATH function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INTENTGLOBALPATH) == false
@@ -458,11 +959,38 @@ export serve
             jsonready = [MINDF.serializeglobalnode(igp) for igp in intentglobalpath]
             return HTTP.Response(200, JSON.json(jsonready))
         else
-            return HTTP.Response(404, "Handlers not found")
+            return HTTP.Response(404, "Not possible to request the intent global path")
         end
     end
 
-
+    @swagger """
+    /api/electricalpresence:
+      post:
+        description: Return the electrical presence of global nodes
+        requestBody:
+          description: The intent UUID and flags for only installed intents
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  token:
+                    type: string
+                  intentuuid:
+                    type: string
+                  onlyinstalled:
+                    type: boolean
+        responses:
+          "200":
+            description: Successfully returned the electrical presence.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the electrical presence.
+    """
     @post MINDF.HTTPMessages.URI_ELECTRICALPRESENCE function (req; context)
        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ELECTRICALPRESENCE) == false
@@ -476,11 +1004,38 @@ export serve
             jsonready = [MINDF.serializeglobalnode(igp) for igp in electricalpresence]
             return HTTP.Response(200, JSON.json(jsonready))
         else
-            return HTTP.Response(404, "Handlers not found")
+            return HTTP.Response(404, "Not possible to request the electrical presence")
         end
     end
 
-
+    @swagger """
+    /api/lightpaths:
+      post:
+        description: Return the lightpaths for a given intent UUID
+        requestBody:
+          description: The intent UUID and flags for only installed intents
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid: 
+                    type: string
+                  token:
+                    type: string
+                  intentuuid:
+                    type: string
+                  onlyinstalled:
+                    type: boolean
+        responses:
+          "200":
+            description: Successfully returned the light paths.
+          "403":
+            description: Forbidden: Invalid token.
+          "404":
+            description: Not possible to request the light paths.
+    """
     @post MINDF.HTTPMessages.URI_LIGHTPATHS function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LIGHTPATHS) == false
@@ -494,7 +1049,7 @@ export serve
             jsonready = [[MINDF.serializeglobalnode(gn) for gn in path] for path in lightpaths]
             return HTTP.Response(200, JSON.json(jsonready))
         else
-            return HTTP.Response(404, "Handlers not found")
+            return HTTP.Response(404, "Not possible to request the light paths")
         end
     end
 

@@ -1,16 +1,17 @@
 function main()
+    MAINDIR = dirname(@__DIR__)
     #Checking for arguments
     if length(ARGS) < 1
         error("Usage: julia MINDFul.main <config.toml>")
     end
 
     configpath = ARGS[1]
-    if !isfile(configpath)
+    if !isfile(MAINDIR * configpath)
         error("Configuration file not found: $configpath")
     end
-    
-    config = TOML.parsefile(configpath)
-    domainfile = config["domainfile"]
+    #@show MAINDIR * configpath
+    config = TOML.parsefile(MAINDIR * configpath)
+    domainfile = MAINDIR * config["domainfile"]
     encryption = config["encryption"]
 
     localip = config["local"]["ip"]
@@ -41,7 +42,7 @@ function main()
 
     if encryption
         urischeme = "https"
-        run(`./test/data/generatecerts.sh`)
+        run(`$(MAINDIR)/test/data/generatecerts.sh`)
     else
         urischeme = "http"
     end
@@ -76,8 +77,9 @@ function main()
         # uncompile
         MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 
-        println("\n\n")
+        #println("\n\n")
         #@show getibnfhandlers(ibnfs[1])
+        closeservers()
     end
 
     # if localport == 8083

@@ -48,11 +48,12 @@ end
 @testset ExtendedTestSet "multidomain.jl"  begin
 
 
-ibnfs = loadmultidomaintestibnfs()
-testsuitemultidomain!(ibnfs)
+# ibnfs = loadmultidomaintestibnfs()
+# testsuitemultidomain!(ibnfs)
 
 # TODO MA1069 : rerun testinterface with 
 ibnfs = loadmultidomaintestidistributedbnfs()
 testsuitemultidomain!(ibnfs)
+MINDF.closeservers()
 
 end

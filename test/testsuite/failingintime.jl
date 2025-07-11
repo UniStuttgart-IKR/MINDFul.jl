@@ -169,4 +169,5 @@ testsuitefailingintime!(ibnfs)
 # TODO MA1069 : rerun testinterface with 
 ibnfs = loadmultidomaintestidistributedbnfs()
 testsuitefailingintime!(ibnfs)
+MINDF.closeservers()
 end
