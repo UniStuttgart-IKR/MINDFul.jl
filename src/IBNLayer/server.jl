@@ -306,7 +306,7 @@ export serve
                   compilationalgorithmargs:
                     type: array
                     items:
-                      type: any
+                      type: object
         responses:
           "200":
             description: Successfully compiled the intent.
@@ -373,7 +373,7 @@ export serve
                       constraints:
                         type: array
                         items:
-                          type: any
+                          type: object
         responses:
           "200":
             description: Successfully delegated the intent.
