@@ -133,3 +133,12 @@ function canreserve(sdn::AbstractSDNController, nodeview::NodeView, transmission
 
     return true
 end
+
+
+"""
+$(TYPEDSIGNATURES)
+Fallback for dummy SDN
+"""
+@recvtime function setlinkstate!(sdn::AbstractSDNController, oxcview::OXCView, edge::Edge, operatingstate::Bool)
+    return nothing
+end

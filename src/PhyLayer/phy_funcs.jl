@@ -159,6 +159,7 @@ $(TYPEDSIGNATURES)
 Set the operating state of the edge in `oxcview` and trigger the state update of the relevant low level intents.
 """
 @recvtime function setlinkstate!(ibnf::IBNFramework, oxcview::OXCView, edge::Edge, operatingstate::Bool)
+    setlinkstate!(getsdncontroller(ibnf), oxcview, edge::Edge, operatingstate)
     if getcurrentlinkstate(oxcview, edge) != operatingstate
         linkstates = getlinkstates(oxcview)[edge]
         push!(linkstates, (@logtime, operatingstate))
