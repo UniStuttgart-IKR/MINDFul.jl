@@ -107,7 +107,7 @@ export serve
           "200":
             description: Successfully initiated handshake.
           "403":
-            description: Forbidden: Token not received.
+            description: Forbidden. Token not received.
     """
     @post api("/handshake") function (req; context)
         ibnf = getmyibnf(req, context)
@@ -150,14 +150,14 @@ export serve
           "200":
             description: Successfully returned the compilation algorithms.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Compilation algorithms not found.
     """
     @post MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
 
         compilationalgorithms = MINDF.requestavailablecompilationalgorithms_term!(remoteibnfhandler, ibnf)
@@ -203,14 +203,14 @@ export serve
           "200":
             description: Successfully returned the spectrum availability.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Spectrum availability not found.
     """    
     @post MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
 
         gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -260,14 +260,14 @@ export serve
           "200":
             description: Successfully returned the current link state.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Currently link not available.
     """
     @post MINDF.HTTPMessages.URI_CURRENTLINKSTATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_CURRENTLINKSTATE) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -311,14 +311,14 @@ export serve
           "200":
             description: Successfully compiled the intent.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to compile the intent.
     """
     @post MINDF.HTTPMessages.URI_COMPILEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILEINTENT) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -378,14 +378,14 @@ export serve
           "200":
             description: Successfully delegated the intent.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Delegation not worked.
     """
     @post MINDF.HTTPMessages.URI_DELEGATEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_DELEGATEINTENT) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
       
       internalidagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTERNALIDAGNODEID])
@@ -430,14 +430,14 @@ export serve
           "200":
             description: Successfully updated the intent state.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to update the intent state.
     """
     @post MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -478,14 +478,14 @@ export serve
           "200":
             description: Successfully checked if the intent is satisfied.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to check if the intent is satisfied.
     """
     @post MINDF.HTTPMessages.URI_ISSATISFIED function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ISSATISFIED) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -521,14 +521,14 @@ export serve
           "200":
             description: Successfully installed the intent.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to install the intent.
     """
     @post MINDF.HTTPMessages.URI_INSTALLINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INSTALLINTENT) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -562,14 +562,14 @@ export serve
           "200":
             description: Successfully uninstalled the intent.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to uninstall the intent.
     """
     @post MINDF.HTTPMessages.URI_UNINSTALLINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNINSTALLINTENT) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -603,14 +603,14 @@ export serve
           "200":
             description: Successfully uncompiled the intent.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to install the intent.
     """
     @post MINDF.HTTPMessages.URI_UNCOMPILEINTENT function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNCOMPILEINTENT) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -661,14 +661,14 @@ export serve
           "200":
             description: Successfully set the link state.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Set link state not possible.
     """
     @post MINDF.HTTPMessages.URI_SETLINKSTATE function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SETLINKSTATE) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -722,14 +722,14 @@ export serve
           "200":
             description: Successfully returned the link states.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Set link state not possible.
     """
     @post MINDF.HTTPMessages.URI_REQUESTLINKSTATES function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTLINKSTATES) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
       
       gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -766,14 +766,14 @@ export serve
           "200":
             description: Successfully returned the IDAG.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the IDAG.
     """
     @post MINDF.HTTPMessages.URI_REQUESTIDAG function (req; context)
       ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
       if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTIDAG) == false
-        return HTTP.Response(403, "Forbidden: Invalid token")
+        return HTTP.Response(403, "Forbidden. Invalid token")
       end
 
       idag = MINDF.requestidag_term(remoteibnfhandler, ibnf)
@@ -809,14 +809,14 @@ export serve
           "200":
             description: Successfully returned the IBNF's attribute graph.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the IBNF's attribute graph.
     """
     @post MINDF.HTTPMessages.URI_IBNAGRAPH function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_IBNAGRAPH) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
         
         ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnfhandler, ibnf)
@@ -852,14 +852,14 @@ export serve
           "200":
             description: Successfully returned the IBNF handlers.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the IBNF handlers.
     """
     @post MINDF.HTTPMessages.URI_REQUESTHANDLERS function (req; context)
        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
        if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTHANDLERS) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
        end  
         
         ibnfhandlers = MINDF.requestibnfhandlers_term(remoteibnfhandler, ibnf)      
@@ -895,14 +895,14 @@ export serve
           "200":
             description: Successfully returned the logical LLI order.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the logical LLI order.
     """
     @post MINDF.HTTPMessages.URI_LOGICALORDER function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LOGICALORDER) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
@@ -942,14 +942,14 @@ export serve
           "200":
             description: Successfully returned the intent global path.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the intent global path.
     """
     @post MINDF.HTTPMessages.URI_INTENTGLOBALPATH function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INTENTGLOBALPATH) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
@@ -987,14 +987,14 @@ export serve
           "200":
             description: Successfully returned the electrical presence.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the electrical presence.
     """
     @post MINDF.HTTPMessages.URI_ELECTRICALPRESENCE function (req; context)
        ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ELECTRICALPRESENCE) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
@@ -1032,14 +1032,14 @@ export serve
           "200":
             description: Successfully returned the light paths.
           "403":
-            description: Forbidden: Invalid token.
+            description: Forbidden. Invalid token.
           "404":
             description: Not possible to request the light paths.
     """
     @post MINDF.HTTPMessages.URI_LIGHTPATHS function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LIGHTPATHS) == false
-            return HTTP.Response(403, "Forbidden: Invalid token")
+            return HTTP.Response(403, "Forbidden. Invalid token")
         end
         
         intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
