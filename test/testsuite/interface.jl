@@ -66,7 +66,7 @@ function testsuiteinterface!(ibnfs)
 
             @test MINDF.isthesame(MINDF.requestibnattributegraph_init(ibnf, ibnfhandler), MINDF.requestibnattributegraph_init(ibnf, ibnfhandlerframework))
             @test MINDF.isthesame(MINDF.requestidag_init(ibnf, ibnfhandler),  MINDF.requestidag_init(ibnf, ibnfhandlerframework))
-            @test MINDF.requestibnfhandlers_init(ibnf, ibnfhandler) == MINDF.requestibnfhandlers_init(ibnf, ibnfhandlerframework)
+            @test MINDF.isthesame(MINDF.requestibnfhandlers_init(ibnf, ibnfhandler), MINDF.requestibnfhandlers_init(ibnf, ibnfhandlerframework))
 
             for idagnode in someidagnodes
                 @test MINDF.requestlogicallliorder_init(ibnf, ibnfhandler, getidagnodeid(idagnode)) == MINDF.requestlogicallliorder_init(ibnf, ibnfhandlerframework, getidagnodeid(idagnode)) 

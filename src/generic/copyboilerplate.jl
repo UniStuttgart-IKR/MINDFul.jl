@@ -24,6 +24,12 @@ $(TYPEDSIGNATURES)
 Recursively compare all fields until a primitive element type is found
 """
 function isthesame(obj1::T, obj2::T) where {T}
+    skiphandlers = false
+    if T <: IBNFramework{O,S,T,H} where {O,S,T,H <: IBNFramework}
+        # cannot do recursive
+        length(getibnfhandlers(obj1)) == length(getibnfhandlers(obj2)) || return false
+        skiphandlers = true
+    end
     if isprimitivetype(T)
         if T <: Ptr
             return true
@@ -51,7 +57,15 @@ function isthesame(obj1::T, obj2::T) where {T}
         end
     else
         return all(fieldnames(T)) do fn
-            isthesame(getfield(obj1, fn), getfield(obj2, fn))
+            if skiphandlers
+                if fn == :ibnfhandlers
+                    return true
+                else
+                    isthesame(getfield(obj1, fn), getfield(obj2, fn))
+                end
+            else
+                return true
+            end
         end
     end
 end
