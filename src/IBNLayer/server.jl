@@ -154,7 +154,7 @@ export serve
           "404":
             description: Compilation algorithms not found.
     """
-    @post HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
+    @post MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
         ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
         if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
             return HTTP.Response(403, "Forbidden: Invalid token")
