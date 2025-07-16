@@ -59,6 +59,6 @@ const FAIL_DSTOXCADDDROPPORT = :Fail_dstoxcadddropport
 const FAIL_GROOMEDREMOTEINTENTSTATE = :Fail_groomedremoteintentstate
 
 "Signifies that the request was not allowed due to insufficient permissions"
-const FAIL_NO_PERMISSION = "Fail_no_permission"
+const FAIL_NO_PERMISSION = :Fail_no_permission
 
 end
