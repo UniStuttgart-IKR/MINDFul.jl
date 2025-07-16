@@ -58,4 +58,7 @@ const FAIL_DSTOXCADDDROPPORT = :Fail_dstoxcadddropport
 "Used a remote intent to groom and that remote intent state was not installed or compiled"
 const FAIL_GROOMEDREMOTEINTENTSTATE = :Fail_groomedremoteintentstate
 
+"Signifies that the request was not allowed due to insufficient permissions"
+const FAIL_NO_PERMISSION = "Fail_no_permission"
+
 end

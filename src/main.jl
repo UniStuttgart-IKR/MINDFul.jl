@@ -36,8 +36,8 @@ function main()
         let
             ag = name_graph[2]
             ibnag = default_IBNAttributeGraph(ag)
-            ibnf = IBNFramework(ibnag, Vector{RemoteHTTPHandler}())
-        end for name_graph in domains_name_graph
+            ibnf = IBNFramework(ibnag, nothing, Vector{RemoteHTTPHandler}()) #Vector{HTTP.Servers.Server}()
+        end for name_graph in domains_name_graph 
     ]
 
     if encryption
@@ -58,8 +58,10 @@ function main()
         push!(getibnfhandlers(localibnf), RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
     end
 
-    httpserver = startibnserver!(localibnf, encryption, neighbourips) 
-    
+    httpserver = startibnserver!(localibnf, encryption, neighbourips)
+    localibnf.ibnfcomm.server = httpserver
+    #push!(localibnf.ibnfcomm.server, httpserver) 
+    @show localibnf
 
     if localport == 8081
         #@show ibnfs[1].ibnfhandlers
@@ -79,7 +81,8 @@ function main()
 
         #println("\n\n")
         #@show getibnfhandlers(ibnfs[1])
-        closeservers()
+        #closeservers()
+        close(httpserver)
     end
 
     # if localport == 8083

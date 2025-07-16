@@ -58,11 +58,12 @@ function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
     
     try
         httpserver = Server.serve(host="0.0.0.0", port=port;
-            async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, 
+            async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, show_banner=false, verbose=-1,
             tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
             sslconfig=sslconf,
             )
-        push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
+        #push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
+        return httpserver
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")
@@ -95,13 +96,14 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
  
         try
             httpserver = Server.serve(host="0.0.0.0", port=port;
-            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, 
+            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verbose=1,
             tcpisvalid= tcp->ipfiltering(tcp, ips),
             sslconfig=sslconf,
             #readtimeout=10,
             #keepalive_timeout=10,
             #idle_timeout=10
             ) 
+            #@show typeof(httpserver)
             push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
         catch e
             if isa(e, Base.IOError)

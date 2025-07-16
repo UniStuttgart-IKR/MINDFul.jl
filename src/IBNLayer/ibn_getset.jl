@@ -42,14 +42,14 @@ end
 $(TYPEDSIGNATURES)
 """
 function getibnfhandlers(s::IBNFramework)
-    return s.ibnfhandlers
+    return s.ibnfcomm.ibnfhandlers
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function getibnfhandler(s::IBNFramework, uuid::UUID)
-    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , s.ibnfhandlers))
+    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , s.ibnfcomm.ibnfhandlers))
 end
 
 """

@@ -367,6 +367,14 @@ mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     recvtoken::String
 end
 
+const OxygenServer = HTTP.Servers.Server
+abstract type AbstractIBNFCommunication end
+ 
+mutable struct IBNFCommunication{H <: AbstractIBNFHandler} <: AbstractIBNFCommunication
+  server::Union{Nothing, OxygenServer}
+  ibnfhandlers::Vector{H}
+end
+
 """
     The graph of the IBN Framework is expressed with this `AttributeGraph`.
     Border nodes are assumed to be visible from both sides.
@@ -382,7 +390,7 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
+struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: AbstractIBNFCommunication} <: AbstractIBNFHandler
     "The operation mode of the IBN framework"
     operationmode::O
     "The id of this IBN Framework instance"
@@ -392,7 +400,7 @@ struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <:
     "Single-domain internal graph with border nodes included"
     ibnag::T
     "Other IBN Frameworks handles"
-    ibnfhandlers::Vector{H}
+    ibnfcomm::I 
     "SDN controller handle"
     sdncontroller::S
 end
@@ -413,10 +421,11 @@ $(TYPEDSIGNATURES)
 
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+function IBNFramework(ibnag::T, server::U, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, U <:Union{Nothing, OxygenServer}, H <: AbstractIBNFHandler}
     ibnfid = AG.graph_attr(ibnag)
+    ibnfcomm = IBNFCommunication(server, ibnfhandlers)
     # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfhandlers, SDNdummy())
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 end
 
 """
