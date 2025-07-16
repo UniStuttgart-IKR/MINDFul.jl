@@ -13,6 +13,6 @@ end
 
 ibnfs = loadmultidomaintestidistributedbnfs()
 testsuitepermissions!(ibnfs)
-MINDF.closeservers()
+MINDF.closeibnfserver(ibnfs)
 
 end

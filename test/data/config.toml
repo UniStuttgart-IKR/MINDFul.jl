@@ -7,7 +7,7 @@ encryption = false
 ip = "0.0.0.0"
 port = 8081
 ibnfid = 0x1
-permissions = ["limited", "limited"]
+permissions = ["full", "full"]
 
 [[domains.config]]
 ip = "0.0.0.0"

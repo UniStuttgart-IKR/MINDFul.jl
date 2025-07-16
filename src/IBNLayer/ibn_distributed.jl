@@ -62,8 +62,7 @@ function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
             tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
             sslconfig=sslconf,
             )
-        #push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
-        return httpserver
+        myibnf.ibnfcomm.server = httpserver
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")
@@ -77,8 +76,6 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     ibnfsdict = Dict{Int, IBNFramework}()
     if encryption
         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
-        #sslconf=MbedTLS.SSLConfig()
-        #sslconf=MbedTLS.SSLConfig(dir*"/selfsigned.cert", dir*"/selfsigned.key")
     else
         sslconf=nothing
     end
@@ -91,20 +88,14 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     for ibnf in ibnfs
         selectedhandler = getibnfhandlers(ibnf)[1]
         port = getibnfhandlerport(selectedhandler)
-        println(" ")
-        println("Starting server on 0.0.0.0:$port")
  
         try
             httpserver = Server.serve(host="0.0.0.0", port=port;
-            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verbose=1,
+            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verboose=-1,
             tcpisvalid= tcp->ipfiltering(tcp, ips),
             sslconfig=sslconf,
-            #readtimeout=10,
-            #keepalive_timeout=10,
-            #idle_timeout=10
             ) 
-            #@show typeof(httpserver)
-            push!(HTTPMessages.GLOBAL_SERVERS, httpserver)
+            ibnf.ibnfcomm.server = httpserver
         catch e
             if isa(e, Base.IOError)
                 println("Server at 0.0.0.0:$port is already running")
@@ -115,9 +106,13 @@ function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
     end
 end
 
-function closeservers()
-    for server in HTTPMessages.GLOBAL_SERVERS
-        close(server)
+function closeibnfserver(ibnf::IBNFramework)
+    close(getibnfserver(ibnf))
+end
+
+function closeibnfserver(ibnfs::Vector{<:IBNFramework})
+    for ibnf in ibnfs
+        close(getibnfserver(ibnf))
     end
 end
 

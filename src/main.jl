@@ -9,7 +9,7 @@ function main()
     if !isfile(MAINDIR * configpath)
         error("Configuration file not found: $configpath")
     end
-    #@show MAINDIR * configpath
+
     config = TOML.parsefile(MAINDIR * configpath)
     domainfile = MAINDIR * config["domainfile"]
     encryption = config["encryption"]
@@ -36,7 +36,7 @@ function main()
         let
             ag = name_graph[2]
             ibnag = default_IBNAttributeGraph(ag)
-            ibnf = IBNFramework(ibnag, nothing, Vector{RemoteHTTPHandler}()) #Vector{HTTP.Servers.Server}()
+            ibnf = IBNFramework(ibnag, nothing, Vector{RemoteHTTPHandler}())
         end for name_graph in domains_name_graph 
     ]
 
@@ -58,11 +58,8 @@ function main()
         push!(getibnfhandlers(localibnf), RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
     end
 
-    httpserver = startibnserver!(localibnf, encryption, neighbourips)
-    localibnf.ibnfcomm.server = httpserver
-    #push!(localibnf.ibnfcomm.server, httpserver) 
-    @show localibnf
-
+    startibnserver!(localibnf, encryption, neighbourips)
+    
     if localport == 8081
         #@show ibnfs[1].ibnfhandlers
         conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
@@ -79,11 +76,12 @@ function main()
         # uncompile
         MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
 
-        #println("\n\n")
-        #@show getibnfhandlers(ibnfs[1])
-        #closeservers()
-        close(httpserver)
+        closeibnfserver(localibnf)
     end
+
+    # if localport == 8083
+    #     closeibnfserver(localibnf)
+    # end
 
     # if localport == 8083
     #     conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(3), 25), MINDFul.GlobalNode(UUID(1), 4), u"100.0Gbps")
@@ -99,9 +97,5 @@ function main()
     
     #     # uncompile
     #     MINDFul.uncompileintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
-
-    #     println("\n\n")
-    #     @show getibnfhandlers(ibnfs[3])
     # end
-    #return httpserver
 end

@@ -357,6 +357,6 @@ testsuitegrooming!(ibnfs)
 # TODO MA1069 : rerun testinterface with 
 ibnfs = loadmultidomaintestidistributedbnfs()
 testsuitegrooming!(ibnfs)
-MINDF.closeservers()
+MINDF.closeibnfserver(ibnfs)
 
 end

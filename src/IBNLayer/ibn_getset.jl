@@ -511,3 +511,7 @@ function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
         end
     end
 end
+
+function getibnfserver(ibnf::IBNFramework)
+    return ibnf.ibnfcomm.server
+end

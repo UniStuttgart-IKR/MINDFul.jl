@@ -89,7 +89,7 @@ testsuiteinterface!(ibnfs)
 # TODO MA1069 : rerun testinterface with 
 ibnfs = loadmultidomaintestidistributedbnfs()
 testsuiteinterface!(ibnfs)
-MINDF.closeservers()
+MINDF.closeibnfserver(ibnfs)
 
 
 end

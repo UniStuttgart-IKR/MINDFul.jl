@@ -81,7 +81,7 @@ function loadmultidomaintestidistributedbnfs()
         let
             ag = name_graph[2]
             ibnag = MINDFul.default_IBNAttributeGraph(ag)
-            ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
+            ibnf = MINDFul.IBNFramework(ibnag, nothing, Vector{MINDFul.RemoteHTTPHandler}())
         end for name_graph in domains_name_graph
     ]
 

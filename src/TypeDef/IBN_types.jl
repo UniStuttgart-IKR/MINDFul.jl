@@ -412,8 +412,11 @@ The most default construct with abstract type of IBN handlers
 """
 function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
+    ibnfcomm = IBNFCommunication(nothing, Vector{AbstractIBNFHandler}())  # empty communication
     # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
+    #return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+
 end
 
 """
