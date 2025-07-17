@@ -75,7 +75,7 @@ prioritizesplitbordernodes(
                     issuccess(returncode) && break
                 end
             end
-            updateidagnodestates!(ibnf, idagnode)
+            updateidagnodestates!(ibnf, idagnode; @passtime)
         elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
             # source intra-domain , destination cross-domain
             # TODO cross-lightpath grooming with strict same destination
@@ -111,13 +111,13 @@ Splits connectivity intent on `splitglobalnode`
     idag = getidag(ibnf)
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), getconstraints(intent))
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose)
+    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
     secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose)
+    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, secondhalfidagnode; @passtime)
     return returncode
 end
@@ -569,7 +569,7 @@ chooseoxcadddropport(
         if issuccess(returncode) && !usedgrooming
             lpi = LightpathIntent(srcallocations, dstallocations, spectrumslotsrange, lpath)
             lpidagnode = addidagnode!(ibnf, lpi; parentids=[idagnodeid], intentissuer=MachineGenerated(), @passtime)
-            returncode = compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
+            returncode = compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose, @passtime)
         end
 
         return  returncode

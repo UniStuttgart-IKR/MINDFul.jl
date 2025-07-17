@@ -4,7 +4,7 @@ kk
 Add a new user intent to the IBN framework and return the id.
 """
 @recvtime function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
-    idagnode =  addidagnode!(ibnf, intent; intentissuer)
+    idagnode =  addidagnode!(ibnf, intent; intentissuer, @passtime)
     return getidagnodeid(idagnode)
 end
 
@@ -72,7 +72,7 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
-    deletenodesedgesuntilgroomingfound(getidag(ibnf), idagnodeid)
+    deleteedgesuntilgroomingfound!(getidag(ibnf), idagnodeid)
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid; parentsfirst=false)
     foreach(idagnodedescendants) do idagnodedescendant
         if getintent(idagnodedescendant) isa RemoteIntent
@@ -120,6 +120,33 @@ function deletenodesedgesuntilgroomingfound(idag::IntentDAG, idagnodeid::UUID)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+Delete edges towards grooming nodes.
+"""
+function deleteedgesuntilgroomingfound!(idag::IntentDAG, idagnodeid::UUID)
+    for idagnode in getidagnodechildren(idag, idagnodeid)
+        nidagnodeid = getidagnodeid(idagnode)
+        if isgroomingnode(idag, nidagnodeid)
+            removeidagedge!(idag, idagnodeid, nidagnodeid)
+        end
+    end
+    for idagnode in getidagnodechildren(idag, idagnodeid)
+        nidagnodeid = getidagnodeid(idagnode)
+        deleteedgesuntilgroomingfound!(idag, nidagnodeid)
+    end
+end
+
+function isgroomingnode(idag::IntentDAG, idagnodeid::UUID)
+    idagnodeidx = getidagnodeidx(idag, idagnodeid)
+    if length(Graphs.inneighbors(idag, idagnodeidx)) > 1
+        if length(getidagnoderoots(idag, idagnodeid)) > 1
+            return true
+        end
+    end
+    return false
+end
+
 function deletenodesedgesuntilgroomingfound_fake(idag::IntentDAG, idagnodeid::UUID)
     idagnodeid2dlt = UUID[]
     idagedge2dlt = UUID[]
@@ -153,7 +180,7 @@ function _rec_deletenodesedgesuntilgroomingfound!(idag::IntentDAG, idagnodeid::U
     for idagnode in getidagnodechildren(idag, idagnodeid)
         investigatedchildren = true
         nidagnodeid = getidagnodeid(idagnode)
-        # all children must be grooming in order to delete the parent
+        # all children must be grooming in order to delete the parent. Because otherwise more need to be deleted.
         allgroomingfound &= _rec_deletenodesedgesuntilgroomingfound!(idag, nidagnodeid, idagnodeid2dlt)
     end
     allgroomingfound &= investigatedchildren
@@ -202,7 +229,7 @@ $(TYPEDSIGNATURES)
         else
             updateidagstates!(ibnf, idagnodeid, IntentState.Compiled; @passtime)
             for idagnodechild in idagnodechildren
-                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose)
+                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose, @passtime)
             end
         end
     end
@@ -325,7 +352,7 @@ Add a `RemoteIntent` as a child intent and delegate it to the ibn with id `remot
 @recvtime function remoteintent!(ibnf::IBNFramework, idagnode::IntentDAGNode, remoteibnfid::UUID)
     ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
     internalnextidagnodeid = getidagnextuuidcounter(getidag(ibnf))
-    remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid)
+    remoteidagnodeid = requestdelegateintent!(ibnf, ibnfhandler, getintent(idagnode), internalnextidagnodeid; @passtime)
 
     # add an idagnode `RemoteIntent`
     remoteintent = RemoteIntent(remoteibnfid, remoteidagnodeid, getintent(idagnode), true)

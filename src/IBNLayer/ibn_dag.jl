@@ -96,13 +96,13 @@ Return the `IntentDAGNode`
     for parentid in parentids
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
-        updateidagstates!(ibnf, parentid)
+        updateidagstates!(ibnf, parentid; @passtime)
     end
 
     for childid in childids
         childidx = getidagnodeidx(intentdag, childid)
         add_edge!(intentdag, newidagnodeidx, childidx)
-        updateidagstates!(ibnf, getidagnodeid(idagnode))
+        updateidagstates!(ibnf, getidagnodeid(idagnode); @passtime)
     end
 
     return idagnode
@@ -189,6 +189,12 @@ Return value is true if state is changed.
     currentstate = getidagnodestate(idagnode)
     changedstate = false
     newstate::Union{Nothing, IntentState.T} = nothing
+
+    # if !isnothing(offsettime)
+    #     if Dates.year(offsettime) == 2025 && Dates.month(offsettime) == 7 && Dates.day(offsettime) == 16
+    #         error("shouldnt have come here")
+    #     end
+    # end
 
     if makestate == IntentState.Installing # only state that propagates down the DAG
         if currentstate == IntentState.Compiled
