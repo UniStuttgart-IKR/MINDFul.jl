@@ -42,14 +42,14 @@ end
 $(TYPEDSIGNATURES)
 """
 function getibnfhandlers(s::IBNFramework)
-    return s.ibnfcomm.ibnfhandlers
+    return getibnfcomm(s).ibnfhandlers
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function getibnfhandler(s::IBNFramework, uuid::UUID)
-    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , s.ibnfcomm.ibnfhandlers))
+    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , getibnfhandlers(s)))
 end
 
 """
@@ -438,6 +438,10 @@ function setlocalnode_output!(ena::MutableEndNodeAllocations, intval::Union{Noth
     ena.localnode_output = intval
 end
 
+function setibnfserver!(ibnf::IBNFramework, server::OxygenServer)
+    ibnf.ibnfcomm.server = server
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -512,6 +516,10 @@ function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
     end
 end
 
+function getibnfcomm(ibnf::IBNFramework)
+    return ibnf.ibnfcomm
+end
+
 function getibnfserver(ibnf::IBNFramework)
-    return ibnf.ibnfcomm.server
+    return getibnfcomm(ibnf).server
 end

@@ -1,17 +1,31 @@
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function main()
+    verbose=false
     MAINDIR = dirname(@__DIR__)
     #Checking for arguments
     if length(ARGS) < 1
-        error("Usage: julia MINDFul.main <config.toml>")
+        error("Usage: julia MINDFul.main() <configX.toml>")
     end
 
     configpath = ARGS[1]
-    if !isfile(MAINDIR * configpath)
-        error("Configuration file not found: $configpath")
+    if startswith(configpath, "/") 
+        finalconfigpath = configpath
+    else
+        finalconfigpath = MAINDIR * "/" * configpath
     end
 
-    config = TOML.parsefile(MAINDIR * configpath)
-    domainfile = MAINDIR * config["domainfile"]
+    config = TOML.parsefile(finalconfigpath)
+
+    domainfile = config["domainfile"]
+    if startswith(domainfile, "/") 
+        finaldomainfile = configpath
+    else
+        finaldomainfile = MAINDIR * "/" * domainfile
+    end
+
     encryption = config["encryption"]
 
     localip = config["local"]["ip"]
@@ -30,15 +44,7 @@ function main()
         push!(neigbhbourpermissions, n["permission"])
     end
    
-    domains_name_graph = first(JLD2.load(domainfile))[2]
-
-    ibnfs = [
-        let
-            ag = name_graph[2]
-            ibnag = default_IBNAttributeGraph(ag)
-            ibnf = IBNFramework(ibnag, nothing, Vector{RemoteHTTPHandler}())
-        end for name_graph in domains_name_graph 
-    ]
+    domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
     if encryption
         urischeme = "https"
@@ -47,36 +53,57 @@ function main()
         urischeme = "http"
     end
 
-    localibnf = getibnfwithid(ibnfs, UUID(localid))
+    hdlr = Vector{RemoteHTTPHandler}()
 
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(getibnfhandlers(localibnf), RemoteHTTPHandler(UUID(localid), localURIstring, "full", "", ""))
+    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", "", ""))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(getibnfhandlers(localibnf), RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
+        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
     end
 
-    startibnserver!(localibnf, encryption, neighbourips)
+    # ibnfs = [
+    #     let
+    #         ag = name_graph[2]
+    #         ibnag = default_IBNAttributeGraph(ag)
+    #         ibnf = IBNFramework(ibnag, nothing, hdlr)
+    #     end for name_graph in domains_name_graph 
+    # ]
+
+    
+    ibnf = nothing
+    for name_graph in domains_name_graph
+        ag = name_graph[2]
+        ibnag = default_IBNAttributeGraph(ag)
+        if getibnfid(ibnag) == UUID(localid)
+            ibnf = IBNFramework(ibnag, hdlr, encryption, neighbourips; verbose)
+            break
+        end
+    end
+
+    if ibnf === nothing
+        error("No matching ibnf found for ibnfid $localid")
+    end
     
     if localport == 8081
         #@show ibnfs[1].ibnfhandlers
         conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
-        intentuuid_bordernode = MINDFul.addintent!(ibnfs[1], conintent_bordernode, MINDFul.NetworkOperator())
+        intentuuid_bordernode = MINDFul.addintent!(ibnf, conintent_bordernode, MINDFul.NetworkOperator())
 
-        @show MINDFul.compileintent!(ibnfs[1], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
+        MINDFul.compileintent!(ibnf, intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
         
         # install
-        MINDFul.installintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+        MINDFul.installintent!(ibnf, intentuuid_bordernode; verbose)
 
         # uninstall
-        MINDFul.uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+        MINDFul.uninstallintent!(ibnf, intentuuid_bordernode; verbose)
     
         # uncompile
-        MINDFul.uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose=true)
+        MINDFul.uncompileintent!(ibnf, intentuuid_bordernode; verbose)
 
-        closeibnfserver(localibnf)
+        closeibnfserver(ibnf)
     end
 
     # if localport == 8083

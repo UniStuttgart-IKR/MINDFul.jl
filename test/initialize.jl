@@ -52,8 +52,13 @@ function loadmultidomaintestibnfs()
 end
 
 function loadmultidomaintestidistributedbnfs()
-    config = TOML.parsefile(TESTDIR * "/data/config.toml")
-    domainfile = TESTDIR * config["domainfile"]
+    config = TOML.parsefile(TESTDIR * "/" * "data/config.toml")
+    domainfile = config["domainfile"]
+    if startswith(domainfile, "/") 
+        finaldomainfile = configpath
+    else
+        finaldomainfile = TESTDIR * "/" * domainfile
+    end
     encryption = config["encryption"]
 
     ips = Vector{String}()
@@ -68,7 +73,7 @@ function loadmultidomaintestidistributedbnfs()
         append!(permissions, n["permissions"])
     end
 
-    domains_name_graph = first(JLD2.load(domainfile))[2]
+    domains_name_graph = first(JLD2.load(finaldomainfile))[2]
     if encryption
         urischeme = "https"
         run(`$(TESTDIR)/data/generatecerts.sh`)
@@ -81,10 +86,11 @@ function loadmultidomaintestidistributedbnfs()
         let
             ag = name_graph[2]
             ibnag = MINDFul.default_IBNAttributeGraph(ag)
-            ibnf = MINDFul.IBNFramework(ibnag, nothing, Vector{MINDFul.RemoteHTTPHandler}())
+            ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
         end for name_graph in domains_name_graph
     ]
 
+    ibnfsdict = Dict{Int, IBNFramework}()
     index = 1
     for i in eachindex(ibnfs)
         localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
@@ -97,9 +103,11 @@ function loadmultidomaintestidistributedbnfs()
             push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
             index += 1
         end
-    end
 
-    MINDF.startibnserver!(ibnfs, encryption, ips)
+        push!(ibnfsdict, ports[i] => ibnfs[i])
+        httpserver = MINDF.startibnserver!(ibnfsdict, encryption, ips, ports[i])
+        MINDF.setibnfserver!(ibnfs[i], httpserver)
+    end
 
     return ibnfs
 end

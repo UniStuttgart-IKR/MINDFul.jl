@@ -46,10 +46,14 @@ function ipfiltering(tcp, neighbourips)
 end
 
 
-function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
-    selectedhandler = getibnfhandlers(myibnf)[1]
-    port = getibnfhandlerport(selectedhandler)
-    dir = @__DIR__
+function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, neighbourips::Vector{String}, port::Int; verbose::Bool=false)    
+
+    if verbose == true
+        verbose = 0
+    else
+        verbose = -1
+    end
+
     if encryption
         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
     else
@@ -58,53 +62,54 @@ function startibnserver!(myibnf::IBNFramework, encryption, neighbourips)
     
     try
         httpserver = Server.serve(host="0.0.0.0", port=port;
-            async=true, context=myibnf, serialize=false, swagger=true, access_log=nothing, show_banner=false, verbose=-1,
+            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verbose,
             tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
             sslconfig=sslconf,
             )
-        myibnf.ibnfcomm.server = httpserver
+        return httpserver
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")
+            exit(1)
         else
             rethrow(e)  
         end
     end
 end
 
-function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
-    ibnfsdict = Dict{Int, IBNFramework}()
-    if encryption
-        sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
-    else
-        sslconf=nothing
-    end
-    for ibnf in ibnfs 
-        selectedhandler = getibnfhandlers(ibnf)[1]
-        port = getibnfhandlerport(selectedhandler)
-        push!(ibnfsdict, port => ibnf)
-    end
+# function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
+#     ibnfsdict = Dict{Int, IBNFramework}()
+#     if encryption
+#         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
+#     else
+#         sslconf=nothing
+#     end
+#     for ibnf in ibnfs 
+#         selectedhandler = getibnfhandlers(ibnf)[1]
+#         port = getibnfhandlerport(selectedhandler)
+#         push!(ibnfsdict, port => ibnf)
+#     end
 
-    for ibnf in ibnfs
-        selectedhandler = getibnfhandlers(ibnf)[1]
-        port = getibnfhandlerport(selectedhandler)
+#     for ibnf in ibnfs
+#         selectedhandler = getibnfhandlers(ibnf)[1]
+#         port = getibnfhandlerport(selectedhandler)
  
-        try
-            httpserver = Server.serve(host="0.0.0.0", port=port;
-            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verboose=-1,
-            tcpisvalid= tcp->ipfiltering(tcp, ips),
-            sslconfig=sslconf,
-            ) 
-            ibnf.ibnfcomm.server = httpserver
-        catch e
-            if isa(e, Base.IOError)
-                println("Server at 0.0.0.0:$port is already running")
-            else
-                rethrow(e)  
-            end
-        end     
-    end
-end
+#         try
+#             httpserver = Server.serve(host="0.0.0.0", port=port;
+#             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verboose=-1,
+#             tcpisvalid= tcp->ipfiltering(tcp, ips),
+#             sslconfig=sslconf,
+#             ) 
+#             setibnfserver(ibnf, httpserver)
+#         catch e
+#             if isa(e, Base.IOError)
+#                 error("Server at 0.0.0.0:$port is already running")
+#             else
+#                 rethrow(e)  
+#             end
+#         end     
+#     end
+# end
 
 function closeibnfserver(ibnf::IBNFramework)
     close(getibnfserver(ibnf))

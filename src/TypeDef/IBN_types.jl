@@ -367,10 +367,8 @@ mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     recvtoken::String
 end
 
-const OxygenServer = HTTP.Servers.Server
-abstract type AbstractIBNFCommunication end
- 
-mutable struct IBNFCommunication{H <: AbstractIBNFHandler} <: AbstractIBNFCommunication
+const OxygenServer = HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}
+mutable struct IBNFCommunication{H <: AbstractIBNFHandler} 
   server::Union{Nothing, OxygenServer}
   ibnfhandlers::Vector{H}
 end
@@ -390,7 +388,7 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: AbstractIBNFCommunication} <: AbstractIBNFHandler
+struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication} <: AbstractIBNFHandler
     "The operation mode of the IBN framework"
     operationmode::O
     "The id of this IBN Framework instance"
@@ -412,11 +410,17 @@ The most default construct with abstract type of IBN handlers
 """
 function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
-    ibnfcomm = IBNFCommunication(nothing, Vector{AbstractIBNFHandler}())  # empty communication
+    ibnfcomm = IBNFCommunication(nothing, IBNFramework{DefaultOperationMode, SDNdummy, T}[])
     # abstract type : for remote 
     #return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
     return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+end
 
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+    ibnfid = AG.graph_attr(ibnag)
+    ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
+    # abstract type : for remote 
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 end
 
 """
@@ -424,11 +428,20 @@ $(TYPEDSIGNATURES)
 
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
-function IBNFramework(ibnag::T, server::U, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, U <:Union{Nothing, OxygenServer}, H <: AbstractIBNFHandler}
+
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}; verbose::Bool=false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
     ibnfid = AG.graph_attr(ibnag)
-    ibnfcomm = IBNFCommunication(server, ibnfhandlers)
-    # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+    
+    ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
+    ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+
+    port = getibnfhandlerport(getibnfhandlers(ibnf)[1])
+    ibnfsdict = Dict{Int, IBNFramework}(port => ibnf)
+
+    httpserver = startibnserver!(ibnfsdict, encryption, ips, port; verbose)
+    setibnfserver!(ibnf, httpserver)
+    
+    return ibnf
 end
 
 """

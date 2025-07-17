@@ -14,29 +14,13 @@ export serve
 
     api = OxygenInstance.router("/api", tags=["API handshake endpoint"])
 
-    function getmyibnf(req, context)
-      if context isa MINDF.IBNFramework
-          ibnf :: MINDF.IBNFramework = context
-          return ibnf
-      elseif context isa Vector{MINDF.IBNFramework}
-          ibnfs :: Vector{MINDF.IBNFramework} = context
-          host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
-          for ibnftemp in ibnfs
-            if MINDF.getbaseurl(MINDF.getibnfhandlers(ibnftemp)[1]) == "https://$host"
-              ibnf = ibnftemp
-            end
-          end
-          return ibnf
-      elseif context isa Dict{Int, MINDF.IBNFramework}
-          ibnfsdict :: Dict{Int, MINDF.IBNFramework} = context
-          host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
-          uri = HTTP.URI("https://$host")
-          port = parse(Int, uri.port)
-          ibnf = ibnfsdict[port]
-          return ibnf
-      else
-          println("context is of an unexpected type: $(typeof(context))")
-      end
+    function getmyibnf(req, context::Dict{Int, <: MINDF.IBNFramework})
+      ibnfsdict :: Dict{Int, <: MINDF.IBNFramework} = context
+      host = Dict(req.headers)[MINDF.HTTPMessages.KEY_HOST]
+      uri = HTTP.URI("https://$host")
+      port = parse(Int, uri.port)
+      ibnf = ibnfsdict[port]
+      return ibnf
     end
 
     function extractgeneraldata(req, context)
