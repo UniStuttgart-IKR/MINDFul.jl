@@ -22,7 +22,11 @@ function requestibnattributegraph_init(myibnf::IBNFramework, remoteibnfhandler::
     initiatoribnfid = string(getibnfid(myibnf))
 
     resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
-    return deserialize(IOBuffer(resp.body))
+    if resp.status == 200
+        return deserialize(IOBuffer(resp.body))
+    else
+        error("Failed to get IBNAttributeGraph: $(resp.body)")
+    end
 end
 
 """
@@ -55,12 +59,17 @@ function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::Remot
 
     resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     
-    ibnfhandlers = [RemoteHTTPHandler(UUID(d[HTTPMessages.KEY_IBNFID][HTTPMessages.KEY_VALUE]), 
-                    d[HTTPMessages.KEY_BASEURL], 
-                    d[HTTPMessages.KEY_PERMISSION], 
-                    d[HTTPMessages.KEY_GENTOKEN],
-                    d[HTTPMessages.KEY_RECVTOKEN]) for d in JSON.parse(String(resp.body))]
-    return ibnfhandlers
+    if resp.status == 200
+        ibnfhandlers = [RemoteHTTPHandler(UUID(d[HTTPMessages.KEY_IBNFID][HTTPMessages.KEY_VALUE]), 
+                        d[HTTPMessages.KEY_BASEURL], 
+                        d[HTTPMessages.KEY_PERMISSION], 
+                        d[HTTPMessages.KEY_GENTOKEN],
+                        d[HTTPMessages.KEY_RECVTOKEN]) for d in JSON.parse(String(resp.body))]
+        return ibnfhandlers
+    else
+        error("Failed to get IBNFHandlers: $(JSON.parse(String(resp.body)))")
+    end
+    
 end
 
 function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
@@ -85,10 +94,16 @@ function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::Re
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled, 
         HTTPMessages.KEY_VERBOSE => verbose, 
         HTTPMessages.KEY_INTENTUUID => string(intentuuid)))
+    
+    if resp.status == 200
+        parsedjson = JSON.parse(String(resp.body))
+        logicalorder = [deserializelowlevelintent(d) for d in parsedjson]
+        return logicalorder
+    else
+        error("Failed to get logical low level intent sequence: $parsedjson")
+    end
         
-    parsedjson = JSON.parse(String(resp.body))
-    logicalorder = [deserializelowlevelintent(d) for d in parsedjson]
-    return logicalorder
+    
 end
 
 function requestlogicallliorder_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
@@ -123,10 +138,16 @@ function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnfhandler::R
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
+
+    if resp.status == 200
+        parsedjson = JSON.parse(String(resp.body))
+        intentglobalpath = [GlobalNode(UUID(path[HTTPMessages.KEY_IBNFID]), path[HTTPMessages.KEY_LOCALNODE]) for path in parsedjson]
+        return intentglobalpath
+    else
+        error("Failed to get intent global path: $parsedjson")
+    end
     
-    parsedjson = JSON.parse(String(resp.body))
-    intentglobalpath = [GlobalNode(UUID(path[HTTPMessages.KEY_IBNFID]), path[HTTPMessages.KEY_LOCALNODE]) for path in parsedjson]
-    return intentglobalpath
+    
 end
 
 """
@@ -156,9 +177,13 @@ function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteib
         HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
     
-    parsedjson = JSON.parse(String(resp.body))
-    electricalpresence = [GlobalNode(UUID(path[HTTPMessages.KEY_IBNFID]), path[HTTPMessages.KEY_LOCALNODE]) for path in parsedjson]
-    return electricalpresence
+    if resp.status == 200
+        parsedjson = JSON.parse(String(resp.body))
+        electricalpresence = [GlobalNode(UUID(path[HTTPMessages.KEY_IBNFID]), path[HTTPMessages.KEY_LOCALNODE]) for path in parsedjson]
+        return electricalpresence
+    else
+        error("Failed to get global node electrical presence: $parsedjson")
+    end
 end
 
 """
@@ -188,9 +213,13 @@ function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnfhand
         HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
     
-    parsedjson = JSON.parse(String(resp.body))
-    lightpaths = [GlobalNode[GlobalNode(UUID(node[HTTPMessages.KEY_IBNFID]), node[HTTPMessages.KEY_LOCALNODE]) for node in path] for path in parsedjson]
-    return lightpaths
+    if resp.status == 200
+        parsedjson = JSON.parse(String(resp.body))
+        lightpaths = [GlobalNode[GlobalNode(UUID(node[HTTPMessages.KEY_IBNFID]), node[HTTPMessages.KEY_LOCALNODE]) for node in path] for path in parsedjson]
+        return lightpaths
+    else
+        error("Failed to get intent global light paths: $parsedjson")
+    end
 end
 
 """
@@ -258,7 +287,7 @@ function requestlinkstates_init(myibnf::IBNFramework, remoteibnfhandler::RemoteH
         result = [(DateTime(item[HTTPMessages.KEY_LINKDATETIME]), Bool(item[HTTPMessages.KEY_LINKSTATE])) for item in parsed]
         return result
     else
-        error("Failed to set link state: $(resp.body)")
+        error("Failed to set link state: $parsed")
     end
 end
 
@@ -303,7 +332,7 @@ end
     if resp.status == 200
         return Symbol(JSON.parse(String(resp.body)))
     else
-        error("Failed to set link state: $(resp.body)")
+        error("Failed to set link state: $(JSON.parse(String(resp.body)))")
     end
 end
 
@@ -385,7 +414,11 @@ end
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_VERBOSE => verbose); @passtime)
 
-    return JSON.parse(String(resp.body))
+    if resp.status == 200
+        return JSON.parse(String(resp.body))
+    else
+        error("Failed to install intent: $(JSON.parse(String(resp.body)))")
+    end
 end
 
 """
@@ -411,7 +444,11 @@ end
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_VERBOSE => verbose); @passtime)
 
-    return JSON.parse(String(resp.body))
+    if resp.status == 200
+        return JSON.parse(String(resp.body))
+    else
+        error("Failed to uninstall intent: $(JSON.parse(String(resp.body)))")
+    end
 end
 
 """
@@ -438,7 +475,12 @@ end
         HTTPMessages.KEY_VERBOSE => verbose); @passtime)
     returncompileinit = JSON.parse(String(resp.body))
 
-    return Symbol(returncompileinit)
+    if resp.status == 200
+        return Symbol(returncompileinit)
+    else
+        error("Failed to uncompile intent: $returncompileinit")
+    end
+    
 end
 
 """
@@ -482,7 +524,11 @@ end
         HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_NEWSTATE => string(newstate)); @passtime)
 
-    return Bool.(JSON.parse(String(resp.body)))
+    if resp.status == 200
+        return Bool.(JSON.parse(String(resp.body)))
+    else
+        error("Failed to update remote intent state: $(JSON.parse(String(resp.body)))")
+    end
 end
 
 @recvtime function requestremoteintentstateupdate_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, newstate::IntentState.T)
@@ -516,8 +562,13 @@ function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHan
 
     resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REQUESTIDAG, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
 
-    idag = deserialize(IOBuffer(resp.body))
-    return idag
+    if resp.status == 200
+        idag = deserialize(IOBuffer(resp.body))
+        return idag
+    else
+        error("Failed to get IBNAttributeGraph: $(JSON.parse(String(resp.body)))")
+    end
+    
 end
 """
 $(TYPEDSIGNATURES) 
@@ -537,7 +588,7 @@ function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandl
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))
     else
-        error("Failed to request spectrum availability: $(resp.body)")
+        error("Failed to request spectrum availability: $(JSON.parse(String(resp.body)))")
     end
 end
 
@@ -578,8 +629,12 @@ Return the id of the new dag node if successful and `nothing` otherwise
         HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_INTENT => serializedintent); @passtime)
 
-    uuidreturned = JSON.parse(String(resp.body))
-    return UUID(uuidreturned[HTTPMessages.KEY_VALUE])
+    if resp.status == 200
+        uuidreturned = JSON.parse(String(resp.body))
+        return UUID(uuidreturned[HTTPMessages.KEY_VALUE])
+    else
+        error("Failed to delegate intent: $uuidreturned")
+    end
 end
 
 @recvtime function requestdelegateintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intent::AbstractIntent, internalidagnodeid::UUID)
@@ -598,7 +653,11 @@ function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remot
 
     resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_COMPILATIONALGORITHMS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
 
-    return JSON.parse(String(resp.body))
+    if resp.status == 200
+        return JSON.parse(String(resp.body))
+    else
+        error("Failed to get available compilation algorithms: $(JSON.parse(String(resp.body)))")
+    end
 end
 
 function requestavailablecompilationalgorithms_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
@@ -620,8 +679,12 @@ MA1069 implementation
         HTTPMessages.KEY_COMPILATIONKEY => string(compilationalgorithmkey), 
         HTTPMessages.KEY_COMPILATIONARGS => JSON.json(compilationalgorithmargs)); @passtime)
 
-    returncompileinit = JSON.parse(String(resp.body))
-    return Symbol(returncompileinit)
+    if resp.status == 200
+        returncompileinit = JSON.parse(String(resp.body))
+        return Symbol(returncompileinit)
+    else
+        error("Failed to compile intent: $returncompileinit")
+    end
 end
 
 """
@@ -641,12 +704,16 @@ function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::Remote
         HTTPMessages.KEY_NOEXTRALLIS => noextrallis))
 
     issatisfiedreturn = JSON.parse(String(resp.body))
-    if issatisfiedreturn == true
-        return true
-    elseif issatisfiedreturn == false
-        return false
+    if resp.status == 200
+        if issatisfiedreturn == true
+            return true
+        elseif issatisfiedreturn == false
+            return false
+        else
+            return Symbol(issatisfiedreturn)
+        end
     else
-        return Symbol(issatisfiedreturn)
+        error("Failed to check if intent is satisfied: $issatisfiedreturn")
     end
     
 end
@@ -667,7 +734,7 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))
     else
-        error("Failed to request current link state: $(resp.body)")
+        error("Failed to request current link state: $(JSON.parse(String(resp.body)))")
     end
 end
 
@@ -702,7 +769,7 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
         remoteibnfhandler.recvtoken = recievedtoken
         return recievedtoken
     else
-        println("Handshake failed with $remoteibnfhandler: $(response.status)")
+        error("Handshake failed with $remoteibnfhandler: $(response.status)")
     end
 end
 
