@@ -25,12 +25,8 @@
         println("Logtime = $logtime")
     end
 
-    # try
     response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
     return response
-    # catch e
-    #     error("Error sending request to $url")
-    # end
 end
 
 function ipfiltering(tcp, neighbourips)
@@ -42,7 +38,6 @@ function ipfiltering(tcp, neighbourips)
     host, port = Sockets.getpeername(socket)
 
     if host == Sockets.localhost || string(host) in neighbourips
-        #println("Request from... $host:$port")
         return true
     else 
         return false

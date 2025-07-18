@@ -1,6 +1,7 @@
 module TestModule
 
 using DocStringExtensions, UUIDs, Graphs
+import HTTP
 import MINDFul as MINDF
 import AttributeGraphs as AG
 
@@ -61,6 +62,21 @@ macro test_nothrows(expr)
             true
         catch 
             false
+        end
+    end
+end
+
+macro test_permissionsthrows(expr)
+    return quote
+        @test try
+            $(esc(expr))
+            false
+        catch e
+            if isa(e, HTTP.Exceptions.StatusError)
+                true
+            else
+                false
+            end
         end
     end
 end

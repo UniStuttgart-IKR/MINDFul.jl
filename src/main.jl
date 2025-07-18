@@ -80,43 +80,4 @@ function main()
     if ibnf === nothing
         error("No matching ibnf found for ibnfid $localid")
     end
-    
-    if localport == 8081
-        #@show ibnfs[1].ibnfhandlers
-        conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 65), u"100.0Gbps")
-        intentuuid_bordernode = MINDFul.addintent!(ibnf, conintent_bordernode, MINDFul.NetworkOperator())
-
-        MINDFul.compileintent!(ibnf, intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
-        
-        # install
-        MINDFul.installintent!(ibnf, intentuuid_bordernode; verbose)
-
-        # uninstall
-        MINDFul.uninstallintent!(ibnf, intentuuid_bordernode; verbose)
-    
-        # uncompile
-        MINDFul.uncompileintent!(ibnf, intentuuid_bordernode; verbose)
-
-        closeibnfserver(ibnf)
-    end
-
-    # if localport == 8083
-    #     closeibnfserver(localibnf)
-    # end
-
-    # if localport == 8083
-    #     conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(3), 25), MINDFul.GlobalNode(UUID(1), 4), u"100.0Gbps")
-    #     intentuuid_bordernode = MINDFul.addintent!(ibnfs[3], conintent_bordernode, MINDFul.NetworkOperator())
-
-    #     @show MINDFul.compileintent!(ibnfs[3], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
-        
-    #     # install
-    #     MINDFul.installintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
-
-    #     # uninstall
-    #     MINDFul.uninstallintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
-    
-    #     # uncompile
-    #     MINDFul.uncompileintent!(ibnfs[3], intentuuid_bordernode; verbose=true)
-    # end
 end

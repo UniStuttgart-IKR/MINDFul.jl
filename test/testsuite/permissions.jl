@@ -11,7 +11,7 @@ function loadpermissionedbnfs()
     ips = Vector{String}()
     ports = Vector{Int}()
     ibnfids = Vector{Int}()
-    permissions = ["limited", "full", "full", "full", "full", "full"]
+    permissions = ["limited", "limited", "full", "none", "full", "full"]
 
     for n in config["domains"]["config"]
         push!(ips, n["ip"])
@@ -48,7 +48,6 @@ function loadpermissionedbnfs()
         ag = name_graph[2]
         ibnag = MINDFul.default_IBNAttributeGraph(ag)
         ibnf = MINDFul.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
-        @show ibnf.ibnfcomm.ibnfhandlers
         push!(ibnfs, ibnf)
         i += 1
     end
@@ -58,14 +57,23 @@ end
 
 
 function testsuitepermissions!(ibnfs)
+    #Requesting compiling an intent (only possible with full permission)
     conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
     intentuuid_bordernode = MINDFul.addintent!(ibnfs[1], conintent_bordernode, MINDFul.NetworkOperator())
-    @test MINDFul.compileintent!(ibnfs[1], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    @test MINDFul.compileintent!(ibnfs[1], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS #1 -> 3 (Full permission)
 
     conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(3), 25), MINDFul.GlobalNode(UUID(1), 4), u"100.0Gbps")
     intentuuid_bordernode = MINDFul.addintent!(ibnfs[3], conintent_bordernode, MINDFul.NetworkOperator())
-    @test MINDFul.compileintent!(ibnfs[3], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    
+    TM.@test_permissionsthrows MINDFul.compileintent!(ibnfs[3], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10)) #3 -> 1 (Limited permission)
+
+    conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(3), 43), MINDFul.GlobalNode(UUID(2), 37), u"100.0Gbps")
+    intentuuid_bordernode = MINDFul.addintent!(ibnfs[3], conintent_bordernode, MINDFul.NetworkOperator())
+    TM.@test_permissionsthrows MINDFul.compileintent!(ibnfs[3], intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10)) #3 -> 2 (None permission)
+
+    #Requesting the IBNAttributeGraph (possible with full and limited permission)
+    @test MINDF.isthesame(MINDFul.requestibnattributegraph_init(ibnfs[1], getibnfhandler(ibnfs[1], getibnfid(ibnfs[2]))), getibnag(ibnfs[2])) #1 -> 2 (Full permission)
+    @test MINDF.isthesame(MINDFul.requestibnattributegraph_init(ibnfs[2], getibnfhandler(ibnfs[2], getibnfid(ibnfs[1]))), getibnag(ibnfs[1])) #2 -> 1 (Limited permission)
+    TM.@test_permissionsthrows MINDFul.requestibnattributegraph_init(ibnfs[3], getibnfhandler(ibnfs[3], getibnfid(ibnfs[2]))) #3 -> 2 (None permission)
 end
 
 @testset ExtendedTestSet "permissions.jl"  begin

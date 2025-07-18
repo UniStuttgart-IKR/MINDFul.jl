@@ -69,7 +69,6 @@ function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::Remot
     else
         error("Failed to get IBNFHandlers: $(JSON.parse(String(resp.body)))")
     end
-    
 end
 
 function requestibnfhandlers_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework)
@@ -102,8 +101,6 @@ function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::Re
     else
         error("Failed to get logical low level intent sequence: $parsedjson")
     end
-        
-    
 end
 
 function requestlogicallliorder_term(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
@@ -146,8 +143,6 @@ function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnfhandler::R
     else
         error("Failed to get intent global path: $parsedjson")
     end
-    
-    
 end
 
 """
@@ -480,7 +475,6 @@ end
     else
         error("Failed to uncompile intent: $returncompileinit")
     end
-    
 end
 
 """
@@ -568,7 +562,6 @@ function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHan
     else
         error("Failed to get IBNAttributeGraph: $(JSON.parse(String(resp.body)))")
     end
-    
 end
 """
 $(TYPEDSIGNATURES) 
@@ -715,7 +708,6 @@ function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::Remote
     else
         error("Failed to check if intent is satisfied: $issatisfiedreturn")
     end
-    
 end
 
 function requestissatisfied_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
