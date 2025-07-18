@@ -1,6 +1,8 @@
 """
 $(TYPEDSIGNATURES)
-
+main() function to initialize the MINDFul IBN framework.
+It reads the configuration from a TOML file, sets up the IBNFrameworks for each domain,
+and starts the HTTP server for communication between domains.
 """
 function main()
     verbose=false
@@ -72,13 +74,13 @@ function main()
     #     end for name_graph in domains_name_graph 
     # ]
 
-    
+    ibnfsdict = Dict{Int, IBNFramework}()
     ibnf = nothing
     for name_graph in domains_name_graph
         ag = name_graph[2]
         ibnag = default_IBNAttributeGraph(ag)
         if getibnfid(ibnag) == UUID(localid)
-            ibnf = IBNFramework(ibnag, hdlr, encryption, neighbourips; verbose)
+            ibnf, ibnfsdict = IBNFramework(ibnag, hdlr, encryption, neighbourips, ibnfsdict; verbose)
             break
         end
     end

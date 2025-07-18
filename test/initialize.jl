@@ -82,31 +82,58 @@ function loadmultidomaintestidistributedbnfs()
     end
 
 
-    ibnfs = [
-        let
-            ag = name_graph[2]
-            ibnag = MINDFul.default_IBNAttributeGraph(ag)
-            ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
-        end for name_graph in domains_name_graph
-    ]
+    # ibnfs = [
+    #     let
+    #         ag = name_graph[2]
+    #         ibnag = MINDFul.default_IBNAttributeGraph(ag)
+    #         ibnf = MINDFul.IBNFramework(ibnag, Vector{MINDFul.RemoteHTTPHandler}())
+    #     end for name_graph in domains_name_graph
+    # ]
 
+    # ibnfsdict = Dict{Int, IBNFramework}()
+    # index = 1
+    # for i in eachindex(ibnfs)
+    #     localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+    #     localURIstring = string(localURI)
+    #     push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
+    #     for j in eachindex(ibnfs)
+    #         i == j && continue
+    #         URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+    #         URIstring = string(URI)
+    #         push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
+    #         index += 1
+    #     end
+
+    #     push!(ibnfsdict, ports[i] => ibnfs[i])
+    #     httpserver = MINDF.startibnserver!(ibnfsdict, encryption, ips, ports[i])
+    #     MINDF.setibnfserver!(ibnfs[i], httpserver)
+    # end
+
+
+    ibnfs = Vector{IBNFramework}()    
     ibnfsdict = Dict{Int, IBNFramework}()
-    index = 1
-    for i in eachindex(ibnfs)
+    i=1
+    
+    for name_graph in domains_name_graph
+        index = 1
+        hdlr = Vector{MINDF.RemoteHTTPHandler}()
         localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
         localURIstring = string(localURI)
-        push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
-        for j in eachindex(ibnfs)
+        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
+        for j in eachindex(ibnfids)
             i == j && continue
             URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
             URIstring = string(URI)
-            push!(getibnfhandlers(ibnfs[i]), MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
+            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
             index += 1
         end
 
-        push!(ibnfsdict, ports[i] => ibnfs[i])
-        httpserver = MINDF.startibnserver!(ibnfsdict, encryption, ips, ports[i])
-        MINDF.setibnfserver!(ibnfs[i], httpserver)
+        ag = name_graph[2]
+        ibnag = MINDFul.default_IBNAttributeGraph(ag)
+        ibnf, ibnfsdict = MINDFul.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
+        
+        push!(ibnfs, ibnf)
+        i += 1
     end
 
     return ibnfs

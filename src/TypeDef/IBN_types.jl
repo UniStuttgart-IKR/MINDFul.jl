@@ -416,12 +416,12 @@ function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 end
 
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
-    ibnfid = AG.graph_attr(ibnag)
-    ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
-    # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
-end
+# function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+#     ibnfid = AG.graph_attr(ibnag)
+#     ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
+#     # abstract type : for remote 
+#     return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+# end
 
 """
 $(TYPEDSIGNATURES) 
@@ -429,19 +429,20 @@ $(TYPEDSIGNATURES)
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
 
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}; verbose::Bool=false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, ibnfsdict::Dict{Int, IBNFramework}; verbose::Bool=false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
     ibnfid = AG.graph_attr(ibnag)
     
     ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
     ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 
     port = getibnfhandlerport(getibnfhandlers(ibnf)[1])
-    ibnfsdict = Dict{Int, IBNFramework}(port => ibnf)
+    #ibnfsdict = Dict{Int, IBNFramework}(port => ibnf)
+    push!(ibnfsdict, port => ibnf)
 
     httpserver = startibnserver!(ibnfsdict, encryption, ips, port; verbose)
     setibnfserver!(ibnf, httpserver)
     
-    return ibnf
+    return ibnf, ibnfsdict
 end
 
 """
