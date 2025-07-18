@@ -205,7 +205,6 @@ end
 function _getlogicallliorder_coreloop(ibnf, llis, conintent::ConnectivityIntent, startingindex::Int, orderedllis = LowLevelIntent[]; verbose::Bool=false)
     push!(orderedllis, popat!(llis, startingindex))
     # continue to the second and so on...
-
     validcontinuity = true
     while !isempty(llis) && validcontinuity
         let lastlli = orderedllis[end]
