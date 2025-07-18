@@ -1,8 +1,8 @@
 """
 $(TYPEDSIGNATURES)
 main() function to initialize the MINDFul IBN framework.
-It reads the configuration from a TOML file, sets up the IBNFrameworks for each domain,
-and starts the HTTP server for communication between domains.
+It expects the path to read the configuration from a TOML file, set up the IBNFrameworks for each domain,
+and start the HTTP server for communication between domains.
 """
 function main()
     verbose=false
@@ -66,21 +66,13 @@ function main()
         push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
     end
 
-    # ibnfs = [
-    #     let
-    #         ag = name_graph[2]
-    #         ibnag = default_IBNAttributeGraph(ag)
-    #         ibnf = IBNFramework(ibnag, nothing, hdlr)
-    #     end for name_graph in domains_name_graph 
-    # ]
-
     ibnfsdict = Dict{Int, IBNFramework}()
     ibnf = nothing
     for name_graph in domains_name_graph
         ag = name_graph[2]
         ibnag = default_IBNAttributeGraph(ag)
         if getibnfid(ibnag) == UUID(localid)
-            ibnf, ibnfsdict = IBNFramework(ibnag, hdlr, encryption, neighbourips, ibnfsdict; verbose)
+            ibnf = IBNFramework(ibnag, hdlr, encryption, neighbourips, ibnfsdict; verbose)
             break
         end
     end
@@ -91,7 +83,7 @@ function main()
     
     if localport == 8081
         #@show ibnfs[1].ibnfhandlers
-        conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
+        conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 65), u"100.0Gbps")
         intentuuid_bordernode = MINDFul.addintent!(ibnf, conintent_bordernode, MINDFul.NetworkOperator())
 
         MINDFul.compileintent!(ibnf, intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))

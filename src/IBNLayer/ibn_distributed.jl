@@ -25,8 +25,12 @@
         println("Logtime = $logtime")
     end
 
+    # try
     response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
     return response
+    # catch e
+    #     error("Error sending request to $url")
+    # end
 end
 
 function ipfiltering(tcp, neighbourips)
@@ -47,7 +51,6 @@ end
 
 
 function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, neighbourips::Vector{String}, port::Int; verbose::Bool=false)    
-
     if verbose == true
         verbose = 0
     else
@@ -76,40 +79,6 @@ function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, n
         end
     end
 end
-
-# function startibnserver!(ibnfs::Vector{<:IBNFramework}, encryption, ips)
-#     ibnfsdict = Dict{Int, IBNFramework}()
-#     if encryption
-#         sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
-#     else
-#         sslconf=nothing
-#     end
-#     for ibnf in ibnfs 
-#         selectedhandler = getibnfhandlers(ibnf)[1]
-#         port = getibnfhandlerport(selectedhandler)
-#         push!(ibnfsdict, port => ibnf)
-#     end
-
-#     for ibnf in ibnfs
-#         selectedhandler = getibnfhandlers(ibnf)[1]
-#         port = getibnfhandlerport(selectedhandler)
- 
-#         try
-#             httpserver = Server.serve(host="0.0.0.0", port=port;
-#             async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verboose=-1,
-#             tcpisvalid= tcp->ipfiltering(tcp, ips),
-#             sslconfig=sslconf,
-#             ) 
-#             setibnfserver(ibnf, httpserver)
-#         catch e
-#             if isa(e, Base.IOError)
-#                 error("Server at 0.0.0.0:$port is already running")
-#             else
-#                 rethrow(e)  
-#             end
-#         end     
-#     end
-# end
 
 function closeibnfserver(ibnf::IBNFramework)
     close(getibnfserver(ibnf))
