@@ -356,32 +356,21 @@ abstract type AbstractIBNFHandler end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 
-Fabian Gobantes implementation.
-Should consist of basic information all handlers should have (e.g. `ibnfid`).
-And a parametric type specific to the protocol used.
-
-```julia
-    struct HandlerProperties
-        ibnfid::UUID
-        # ...
-    end
-
-    struct IBNFHTTP2Comm <: AbstractIBNFComm
-        # example
-    end
-
-    struct IBNFSameProcess{T<:IBNFramework} <: AbstractIBNFComm
-        # this can  be the new dummy and substitute the current dummy implementation
-        ibng::T
-    end
-
-    struct RemoteIBNFHandler{T<:AbstractIBNFComm} <: AbstractIBNFHandler
-        handlerproperties::HandlerProperties
-        ibnfcomm::T
-    end
-```
+A single token is generated per directed pair.
+The permission is referring to the genenerated token (gentoken).
 """
-struct RemoteIBNFHandler <: AbstractIBNFHandler
+mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
+    const ibnfid::UUID
+    const baseurl::String
+    const permission::String
+    gentoken::String
+    recvtoken::String
+end
+
+const OxygenServer = HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}
+mutable struct IBNFCommunication{H <: AbstractIBNFHandler} 
+  server::Union{Nothing, OxygenServer}
+  ibnfhandlers::Vector{H}
 end
 
 """
@@ -399,7 +388,7 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, H <: AbstractIBNFHandler} <: AbstractIBNFHandler
+struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication} <: AbstractIBNFHandler
     "The operation mode of the IBN framework"
     operationmode::O
     "The id of this IBN Framework instance"
@@ -409,7 +398,7 @@ struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <:
     "Single-domain internal graph with border nodes included"
     ibnag::T
     "Other IBN Frameworks handles"
-    ibnfhandlers::Vector{H}
+    ibnfcomm::I 
     "SDN controller handle"
     sdncontroller::S
 end
@@ -421,8 +410,9 @@ The most default construct with abstract type of IBN handlers
 """
 function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
+    ibnfcomm = IBNFCommunication(nothing, IBNFramework{DefaultOperationMode, SDNdummy, T}[])
     # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, IBNFramework{DefaultOperationMode, SDNdummy, T}[], SDNdummy())
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 end
 
 """
@@ -430,10 +420,19 @@ $(TYPEDSIGNATURES)
 
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool=false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
     ibnfid = AG.graph_attr(ibnag)
-    # abstract type : for remote 
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfhandlers, SDNdummy())
+    
+    ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
+    ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+
+    port = getibnfhandlerport(getibnfhandlers(ibnf)[1])
+    push!(ibnfsdict, port => ibnf)
+
+    httpserver = startibnserver!(ibnfsdict, encryption, ips, port; verbose)
+    setibnfserver!(ibnf, httpserver)
+    
+    return ibnf
 end
 
 """

@@ -8,5 +8,6 @@ include("testsuite/failingintime.jl")
 include("testsuite/grooming.jl")
 include("testsuite/groomingonfail.jl")
 include("testsuite/interface.jl")
+include("testsuite/permissions.jl")
 
 nothing

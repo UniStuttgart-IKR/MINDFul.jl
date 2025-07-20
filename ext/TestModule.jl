@@ -1,6 +1,7 @@
 module TestModule
 
 using DocStringExtensions, UUIDs, Graphs
+import HTTP
 import MINDFul as MINDF
 import AttributeGraphs as AG
 
@@ -65,6 +66,21 @@ macro test_nothrows(expr)
     end
 end
 
+macro test_permissionsthrows(expr)
+    return quote
+        @test try
+            $(esc(expr))
+            false
+        catch e
+            if isa(e, HTTP.Exceptions.StatusError)
+                true
+            else
+                false
+            end
+        end
+    end
+end
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -72,7 +88,7 @@ function JETfilteroutfunctions(@nospecialize f)
     # don't know what wrong with that. Maybe future julia versions will be better. Check every now and then.
     return f !== MINDF.updateidagstates! &&
     # ibnhandlers are generally type unstable, but I think this shouldn't be a problem because I access type stable fields...
-        f !== MINDF.requestspectrumavailability && 
+        f !== MINDF.requestspectrumavailability_init! && 
     # although I think the logic is there to be type stable, the compiler struggles
         f !== MINDF.getopticalinitiateconstraint
 end
@@ -113,14 +129,14 @@ function testoxcfiberallocationconsistency(ibnf)
                 end
             end
             if MINDF.getibnfid(ibnfhandler) == MINDF.getibnfid(src(ge)) 
-                remotespecavail = MINDF.requestspectrumavailability(ibnf, ibnfhandler, ge)
+                remotespecavail = MINDF.requestspectrumavailability_init!(ibnf, ibnfhandler, ge)
                 le = Edge(MINDF.getlocalnode(ibnag, src(ge)), MINDF.getlocalnode(ibnag, dst(ge)))
                 localspecavail = MINDF.getlinkspectrumavailabilities(something(MINDF.getoxcview(MINDF.getnodeview(ibnag, dst(ge) ))))[le]
                 @test remotespecavail == localspecavail
             end
                 
             if MINDF.getibnfid(ibnfhandler) == MINDF.getibnfid(dst(ge))
-                remotespecavail = MINDF.requestspectrumavailability(ibnf, ibnfhandler, ge)
+                remotespecavail = MINDF.requestspectrumavailability_init!(ibnf, ibnfhandler, ge)
                 le = Edge(MINDF.getlocalnode(ibnag, src(ge)), MINDF.getlocalnode(ibnag, dst(ge)))
                 localspecavail = MINDF.getlinkspectrumavailabilities(something(MINDF.getoxcview(MINDF.getnodeview(ibnag, src(ge) ))))[le]
                 @test remotespecavail == localspecavail
@@ -156,9 +172,9 @@ function testcompilation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote:
         remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
         # if ibnfhandler_bordernode isa MINDF.IBNFramework
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=false, noextrallis=true)
         if !MINDF.issubdaggrooming(getidag(ibnf), idagnodeid)
             @test all(==(MINDF.IntentState.Compiled),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
         else
@@ -200,13 +216,13 @@ function testinstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremote
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
         
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
         
         # if ibnfhandler_bordernode isa MINDF.IBNFramework
-        @test MINDF.requestissatisfied(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
+        @test MINDF.requestissatisfied_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, noextrallis=true)
         @test all(==(MINDF.IntentState.Installed),MINDF.getidagnodestate.(MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnf, ibnfhandler_bordernode), idagnodeid_remote_bordernode)))
     
-        ibnfhandler_bordernode_ibnag = MINDF.requestibnattributegraph(ibnf, ibnfhandler_bordernode)
+        ibnfhandler_bordernode_ibnag = MINDF.requestibnattributegraph_init(ibnf, ibnfhandler_bordernode)
         orderedllis = MINDF.requestlogicallliorder_init(ibnf, ibnfhandler_bordernode, idagnodeid_remote_bordernode; onlyinstalled=true, verbose=false)
         foreach(orderedllis) do olli
             islowlevelintentdagnodeinstalled(ibnfhandler_bordernode_ibnag, olli)
@@ -240,9 +256,9 @@ function testuninstallation(ibnf::MINDF.IBNFramework, idagnodeid::UUID; withremo
         remoteintent_bordernode = MINDF.getintent(idagnoderemoteintent)
         ibnfhandler_bordernode = MINDF.getibnfhandler(ibnf, MINDF.getibnfid(remoteintent_bordernode))
         idagnodeid_remote_bordernode = MINDF.getidagnodeid(remoteintent_bordernode)
-
+        
         if shouldempty
-            nothingisallocated(MINDF.requestibnattributegraph(ibn, ibnfhandler_bordernode))
+            nothingisallocated(MINDF.requestibnattributegraph_init(ibn, ibnfhandler_bordernode))
         end
     end
 end

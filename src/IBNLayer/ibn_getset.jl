@@ -42,14 +42,14 @@ end
 $(TYPEDSIGNATURES)
 """
 function getibnfhandlers(s::IBNFramework)
-    return s.ibnfhandlers
+    return getibnfcomm(s).ibnfhandlers
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function getibnfhandler(s::IBNFramework, uuid::UUID)
-    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , s.ibnfhandlers))
+    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , getibnfhandlers(s)))
 end
 
 """
@@ -438,6 +438,10 @@ function setlocalnode_output!(ena::MutableEndNodeAllocations, intval::Union{Noth
     ena.localnode_output = intval
 end
 
+function setibnfserver!(ibnf::IBNFramework, server::OxygenServer)
+    ibnf.ibnfcomm.server = server
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -479,4 +483,43 @@ $(TYPEDSIGNATURES)
 """
 function getremoteconnectivityintent(clpi::CrossLightpathIntent)
     return clpi.remoteconnectivityintent
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getbaseurl(remotehandler::AbstractIBNFHandler)
+    return remotehandler.baseurl
+end
+
+function getibnfhandlerperm(remotehandler::AbstractIBNFHandler)
+    return remotehandler.permission
+end
+
+function getibnfhandlertokengen(remotehandler::AbstractIBNFHandler)
+    return remotehandler.gentoken
+end
+
+function getibnfhandlertokenrecv(remotehandler::AbstractIBNFHandler)
+    return remotehandler.recvtoken
+end
+
+function getibnfhandlerport(remotehandler::AbstractIBNFHandler)
+    return parse(Int, HTTP.URI(remotehandler.baseurl).port) 
+end
+
+function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
+    for ibnf in ibnfs
+        if getibnfid(ibnf) == ibnfid
+            return ibnf
+        end
+    end
+end
+
+function getibnfcomm(ibnf::IBNFramework)
+    return ibnf.ibnfcomm
+end
+
+function getibnfserver(ibnf::IBNFramework)
+    return getibnfcomm(ibnf).server
 end
