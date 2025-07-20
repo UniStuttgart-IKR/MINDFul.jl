@@ -6,8 +6,9 @@ using JLD2, UUIDs
 using Unitful, UnitfulData
 import Dates: now, Hour
 import Random: MersenneTwister, randperm
+using HTTP, TOML
 
-import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo,getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst
+import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo, getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst
 
 const MINDF = MINDFul
 
@@ -26,7 +27,7 @@ TM = Base.get_extension(MINDFul, :TestModule)
 # some boilerplate functions
 
 function loadmultidomaintestibnfs()
-    domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
+    domains_name_graph = first(JLD2.load(TESTDIR * "/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
 
 
     ibnfs = [
@@ -43,7 +44,7 @@ function loadmultidomaintestibnfs()
     for i in eachindex(ibnfs)
         for j in eachindex(ibnfs)
             i == j && continue
-            push!(getibnfhandlers(ibnfs[i]), ibnfs[j] )
+            push!(getibnfhandlers(ibnfs[i]), ibnfs[j])
         end
     end
 
@@ -51,17 +52,60 @@ function loadmultidomaintestibnfs()
 end
 
 function loadmultidomaintestidistributedbnfs()
-    domains_name_graph = first(JLD2.load(TESTDIR*"/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
+    config = TOML.parsefile(TESTDIR * "/" * "data/config.toml")
+    domainfile = config["domainfile"]
+    if startswith(domainfile, "/") 
+        finaldomainfile = configpath
+    else
+        finaldomainfile = TESTDIR * "/" * domainfile
+    end
+    encryption = config["encryption"]
+
+    ips = Vector{String}()
+    ports = Vector{Int}()
+    ibnfids = Vector{Int}()
+    permissions = Vector{String}()
+
+    for n in config["domains"]["config"]
+        push!(ips, n["ip"])
+        push!(ports, n["port"])
+        push!(ibnfids, n["ibnfid"])
+        append!(permissions, n["permissions"])
+    end
+
+    domains_name_graph = first(JLD2.load(finaldomainfile))[2]
+    if encryption
+        urischeme = "https"
+        run(`$(TESTDIR)/data/generatecerts.sh`)
+    else
+        urischeme = "http"
+    end
 
 
-    # MA1069 instantiate with HTTPHandler
-    ibnfs = [
-        let
-            ag = name_graph[2]
-            ibnag = MINDF.default_IBNAttributeGraph(ag)
-            ibnf = IBNFramework(ibnag)
-        end for name_graph in domains_name_graph
-    ]
+    ibnfs = Vector{IBNFramework}()    
+    ibnfsdict = Dict{Int, IBNFramework}()
+    i = 1
+    index = 1
+    for name_graph in domains_name_graph
+        hdlr = Vector{MINDF.RemoteHTTPHandler}()
+        localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+        localURIstring = string(localURI)
+        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
+        for j in eachindex(ibnfids)
+            i == j && continue
+            URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+            URIstring = string(URI)
+            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
+            index += 1
+        end
+
+        ag = name_graph[2]
+        ibnag = MINDFul.default_IBNAttributeGraph(ag)
+        ibnf = MINDFul.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
+        
+        push!(ibnfs, ibnf)
+        i += 1
+    end
 
     return ibnfs
 end

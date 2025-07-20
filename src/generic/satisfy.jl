@@ -37,7 +37,7 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}
     remoteintent = getintent(idagnode)
     if getisinitiator(remoteintent)
         ibnfhandler = getibnfhandler(ibnf, getibnfid(remoteintent))
-        requestissatisfied(ibnf, ibnfhandler, getidagnodeid(remoteintent); onlyinstalled, noextrallis)
+        requestissatisfied_init(ibnf, ibnfhandler, getidagnodeid(remoteintent); onlyinstalled, noextrallis)
     else
         idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
         length(idagnodechildren) == 1 || return false
