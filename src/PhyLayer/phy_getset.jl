@@ -171,6 +171,11 @@ function getspectrumslotsneeded(tm::TransmissionMode)
 end
 
 "$(TYPEDSIGNATURES)"
+function getrouterportrate(tmc::TransmissionModuleCompatibility)
+    return tmc.routerportrate
+end
+
+"$(TYPEDSIGNATURES)"
 function getrate(tmc::TransmissionModuleCompatibility)
     return tmc.rate
 end

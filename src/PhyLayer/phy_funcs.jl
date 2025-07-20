@@ -77,6 +77,9 @@ function istransmissionmoduleandmodecompatible(transmissionmoduleview::Transmiss
     getname(transmissionmoduleview) == getname(transmissionmodulecompat) || return false
     transmissionmode = gettransmissionmodes(transmissionmoduleview)[transmissionmodesindex]
     getrate(transmissionmode) == getrate(transmissionmodulecompat) || return false
+    if !isnothing(getrouterportrate(transmissionmodulecompat))
+        getrate(transmissionmode) <= getrouterportrate(transmissionmodulecompat) || return false
+    end
     getspectrumslotsneeded(transmissionmode) == getspectrumslotsneeded(transmissionmodulecompat) || return false
     return true
 end
@@ -90,6 +93,9 @@ If `onlymodecheck = true` is passed then the disaggregation/protocol (aka name) 
 function istransmissionmoduleandmodecompatible(transmissionmoduleview::TransmissionModuleView, transmissionmode::TransmissionMode,  transmissionmodulecompat::TransmissionModuleCompatibility)
     getname(transmissionmoduleview) == getname(transmissionmodulecompat) || return false
     getrate(transmissionmode) == getrate(transmissionmodulecompat) || return false
+    if !isnothing(getrouterportrate(transmissionmodulecompat))
+        getrate(transmissionmode) <= getrouterportrate(transmissionmodulecompat) || return false
+    end
     getspectrumslotsneeded(transmissionmode) == getspectrumslotsneeded(transmissionmodulecompat) || return false
     return true
 end

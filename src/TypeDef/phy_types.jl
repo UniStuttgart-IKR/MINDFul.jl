@@ -178,12 +178,18 @@ Dissagregetation data should be here but it's not.
 Both are covered by the `name` which must be equal in both ends
 """
 struct TransmissionModuleCompatibility
+    "The router port rate (maximum). If it's nothing it means it's already resolved and trusted."
+    routerportrate::Union{Nothing, GBPSf}
     "The bandwidth of the connection"
     rate::GBPSf
     "Number of 12.5Gz frequency slots needed"
     spectrumslotsneeded::Int
     "descriptive name of the transmission module"
     name::String
+end
+
+function TransmissionModuleCompatibility(rate::GBPSf, spectrumslotsneeded::Int, name::String)
+    return TransmissionModuleCompatibility(nothing, rate, spectrumslotsneeded, name) 
 end
 
 

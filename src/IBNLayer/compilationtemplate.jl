@@ -75,7 +75,7 @@ prioritizesplitbordernodes(
                     issuccess(returncode) && break
                 end
             end
-            updateidagnodestates!(ibnf, idagnode)
+            updateidagnodestates!(ibnf, idagnode; @passtime)
         elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
             # source intra-domain , destination cross-domain
             # TODO cross-lightpath grooming with strict same destination
@@ -111,13 +111,13 @@ Splits connectivity intent on `splitglobalnode`
     idag = getidag(ibnf)
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), getconstraints(intent))
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose)
+    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
     secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose)
+    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, secondhalfidagnode; @passtime)
     return returncode
 end
@@ -468,6 +468,8 @@ chooseoxcadddropport(
 
             for sourcerouteridx in sourcerouteridxs
                 setrouterportindex!(srcallocations, sourcerouteridx)
+                sourcerouterview = getrouterview(getnodeview(getibnag(ibnf), sourcelocalnode))
+                sourcerouterportrate = getrate(getrouterport(sourcerouterview, sourcerouteridx))
                 verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
 
                 returncode = ReturnCodes.FAIL_CANDIDATEPATHS
@@ -500,7 +502,7 @@ chooseoxcadddropport(
                     # find transmission module and mode
                     sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
                     returncode = ReturnCodes.FAIL_SRCTRANSMDL
-                    for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode, path)
+                    for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode, path, sourcerouterportrate)
                         sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
                         sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
                         ## define a TransmissionModuleCompatibility for the destination node
@@ -508,7 +510,7 @@ chooseoxcadddropport(
                         transmissionmoderate = getrate(sourcetransmissionmode)
                         transmissionmodulename = getname(sourcetransmissionmodule)
 
-                        transmissionmodulecompat = TransmissionModuleCompatibility(transmissionmoderate, demandslotsneeded, transmissionmodulename)
+                        transmissionmodulecompat = TransmissionModuleCompatibility(sourcerouterportrate, transmissionmoderate, demandslotsneeded, transmissionmodulename)
 
                         startingslot = choosespectrum(ibnf, idagnode, intentcompilationalgorithm, path, demandslotsneeded)
                         if isnothing(startingslot)
@@ -569,7 +571,7 @@ chooseoxcadddropport(
         if issuccess(returncode) && !usedgrooming
             lpi = LightpathIntent(srcallocations, dstallocations, spectrumslotsrange, lpath)
             lpidagnode = addidagnode!(ibnf, lpi; parentids=[idagnodeid], intentissuer=MachineGenerated(), @passtime)
-            returncode = compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose)
+            returncode = compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose, @passtime)
         end
 
         return  returncode
@@ -645,6 +647,7 @@ prioritizetransmdlandmode(
     intentcompilationalgorithm::IntentCompilationAlgorithm,
     node::LocalNode,
     path::Union{Nothing, Vector{LocalNode}},
+    routerportrate::GBPSf,
     transmdlcompat::Union{Nothing, TransmissionModuleCompatibility}=nothing
 ) -> Vector{Tuple{Int, Int}}
 ```
@@ -695,7 +698,8 @@ chooseoxcadddropport(
 
     destavailtransmdlidxs = getavailabletransmissionmoduleviewindex(destnodeview)
     desttransmissionmoduleviewpool = gettransmissionmoduleviewpool(destnodeview)
-    destavailtransmdlmodeidxs = prioritizetransmdlmode(ibnf, idagnode, intentcompilationalgorithm, destlocalnode, nothing, transmissionmodulecompat)
+    # put GBPSf(Inf) because transmissionmodulecompat is already here
+    destavailtransmdlmodeidxs = prioritizetransmdlmode(ibnf, idagnode, intentcompilationalgorithm, destlocalnode, nothing, GBPSf(Inf),transmissionmodulecompat)
     !isempty(destavailtransmdlmodeidxs) || return ReturnCodes.FAIL_DSTTRANSMDL
     destavailtransmdlmodeidx = first(destavailtransmdlmodeidxs)
     destavailtransmdlidx, desttransmodeidx = destavailtransmdlmodeidx[1], destavailtransmdlmodeidx[2] 
@@ -861,7 +865,7 @@ $(TYPEDSIGNATURES)
 Return the index with the lowest GBPS rate that can get deployed for the given demand rate and distance.
 If non is find return `nothing`.
 """
-function prioritizetransmdlmode_cheaplowrate(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode, path::Union{Nothing, Vector{LocalNode}}, transmdlcompat::Union{Nothing, TransmissionModuleCompatibility}=nothing)
+function prioritizetransmdlmode_cheaplowrate(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode, path::Union{Nothing, Vector{LocalNode}}, routerportrate::GBPSf, transmdlcompat::Union{Nothing, TransmissionModuleCompatibility}=nothing)
     nodeview = getnodeview(getibnag(ibnf), node)
     demandrate = getrate(getintent(idagnode))
     availtransmdlidxs = getavailabletransmissionmoduleviewindex(nodeview)
@@ -876,7 +880,7 @@ function prioritizetransmdlmode_cheaplowrate(ibnf::IBNFramework, idagnode::Inten
         for transmodeidx in transmodeidxs
             transmode = transmodes[transmodeidx]
             if !isnothing(path) && isnothing(transmdlcompat)
-                if getopticalreach(transmode) >= getpathdistance(getibnag(ibnf), path) && getrate(transmode) >= demandrate
+                if getopticalreach(transmode) >= getpathdistance(getibnag(ibnf), path) && getrate(transmode) >= demandrate && getrate(transmode) <= routerportrate
                     push!(returnpriorities, (transmdlidx, transmodeidx))
                 end
             elseif isnothing(path) && !isnothing(transmdlcompat)
