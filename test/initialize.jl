@@ -61,17 +61,23 @@ function loadmultidomaintestidistributedbnfs()
     end
     encryption = config["encryption"]
 
-    ips = Vector{String}()
-    ports = Vector{Int}()
-    ibnfids = Vector{Int}()
-    permissions = Vector{String}()
+    # ips = Vector{String}()
+    # ports = Vector{Int}()
+    # ibnfids = Vector{Int}()
+    # permissions = Vector{String}()
 
-    for n in config["domains"]["config"]
-        push!(ips, n["ip"])
-        push!(ports, n["port"])
-        push!(ibnfids, n["ibnfid"])
-        append!(permissions, n["permissions"])
-    end
+    # for n in config["domains"]["config"]
+    #     push!(ips, n["ip"])
+    #     push!(ports, n["port"])
+    #     push!(ibnfids, n["ibnfid"])
+    #     append!(permissions, n["permissions"])
+    # end
+
+    domainsconfig = config["domains"]["config"]
+    ips = [n["ip"] for n in domainsconfig]
+    ports = [n["port"] for n in domainsconfig]
+    ibnfids = [n["ibnfid"] for n in domainsconfig]
+    permissions = [perm for n in domainsconfig for perm in n["permissions"]]
 
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
     if encryption
@@ -82,30 +88,51 @@ function loadmultidomaintestidistributedbnfs()
     end
 
 
-    ibnfs = Vector{IBNFramework}()    
+    # ibnfs = Vector{IBNFramework}()    
     ibnfsdict = Dict{Int, IBNFramework}()
-    i = 1
+    # i = 1
     index = 1
-    for name_graph in domains_name_graph
-        hdlr = Vector{MINDF.RemoteHTTPHandler}()
-        localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
-        localURIstring = string(localURI)
-        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
-        for j in eachindex(ibnfids)
-            i == j && continue
-            URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
-            URIstring = string(URI)
-            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
-            index += 1
-        end
+    # for name_graph in domains_name_graph
+    #     hdlr = Vector{MINDF.RemoteHTTPHandler}()
+    #     localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+    #     localURIstring = string(localURI)
+    #     push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
+    #     for j in eachindex(ibnfids)
+    #         i == j && continue
+    #         URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+    #         URIstring = string(URI)
+    #         push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
+    #         index += 1
+    #     end
 
-        ag = name_graph[2]
-        ibnag = MINDFul.default_IBNAttributeGraph(ag)
-        ibnf = MINDFul.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
+    #     ag = name_graph[2]
+    #     ibnag = MINDFul.default_IBNAttributeGraph(ag)
+    #     ibnf = MINDFul.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
         
-        push!(ibnfs, ibnf)
-        i += 1
-    end
+    #     push!(ibnfs, ibnf)
+    #     i += 1
+    # end
+    
+    ibnfs = [
+        let
+            hdlr = Vector{MINDF.RemoteHTTPHandler}()
+            localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+            localURIstring = string(localURI)
+            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
+            for j in eachindex(ibnfids)
+                i == j && continue
+                URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+                URIstring = string(URI)
+                push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
+                index += 1
+            end
+
+            ag = name_graph[2]
+            ibnag = MINDF.default_IBNAttributeGraph(ag)
+            ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
+        end for (i, name_graph) in enumerate(domains_name_graph)
+    ]
+
 
     return ibnfs
 end

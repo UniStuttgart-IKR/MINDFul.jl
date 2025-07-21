@@ -358,6 +358,7 @@ $(TYPEDFIELDS)
 
 A single token is generated per directed pair.
 The permission is referring to the genenerated token (gentoken).
+gentoken and recvtoken are not constant as they will be generated when the handshake is done.
 """
 mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     const ibnfid::UUID
@@ -368,6 +369,12 @@ mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
 end
 
 const OxygenServer = HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+Server is of type Union{Nothing, OxygenServer} to allow for the server to be started later.
+"""
 mutable struct IBNFCommunication{H <: AbstractIBNFHandler} 
   server::Union{Nothing, OxygenServer}
   ibnfhandlers::Vector{H}

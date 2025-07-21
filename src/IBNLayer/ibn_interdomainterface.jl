@@ -730,17 +730,22 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
     end
 end
 
-
+"""
+$(TYPEDSIGNATURES) 
+Exchange of the handshake information with the remote IBN framework.
+Both domains will generate a token to their peer that must be attached in the subsequent requests.
+Depending on the permissions of the remote IBN framework, the available functions will be send for information.
+"""
 function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
     myibnfid = string(initiatoribnfid)
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
 
-    if getibnfhandlerperm(remoteibnfhandler) == "none"
-        availablefunctions = HTTPMessages.KEY_NOTHING
-    elseif getibnfhandlerperm(remoteibnfhandler) == "full"
+    if getibnfhandlerperm(remoteibnfhandler) == "full"
         availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
+    elseif getibnfhandlerperm(remoteibnfhandler) == "limited"
+        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS
     else
-        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS 
+        availablefunctions = HTTPMessages.KEY_NOTHING 
     end 
     
     generatedtoken = string(uuid4())
@@ -769,12 +774,12 @@ end
 function handshake_term(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
 
-    if getibnfhandlerperm(remoteibnfhandler) == "none"
-        availablefunctions = HTTPMessages.KEY_NOTHING
-    elseif getibnfhandlerperm(remoteibnfhandler) == "full"
+    if getibnfhandlerperm(remoteibnfhandler) == "full"
         availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
-    else
+    elseif getibnfhandlerperm(remoteibnfhandler) == "limited"
         availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS
+    else
+        availablefunctions = HTTPMessages.KEY_NOTHING 
     end 
     
     generatedtoken = string(uuid4())
