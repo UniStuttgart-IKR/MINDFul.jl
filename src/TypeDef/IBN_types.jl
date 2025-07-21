@@ -368,8 +368,8 @@ mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     recvtoken::String
 end
 
-const OxygenServer = HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}
-
+"The type of the HTTP server used in the IBN Framework depends on whether the encryption is used or not."
+const OxygenServer = Union{HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}, HTTP.Servers.Server{HTTP.Servers.Listener{MbedTLS.SSLConfig, Sockets.TCPServer}}}
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)

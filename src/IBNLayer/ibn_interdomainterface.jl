@@ -755,18 +755,24 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
     body = JSON.json(data)  
     headers = Dict("Content-Type" => "application/json")
 
-    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
-
-    if response.status == 200
-        parsedresponse = JSON.parse(String(response.body))
-        functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-        remoteibnfid = string(getibnfid(remoteibnfhandler))
-        # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
-        recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
-        remoteibnfhandler.recvtoken = recievedtoken
-        return recievedtoken
-    else
-        error("Handshake failed with $remoteibnfhandler: $(response.status)")
+    try
+        response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
+         if response.status == 200
+            parsedresponse = JSON.parse(String(response.body))
+            functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
+            remoteibnfid = string(getibnfid(remoteibnfhandler))
+            # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
+            recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
+            remoteibnfhandler.recvtoken = recievedtoken
+            return recievedtoken
+        else
+            error("Handshake failed with $remoteibnfhandler: $(response.status)")
+        end
+    catch e
+        if isa(e, HTTP.Exceptions.ConnectError)
+            println("Connection refused to $url")
+            exit(1)
+        end
     end
 end
 
