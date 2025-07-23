@@ -1,7 +1,7 @@
 @recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
     if getibnfhandlertokenrecv(remotehandler) == ""
         initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
-        token = handshake_init(initiatoribnfid, remotehandler)
+        token = handshake_init!(initiatoribnfid, remotehandler)
     else
         token = getibnfhandlertokenrecv(remotehandler)
     end

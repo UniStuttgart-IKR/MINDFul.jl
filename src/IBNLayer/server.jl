@@ -103,11 +103,12 @@ export serve
         #println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
-        if !isnothing(token)
+        if !isnothing(token) 
             remotehandler.recvtoken = token
             myibnfid = string(MINDF.getibnfid(ibnf))
-            gentoken, availablefunctions = MINDF.handshake_term(myibnfid, remotehandler)
-            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => gentoken,MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
+            generatedtoken, availablefunctions = MINDF.handshake_term(remotehandler)
+            remotehandler.gentoken = generatedtoken
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken,MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
         end        

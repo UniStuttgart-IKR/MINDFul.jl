@@ -736,31 +736,21 @@ Exchange of the handshake information with the remote IBN framework.
 Both domains will generate a token to their peer that must be attached in the subsequent requests.
 Depending on the permissions of the remote IBN framework, the available functions will be send for information.
 """
-function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
-    myibnfid = string(initiatoribnfid)
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
-
-    if getibnfhandlerperm(remoteibnfhandler) == "full"
-        availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
-    elseif getibnfhandlerperm(remoteibnfhandler) == "limited"
-        availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS
-    else
-        availablefunctions = HTTPMessages.KEY_NOTHING 
-    end 
-    
-    generatedtoken = string(uuid4())
+function handshake_init!(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
+    generatedtoken, availablefunctions = handshake_term(remoteibnfhandler)
     remoteibnfhandler.gentoken = generatedtoken
-    
+
+    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
+    headers = Dict("Content-Type" => "application/json")
     data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_TOKEN => generatedtoken, HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)
     body = JSON.json(data)  
-    headers = Dict("Content-Type" => "application/json")
-
+    
     try
         response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
          if response.status == 200
             parsedresponse = JSON.parse(String(response.body))
-            functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-            remoteibnfid = string(getibnfid(remoteibnfhandler))
+            # functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
+            # remoteibnfid = string(getibnfid(remoteibnfhandler))
             # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
             recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
             remoteibnfhandler.recvtoken = recievedtoken
@@ -770,16 +760,14 @@ function handshake_init(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
         end
     catch e
         if isa(e, HTTP.Exceptions.ConnectError)
-            println("Connection refused to $url")
+            println("Connection refused to $(remoteibnfhandler.baseurl * HTTPMessages.URI_HANDSHAKE)")
             exit(1)
         end
     end
 end
 
 
-function handshake_term(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
-
+function handshake_term(remoteibnfhandler::RemoteHTTPHandler)
     if getibnfhandlerperm(remoteibnfhandler) == "full"
         availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
     elseif getibnfhandlerperm(remoteibnfhandler) == "limited"
@@ -789,7 +777,6 @@ function handshake_term(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHa
     end 
     
     generatedtoken = string(uuid4())
-    remoteibnfhandler.gentoken = generatedtoken
-
+    
     return generatedtoken, availablefunctions
 end
