@@ -13,9 +13,13 @@ ip = "127.0.0.1"
 port = 8081
 ibnfid = 0x1
 permission = "full"
+prime = 71
+root = 11
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
 port = 8082
 ibnfid = 0x2
 permission = "full"
+prime = 73
+root = 5

@@ -33,18 +33,16 @@ function main()
     localip = config["local"]["ip"]
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
+    
+    neighboursconfig = config["remote"]["neighbours"]
+    neighbourips = [n["ip"] for n in neighboursconfig]
+    neighbourports = [n["port"] for n in neighboursconfig]
+    neighbourids = [n["ibnfid"] for n in neighboursconfig]
+    neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
+    neighboursprimes = [n["prime"] for n in neighboursconfig]
+    neighboursroots = [n["root"] for n in neighboursconfig]
 
-    neighbourips = String[]
-    neighbourports = Int[]
-    neighbourids = Any[]  
-    neigbhbourpermissions = String[]
 
-    for n in config["remote"]["neighbours"]
-        push!(neighbourips, n["ip"])
-        push!(neighbourports, n["port"])
-        push!(neighbourids, n["ibnfid"])
-        push!(neigbhbourpermissions, n["permission"])
-    end
    
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
@@ -59,11 +57,11 @@ function main()
 
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", "", ""))
+    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", 0, 0, "", ""))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
+        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighboursprimes[i], neighboursroots[i], "", ""))
     end
 
     ibnfsdict = Dict{Int, IBNFramework}()

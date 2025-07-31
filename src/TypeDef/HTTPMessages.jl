@@ -45,6 +45,8 @@ const URI_ELECTRICALPRESENCE = "/api/electricalpresence"
 
 const URI_HANDSHAKE = "/api/handshake"
 
+const URI_DIFFIEHELLMAN = "/api/diffiehellman"
+
 
 const KEY_INITIATORIBNFID = "initiator_ibnfid"
 
@@ -149,6 +151,10 @@ const KEY_PERMISSION = "permission"
 const KEY_GENTOKEN = "gentoken"
 
 const KEY_RECVTOKEN = "recvtoken"
+
+const KEY_PUBLICNUMBER = "publicnumber"
+
+const KEY_DHSECRET = "dhsecret"
 
 const LIST_ALLFUNCTIONS = [
     URI_IBNAGRAPH,

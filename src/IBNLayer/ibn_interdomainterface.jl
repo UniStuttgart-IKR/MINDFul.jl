@@ -730,6 +730,37 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
     end
 end
 
+function diffiehellman_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
+    initiatoribnfid = string(getibnfid(ibnf))
+
+    publicnumber, privatenumber = diffiehellman_term(remoteibnfhandler)
+
+    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_DIFFIEHELLMAN
+    headers = Dict("Content-Type" => "application/json")
+    data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_PUBLICNUMBER => publicnumber)
+    body = JSON.json(data)  
+    
+    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
+    if response.status == 200
+        parsedresponse = JSON.parse(String(response.body))
+        recievednumber = parsedresponse[HTTPMessages.KEY_PUBLICNUMBER]
+        receivedsecret = parsedresponse[HTTPMessages.KEY_DHSECRET]
+        return (receivedsecret == powermod(recievednumber, privatenumber, remoteibnfhandler.prime))
+    else
+        error("DH failed with $remoteibnfhandler: $(response.status)")
+    end
+end
+
+function diffiehellman_term(remoteibnfhandler::RemoteHTTPHandler)
+    prime = remoteibnfhandler.prime
+    root = remoteibnfhandler.root
+    privatenumber = rand(1:100)
+    publicnumber = powermod(root, privatenumber, prime)
+    @show prime, root, privatenumber
+    return publicnumber, privatenumber
+end
+
+
 """
 $(TYPEDSIGNATURES) 
 Exchange of the handshake information with the remote IBN framework.

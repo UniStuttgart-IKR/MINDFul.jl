@@ -95,22 +95,48 @@ export serve
     """
     @post api("/handshake") function (req; context)
         ibnf = getmyibnf(req, context)
-        myibnfid = string(MINDF.getibnfid(ibnf))
+        
         parsedbody = JSON.parse(String(HTTP.payload(req)))
         remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
         #println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
+
+        DH = MINDF.diffiehellman_init(ibnf, remotehandler)
+        if DH == false
+            error("Authentication failed with $(remotehandler.ibnfid)")
+        else
+            println("Authentication successful with $(remotehandler.ibnfid)")
+        end
         
         if !isnothing(token) 
             remotehandler.recvtoken = token
-            myibnfid = string(MINDF.getibnfid(ibnf))
+            
             generatedtoken, availablefunctions = MINDF.handshake_term(remotehandler)
             remotehandler.gentoken = generatedtoken
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken,MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
+        end        
+    end
+
+
+    @post api("/diffiehellman") function (req; context)
+        ibnf = getmyibnf(req, context)
+        
+        parsedbody = JSON.parse(String(HTTP.payload(req)))
+        remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        publicnumberA = parsedbody[MINDF.HTTPMessages.KEY_PUBLICNUMBER]
+        
+        remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
+     
+        if !isnothing(publicnumberA) 
+            publicnumberB, privatenumber = MINDF.diffiehellman_term(remotehandler)
+            dhsecret = powermod(publicnumberA, privatenumber, remotehandler.prime)
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_PUBLICNUMBER => publicnumberB, MINDF.HTTPMessages.KEY_DHSECRET => dhsecret)))
+        else
+            return HTTP.Response(403, "Nonce not received")
         end        
     end
 
