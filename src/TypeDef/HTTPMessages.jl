@@ -47,6 +47,8 @@ const URI_HANDSHAKE = "/api/handshake"
 
 const URI_DIFFIEHELLMAN = "/api/diffiehellman"
 
+const URI_RSASIGNATURE = "/api/rsasignature"
+
 
 const KEY_INITIATORIBNFID = "initiator_ibnfid"
 
@@ -155,6 +157,8 @@ const KEY_RECVTOKEN = "recvtoken"
 const KEY_PUBLICNUMBER = "publicnumber"
 
 const KEY_DHSECRET = "dhsecret"
+
+const KEY_RSASECRET = "rsasecret"
 
 const LIST_ALLFUNCTIONS = [
     URI_IBNAGRAPH,

@@ -5,6 +5,7 @@ encryption = false
 ip = "127.0.0.1"
 port = 8083
 ibnfid = 0x3
+privatekey = "test/data/rsa_priv3.pem"
 
 [remote]
 
@@ -15,6 +16,7 @@ ibnfid = 0x1
 permission = "full"
 prime = 71
 root = 11
+publickey = "MFowDQYJKoZIhvcNAQEBBQADSQAwRgJBAL+cR1/kQNB9hjxChAAhfkDQ3M7IWe6bFhpIeuuCTOhkT/yELBwOmXVLUSxGcMN1+XYFWBl5J/is8S4sHRLeuH8CAQM="
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
@@ -23,3 +25,4 @@ ibnfid = 0x2
 permission = "full"
 prime = 73
 root = 5
+publickey = "nothing"

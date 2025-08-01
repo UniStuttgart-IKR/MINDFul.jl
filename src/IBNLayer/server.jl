@@ -103,8 +103,9 @@ export serve
         #println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
 
-        DH = MINDF.diffiehellman_init(ibnf, remotehandler)
-        if DH == false
+        #AUTH = MINDF.diffiehellman_init(ibnf, remotehandler)
+        AUTH = MINDF.rsasignature_init(ibnf, remotehandler)
+        if AUTH == false
             error("Authentication failed with $(remotehandler.ibnfid)")
         else
             println("Authentication successful with $(remotehandler.ibnfid)")
@@ -112,10 +113,9 @@ export serve
         
         if !isnothing(token) 
             remotehandler.recvtoken = token
-            
             generatedtoken, availablefunctions = MINDF.handshake_term(remotehandler)
             remotehandler.gentoken = generatedtoken
-            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken,MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken, MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
         end        
@@ -135,6 +135,24 @@ export serve
             publicnumberB, privatenumber = MINDF.diffiehellman_term(remotehandler)
             dhsecret = powermod(publicnumberA, privatenumber, remotehandler.prime)
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_PUBLICNUMBER => publicnumberB, MINDF.HTTPMessages.KEY_DHSECRET => dhsecret)))
+        else
+            return HTTP.Response(403, "Nonce not received")
+        end        
+    end
+
+
+    @post api("/rsasignature") function (req; context)
+        ibnf = getmyibnf(req, context)
+        
+        parsedbody = JSON.parse(String(HTTP.payload(req)))
+        remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        encryptedsecret = parsedbody[MINDF.HTTPMessages.KEY_RSASECRET]
+        
+        remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
+     
+        if !isnothing(encryptedsecret) 
+            decryptedsecret = MINDF.rsasignature_term(remotehandler, ibnf, encryptedsecret)
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => decryptedsecret)))
         else
             return HTTP.Response(403, "Nonce not received")
         end        

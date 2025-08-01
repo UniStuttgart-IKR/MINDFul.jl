@@ -23,7 +23,7 @@ function main()
 
     domainfile = config["domainfile"]
     if startswith(domainfile, "/") 
-        finaldomainfile = configpath
+        finaldomainfile = domainfile
     else
         finaldomainfile = MAINDIR * "/" * domainfile
     end
@@ -33,14 +33,23 @@ function main()
     localip = config["local"]["ip"]
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
+    localprivatekeyfile = config["local"]["privatekey"]
+    if startswith(localprivatekeyfile, "/") 
+        finallocalprivatekeyfile = localprivatekeyfile
+    else
+        finallocalprivatekeyfile = MAINDIR * "/" * localprivatekeyfile
+    end
+    lines = readlines(finallocalprivatekeyfile)
+    localprivatekey = join(filter(line -> !startswith(line, "-----"), lines))
     
     neighboursconfig = config["remote"]["neighbours"]
     neighbourips = [n["ip"] for n in neighboursconfig]
     neighbourports = [n["port"] for n in neighboursconfig]
     neighbourids = [n["ibnfid"] for n in neighboursconfig]
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
-    neighboursprimes = [n["prime"] for n in neighboursconfig]
-    neighboursroots = [n["root"] for n in neighboursconfig]
+    neighbourprimes = [n["prime"] for n in neighboursconfig]
+    neighbourroots = [n["root"] for n in neighboursconfig]
+    neighbourpublickeys = [n["publickey"] for n in neighboursconfig]
 
 
    
@@ -57,11 +66,11 @@ function main()
 
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", 0, 0, "", ""))
+    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", 0, 0, localprivatekey, "", ""))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighboursprimes[i], neighboursroots[i], "", ""))
+        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighbourprimes[i], neighbourroots[i], neighbourpublickeys[i], "", ""))
     end
 
     ibnfsdict = Dict{Int, IBNFramework}()

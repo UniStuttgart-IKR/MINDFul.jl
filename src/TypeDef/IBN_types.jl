@@ -366,6 +366,7 @@ mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     const permission::String
     const prime::Int
     const root::Int
+    const key::String
     gentoken::String
     recvtoken::String
 end

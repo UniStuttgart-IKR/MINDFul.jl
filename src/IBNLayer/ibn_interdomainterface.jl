@@ -761,6 +761,69 @@ function diffiehellman_term(remoteibnfhandler::RemoteHTTPHandler)
 end
 
 
+
+function rsasignature_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
+    initiatoribnfid = string(getibnfid(ibnf))
+    remotepublickeyb64 = remoteibnfhandler.key
+    
+    remotepublickeypem = """
+    -----BEGIN PUBLIC KEY-----
+    $remotepublickeyb64
+    -----END PUBLIC KEY-----
+    """
+    
+    pk_ctx = MbedTLS.PKContext()
+    MbedTLS.parse_public_key!(pk_ctx, remotepublickeypem)
+    #secret = string(uuid4())
+    secret = "very important secret"
+    secretbytes  = Vector{UInt8}(codeunits(secret))
+
+    rng = MbedTLS.CtrDrbg()
+    entropy = MbedTLS.Entropy()
+    MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))
+    encrypted = zeros(UInt8, 64)
+    #encrypted = zeros(UInt8, MbedTLS.get_size(pk_ctx))
+    MbedTLS.encrypt!(pk_ctx, secretbytes, encrypted, rng)
+    encryptedsecret_b64 = base64encode(encrypted)
+
+    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_RSASIGNATURE
+    headers = Dict("Content-Type" => "application/json")
+    data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_RSASECRET => encryptedsecret_b64)
+    body = JSON.json(data)  
+    
+    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
+    if response.status == 200
+        parsedresponse = JSON.parse(String(response.body))
+        receivedsecret = parsedresponse[HTTPMessages.KEY_RSASECRET]
+        return (receivedsecret == secret)
+    else
+        error("RSA authentication failed with $remoteibnfhandler: $(response.status)")
+    end
+end
+
+function rsasignature_term(remoteibnfhandler::RemoteHTTPHandler, ibnf::IBNFramework, encryptedsecret::String)
+    privatekeyb64 = ibnf.ibnfcomm.ibnfhandlers[1].key
+    privatekeypem = """
+    -----BEGIN PRIVATE KEY-----
+    $privatekeyb64
+    -----END PRIVATE KEY-----
+    """
+
+    pk_ctx = MbedTLS.PKContext()
+    MbedTLS.parse_key!(pk_ctx, privatekeypem)
+    
+    encryptedbytes = base64decode(encryptedsecret)
+    decrypted = zeros(UInt8, 64)
+    rng = MbedTLS.CtrDrbg()
+    entropy = MbedTLS.Entropy()
+    MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))
+    outlen = MbedTLS.decrypt!(pk_ctx, encryptedbytes, decrypted, rng)
+
+    secret = String(decrypted[1:outlen])
+    return secret
+end
+
+
 """
 $(TYPEDSIGNATURES) 
 Exchange of the handshake information with the remote IBN framework.
