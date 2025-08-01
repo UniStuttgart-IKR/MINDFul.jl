@@ -760,33 +760,40 @@ function diffiehellman_term(remoteibnfhandler::RemoteHTTPHandler)
     return publicnumber, privatenumber
 end
 
-
-
-function rsasignature_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
-    initiatoribnfid = string(getibnfid(ibnf))
+function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
     remotepublickeyb64 = remoteibnfhandler.key
-    
     remotepublickeypem = """
     -----BEGIN PUBLIC KEY-----
     $remotepublickeyb64
     -----END PUBLIC KEY-----
     """
+
+    # keybytes = base64decode(remotepublickeyb64)
+    # @show length(keybytes)
+    # @show length(remotepublickeyb64)
     
     pk_ctx = MbedTLS.PKContext()
     MbedTLS.parse_public_key!(pk_ctx, remotepublickeypem)
-    #secret = string(uuid4())
-    secret = "very important secret"
-    secretbytes  = Vector{UInt8}(codeunits(secret))
+    
+    secretbytes = Vector{UInt8}(codeunits(unencryptedsecret))
 
     rng = MbedTLS.CtrDrbg()
     entropy = MbedTLS.Entropy()
     MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))
-    encrypted = zeros(UInt8, 64)
-    #encrypted = zeros(UInt8, MbedTLS.get_size(pk_ctx))
-    MbedTLS.encrypt!(pk_ctx, secretbytes, encrypted, rng)
-    encryptedsecret_b64 = base64encode(encrypted)
 
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_RSASIGNATURE
+    encrypted = zeros(UInt8, 64)
+    MbedTLS.encrypt!(pk_ctx, secretbytes, encrypted, rng)
+    return base64encode(encrypted)
+end
+
+function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
+    initiatoribnfid = string(getibnfid(ibnf))
+    
+    secret = string(uuid4())
+    #secret = "very important secret"
+    encryptedsecret_b64 = rsaauthentication_encrypt(remoteibnfhandler, secret)
+
+    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_RSAAUTHENTICATION
     headers = Dict("Content-Type" => "application/json")
     data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_RSASECRET => encryptedsecret_b64)
     body = JSON.json(data)  
@@ -795,13 +802,14 @@ function rsasignature_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHand
     if response.status == 200
         parsedresponse = JSON.parse(String(response.body))
         receivedsecret = parsedresponse[HTTPMessages.KEY_RSASECRET]
-        return (receivedsecret == secret)
+        decryptedreceivedsecret = rsaauthentication_term(ibnf, receivedsecret)
+        return (decryptedreceivedsecret == secret)
     else
         error("RSA authentication failed with $remoteibnfhandler: $(response.status)")
     end
 end
 
-function rsasignature_term(remoteibnfhandler::RemoteHTTPHandler, ibnf::IBNFramework, encryptedsecret::String)
+function rsaauthentication_term(ibnf::IBNFramework, encryptedsecret::String)
     privatekeyb64 = ibnf.ibnfcomm.ibnfhandlers[1].key
     privatekeypem = """
     -----BEGIN PRIVATE KEY-----
@@ -813,7 +821,7 @@ function rsasignature_term(remoteibnfhandler::RemoteHTTPHandler, ibnf::IBNFramew
     MbedTLS.parse_key!(pk_ctx, privatekeypem)
     
     encryptedbytes = base64decode(encryptedsecret)
-    decrypted = zeros(UInt8, 64)
+    decrypted = zeros(UInt8, length(encryptedbytes))
     rng = MbedTLS.CtrDrbg()
     entropy = MbedTLS.Entropy()
     MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))

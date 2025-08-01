@@ -104,7 +104,7 @@ export serve
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
 
         #AUTH = MINDF.diffiehellman_init(ibnf, remotehandler)
-        AUTH = MINDF.rsasignature_init(ibnf, remotehandler)
+        AUTH = MINDF.rsaauthentication_init(ibnf, remotehandler)
         if AUTH == false
             error("Authentication failed with $(remotehandler.ibnfid)")
         else
@@ -141,7 +141,7 @@ export serve
     end
 
 
-    @post api("/rsasignature") function (req; context)
+    @post api("/rsaauthentication") function (req; context)
         ibnf = getmyibnf(req, context)
         
         parsedbody = JSON.parse(String(HTTP.payload(req)))
@@ -151,10 +151,11 @@ export serve
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
      
         if !isnothing(encryptedsecret) 
-            decryptedsecret = MINDF.rsasignature_term(remotehandler, ibnf, encryptedsecret)
-            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => decryptedsecret)))
+            decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
+            newencryptedsecret = MINDF.rsaauthentication_encrypt(remotehandler, decryptedsecret)
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => newencryptedsecret)))
         else
-            return HTTP.Response(403, "Nonce not received")
+            return HTTP.Response(403, "Secret not received")
         end        
     end
 

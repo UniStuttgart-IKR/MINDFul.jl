@@ -16,7 +16,7 @@ ibnfid = 0x2
 permission = "limited"
 prime = 67
 root = 7
-publickey = "nothing"
+publickey = "test/data/rsa_pub2.pem"
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
@@ -25,4 +25,4 @@ ibnfid = 0x3
 permission = "limited"
 prime = 71
 root = 11
-publickey = "MFowDQYJKoZIhvcNAQEBBQADSQAwRgJBALoLazK8ZlWU2fgFsWLpQ38xjVJa0MOjwvbt5Jtn2akhOwFr+Kv26wI73gI1K+0JV0JPepQOzZtHb2Mfv2JPf6sCAQM="
+publickey = "test/data/rsa_pub3.pem"

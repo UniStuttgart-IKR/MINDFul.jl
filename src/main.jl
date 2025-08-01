@@ -1,3 +1,16 @@
+function checkfilepath(filepath::String)
+    if startswith(filepath, "/") 
+        return filepath
+    else
+        return joinpath(dirname(@__DIR__), filepath)
+    end
+end
+
+function readb64keys(finalkeyfile::String)
+    lines = readlines(finalkeyfile)
+    return join(filter(line -> !startswith(line, "-----"), lines))
+end
+
 """
 $(TYPEDSIGNATURES)
 main() function to initialize the MINDFul IBN framework.
@@ -13,20 +26,11 @@ function main()
     end
 
     configpath = ARGS[1]
-    if startswith(configpath, "/") 
-        finalconfigpath = configpath
-    else
-        finalconfigpath = MAINDIR * "/" * configpath
-    end
-
+    finalconfigpath = checkfilepath(configpath)
     config = TOML.parsefile(finalconfigpath)
 
     domainfile = config["domainfile"]
-    if startswith(domainfile, "/") 
-        finaldomainfile = domainfile
-    else
-        finaldomainfile = MAINDIR * "/" * domainfile
-    end
+    finaldomainfile = checkfilepath(domainfile)
 
     encryption = config["encryption"]
 
@@ -34,13 +38,8 @@ function main()
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
     localprivatekeyfile = config["local"]["privatekey"]
-    if startswith(localprivatekeyfile, "/") 
-        finallocalprivatekeyfile = localprivatekeyfile
-    else
-        finallocalprivatekeyfile = MAINDIR * "/" * localprivatekeyfile
-    end
-    lines = readlines(finallocalprivatekeyfile)
-    localprivatekey = join(filter(line -> !startswith(line, "-----"), lines))
+    finallocalprivatekeyfile = checkfilepath(localprivatekeyfile)
+    localprivatekey = readb64keys(finallocalprivatekeyfile)
     
     neighboursconfig = config["remote"]["neighbours"]
     neighbourips = [n["ip"] for n in neighboursconfig]
@@ -49,10 +48,10 @@ function main()
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
     neighbourprimes = [n["prime"] for n in neighboursconfig]
     neighbourroots = [n["root"] for n in neighboursconfig]
-    neighbourpublickeys = [n["publickey"] for n in neighboursconfig]
+    neighbourpublickeyfiles = [n["publickey"] for n in neighboursconfig]
+    neighbourpublickeys = [readb64keys(checkfilepath(pkfile)) for pkfile in neighbourpublickeyfiles]
 
 
-   
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
     if encryption

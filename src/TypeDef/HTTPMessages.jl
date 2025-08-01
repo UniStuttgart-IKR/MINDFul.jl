@@ -47,7 +47,7 @@ const URI_HANDSHAKE = "/api/handshake"
 
 const URI_DIFFIEHELLMAN = "/api/diffiehellman"
 
-const URI_RSASIGNATURE = "/api/rsasignature"
+const URI_RSAAUTHENTICATION = "/api/rsaauthentication"
 
 
 const KEY_INITIATORIBNFID = "initiator_ibnfid"
