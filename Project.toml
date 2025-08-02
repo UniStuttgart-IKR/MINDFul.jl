@@ -34,7 +34,7 @@ TestModule = ["JET", "Test"]
 
 [compat]
 AttributeGraphs = "0.3.0"
-DataStructures = "0.18.20"
+DataStructures = "0.18.20, 0.19"
 Dates = "1.11.0"
 DocStringExtensions = "0.9"
 EnumX = "1.0.4"
