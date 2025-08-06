@@ -364,9 +364,8 @@ mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     const ibnfid::UUID
     const baseurl::String
     const permission::String
-    const prime::Int
-    const root::Int
     const key::String
+    gensecret::String
     gentoken::String
     recvtoken::String
 end

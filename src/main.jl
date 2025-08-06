@@ -15,7 +15,7 @@ end
 $(TYPEDSIGNATURES)
 main() function to initialize the MINDFul IBN framework.
 It expects the path to read the configuration from a TOML file, set up the IBNFrameworks for each domain,
-and start the HTTP server for communication between domains.
+and start the HTTP server that enables communication between domains.
 """
 function main()
     verbose=false
@@ -46,8 +46,6 @@ function main()
     neighbourports = [n["port"] for n in neighboursconfig]
     neighbourids = [n["ibnfid"] for n in neighboursconfig]
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
-    neighbourprimes = [n["prime"] for n in neighboursconfig]
-    neighbourroots = [n["root"] for n in neighboursconfig]
     neighbourpublickeyfiles = [n["publickey"] for n in neighboursconfig]
     neighbourpublickeys = [readb64keys(checkfilepath(pkfile)) for pkfile in neighbourpublickeyfiles]
 
@@ -65,11 +63,11 @@ function main()
 
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", 0, 0, localprivatekey, "", ""))
+    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", localprivatekey, "", "", ""))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighbourprimes[i], neighbourroots[i], neighbourpublickeys[i], "", ""))
+        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighbourpublickeys[i], "", "", ""))
     end
 
     ibnfsdict = Dict{Int, IBNFramework}()

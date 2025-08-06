@@ -98,18 +98,20 @@ export serve
         
         parsedbody = JSON.parse(String(HTTP.payload(req)))
         remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
+        encryptedsecret = parsedbody[MINDF.HTTPMessages.KEY_RSASECRET]
+        decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
+        secret = remotehandler.gensecret
+        if decryptedsecret != secret
+            error("RSA authentication failed with: received secret does not match the expected secret")
+        else
+          println("RSA authentication successful with $(remotehandler.ibnfid)")
+        end
+
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
         #println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
-
-        #AUTH = MINDF.diffiehellman_init(ibnf, remotehandler)
-        AUTH = MINDF.rsaauthentication_init(ibnf, remotehandler)
-        if AUTH == false
-            error("Authentication failed with $(remotehandler.ibnfid)")
-        else
-            println("Authentication successful with $(remotehandler.ibnfid)")
-        end
         
         if !isnothing(token) 
             remotehandler.recvtoken = token
@@ -118,25 +120,6 @@ export serve
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken, MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
-        end        
-    end
-
-
-    @post api("/diffiehellman") function (req; context)
-        ibnf = getmyibnf(req, context)
-        
-        parsedbody = JSON.parse(String(HTTP.payload(req)))
-        remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
-        publicnumberA = parsedbody[MINDF.HTTPMessages.KEY_PUBLICNUMBER]
-        
-        remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
-     
-        if !isnothing(publicnumberA) 
-            publicnumberB, privatenumber = MINDF.diffiehellman_term(remotehandler)
-            dhsecret = powermod(publicnumberA, privatenumber, remotehandler.prime)
-            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_PUBLICNUMBER => publicnumberB, MINDF.HTTPMessages.KEY_DHSECRET => dhsecret)))
-        else
-            return HTTP.Response(403, "Nonce not received")
         end        
     end
 
@@ -152,8 +135,11 @@ export serve
      
         if !isnothing(encryptedsecret) 
             decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
-            newencryptedsecret = MINDF.rsaauthentication_encrypt(remotehandler, decryptedsecret)
-            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => newencryptedsecret)))
+            newsecret = string(uuid4())
+            remotehandler.gensecret = newsecret
+            concatenatedsecret = decryptedsecret * "||" * newsecret
+            encryptedconcatenatedsecret = MINDF.rsaauthentication_encrypt(remotehandler, concatenatedsecret)
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => encryptedconcatenatedsecret)))
         else
             return HTTP.Response(403, "Secret not received")
         end        

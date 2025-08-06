@@ -21,7 +21,7 @@ end
 function requestibnattributegraph_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    resp = sendrequest(myibnf, myibnf, remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     if resp.status == 200
         return deserialize(IOBuffer(resp.body))
     else
@@ -57,7 +57,7 @@ end
 function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    resp = sendrequest(myibnf, myibnf, remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     
     if resp.status == 200
         ibnfhandlers = [RemoteHTTPHandler(UUID(d[HTTPMessages.KEY_IBNFID][HTTPMessages.KEY_VALUE]), 
@@ -88,7 +88,7 @@ end
 function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_LOGICALORDER, 
+    resp = sendrequest(myibnf, myibnf, remoteibnfhandler, HTTPMessages.URI_LOGICALORDER, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled, 
         HTTPMessages.KEY_VERBOSE => verbose, 
@@ -131,7 +131,7 @@ end
 function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled::Bool = true)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_INTENTGLOBALPATH, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_INTENTGLOBALPATH, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
@@ -167,7 +167,7 @@ end
 function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled::Bool = true)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_ELECTRICALPRESENCE, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_ELECTRICALPRESENCE, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
@@ -203,7 +203,7 @@ end
 function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled::Bool = true)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_LIGHTPATHS, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_LIGHTPATHS, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_INTENTUUID => string(intentuuid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled))
@@ -274,7 +274,7 @@ function requestlinkstates_init(myibnf::IBNFramework, remoteibnfhandler::RemoteH
     gedata = serializeglobaledge(ge)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REQUESTLINKSTATES, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_REQUESTLINKSTATES, 
         Dict(HTTPMessages.KEY_GLOBALEDGE => gedata, HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
 
     if resp.status == 200
@@ -319,7 +319,7 @@ end
     gedata = serializeglobaledge(ge)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_SETLINKSTATE, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_SETLINKSTATE, 
         Dict(HTTPMessages.KEY_GLOBALEDGE => gedata, 
         HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_OPERATINGSTATE => operatingstate); @passtime)
@@ -404,7 +404,7 @@ end
 @recvtime function requestinstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool=false)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_INSTALLINTENT, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_INSTALLINTENT, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_VERBOSE => verbose); @passtime)
@@ -434,7 +434,7 @@ end
 @recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool=false)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_UNINSTALLINTENT, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_UNINSTALLINTENT, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_VERBOSE => verbose); @passtime)
@@ -464,7 +464,7 @@ end
 @recvtime function requestuncompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool=false)
     initiatoribnfid = string(getibnfid(myibnf))
     
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_UNCOMPILEINTENT, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_UNCOMPILEINTENT, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_VERBOSE => verbose); @passtime)
@@ -513,7 +513,7 @@ end
 @recvtime function requestremoteintentstateupdate_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID, newstate::IntentState.T)   
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REMOTEINTENTSTATEUPDATE, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_REMOTEINTENTSTATEUPDATE, 
         Dict(HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_NEWSTATE => string(newstate)); @passtime)
@@ -554,7 +554,7 @@ MA1069 implementation
 function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_REQUESTIDAG, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_REQUESTIDAG, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
 
     if resp.status == 200
         idag = deserialize(IOBuffer(resp.body))
@@ -575,7 +575,7 @@ function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandl
     gedata = serializeglobaledge(ge)
     initiatoribnfid = string(getibnfid(myibnf))
     
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_SPECTRUMAVAILABILITY, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_SPECTRUMAVAILABILITY, 
         Dict(HTTPMessages.KEY_GLOBALEDGE => gedata, HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
 
     if resp.status == 200
@@ -617,7 +617,7 @@ Return the id of the new dag node if successful and `nothing` otherwise
     initiatoribnfid = string(getibnfid(myibnf))
     serializedintent = serializeconnectivityintent(intent)
     
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_DELEGATEINTENT, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_DELEGATEINTENT, 
         Dict(HTTPMessages.KEY_INTERNALIDAGNODEID => string(internalidagnodeid), 
         HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_INTENT => serializedintent); @passtime)
@@ -644,7 +644,7 @@ MA1069 implementation
 function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_COMPILATIONALGORITHMS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_COMPILATIONALGORITHMS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
 
     if resp.status == 200
         return JSON.parse(String(resp.body))
@@ -666,7 +666,7 @@ MA1069 implementation
 @recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID, compilationalgorithmkey::Symbol=:default, compilationalgorithmargs::Tuple=(); verbose::Bool = false)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_COMPILEINTENT, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_COMPILEINTENT, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_COMPILATIONKEY => string(compilationalgorithmkey), 
@@ -690,7 +690,7 @@ Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; onlyinstalled::Bool=true, noextrallis::Bool=true)
     initiatoribnfid = string(getibnfid(myibnf))
     
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_ISSATISFIED, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_ISSATISFIED, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_IDAGNODEID => string(idagnodeid), 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled, 
@@ -719,7 +719,7 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
     gedata = serializeglobaledge(ge)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(remoteibnfhandler, HTTPMessages.URI_CURRENTLINKSTATE, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_CURRENTLINKSTATE, 
     Dict(HTTPMessages.KEY_GLOBALEDGE => gedata, 
     HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     
@@ -730,35 +730,6 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
     end
 end
 
-function diffiehellman_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
-    initiatoribnfid = string(getibnfid(ibnf))
-
-    publicnumber, privatenumber = diffiehellman_term(remoteibnfhandler)
-
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_DIFFIEHELLMAN
-    headers = Dict("Content-Type" => "application/json")
-    data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_PUBLICNUMBER => publicnumber)
-    body = JSON.json(data)  
-    
-    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
-    if response.status == 200
-        parsedresponse = JSON.parse(String(response.body))
-        recievednumber = parsedresponse[HTTPMessages.KEY_PUBLICNUMBER]
-        receivedsecret = parsedresponse[HTTPMessages.KEY_DHSECRET]
-        return (receivedsecret == powermod(recievednumber, privatenumber, remoteibnfhandler.prime))
-    else
-        error("DH failed with $remoteibnfhandler: $(response.status)")
-    end
-end
-
-function diffiehellman_term(remoteibnfhandler::RemoteHTTPHandler)
-    prime = remoteibnfhandler.prime
-    root = remoteibnfhandler.root
-    privatenumber = rand(1:100)
-    publicnumber = powermod(root, privatenumber, prime)
-    @show prime, root, privatenumber
-    return publicnumber, privatenumber
-end
 
 function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
     remotepublickeyb64 = remoteibnfhandler.key
@@ -767,10 +738,6 @@ function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencry
     $remotepublickeyb64
     -----END PUBLIC KEY-----
     """
-
-    # keybytes = base64decode(remotepublickeyb64)
-    # @show length(keybytes)
-    # @show length(remotepublickeyb64)
     
     pk_ctx = MbedTLS.PKContext()
     MbedTLS.parse_public_key!(pk_ctx, remotepublickeypem)
@@ -781,7 +748,7 @@ function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencry
     entropy = MbedTLS.Entropy()
     MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))
 
-    encrypted = zeros(UInt8, 64)
+    encrypted = zeros(UInt8, 256)
     MbedTLS.encrypt!(pk_ctx, secretbytes, encrypted, rng)
     return base64encode(encrypted)
 end
@@ -803,7 +770,15 @@ function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTT
         parsedresponse = JSON.parse(String(response.body))
         receivedsecret = parsedresponse[HTTPMessages.KEY_RSASECRET]
         decryptedreceivedsecret = rsaauthentication_term(ibnf, receivedsecret)
-        return (decryptedreceivedsecret == secret)
+        parts = split(decryptedreceivedsecret, "||")
+        returneddecryptedsecret = String(parts[1])
+        if returneddecryptedsecret == secret
+            newsecret = String(parts[2])
+            encryptednewsecret = rsaauthentication_encrypt(remoteibnfhandler, newsecret)
+            return encryptednewsecret
+        else
+            error("RSA authentication failed with $remoteibnfhandler: received secret does not match the expected secret")
+        end
     else
         error("RSA authentication failed with $remoteibnfhandler: $(response.status)")
     end
@@ -827,8 +802,9 @@ function rsaauthentication_term(ibnf::IBNFramework, encryptedsecret::String)
     MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))
     outlen = MbedTLS.decrypt!(pk_ctx, encryptedbytes, decrypted, rng)
 
-    secret = String(decrypted[1:outlen])
-    return secret
+    decryptedsecret = String(decrypted[1:outlen])
+
+    return decryptedsecret
 end
 
 
@@ -838,34 +814,32 @@ Exchange of the handshake information with the remote IBN framework.
 Both domains will generate a token to their peer that must be attached in the subsequent requests.
 Depending on the permissions of the remote IBN framework, the available functions will be send for information.
 """
-function handshake_init!(initiatoribnfid::String, remoteibnfhandler::RemoteHTTPHandler)
+function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, encryptedsecret::String)
     generatedtoken, availablefunctions = handshake_term(remoteibnfhandler)
     remoteibnfhandler.gentoken = generatedtoken
 
+    initiatoribnfid = string(getibnfid(ibnf))
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
     headers = Dict("Content-Type" => "application/json")
-    data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_TOKEN => generatedtoken, HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)
+    data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
+                HTTPMessages.KEY_TOKEN => generatedtoken, 
+                HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions, 
+                HTTPMessages.KEY_RSASECRET => encryptedsecret)
     body = JSON.json(data)  
     
-    try
-        response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
-         if response.status == 200
-            parsedresponse = JSON.parse(String(response.body))
-            # functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-            # remoteibnfid = string(getibnfid(remoteibnfhandler))
-            # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
-            recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
-            remoteibnfhandler.recvtoken = recievedtoken
-            return recievedtoken
-        else
-            error("Handshake failed with $remoteibnfhandler: $(response.status)")
-        end
-    catch e
-        if isa(e, HTTP.Exceptions.ConnectError)
-            println("Connection refused to $(remoteibnfhandler.baseurl * HTTPMessages.URI_HANDSHAKE)")
-            exit(1)
-        end
+    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
+        if response.status == 200
+        parsedresponse = JSON.parse(String(response.body))
+        # functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
+        # remoteibnfid = string(getibnfid(remoteibnfhandler))
+        # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
+        recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
+        remoteibnfhandler.recvtoken = recievedtoken
+        return recievedtoken
+    else
+        error("Handshake failed with $remoteibnfhandler: $(response.status)")
     end
+    
 end
 
 
