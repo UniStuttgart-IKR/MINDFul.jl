@@ -57,6 +57,7 @@ function loadmultidomaintestidistributedbnfs()
     finaldomainfile = MINDF.checkfilepath(dirname(TESTDIR), domainfile)
     
     encryption = config["encryption"]
+    run(`$(TESTDIR)/data/generatekeys.sh`)
 
     domainsconfig = config["domains"]["config"]
     ips = [n["ip"] for n in domainsconfig]
