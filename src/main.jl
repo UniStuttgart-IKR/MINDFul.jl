@@ -1,8 +1,8 @@
-function checkfilepath(filepath::String)
+function checkfilepath(directoryname::String, filepath::String)
     if startswith(filepath, "/") 
         return filepath
     else
-        return joinpath(dirname(@__DIR__), filepath)
+        return joinpath(directoryname, filepath)
     end
 end
 
@@ -26,11 +26,11 @@ function main()
     end
 
     configpath = ARGS[1]
-    finalconfigpath = checkfilepath(configpath)
+    finalconfigpath = checkfilepath(MAINDIR, configpath)
     config = TOML.parsefile(finalconfigpath)
 
     domainfile = config["domainfile"]
-    finaldomainfile = checkfilepath(domainfile)
+    finaldomainfile = checkfilepath(MAINDIR, domainfile)
 
     encryption = config["encryption"]
 
@@ -38,7 +38,7 @@ function main()
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
     localprivatekeyfile = config["local"]["privatekey"]
-    finallocalprivatekeyfile = checkfilepath(localprivatekeyfile)
+    finallocalprivatekeyfile = checkfilepath(MAINDIR, localprivatekeyfile)
     localprivatekey = readb64keys(finallocalprivatekeyfile)
     
     neighboursconfig = config["remote"]["neighbours"]
@@ -47,7 +47,7 @@ function main()
     neighbourids = [n["ibnfid"] for n in neighboursconfig]
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
     neighbourpublickeyfiles = [n["publickey"] for n in neighboursconfig]
-    neighbourpublickeys = [readb64keys(checkfilepath(pkfile)) for pkfile in neighbourpublickeyfiles]
+    neighbourpublickeys = [readb64keys(checkfilepath(MAINDIR, pkfile)) for pkfile in neighbourpublickeyfiles]
 
 
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
@@ -84,4 +84,23 @@ function main()
     if ibnf === nothing
         error("No matching ibnf found for ibnfid $localid")
     end
+    if localport == 8081
+        #@show ibnfs[1].ibnfhandlers
+        conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
+        intentuuid_bordernode = MINDFul.addintent!(ibnf, conintent_bordernode, MINDFul.NetworkOperator())
+
+        MINDFul.compileintent!(ibnf, intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
+        
+        # install
+        MINDFul.installintent!(ibnf, intentuuid_bordernode; verbose)
+
+        # uninstall
+        MINDFul.uninstallintent!(ibnf, intentuuid_bordernode; verbose)
+    
+        # uncompile
+        MINDFul.uncompileintent!(ibnf, intentuuid_bordernode; verbose)
+
+        closeibnfserver(ibnf)
+    end
+
 end

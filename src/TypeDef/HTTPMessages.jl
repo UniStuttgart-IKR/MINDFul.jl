@@ -160,6 +160,8 @@ const KEY_DHSECRET = "dhsecret"
 
 const KEY_RSASECRET = "rsasecret"
 
+const KEY_RSAKEY = "rsakey"
+
 const LIST_ALLFUNCTIONS = [
     URI_IBNAGRAPH,
     URI_SPECTRUMAVAILABILITY,

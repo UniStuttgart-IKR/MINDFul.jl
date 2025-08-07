@@ -101,11 +101,9 @@ export serve
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         encryptedsecret = parsedbody[MINDF.HTTPMessages.KEY_RSASECRET]
         decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
-        secret = remotehandler.gensecret
+        secret = MINDF.getibnfhandlersecret(remotehandler)
         if decryptedsecret != secret
             error("RSA authentication failed with: received secret does not match the expected secret")
-        else
-          println("RSA authentication successful with $(remotehandler.ibnfid)")
         end
 
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
@@ -114,9 +112,9 @@ export serve
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
         if !isnothing(token) 
-            remotehandler.recvtoken = token
+            MINDF.setibnfhandlertokenrecv!(remotehandler, token)
             generatedtoken, availablefunctions = MINDF.handshake_term(remotehandler)
-            remotehandler.gentoken = generatedtoken
+            MINDF.setibnfhandlertokengen!(remotehandler, generatedtoken)
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken, MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
@@ -124,6 +122,28 @@ export serve
     end
 
 
+    @swagger """
+    /api/rsaauthentication:
+      post:
+        description: RSA authentication with remote IBNF
+        requestBody:
+          description: The remote IBNF ID and encrypted secret
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  rsasecret:
+                    type: string
+        responses:
+          "200":
+            description: Retrieving RSA concatenated secret encrypted with the initiator's public key.
+          "403":
+            description: Forbidden. Secret not received.
+    """
     @post api("/rsaauthentication") function (req; context)
         ibnf = getmyibnf(req, context)
         
@@ -136,7 +156,7 @@ export serve
         if !isnothing(encryptedsecret) 
             decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
             newsecret = string(uuid4())
-            remotehandler.gensecret = newsecret
+            MINDF.setibnfhandlersecret!(remotehandler, newsecret)
             concatenatedsecret = decryptedsecret * "||" * newsecret
             encryptedconcatenatedsecret = MINDF.rsaauthentication_encrypt(remotehandler, concatenatedsecret)
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => encryptedconcatenatedsecret)))

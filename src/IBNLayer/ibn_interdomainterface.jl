@@ -21,7 +21,7 @@ end
 function requestibnattributegraph_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(myibnf, myibnf, remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     if resp.status == 200
         return deserialize(IOBuffer(resp.body))
     else
@@ -57,12 +57,14 @@ end
 function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(myibnf, myibnf, remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_REQUESTHANDLERS, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     
     if resp.status == 200
         ibnfhandlers = [RemoteHTTPHandler(UUID(d[HTTPMessages.KEY_IBNFID][HTTPMessages.KEY_VALUE]), 
                         d[HTTPMessages.KEY_BASEURL], 
-                        d[HTTPMessages.KEY_PERMISSION], 
+                        d[HTTPMessages.KEY_PERMISSION],
+                        d[HTTPMessages.KEY_RSAKEY], 
+                        d[HTTPMessages.KEY_RSASECRET],
                         d[HTTPMessages.KEY_GENTOKEN],
                         d[HTTPMessages.KEY_RECVTOKEN]) for d in JSON.parse(String(resp.body))]
         return ibnfhandlers
@@ -88,7 +90,7 @@ end
 function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
     initiatoribnfid = string(getibnfid(myibnf))
 
-    resp = sendrequest(myibnf, myibnf, remoteibnfhandler, HTTPMessages.URI_LOGICALORDER, 
+    resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_LOGICALORDER, 
         Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
         HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled, 
         HTTPMessages.KEY_VERBOSE => verbose, 
@@ -732,7 +734,7 @@ end
 
 
 function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
-    remotepublickeyb64 = remoteibnfhandler.key
+    remotepublickeyb64 = getibnfhandlerpublickey(remoteibnfhandler)
     remotepublickeypem = """
     -----BEGIN PUBLIC KEY-----
     $remotepublickeyb64
@@ -785,7 +787,7 @@ function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTT
 end
 
 function rsaauthentication_term(ibnf::IBNFramework, encryptedsecret::String)
-    privatekeyb64 = ibnf.ibnfcomm.ibnfhandlers[1].key
+    privatekeyb64 = getibnfprivatekey(ibnf)
     privatekeypem = """
     -----BEGIN PRIVATE KEY-----
     $privatekeyb64
@@ -816,7 +818,7 @@ Depending on the permissions of the remote IBN framework, the available function
 """
 function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, encryptedsecret::String)
     generatedtoken, availablefunctions = handshake_term(remoteibnfhandler)
-    remoteibnfhandler.gentoken = generatedtoken
+    setibnfhandlertokengen!(remoteibnfhandler, generatedtoken)
 
     initiatoribnfid = string(getibnfid(ibnf))
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
@@ -834,7 +836,7 @@ function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandle
         # remoteibnfid = string(getibnfid(remoteibnfhandler))
         # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
         recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
-        remoteibnfhandler.recvtoken = recievedtoken
+        setibnfhandlertokenrecv!(remoteibnfhandler, recievedtoken)
         return recievedtoken
     else
         error("Handshake failed with $remoteibnfhandler: $(response.status)")
