@@ -8,21 +8,21 @@ ip = "0.0.0.0"
 port = 8081
 ibnfid = 0x1
 permissions = ["full", "full"]
-privatekey = "test/data/rsa_priv1.pem"
-publickey = "test/data/rsa_pub1.pem"
+rsaprivatekey = "test/data/rsa_priv1.pem"
+rsapublickey = "test/data/rsa_pub1.pem"
 
 [[domains.config]]
 ip = "0.0.0.0"
 port = 8082
 ibnfid = 0x2
 permissions = ["full", "full"]
-privatekey = "test/data/rsa_priv1.pem"
-publickey = "test/data/rsa_pub1.pem"
+rsaprivatekey = "test/data/rsa_priv1.pem"
+rsapublickey = "test/data/rsa_pub1.pem"
 
 [[domains.config]]
 ip = "0.0.0.0"
 port = 8083
 ibnfid = 0x3
 permissions = ["full", "full"]
-privatekey = "test/data/rsa_priv1.pem"
-publickey = "test/data/rsa_pub1.pem"
+rsaprivatekey = "test/data/rsa_priv1.pem"
+rsapublickey = "test/data/rsa_pub1.pem"

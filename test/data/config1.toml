@@ -5,7 +5,7 @@ encryption = false
 ip = "127.0.0.1"
 port = 8081
 ibnfid = 0x1
-privatekey = "test/data/rsa_priv1.pem"
+rsaprivatekey = "test/data/rsa_priv1.pem"
 
 [remote]
 
@@ -14,11 +14,11 @@ ip = "127.0.0.1"
 port = 8082
 ibnfid = 0x2
 permission = "limited"
-publickey = "test/data/rsa_pub2.pem"
+rsapublickey = "test/data/rsa_pub2.pem"
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
 port = 8083
 ibnfid = 0x3
 permission = "limited"
-publickey = "test/data/rsa_pub3.pem"
+rsapublickey = "test/data/rsa_pub3.pem"

@@ -162,6 +162,10 @@ const KEY_RSASECRET = "rsasecret"
 
 const KEY_RSAKEY = "rsakey"
 
+const KEY_FULLPERMISSION = "full"
+
+const KEY_LIMITEDPERMISSION = "limited"
+
 const LIST_ALLFUNCTIONS = [
     URI_IBNAGRAPH,
     URI_SPECTRUMAVAILABILITY,

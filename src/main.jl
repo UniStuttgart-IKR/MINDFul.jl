@@ -37,7 +37,7 @@ function main()
     localip = config["local"]["ip"]
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
-    localprivatekeyfile = config["local"]["privatekey"]
+    localprivatekeyfile = config["local"]["rsaprivatekey"]
     finallocalprivatekeyfile = checkfilepath(MAINDIR, localprivatekeyfile)
     localprivatekey = readb64keys(finallocalprivatekeyfile)
     
@@ -46,7 +46,7 @@ function main()
     neighbourports = [n["port"] for n in neighboursconfig]
     neighbourids = [n["ibnfid"] for n in neighboursconfig]
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
-    neighbourpublickeyfiles = [n["publickey"] for n in neighboursconfig]
+    neighbourpublickeyfiles = [n["rsapublickey"] for n in neighboursconfig]
     neighbourpublickeys = [readb64keys(checkfilepath(MAINDIR, pkfile)) for pkfile in neighbourpublickeyfiles]
 
 

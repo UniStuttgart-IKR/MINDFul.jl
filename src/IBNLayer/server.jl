@@ -50,17 +50,17 @@ export serve
         recvtoken = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         handler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
 
-        if recvtoken == MINDF.getibnfhandlertokengen(handler)
-            if MINDF.getibnfhandlerperm(handler) == "none"
-                return false
-            elseif MINDF.getibnfhandlerperm(handler) == "full"
+        if recvtoken == MINDF.getibnfhandlergentoken(handler)
+            if MINDF.getibnfhandlerperm(handler) == MINDF.HTTPMessages.KEY_FULLPERMISSION
                 return true
-            elseif MINDF.getibnfhandlerperm(handler) == "limited"
+            elseif MINDF.getibnfhandlerperm(handler) == MINDF.HTTPMessages.KEY_LIMITEDPERMISSION
                 if uri in MINDF.HTTPMessages.LIST_LIMITEDFUNCTIONS
                     return true
                 else
-                  return false
+                    return false
                 end
+            else
+                return false
             end
         else
             return false
@@ -101,7 +101,7 @@ export serve
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         encryptedsecret = parsedbody[MINDF.HTTPMessages.KEY_RSASECRET]
         decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
-        secret = MINDF.getibnfhandlersecret(remotehandler)
+        secret = MINDF.getibnfhandlerrsasecret(remotehandler)
         if decryptedsecret != secret
             error("RSA authentication failed with: received secret does not match the expected secret")
         end
@@ -112,9 +112,9 @@ export serve
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
         if !isnothing(token) 
-            MINDF.setibnfhandlertokenrecv!(remotehandler, token)
+            MINDF.setibnfhandlerrecvtoken!(remotehandler, token)
             generatedtoken, availablefunctions = MINDF.handshake_term(remotehandler)
-            MINDF.setibnfhandlertokengen!(remotehandler, generatedtoken)
+            MINDF.setibnfhandlergentoken!(remotehandler, generatedtoken)
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken, MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
@@ -156,7 +156,7 @@ export serve
         if !isnothing(encryptedsecret) 
             decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
             newsecret = string(uuid4())
-            MINDF.setibnfhandlersecret!(remotehandler, newsecret)
+            MINDF.setibnfhandlerrsasecret!(remotehandler, newsecret)
             concatenatedsecret = decryptedsecret * "||" * newsecret
             encryptedconcatenatedsecret = MINDF.rsaauthentication_encrypt(remotehandler, concatenatedsecret)
             return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => encryptedconcatenatedsecret)))

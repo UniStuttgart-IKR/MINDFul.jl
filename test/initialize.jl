@@ -64,9 +64,9 @@ function loadmultidomaintestidistributedbnfs()
     ports = [n["port"] for n in domainsconfig]
     ibnfids = [n["ibnfid"] for n in domainsconfig]
     permissions = [perm for n in domainsconfig for perm in n["permissions"]]
-    privatekeysfiles = [n["privatekey"] for n in domainsconfig]
+    privatekeysfiles = [n["rsaprivatekey"] for n in domainsconfig]
     privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(dirname(TESTDIR), pkfile)) for pkfile in privatekeysfiles]
-    publickeysfiles = [n["publickey"] for n in domainsconfig]
+    publickeysfiles = [n["rsapublickey"] for n in domainsconfig]
     publickeys = [MINDF.readb64keys(MINDF.checkfilepath(dirname(TESTDIR), pkfile)) for pkfile in publickeysfiles]
 
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]

@@ -734,7 +734,7 @@ end
 
 
 function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
-    remotepublickeyb64 = getibnfhandlerpublickey(remoteibnfhandler)
+    remotepublickeyb64 = getibnfhandlerrsapublickey(remoteibnfhandler)
     remotepublickeypem = """
     -----BEGIN PUBLIC KEY-----
     $remotepublickeyb64
@@ -787,7 +787,7 @@ function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTT
 end
 
 function rsaauthentication_term(ibnf::IBNFramework, encryptedsecret::String)
-    privatekeyb64 = getibnfprivatekey(ibnf)
+    privatekeyb64 = getibnfrsaprivatekey(ibnf)
     privatekeypem = """
     -----BEGIN PRIVATE KEY-----
     $privatekeyb64
@@ -818,7 +818,7 @@ Depending on the permissions of the remote IBN framework, the available function
 """
 function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, encryptedsecret::String)
     generatedtoken, availablefunctions = handshake_term(remoteibnfhandler)
-    setibnfhandlertokengen!(remoteibnfhandler, generatedtoken)
+    setibnfhandlergentoken!(remoteibnfhandler, generatedtoken)
 
     initiatoribnfid = string(getibnfid(ibnf))
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
@@ -836,7 +836,7 @@ function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandle
         # remoteibnfid = string(getibnfid(remoteibnfhandler))
         # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
         recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
-        setibnfhandlertokenrecv!(remoteibnfhandler, recievedtoken)
+        setibnfhandlerrecvtoken!(remoteibnfhandler, recievedtoken)
         return recievedtoken
     else
         error("Handshake failed with $remoteibnfhandler: $(response.status)")
@@ -846,9 +846,9 @@ end
 
 
 function handshake_term(remoteibnfhandler::RemoteHTTPHandler)
-    if getibnfhandlerperm(remoteibnfhandler) == "full"
+    if getibnfhandlerperm(remoteibnfhandler) == HTTPMessages.KEY_FULLPERMISSION
         availablefunctions = HTTPMessages.LIST_ALLFUNCTIONS
-    elseif getibnfhandlerperm(remoteibnfhandler) == "limited"
+    elseif getibnfhandlerperm(remoteibnfhandler) == HTTPMessages.KEY_LIMITEDPERMISSION
         availablefunctions = HTTPMessages.LIST_LIMITEDFUNCTIONS
     else
         availablefunctions = HTTPMessages.KEY_NOTHING 

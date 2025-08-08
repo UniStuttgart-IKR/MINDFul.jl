@@ -359,7 +359,8 @@ $(TYPEDFIELDS)
 A single token is generated per directed pair.
 The permission is referring to the genenerated token (gentoken).
 gentoken and recvtoken are not constant as they will be generated when the handshake is done.
-RSAKEY contains the public key of the remote domain.
+rsakey contains the private key if the handler belongs to the local domain.
+If the handler is for a remote domain, it contains the public key of that domain.
 The secret is used to authenticate the initiator domain and it is also generated during the handshake.
 """
 mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
