@@ -10,9 +10,9 @@ function loadpermissionedbnfs()
     ports = [n["port"] for n in domainsconfig]
     ibnfids = [n["ibnfid"] for n in domainsconfig]
     permissions = ["limited", "limited", "full", "none", "full", "full"]
-    privatekeysfiles = [n["privatekey"] for n in domainsconfig]
+    privatekeysfiles = [n["rsaprivatekey"] for n in domainsconfig]
     privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(dirname(TESTDIR), pkfile)) for pkfile in privatekeysfiles]
-    publickeysfiles = [n["publickey"] for n in domainsconfig]
+    publickeysfiles = [n["rsapublickey"] for n in domainsconfig]
     publickeys = [MINDF.readb64keys(MINDF.checkfilepath(dirname(TESTDIR), pkfile)) for pkfile in publickeysfiles]
 
 
