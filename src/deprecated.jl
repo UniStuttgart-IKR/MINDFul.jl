@@ -1,5 +1,8 @@
 """
-Implementation of Diffiie-Hellman exchange for authentication. The shared secret serves as the authentication challenge.
+$(TYPEDSIGNATURES)
+Implementation of Diffiie-Hellman exchange for authentication. The shared secret serves as unilateral authentication challenge.
+The post macro is used to handle the Diffie-Hellman exchange inside the Oxygen server module.
+Also, the agreed prime number and one of its roots must be stored in the corresponding RemoteHTTPHandlers of each domain.
 """
 function diffiehellman_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(ibnf))

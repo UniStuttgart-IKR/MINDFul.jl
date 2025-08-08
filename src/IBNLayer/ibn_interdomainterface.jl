@@ -733,6 +733,13 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+Exchange of encrypted secrets via RSA algorithm for mutual authentication with the remote domains.
+The initiator domain will generate a secret, encrypt it with the public key of the remote domain, and send it.
+The remote domain will decrypt the secret with its private key, and return the decrypted secret concatenated with a new secret (the concatenation is encrypted with the initiator's public key).
+The initiator domain will then decrypt with its private key, check the initial secret and return the new secret encrypted in the handshake.
+"""
 function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
     remotepublickeyb64 = getibnfhandlerrsapublickey(remoteibnfhandler)
     remotepublickeypem = """
@@ -758,8 +765,7 @@ end
 function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(ibnf))
     
-    secret = string(uuid4())
-    #secret = "very important secret"
+    secret = String(rand(UInt8, 32))
     encryptedsecret_b64 = rsaauthentication_encrypt(remoteibnfhandler, secret)
 
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_RSAAUTHENTICATION
@@ -832,9 +838,6 @@ function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandle
     response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
         if response.status == 200
         parsedresponse = JSON.parse(String(response.body))
-        # functions = parsedresponse[HTTPMessages.KEY_AVAILABLEFUNCTIONS]
-        # remoteibnfid = string(getibnfid(remoteibnfhandler))
-        # println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $functions \n")
         recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]
         setibnfhandlerrecvtoken!(remoteibnfhandler, recievedtoken)
         return recievedtoken

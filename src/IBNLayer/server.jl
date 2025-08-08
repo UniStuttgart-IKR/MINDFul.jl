@@ -155,7 +155,7 @@ export serve
      
         if !isnothing(encryptedsecret) 
             decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
-            newsecret = string(uuid4())
+            newsecret = String(rand(UInt8, 32))
             MINDF.setibnfhandlerrsasecret!(remotehandler, newsecret)
             concatenatedsecret = decryptedsecret * "||" * newsecret
             encryptedconcatenatedsecret = MINDF.rsaauthentication_encrypt(remotehandler, concatenatedsecret)
