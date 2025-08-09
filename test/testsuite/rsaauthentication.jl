@@ -1,14 +1,18 @@
 function testsuitersa()
     secret = rand(UInt8, 32)
+
+    CONFIGDIR = joinpath(TESTDIR, "data")
+    generatekeysfilepath = joinpath(dirname(TESTDIR), "scripts/generatekeys.sh")
+    run(`$generatekeysfilepath $CONFIGDIR`)
     
-    rsapublickeyb64 = MINDF.readb64keys(joinpath(TESTDIR, "data/rsa_pub1.pem"))
+    rsapublickeyb64 = MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_pub1.pem"))
     rsapublickeypem = """
     -----BEGIN PUBLIC KEY-----
     $rsapublickeyb64
     -----END PUBLIC KEY-----
     """
 
-    rsaprivatekeyb64= MINDF.readb64keys(joinpath(TESTDIR, "data/rsa_priv1.pem"))
+    rsaprivatekeyb64= MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_priv1.pem"))
     rsaprivatekeypem = """
     -----BEGIN PRIVATE KEY-----
     $rsaprivatekeyb64

@@ -54,7 +54,8 @@ function main()
 
     if encryption
         urischeme = "https"
-        run(`$(MAINDIR)/scripts/generatecerts.sh`)
+        generatecertsfilepath = joinpath(dirname(MAINDIR), "scripts/generatecerts.sh")
+        run(`$generatecertsfilepath`)
     else
         urischeme = "http"
     end
