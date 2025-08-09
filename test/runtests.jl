@@ -9,5 +9,6 @@ include("testsuite/grooming.jl")
 include("testsuite/groomingonfail.jl")
 include("testsuite/interface.jl")
 include("testsuite/permissions.jl")
+include("testsuite/rsaauthentication.jl")
 
 nothing

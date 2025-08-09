@@ -45,6 +45,10 @@ const URI_ELECTRICALPRESENCE = "/api/electricalpresence"
 
 const URI_HANDSHAKE = "/api/handshake"
 
+const URI_DIFFIEHELLMAN = "/api/diffiehellman"
+
+const URI_RSAAUTHENTICATION = "/api/rsaauthentication"
+
 
 const KEY_INITIATORIBNFID = "initiator_ibnfid"
 
@@ -149,6 +153,18 @@ const KEY_PERMISSION = "permission"
 const KEY_GENTOKEN = "gentoken"
 
 const KEY_RECVTOKEN = "recvtoken"
+
+const KEY_PUBLICNUMBER = "publicnumber"
+
+const KEY_DHSECRET = "dhsecret"
+
+const KEY_RSASECRET = "rsasecret"
+
+const KEY_RSAKEY = "rsakey"
+
+const KEY_FULLPERMISSION = "full"
+
+const KEY_LIMITEDPERMISSION = "limited"
 
 const LIST_ALLFUNCTIONS = [
     URI_IBNAGRAPH,

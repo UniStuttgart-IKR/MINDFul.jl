@@ -358,16 +358,28 @@ $(TYPEDFIELDS)
 
 A single token is generated per directed pair.
 The permission is referring to the genenerated token (gentoken).
+gentoken and recvtoken are not constant as they will be generated when the handshake is done.
+rsakey contains the private key if the handler belongs to the local domain.
+If the handler is for a remote domain, it contains the public key of that domain.
+The secret is used to authenticate the initiator domain and it is also generated during the handshake.
 """
 mutable struct RemoteHTTPHandler <: AbstractIBNFHandler
     const ibnfid::UUID
     const baseurl::String
     const permission::String
+    const rsakey::String
+    rsasecret::String
     gentoken::String
     recvtoken::String
 end
 
-const OxygenServer = HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}
+"The type of the HTTP server used in the IBN Framework depends on whether the encryption is used or not."
+const OxygenServer = Union{HTTP.Servers.Server{HTTP.Servers.Listener{Nothing, Sockets.TCPServer}}, HTTP.Servers.Server{HTTP.Servers.Listener{MbedTLS.SSLConfig, Sockets.TCPServer}}}
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+Server is of type Union{Nothing, OxygenServer} to allow for the server to be started later.
+"""
 mutable struct IBNFCommunication{H <: AbstractIBNFHandler} 
   server::Union{Nothing, OxygenServer}
   ibnfhandlers::Vector{H}

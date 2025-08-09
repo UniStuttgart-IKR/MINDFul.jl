@@ -496,12 +496,20 @@ function getibnfhandlerperm(remotehandler::AbstractIBNFHandler)
     return remotehandler.permission
 end
 
-function getibnfhandlertokengen(remotehandler::AbstractIBNFHandler)
+function getibnfhandlergentoken(remotehandler::AbstractIBNFHandler)
     return remotehandler.gentoken
 end
 
-function getibnfhandlertokenrecv(remotehandler::AbstractIBNFHandler)
+function setibnfhandlergentoken!(remotehandler::AbstractIBNFHandler, generatedtoken::String)
+    remotehandler.gentoken = generatedtoken
+end
+
+function getibnfhandlerrecvtoken(remotehandler::AbstractIBNFHandler)
     return remotehandler.recvtoken
+end
+
+function setibnfhandlerrecvtoken!(remotehandler::AbstractIBNFHandler, receivedtoken::String)
+    remotehandler.recvtoken = receivedtoken
 end
 
 function getibnfhandlerport(remotehandler::AbstractIBNFHandler)
@@ -522,4 +530,20 @@ end
 
 function getibnfserver(ibnf::IBNFramework)
     return getibnfcomm(ibnf).server
+end
+
+function getibnfrsaprivatekey(ibnf::IBNFramework)
+    return getibnfhandlers(ibnf)[1].rsakey
+end
+
+function getibnfhandlerrsapublickey(remotehandler::RemoteHTTPHandler)
+    return remotehandler.rsakey
+end
+
+function setibnfhandlerrsasecret!(remotehandler::RemoteHTTPHandler, secret::String)
+    remotehandler.rsasecret = secret
+end
+
+function getibnfhandlerrsasecret(remotehandler::RemoteHTTPHandler)
+    return remotehandler.rsasecret
 end

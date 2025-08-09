@@ -1,10 +1,11 @@
-domainfile = "test/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"
-encryption = false
+domainfile = "itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"
+encryption = true
 
 [local]
 ip = "127.0.0.1"
 port = 8083
 ibnfid = 0x3
+rsaprivatekey = "rsa_priv3.pem"
 
 [remote]
 
@@ -13,9 +14,11 @@ ip = "127.0.0.1"
 port = 8081
 ibnfid = 0x1
 permission = "full"
+rsapublickey = "rsa_pub1.pem"
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
 port = 8082
 ibnfid = 0x2
 permission = "full"
+rsapublickey = "rsa_pub2.pem"

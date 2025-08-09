@@ -1,8 +1,21 @@
+function checkfilepath(directoryname::String, filepath::String)
+    if startswith(filepath, "/") 
+        return filepath
+    else
+        return joinpath(directoryname, filepath)
+    end
+end
+
+function readb64keys(finalkeyfile::String)
+    lines = readlines(finalkeyfile)
+    return join(filter(line -> !startswith(line, "-----"), lines))
+end
+
 """
 $(TYPEDSIGNATURES)
 main() function to initialize the MINDFul IBN framework.
 It expects the path to read the configuration from a TOML file, set up the IBNFrameworks for each domain,
-and start the HTTP server for communication between domains.
+and start the HTTP server that enables communication between domains.
 """
 function main()
     verbose=false
@@ -13,44 +26,36 @@ function main()
     end
 
     configpath = ARGS[1]
-    if startswith(configpath, "/") 
-        finalconfigpath = configpath
-    else
-        finalconfigpath = MAINDIR * "/" * configpath
-    end
-
+    finalconfigpath = checkfilepath(MAINDIR, configpath)
+    CONFIGDIR = dirname(finalconfigpath)
     config = TOML.parsefile(finalconfigpath)
 
     domainfile = config["domainfile"]
-    if startswith(domainfile, "/") 
-        finaldomainfile = configpath
-    else
-        finaldomainfile = MAINDIR * "/" * domainfile
-    end
+    finaldomainfile = checkfilepath(CONFIGDIR, domainfile)
 
     encryption = config["encryption"]
 
     localip = config["local"]["ip"]
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
+    localprivatekeyfile = config["local"]["rsaprivatekey"]
+    finallocalprivatekeyfile = checkfilepath(CONFIGDIR, localprivatekeyfile)
+    localprivatekey = readb64keys(finallocalprivatekeyfile)
+    
+    neighboursconfig = config["remote"]["neighbours"]
+    neighbourips = [n["ip"] for n in neighboursconfig]
+    neighbourports = [n["port"] for n in neighboursconfig]
+    neighbourids = [n["ibnfid"] for n in neighboursconfig]
+    neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
+    neighbourpublickeyfiles = [n["rsapublickey"] for n in neighboursconfig]
+    neighbourpublickeys = [readb64keys(checkfilepath(CONFIGDIR, pkfile)) for pkfile in neighbourpublickeyfiles]
 
-    neighbourips = String[]
-    neighbourports = Int[]
-    neighbourids = Any[]  
-    neigbhbourpermissions = String[]
-
-    for n in config["remote"]["neighbours"]
-        push!(neighbourips, n["ip"])
-        push!(neighbourports, n["port"])
-        push!(neighbourids, n["ibnfid"])
-        push!(neigbhbourpermissions, n["permission"])
-    end
-   
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
     if encryption
         urischeme = "https"
-        run(`$(MAINDIR)/test/data/generatecerts.sh`)
+        generatecertsfilepath = joinpath(dirname(MAINDIR), "scripts/generatecerts.sh")
+        run(`$generatecertsfilepath`)
     else
         urischeme = "http"
     end
@@ -59,11 +64,11 @@ function main()
 
     localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
     localURIstring = string(localURI)
-    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", "", ""))
+    push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", localprivatekey, "", "", ""))
     for i in eachindex(neighbourips)
         URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
         URIstring=string(URI)
-        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], "", ""))
+        push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighbourpublickeys[i], "", "", ""))
     end
 
     ibnfsdict = Dict{Int, IBNFramework}()

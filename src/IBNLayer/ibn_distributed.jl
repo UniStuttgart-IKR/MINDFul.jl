@@ -1,9 +1,9 @@
-@recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
-    if getibnfhandlertokenrecv(remotehandler) == ""
-        initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
-        token = handshake_init(initiatoribnfid, remotehandler)
+@recvtime function sendrequest(ibnf::IBNFramework, remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
+    if getibnfhandlerrecvtoken(remotehandler) == ""        
+        encryptedsecret = rsaauthentication_init(ibnf, remotehandler)
+        token = handshake_init!(ibnf, remotehandler, encryptedsecret)
     else
-        token = getibnfhandlertokenrecv(remotehandler)
+        token = getibnfhandlerrecvtoken(remotehandler)
     end
     push!(data, HTTPMessages.KEY_TOKEN => token)
     
