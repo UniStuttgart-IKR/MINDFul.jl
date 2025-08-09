@@ -1,5 +1,6 @@
 #!/bin/sh
-cd test/data
+CONFIGDIR="$1"
+cd "$CONFIGDIR"
 if ! command -v openssl >/dev/null 2>&1; then   # Checking that openssl is installed
     echo "Error: openssl is not installed or not present on your PATH." >&2
     exit 1

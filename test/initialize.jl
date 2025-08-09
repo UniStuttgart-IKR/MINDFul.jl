@@ -52,12 +52,15 @@ function loadmultidomaintestibnfs()
 end
 
 function loadmultidomaintestidistributedbnfs()
-    config = TOML.parsefile(TESTDIR * "/" * "data/config.toml")
+    configfilepath = joinpath(TESTDIR, "data/config.toml")
+    config = TOML.parsefile(configfilepath)
+    CONFIGDIR = dirname(configfilepath)
+
     domainfile = config["domainfile"]
-    finaldomainfile = MINDF.checkfilepath(dirname(TESTDIR), domainfile)
+    finaldomainfile = MINDF.checkfilepath(CONFIGDIR, domainfile)
     
-    encryption = config["encryption"]
-    run(`$(TESTDIR)/data/generatekeys.sh`)
+    generatekeysfilepath = joinpath(dirname(TESTDIR), "scripts/generatekeys.sh")
+    run(`$generatekeysfilepath $CONFIGDIR`)
 
     domainsconfig = config["domains"]["config"]
     ips = [n["ip"] for n in domainsconfig]
@@ -65,15 +68,17 @@ function loadmultidomaintestidistributedbnfs()
     ibnfids = [n["ibnfid"] for n in domainsconfig]
     permissions = [perm for n in domainsconfig for perm in n["permissions"]]
     privatekeysfiles = [n["rsaprivatekey"] for n in domainsconfig]
-    privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(dirname(TESTDIR), pkfile)) for pkfile in privatekeysfiles]
+    privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in privatekeysfiles]
     publickeysfiles = [n["rsapublickey"] for n in domainsconfig]
-    publickeys = [MINDF.readb64keys(MINDF.checkfilepath(dirname(TESTDIR), pkfile)) for pkfile in publickeysfiles]
+    publickeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in publickeysfiles]
 
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
+    encryption = config["encryption"]
     if encryption
         urischeme = "https"
-        run(`$(TESTDIR)/data/generatecerts.sh`)
+        generatecertsfilepath = joinpath(dirname(TESTDIR), "scripts/generatecerts.sh")
+        run(`$generatecertsfilepath`)
     else
         urischeme = "http"
     end

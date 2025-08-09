@@ -27,10 +27,11 @@ function main()
 
     configpath = ARGS[1]
     finalconfigpath = checkfilepath(MAINDIR, configpath)
+    CONFIGDIR = dirname(finalconfigpath)
     config = TOML.parsefile(finalconfigpath)
 
     domainfile = config["domainfile"]
-    finaldomainfile = checkfilepath(MAINDIR, domainfile)
+    finaldomainfile = checkfilepath(CONFIGDIR, domainfile)
 
     encryption = config["encryption"]
 
@@ -38,7 +39,7 @@ function main()
     localport = config["local"]["port"]
     localid = config["local"]["ibnfid"]
     localprivatekeyfile = config["local"]["rsaprivatekey"]
-    finallocalprivatekeyfile = checkfilepath(MAINDIR, localprivatekeyfile)
+    finallocalprivatekeyfile = checkfilepath(CONFIGDIR, localprivatekeyfile)
     localprivatekey = readb64keys(finallocalprivatekeyfile)
     
     neighboursconfig = config["remote"]["neighbours"]
@@ -47,14 +48,13 @@ function main()
     neighbourids = [n["ibnfid"] for n in neighboursconfig]
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
     neighbourpublickeyfiles = [n["rsapublickey"] for n in neighboursconfig]
-    neighbourpublickeys = [readb64keys(checkfilepath(MAINDIR, pkfile)) for pkfile in neighbourpublickeyfiles]
-
+    neighbourpublickeys = [readb64keys(checkfilepath(CONFIGDIR, pkfile)) for pkfile in neighbourpublickeyfiles]
 
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
     if encryption
         urischeme = "https"
-        run(`$(MAINDIR)/test/data/generatecerts.sh`)
+        run(`$(MAINDIR)/scripts/generatecerts.sh`)
     else
         urischeme = "http"
     end
@@ -84,23 +84,4 @@ function main()
     if ibnf === nothing
         error("No matching ibnf found for ibnfid $localid")
     end
-    if localport == 8081
-        #@show ibnfs[1].ibnfhandlers
-        conintent_bordernode = MINDFul.ConnectivityIntent(MINDFul.GlobalNode(UUID(1), 4), MINDFul.GlobalNode(UUID(3), 25), u"100.0Gbps")
-        intentuuid_bordernode = MINDFul.addintent!(ibnf, conintent_bordernode, MINDFul.NetworkOperator())
-
-        MINDFul.compileintent!(ibnf, intentuuid_bordernode, MINDFul.KShorestPathFirstFitCompilation(10))
-        
-        # install
-        MINDFul.installintent!(ibnf, intentuuid_bordernode; verbose)
-
-        # uninstall
-        MINDFul.uninstallintent!(ibnf, intentuuid_bordernode; verbose)
-    
-        # uncompile
-        MINDFul.uncompileintent!(ibnf, intentuuid_bordernode; verbose)
-
-        closeibnfserver(ibnf)
-    end
-
 end
