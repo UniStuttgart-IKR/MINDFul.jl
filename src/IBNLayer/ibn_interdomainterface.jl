@@ -735,7 +735,7 @@ end
 
 """
 $(TYPEDSIGNATURES)
-Exchange of encrypted secrets via RSA algorithm for mutual authentication with the remote domains.
+Exchange of encrypted secrets via RSA algorithm for mutual authentication with the remote domain.
 The initiator domain will generate a secret, encrypt it with the public key of the remote domain, and send it.
 The remote domain will decrypt the secret with its private key, and return the decrypted secret concatenated with a new secret (the concatenation is encrypted with the initiator's public key).
 The initiator domain will then decrypt with its private key, check the initial secret and return the new secret encrypted in the handshake.
@@ -819,8 +819,8 @@ end
 """
 $(TYPEDSIGNATURES) 
 Exchange of the handshake information with the remote IBN framework.
-Both domains will generate a token to their peer that must be attached in the subsequent requests.
-Depending on the permissions of the remote IBN framework, the available functions will be send for information.
+Both domains will generate a token to their peer that must be attached in the subsequent requests for authentication.
+Each domain has previously set a permission level for each of its neighbours. The available functions of the remote IBN framework will also be sent for information.
 """
 function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, encryptedsecret::String)
     generatedtoken, availablefunctions = handshake_term(remoteibnfhandler)

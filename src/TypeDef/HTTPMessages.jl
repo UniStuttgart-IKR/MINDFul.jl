@@ -1,7 +1,8 @@
 """
     The HTTP codes and data defined for the different requests.
     All the `const` variables have a `String` value that represents the endpoint of the URL or the data that is passed respectively.
-    With limited permission, the domains can only access the limited set of functions (of course with full permission too).
+    With full permission, the domains can access all the functions of the remote IBN framework.
+    With limited permission, the domains can only access the defined limited set of functions.
  """
 module HTTPMessages
 

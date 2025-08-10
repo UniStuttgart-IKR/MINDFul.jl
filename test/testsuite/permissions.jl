@@ -5,6 +5,7 @@ function loadpermissionedbnfs()
 
     domainfile = config["domainfile"]
     finaldomainfile = MINDF.checkfilepath(CONFIGDIR, domainfile)
+    domains_name_graph = first(JLD2.load(finaldomainfile))[2]
     
     generatekeysfilepath = joinpath(dirname(TESTDIR), "scripts/generatekeys.sh")
     run(`$generatekeysfilepath $CONFIGDIR`)
@@ -18,8 +19,6 @@ function loadpermissionedbnfs()
     privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in privatekeysfiles]
     publickeysfiles = [n["rsapublickey"] for n in domainsconfig]
     publickeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in publickeysfiles]
-
-    domains_name_graph = first(JLD2.load(finaldomainfile))[2]
 
     encryption = config["encryption"]
     if encryption

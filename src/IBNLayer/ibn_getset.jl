@@ -438,10 +438,6 @@ function setlocalnode_output!(ena::MutableEndNodeAllocations, intval::Union{Noth
     ena.localnode_output = intval
 end
 
-function setibnfserver!(ibnf::IBNFramework, server::OxygenServer)
-    ibnf.ibnfcomm.server = server
-end
-
 
 """
 $(TYPEDSIGNATURES)
@@ -487,35 +483,63 @@ end
 
 """
 $(TYPEDSIGNATURES)
+Get the base URL of the HTTP server of a remote domain.
 """
 function getbaseurl(remotehandler::AbstractIBNFHandler)
     return remotehandler.baseurl
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the established permission of a remote domain.
+"""
 function getibnfhandlerperm(remotehandler::AbstractIBNFHandler)
     return remotehandler.permission
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the generated token for authenticating a remote domain.
+"""
 function getibnfhandlergentoken(remotehandler::AbstractIBNFHandler)
     return remotehandler.gentoken
 end
 
+"""
+$(TYPEDSIGNATURES)
+Set the generated token for authenticating a remote domain.
+"""
 function setibnfhandlergentoken!(remotehandler::AbstractIBNFHandler, generatedtoken::String)
     remotehandler.gentoken = generatedtoken
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the received token for authenticating to a remote domain.
+"""
 function getibnfhandlerrecvtoken(remotehandler::AbstractIBNFHandler)
     return remotehandler.recvtoken
 end
 
+"""
+$(TYPEDSIGNATURES)
+Set the received token for authenticating to a remote domain.
+"""
 function setibnfhandlerrecvtoken!(remotehandler::AbstractIBNFHandler, receivedtoken::String)
     remotehandler.recvtoken = receivedtoken
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the port of the server of a remote domain.
+"""
 function getibnfhandlerport(remotehandler::AbstractIBNFHandler)
     return parse(Int, HTTP.URI(remotehandler.baseurl).port) 
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
     for ibnf in ibnfs
         if getibnfid(ibnf) == ibnfid
@@ -524,26 +548,57 @@ function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function getibnfcomm(ibnf::IBNFramework)
     return ibnf.ibnfcomm
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the server of an IBNFramework.
+"""
 function getibnfserver(ibnf::IBNFramework)
     return getibnfcomm(ibnf).server
 end
 
+"""
+$(TYPEDSIGNATURES)
+Set the running server of an IBNFramework.
+"""
+function setibnfserver!(ibnf::IBNFramework, server::OxygenServer)
+    ibnf.ibnfcomm.server = server
+end
+
+"""
+$(TYPEDSIGNATURES)
+Get the RSA private key of a local domain.
+"""
 function getibnfrsaprivatekey(ibnf::IBNFramework)
     return getibnfhandlers(ibnf)[1].rsakey
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the RSA public key of a remote domain.
+"""
 function getibnfhandlerrsapublickey(remotehandler::RemoteHTTPHandler)
     return remotehandler.rsakey
 end
 
+"""
+$(TYPEDSIGNATURES)
+Set the RSA secret for authenticating a remote domain.
+"""
 function setibnfhandlerrsasecret!(remotehandler::RemoteHTTPHandler, secret::String)
     remotehandler.rsasecret = secret
 end
 
+"""
+$(TYPEDSIGNATURES)
+Get the RSA secret for authenticating a remote domain.
+"""
 function getibnfhandlerrsasecret(remotehandler::RemoteHTTPHandler)
     return remotehandler.rsasecret
 end
