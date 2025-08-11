@@ -7,8 +7,7 @@ function loadpermissionedbnfs()
     finaldomainfile = MINDF.checkfilepath(CONFIGDIR, domainfile)
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
     
-    generatekeysfilepath = joinpath(dirname(TESTDIR), "scripts/generatekeys.sh")
-    run(`$generatekeysfilepath $CONFIGDIR`)
+    MINDF.generateRSAkeys(CONFIGDIR)
 
     domainsconfig = config["domains"]["config"]
     ips = [n["ip"] for n in domainsconfig]
@@ -23,8 +22,7 @@ function loadpermissionedbnfs()
     encryption = config["encryption"]
     if encryption
         urischeme = "https"
-        generatecertsfilepath = joinpath(dirname(TESTDIR), "scripts/generatecerts.sh")
-        run(`$generatecertsfilepath`)
+        MINDF.generateTLScertificate()
     else
         urischeme = "http"
     end

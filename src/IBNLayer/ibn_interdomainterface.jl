@@ -370,7 +370,7 @@ $(TYPEDSIGNATURES)
 
 Compilation algorithms are given as symbols because they might not be available programmatically to different IBN frameworks
 """
-function requestavailablecompilationalgorithms(myibnf::IBNFramework, remoteibnf::IBNFramework{<:AbstractOperationMode})
+function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remoteibnf::IBNFramework{<:AbstractOperationMode})
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
     return requestavailablecompilationalgorithms_term!(myibnfhandler, remoteibnf)
 end
@@ -740,28 +740,6 @@ The initiator domain will generate a secret, encrypt it with the public key of t
 The remote domain will decrypt the secret with its private key, and return the decrypted secret concatenated with a new secret (the concatenation is encrypted with the initiator's public key).
 The initiator domain will then decrypt with its private key, check the initial secret and return the new secret encrypted in the handshake.
 """
-function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
-    remotepublickeyb64 = getibnfhandlerrsapublickey(remoteibnfhandler)
-    remotepublickeypem = """
-    -----BEGIN PUBLIC KEY-----
-    $remotepublickeyb64
-    -----END PUBLIC KEY-----
-    """
-    
-    pk_ctx = MbedTLS.PKContext()
-    MbedTLS.parse_public_key!(pk_ctx, remotepublickeypem)
-    
-    secretbytes = Vector{UInt8}(codeunits(unencryptedsecret))
-
-    rng = MbedTLS.CtrDrbg()
-    entropy = MbedTLS.Entropy()
-    MbedTLS.seed!(rng, entropy, Vector{UInt8}("RSAAuth"))
-
-    encrypted = zeros(UInt8, 256)
-    MbedTLS.encrypt!(pk_ctx, secretbytes, encrypted, rng)
-    return base64encode(encrypted)
-end
-
 function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler)
     initiatoribnfid = string(getibnfid(ibnf))
     
@@ -794,11 +772,7 @@ end
 
 function rsaauthentication_term(ibnf::IBNFramework, encryptedsecret::String)
     privatekeyb64 = getibnfrsaprivatekey(ibnf)
-    privatekeypem = """
-    -----BEGIN PRIVATE KEY-----
-    $privatekeyb64
-    -----END PRIVATE KEY-----
-    """
+    privatekeypem = convertb64keytopem(privatekeyb64, HTTPMessages.KEY_TYPEOFPRIVATEKEY)
 
     pk_ctx = MbedTLS.PKContext()
     MbedTLS.parse_key!(pk_ctx, privatekeypem)

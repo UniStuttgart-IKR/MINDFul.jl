@@ -2,22 +2,13 @@ function testsuitersa()
     secret = rand(UInt8, 32)
 
     CONFIGDIR = joinpath(TESTDIR, "data")
-    generatekeysfilepath = joinpath(dirname(TESTDIR), "scripts/generatekeys.sh")
-    run(`$generatekeysfilepath $CONFIGDIR`)
+    MINDF.generateRSAkeys(CONFIGDIR)
     
     rsapublickeyb64 = MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_pub1.pem"))
-    rsapublickeypem = """
-    -----BEGIN PUBLIC KEY-----
-    $rsapublickeyb64
-    -----END PUBLIC KEY-----
-    """
+    rsapublickeypem = MINDF.convertb64keytopem(rsapublickeyb64, MINDF.HTTPMessages.KEY_TYPEOFPUBLICKEY)
 
     rsaprivatekeyb64= MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_priv1.pem"))
-    rsaprivatekeypem = """
-    -----BEGIN PRIVATE KEY-----
-    $rsaprivatekeyb64
-    -----END PRIVATE KEY-----
-    """
+    rsaprivatekeypem = MINDF.convertb64keytopem(rsaprivatekeyb64, MINDF.HTTPMessages.KEY_TYPEOFPRIVATEKEY)
     
     pk_ctx_encrypt = MbedTLS.PKContext()
     MbedTLS.parse_public_key!(pk_ctx_encrypt, rsapublickeypem)

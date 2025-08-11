@@ -852,7 +852,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function displayavailablecompilationalgorithmsinfo(myibnf::IBNFramework, remoteibnfhandler)
-    foreach(requestavailablecompilationalgorithms(myibnf, remoteibnfhandler)) do keywordsymbol
+    foreach(requestavailablecompilationalgorithms_init!(myibnf, remoteibnfhandler)) do keywordsymbol
         display(keywordsymbol)
         display(Base.doc(getcompilationalgorithm(Val(keywordsymbol))))
     end

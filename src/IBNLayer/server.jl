@@ -103,7 +103,7 @@ export serve
         decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
         secret = MINDF.getibnfhandlerrsasecret(remotehandler)
         if decryptedsecret != secret
-            error("RSA authentication failed with: received secret does not match the expected secret")
+            return HTTP.Response(403, "RSA authentication failed with: received secret does not match the expected secret")
         end
 
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
