@@ -1,7 +1,7 @@
 @testset ExtendedTestSet "opticalconstraintssingledomain.jl"  begin
 
-ibnfs = loadmultidomaintestibnfs()
-TM.testsuiteopticalconstraintssingledomain!(ibnfs)
+    ibnfs = loadmultidomaintestibnfs()
+    TM.testsuiteopticalconstraintssingledomain!(ibnfs)
 
 end
 

@@ -49,7 +49,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function getibnfhandler(s::IBNFramework, uuid::UUID)
-    return something(getfirst(ibnh -> uuid == getibnfid(ibnh) , getibnfhandlers(s)))
+    return something(getfirst(ibnh -> uuid == getibnfid(ibnh), getibnfhandlers(s)))
 end
 
 """
@@ -221,14 +221,14 @@ end
 $(TYPEDSIGNATURES)
 """
 function emptyaggraphwithnewuuid(ibnag::IBNAttributeGraph{T}, uuid::UUID) where {T <: NodeView}
-    IBNAttributeGraph{T}(uuid)
+    return IBNAttributeGraph{T}(uuid)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function gettransmissionmodulecompat(oic::OpticalInitiateConstraint)
-    oic.transmissionmodulecompat
+    return oic.transmissionmodulecompat
 end
 
 """
@@ -242,25 +242,25 @@ end
 $(TYPEDSIGNATURES)
 """
 function getintent(ri::RemoteIntent)
-    ri.intent
+    return ri.intent
 end
 """
 $(TYPEDSIGNATURES)
 """
 function getidagnodeid(ri::RemoteIntent)
-    ri.idagnodeid
+    return ri.idagnodeid
 end
 """
 $(TYPEDSIGNATURES)
 """
 function getibnfid(ri::RemoteIntent)
-    ri.ibnfid
+    return ri.ibnfid
 end
 """
 $(TYPEDSIGNATURES)
 """
 function getisinitiator(ri::RemoteIntent)
-    ri.isinitiator
+    return ri.isinitiator
 end
 
 """
@@ -393,49 +393,49 @@ end
 $(TYPEDSIGNATURES)
 """
 function setlocalnode!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.localnode = intval
+    return ena.localnode = intval
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function setrouterportindex!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.routerportindex = intval
+    return ena.routerportindex = intval
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function settransmissionmoduleviewpoolindex!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.transmissionmoduleviewpoolindex = intval
+    return ena.transmissionmoduleviewpoolindex = intval
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function settransmissionmodesindex!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.transmissionmodesindex = intval
+    return ena.transmissionmodesindex = intval
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function setlocalnode_input!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.localnode_input = intval
+    return ena.localnode_input = intval
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function setadddropport!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.adddropport = intval
+    return ena.adddropport = intval
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function setlocalnode_output!(ena::MutableEndNodeAllocations, intval::Union{Nothing, Int})
-    ena.localnode_output = intval
+    return ena.localnode_output = intval
 end
 
 
@@ -510,7 +510,7 @@ $(TYPEDSIGNATURES)
 Set the generated token for authenticating a remote domain.
 """
 function setibnfhandlergentoken!(remotehandler::AbstractIBNFHandler, generatedtoken::String)
-    remotehandler.gentoken = generatedtoken
+    return remotehandler.gentoken = generatedtoken
 end
 
 """
@@ -526,7 +526,7 @@ $(TYPEDSIGNATURES)
 Set the received token for authenticating to a remote domain.
 """
 function setibnfhandlerrecvtoken!(remotehandler::AbstractIBNFHandler, receivedtoken::String)
-    remotehandler.recvtoken = receivedtoken
+    return remotehandler.recvtoken = receivedtoken
 end
 
 """
@@ -534,7 +534,7 @@ $(TYPEDSIGNATURES)
 Get the port of the server of a remote domain.
 """
 function getibnfhandlerport(remotehandler::AbstractIBNFHandler)
-    return parse(Int, HTTP.URI(remotehandler.baseurl).port) 
+    return parse(Int, HTTP.URI(remotehandler.baseurl).port)
 end
 
 """
@@ -546,6 +546,7 @@ function getibnfwithid(ibnfs::Vector{<:IBNFramework}, ibnfid::UUID)
             return ibnf
         end
     end
+    return
 end
 
 """
@@ -568,7 +569,7 @@ $(TYPEDSIGNATURES)
 Set the running server of an IBNFramework.
 """
 function setibnfserver!(ibnf::IBNFramework, server::OxygenServer)
-    ibnf.ibnfcomm.server = server
+    return ibnf.ibnfcomm.server = server
 end
 
 """
@@ -592,7 +593,7 @@ $(TYPEDSIGNATURES)
 Set the RSA secret for authenticating a remote domain.
 """
 function setibnfhandlerrsasecret!(remotehandler::RemoteHTTPHandler, secret::String)
-    remotehandler.rsasecret = secret
+    return remotehandler.rsasecret = secret
 end
 
 """

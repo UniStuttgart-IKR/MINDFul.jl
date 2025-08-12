@@ -189,7 +189,7 @@ struct TransmissionModuleCompatibility
 end
 
 function TransmissionModuleCompatibility(rate::GBPSf, spectrumslotsneeded::Int, name::String)
-    return TransmissionModuleCompatibility(nothing, rate, spectrumslotsneeded, name) 
+    return TransmissionModuleCompatibility(nothing, rate, spectrumslotsneeded, name)
 end
 
 

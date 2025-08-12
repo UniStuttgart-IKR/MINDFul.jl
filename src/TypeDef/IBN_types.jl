@@ -36,8 +36,8 @@ const IntentLogState{S <: Enum{Int32}} = Vector{Tuple{DateTime, S}}
 """
 $(TYPEDSIGNATURES)
 """
-function IntentLogState(intentstate::IntentState.T = IntentState.Uncompiled, logtime::DateTime=now())
-    return [(logtime, intentstate)]    
+function IntentLogState(intentstate::IntentState.T = IntentState.Uncompiled, logtime::DateTime = now())
+    return [(logtime, intentstate)]
 end
 
 """
@@ -206,7 +206,7 @@ Return true if allocaitons on the node do not influence the electrical devices.
 This is equivalent to the `OpticalInitiateConstraint` and `OpticalTerminateConstraint`
 """
 function isonlyoptical(ena::EndNodeAllocations)
-    if iszeroornothing(getrouterportindex(ena)) && iszeroornothing(gettransmissionmoduleviewpoolindex(ena)) && iszeroornothing(gettransmissionmodesindex(ena)) 
+    if iszeroornothing(getrouterportindex(ena)) && iszeroornothing(gettransmissionmoduleviewpoolindex(ena)) && iszeroornothing(gettransmissionmodesindex(ena))
         return true
     end
     return false
@@ -239,7 +239,7 @@ end
 function Base.show(io::IO, lpt::LightpathIntent)
     startingoptical = isonlyoptical(lpt.sourcenodeallocations)
     endingoptical = isonlyoptical(lpt.destinationnodeallocations)
-    description = 
+    description =
     if startingoptical && endingoptical
         "segment"
     elseif startingoptical
@@ -249,7 +249,7 @@ function Base.show(io::IO, lpt::LightpathIntent)
     else
         "full"
     end
-    print(io, description, " lightpath ", lpt.path, " ",lpt.spectrumslotsrange)
+    return print(io, description, " lightpath ", lpt.path, " ", lpt.spectrumslotsrange)
 end
 
 function ConnectivityIntent(sourcenode::GlobalNode, destinationnode::GlobalNode, rate::GBPSf)
@@ -267,7 +267,7 @@ function Base.show(io::IO, connectivityintent::ConnectivityIntent)
     foreach(constraints) do constraint
         print(io, " ", typeof(constraint))
     end
-    print(io, ")")
+    return print(io, ")")
 end
 
 """
@@ -319,7 +319,7 @@ $(TYPEDEF)
 
 $(TYPEDFIELDS)
 """
-struct RemoteIntent{I<:AbstractIntent} <: AbstractIntent
+struct RemoteIntent{I <: AbstractIntent} <: AbstractIntent
     "The id of the remote IBN framework"
     ibnfid::UUID
     "The dag node id of the remote IBN framework"
@@ -337,7 +337,7 @@ $(TYPEDFIELDS)
 The only intent that is being built from its children to be offered as a straight grooming possibility.
 It is composed by a `LightpathIntent` and a `RemoteIntent` which are also its children intents.
 """
-struct CrossLightpathIntent{C1<:ConnectivityIntent, C2<:ConnectivityIntent, } <: AbstractIntent
+struct CrossLightpathIntent{C1 <: ConnectivityIntent, C2 <: ConnectivityIntent} <: AbstractIntent
     lightpathconnectivityintent::C2
     remoteconnectivityintent::C1
 end
@@ -380,9 +380,9 @@ $(TYPEDEF)
 $(TYPEDFIELDS)
 Server is of type Union{Nothing, OxygenServer} to allow for the server to be started later.
 """
-mutable struct IBNFCommunication{H <: AbstractIBNFHandler} 
-  server::Union{Nothing, OxygenServer}
-  ibnfhandlers::Vector{H}
+mutable struct IBNFCommunication{H <: AbstractIBNFHandler}
+    server::Union{Nothing, OxygenServer}
+    ibnfhandlers::Vector{H}
 end
 
 """
@@ -393,7 +393,7 @@ end
 const IBNAttributeGraph{T} = AttributeGraph{Int, SimpleDiGraph{Int}, Vector{T}, Dict{Edge{LocalNode}, EdgeView}, UUID} where {T <: NodeView}
 
 function IBNAttributeGraph{T}(uuid::UUID) where {T <: NodeView}
-    IBNAttributeGraph{T}(SimpleDiGraph{Int}(), Vector{T}(), Dict{Edge{LocalNode}, EdgeView}(), uuid)
+    return IBNAttributeGraph{T}(SimpleDiGraph{Int}(), Vector{T}(), Dict{Edge{LocalNode}, EdgeView}(), uuid)
 end
 
 """
@@ -410,7 +410,7 @@ struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <:
     "Single-domain internal graph with border nodes included"
     ibnag::T
     "Other IBN Frameworks handles"
-    ibnfcomm::I 
+    ibnfcomm::I
     "SDN controller handle"
     sdncontroller::S
 end
@@ -423,7 +423,7 @@ The most default construct with abstract type of IBN handlers
 function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
     ibnfcomm = IBNFCommunication(nothing, IBNFramework{DefaultOperationMode, SDNdummy, T}[])
-    # abstract type : for remote 
+    # abstract type : for remote
     return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 end
 
@@ -432,9 +432,9 @@ $(TYPEDSIGNATURES)
 
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool=false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool = false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
     ibnfid = AG.graph_attr(ibnag)
-    
+
     ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
     ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
 
@@ -443,7 +443,7 @@ function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::
 
     httpserver = startibnserver!(ibnfsdict, encryption, ips, port; verbose)
     setibnfserver!(ibnf, httpserver)
-    
+
     return ibnf
 end
 
@@ -457,4 +457,3 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
 end
-

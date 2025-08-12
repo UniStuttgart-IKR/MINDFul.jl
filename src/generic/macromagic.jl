@@ -46,9 +46,9 @@ This macro does two things:
 Use [`@logtime`](@ref) to calculate the current time inside the function.
 Use [`@passtime`](@ref) to pass the timing information to another function.
 """
-macro recvtime(funcexpr) 
-    addkeywordparameters!(funcexpr, Expr(:kw, :(offsettime::Union{DateTime, Nothing}), :(now()) ) )
-    pushfirst!(funcexpr.args[2].args, Expr(:(=), :entrytime, :(now()) ) )
+macro recvtime(funcexpr)
+    addkeywordparameters!(funcexpr, Expr(:kw, :(offsettime::Union{DateTime, Nothing}), :(now())))
+    pushfirst!(funcexpr.args[2].args, Expr(:(=), :entrytime, :(now())))
     return :($(esc(funcexpr)))
 end
 
@@ -63,9 +63,9 @@ If that proves to slow down the implementation consider to pass `offsettime, ent
 Another caveat is that the communication overhead between domains is not measured.
 An `offsetime=nothing` logs the time of the current system.
 """
-macro passtime() 
+macro passtime()
     # return :((; $(esc(:offsettime)) = @logtime )...)
-    return :((; $(esc(:offsettime)) = isnothing($(esc(:offsettime))) ? nothing : @nestedlogtime )...)
+    return :((; $(esc(:offsettime)) = isnothing($(esc(:offsettime))) ? nothing : @nestedlogtime)...)
 end
 
 
@@ -75,13 +75,13 @@ $(TYPEDSIGNATURES)
 This macro is used to calculate the current (simulated) time as `offsettime + (now() - entrytime)`
 """
 macro logtime()
-    # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
-    return :(isnothing($(esc(:offsettime))) ? now() : $(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
+    # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) )
+    return :(isnothing($(esc(:offsettime))) ? now() : $(esc(:offsettime)) + (now() - $(esc(:entrytime))))
 end
 
 macro nestedlogtime()
-    # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) ) 
-    return :(isnothing($(esc(esc(:offsettime)))) ? now() : $(esc(esc(:offsettime))) + (now() - $(esc(esc(:entrytime)))) ) 
+    # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) )
+    return :(isnothing($(esc(esc(:offsettime)))) ? now() : $(esc(esc(:offsettime))) + (now() - $(esc(esc(:entrytime)))))
 end
 
 """
@@ -93,14 +93,14 @@ function addkeywordparameters!(funcexpr::Expr, keywordparexprs::Expr...)
         parametersdad = funcexpr.args[1]
         ff = findfirst(ex -> Base.isexpr(ex, :parameters), parametersdad.args)
         if isnothing(ff)
-            if !isempty(parametersdad.args) && (parametersdad.args[1] isa Symbol || (parametersdad.args[1] isa Expr && Base.isexpr(parametersdad.args[1], :.)) )
+            if !isempty(parametersdad.args) && (parametersdad.args[1] isa Symbol || (parametersdad.args[1] isa Expr && Base.isexpr(parametersdad.args[1], :.)))
                 position = 2
             else
                 position = 1
             end
-            insert!(funcexpr.args[1].args, position, Expr(:parameters, keywordparexprs... ))
+            insert!(funcexpr.args[1].args, position, Expr(:parameters, keywordparexprs...))
         else
-            funcexpr.args[1].args[ff] = Expr(:parameters, parametersdad.args[ff].args..., keywordparexprs... )
+            funcexpr.args[1].args[ff] = Expr(:parameters, parametersdad.args[ff].args..., keywordparexprs...)
         end
     elseif Base.isexpr(funcexpr.args[1], :where)
         # template
@@ -112,9 +112,9 @@ function addkeywordparameters!(funcexpr::Expr, keywordparexprs::Expr...)
             else
                 position = 1
             end
-            insert!(funcexpr.args[1].args[1].args, position, Expr(:parameters, keywordparexprs... ))
+            insert!(funcexpr.args[1].args[1].args, position, Expr(:parameters, keywordparexprs...))
         else
-            funcexpr.args[1].args[1].args[ff] = Expr(:parameters, parametersdad.args[ff].args..., keywordparexprs... )
+            funcexpr.args[1].args[1].args[ff] = Expr(:parameters, parametersdad.args[ff].args..., keywordparexprs...)
         end
     else
         error("Function has unknown structure and cannot find where to insert keywords.")
@@ -122,4 +122,3 @@ function addkeywordparameters!(funcexpr::Expr, keywordparexprs::Expr...)
     return funcexpr
     # return :($(esc(funcexpr)))
 end
-

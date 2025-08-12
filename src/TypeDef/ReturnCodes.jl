@@ -1,8 +1,8 @@
 """
-    The return codes defined for functions to give back explaining the situation.
-    Mostly used for the compilation of an intent.
-    All the `const` variables have a `Symbol` value that is the same as the variable name but only the first letter capitalized.
- """
+   The return codes defined for functions to give back explaining the situation.
+   Mostly used for the compilation of an intent.
+   All the `const` variables have a `Symbol` value that is the same as the variable name but only the first letter capitalized.
+"""
 module ReturnCodes
 
 public SUCCESS, FAIL, FAIL_SPECTRUM, FAIL_OPTICALREACH, FAIL_SPECTRUM_OPTINIT, FAIL_OPTICALREACH_OPTINIT, FAIL_OPTICALREACH_OPTINIT_RETRY, FAIL_SRCROUTERPORT, FAIL_OPTICALREACH_OPTINIT_NONODESPLIT, FAIL_DSTROUTERPORT, FAIL_DSTOXCADDDROPPORT, FAIL_DSTTRANSMDL, FAIL_SRCTRANSMDL, FAIL_SRCOXCADDDROPPORT, FAIL_CANDIDATEPATHS, FAIL_SAMEOXCLLI, FAIL_GROOMEDREMOTEINTENTSTATE

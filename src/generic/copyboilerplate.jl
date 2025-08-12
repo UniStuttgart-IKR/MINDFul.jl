@@ -25,7 +25,7 @@ Recursively compare all fields until a primitive element type is found
 """
 function isthesame(obj1::T, obj2::T) where {T}
     skiphandlers = false
-    if T <: IBNFramework{O,S,T,H} where {O,S,T,H <: IBNFramework}
+    if T <: IBNFramework{O, S, T, H} where {O, S, T, H <: IBNFramework}
         # cannot do recursive
         length(getibnfhandlers(obj1)) == length(getibnfhandlers(obj2)) || return false
         skiphandlers = true
@@ -69,5 +69,3 @@ function isthesame(obj1::T, obj2::T) where {T}
         end
     end
 end
-
-

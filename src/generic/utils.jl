@@ -69,16 +69,16 @@ $(TYPEDSIGNATURES)
 Return a Vector{Tuple{Int, Int}} with the consecutive blocks that satisfy function `predicate`.
 The first element of the tuple is the starting index and the second the last index of the block.
 """
-function findconsecutiveblocks(predicate::F, vec::Vector) where F<:Function
+function findconsecutiveblocks(predicate::F, vec::Vector) where {F <: Function}
     consblocks = Vector{Tuple{Int, Int}}()
     i = first(eachindex(vec))
     while i <= length(vec)
         if predicate(vec[i])
             startingindex = i
             lastindex = length(vec)
-            for j in startingindex+1:length(vec)
+            for j in (startingindex + 1):length(vec)
                 if !predicate(vec[j])
-                    lastindex = j-1
+                    lastindex = j - 1
                     break
                 end
             end
@@ -109,7 +109,7 @@ function mycopy(whatever::T) where {T}
 end
 
 function issuccess(s::Symbol)
-    s === ReturnCodes.SUCCESS
+    return s === ReturnCodes.SUCCESS
 end
 
 """
@@ -117,7 +117,7 @@ end
     Return a `Vector{Vector{Int}}` where `Int` is the index of the contained lightpaths.
     if `startingnode = true`, `node` is starting else is ending.
 """
-function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, node::Int; startingnode=true)
+function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, node::Int; startingnode = true)
     firstorlast = startingnode ? first : last
     startinglightpathscollections = Vector{Vector{Int}}()
     buildinglightpathscollections = Vector{Vector{Int}}()
@@ -131,7 +131,7 @@ function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, node
     return startinglightpathscollections
 end
 
-function _coreloop_consecutivelightpathsidx!(startinglightpathscollections::Vector{Vector{Int}}, containedlightpaths::Vector{Vector{Int}}, buildinglightpathscollections::Vector{Vector{Int}}; startingnode=true)
+function _coreloop_consecutivelightpathsidx!(startinglightpathscollections::Vector{Vector{Int}}, containedlightpaths::Vector{Vector{Int}}, buildinglightpathscollections::Vector{Vector{Int}}; startingnode = true)
     firstorlast = startingnode ? first : last
     # find all lightpaths that start with the last node
     eachindexcollections = eachindex(buildinglightpathscollections)
@@ -157,9 +157,9 @@ function _coreloop_consecutivelightpathsidx!(startinglightpathscollections::Vect
             if lp ∉ buildinglightpathscollection
                 newlightpathcollection = vcat(buildinglightpathscollection, lp)
                 if startingnode
-                    push!(buildinglightpathscollections, vcat(buildinglightpathscollection, lp)) 
+                    push!(buildinglightpathscollections, vcat(buildinglightpathscollection, lp))
                 else
-                    push!(buildinglightpathscollections, vcat(lp, buildinglightpathscollection)) 
+                    push!(buildinglightpathscollections, vcat(lp, buildinglightpathscollection))
                 end
             end
         end

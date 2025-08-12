@@ -215,7 +215,7 @@ Return value is true if state is changed.
             changedstate = true
             newstate = IntentState.Uncompiled
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
-        end        
+        end
     elseif all(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiled
             changedstate = true
@@ -242,7 +242,7 @@ Return value is true if state is changed.
         newstate = IntentState.Compiled
         pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
     elseif any(==(IntentState.Failed), childrenstates)
-        if currentstate != IntentState.Failed && currentstate != IntentState.Compiled 
+        if currentstate != IntentState.Failed && currentstate != IntentState.Compiled
             changedstate = true
             if currentstate == IntentState.Uncompiled
                 newstate = IntentState.Compiled
@@ -299,7 +299,7 @@ Get all descendants of DAG `dag` starting from node `idagnodeid`
 Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
 Set `parentsfirst=true` to get the upper level children first and false to get the leafs first.
 """
-function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false, includeroot=false, parentsfirst=true)
+function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive = false, includeroot = false, parentsfirst = true)
     idns = Vector{IntentDAGNode}()
     parentsfirst && includeroot && push!(idns, getidagnode(idag, idagnodeid))
     for chidn in getidagnodechildren(idag, idagnodeid)
@@ -309,14 +309,14 @@ function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=fal
     return idns
 end
 
-function _descendants_recu!(vidns::Vector{IntentDAGNode}, idag::IntentDAG, idagnodeid::UUID; exclusive, parentsfirst=true)
+function _descendants_recu!(vidns::Vector{IntentDAGNode}, idag::IntentDAG, idagnodeid::UUID; exclusive, parentsfirst = true)
     exclusive && length(getidagnodeparents(idag, idagnodeid)) > 1 && return
     idn = getidagnode(idag, idagnodeid)
     any(x -> x === idn, vidns) || parentsfirst && push!(vidns, idn)
     for chidn in getidagnodechildren(idag, idagnodeid)
         _descendants_recu!(vidns, idag, getidagnodeid(chidn); exclusive, parentsfirst)
     end
-    any(x -> x === idn, vidns) || !parentsfirst && push!(vidns, idn)
+    return any(x -> x === idn, vidns) || !parentsfirst && push!(vidns, idn)
 end
 
 """
@@ -325,7 +325,7 @@ $(TYPEDSIGNATURES)
 Get all descendants of DAG `dag` starting from node `idagnodeid`. Return as node indices of the graph.
 Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
 """
-function getidagnodeidxsdescendants(idag::IntentDAG, idagnodeid::UUID; exclusive=false, includeroot=false)
+function getidagnodeidxsdescendants(idag::IntentDAG, idagnodeid::UUID; exclusive = false, includeroot = false)
     idxs = Vector{Int}()
     vertexidx = getidagnodeidx(idag, idagnodeid)
     includeroot && push!(idxs, vertexidx)
@@ -341,6 +341,7 @@ function _descendants_recu_idxs!(vidxs::Vector{Int}, idag::IntentDAG, idagnodeid
     for chididx in Graphs.outneighbors(idag, idagnodeidx)
         _descendants_recu_idxs!(vidxs, idag, chididx; exclusive)
     end
+    return
 end
 
 """
@@ -348,7 +349,7 @@ $(TYPEDSIGNATURES)
 
 Get all connected nodes of DAG `dag` starting from node `idagnodeid`. Return as node indices of the graph.
 """
-function getidagnodeidxsconnected(idag::IntentDAG, idagnodeid::UUID;)
+function getidagnodeidxsconnected(idag::IntentDAG, idagnodeid::UUID)
     idxs = Vector{Int}()
     vertexidx = getidagnodeidx(idag, idagnodeid)
     for chididx in Graphs.outneighbors(idag, vertexidx)
@@ -369,6 +370,7 @@ function _descendants_recu_connected_idxs!(vidxs::Vector{Int}, idag::IntentDAG, 
     for chididx in Graphs.inneighbors(idag, idagnodeidx)
         _descendants_recu_connected_idxs!(vidxs, idag, chididx)
     end
+    return
 end
 
 """
@@ -453,7 +455,7 @@ $(TYPEDSIGNATURES)
 Get all the Low Level Intents that are leafs of `idagnodeid`
 Set `exclusive=true` to get nodes that have `idn` as the only ancestor
 """
-function getidagnodellis(idag::IntentDAG, idagnodeid::UUID; exclusive=false)
+function getidagnodellis(idag::IntentDAG, idagnodeid::UUID; exclusive = false)
     idagnodes = getidagnodeleafs(idag, idagnodeid; exclusive)
     return filter(x -> getintent(x) isa LowLevelIntent, idagnodes)
 end
@@ -464,7 +466,7 @@ $(TYPEDSIGNATURES)
 Get the leafs of DAG `dag` starting from node `idn`.
 Set `exclusive=true` to get nodes that have `idn` as the only ancestor
 """
-function getidagnodeleafs(idag::IntentDAG, idagnodeid::UUID; exclusive=false)
+function getidagnodeleafs(idag::IntentDAG, idagnodeid::UUID; exclusive = false)
     idns = IntentDAGNode[]
     for chidn in getidagnodechildren(idag, idagnodeid)
         _leafs_recu!(idns, idag, chidn; exclusive)
@@ -474,7 +476,7 @@ end
 
 function _leafs_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentDAGNode; exclusive)
     exclusive && length(getidagnodeparents(dag, idn)) > 1 && return
-    if hasidagnodechildren(dag, idn)
+    return if hasidagnodechildren(dag, idn)
         for chidn in getidagnodechildren(dag, idn)
             _leafs_recu!(vidns, dag, chidn; exclusive)
         end
@@ -498,7 +500,7 @@ function getidagnoderoots(idag::IntentDAG, idagnodeid::UUID)
 end
 
 function _parents_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentDAGNode)
-    if hasidagnodeparents(dag, idn)
+    return if hasidagnodeparents(dag, idn)
         for paridn in getidagnodeparents(dag, idn)
             _parents_recu!(vidns, dag, paridn)
         end
@@ -518,4 +520,3 @@ function issubdaggrooming(idag::IntentDAG, idagnodeid::UUID)
     end
     return false
 end
-

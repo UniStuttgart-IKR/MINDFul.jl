@@ -15,5 +15,5 @@ function getopticalreach(x)
 end
 
 function gettransmissionmodulecompat(x)
-    x.transmissionmodulecompat
+    return x.transmissionmodulecompat
 end

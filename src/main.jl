@@ -4,7 +4,7 @@ Function to check if a given file path is absolute or relative.
 If it is relative, it will be joined with the given directory name.
 """
 function checkfilepath(directoryname::String, filepath::String)
-    if startswith(filepath, "/") 
+    if startswith(filepath, "/")
         return filepath
     else
         return joinpath(directoryname, filepath)
@@ -19,7 +19,7 @@ If it fails, it prints an error message and exits.
 """
 function checkifopensslinstalled()
     try
-        run(pipeline(`openssl version`, stdout=devnull, stderr=devnull))
+        run(pipeline(`openssl version`, stdout = devnull, stderr = devnull))
         return true
     catch e
         println("OpenSSL is not installed. Please install OpenSSL to generate keys and certificates.")
@@ -35,10 +35,10 @@ function generateTLScertificate()
     if !checkifopensslinstalled()
         exit(1)
     end
-    
-    if !isfile("selfsignedTLS.key") || !isfile("selfsignedTLS.cert")
-        cmd = `openssl req -x509 -nodes -newkey rsa:2048 -keyout selfsignedTLS.key -out selfsignedTLS.cert -subj "/CN=localhost"` 
-        run(pipeline(cmd, stdout=devnull, stderr=devnull))
+
+    return if !isfile("selfsignedTLS.key") || !isfile("selfsignedTLS.cert")
+        cmd = `openssl req -x509 -nodes -newkey rsa:2048 -keyout selfsignedTLS.key -out selfsignedTLS.cert -subj "/CN=localhost"`
+        run(pipeline(cmd, stdout = devnull, stderr = devnull))
     end
 end
 
@@ -62,20 +62,20 @@ function generateRSAkeys(configdir::String)
             `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:3 -out rsa_priv2.pem`,
             `openssl pkey -in rsa_priv2.pem -out rsa_pub2.pem -pubout`,
             `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:3 -out rsa_priv3.pem`,
-            `openssl pkey -in rsa_priv3.pem -out rsa_pub3.pem -pubout`
+            `openssl pkey -in rsa_priv3.pem -out rsa_pub3.pem -pubout`,
         ]
 
         # Run openssl comands silencing stderr for genpkey output
         for cmd in cmds
             if occursin("genpkey", string(cmd))
-                run(pipeline(cmd, stderr=devnull))
+                run(pipeline(cmd, stderr = devnull))
             else
                 run(cmd)
             end
         end
     end
 
-    cd(currentdir)
+    return cd(currentdir)
 end
 
 """
@@ -107,10 +107,10 @@ Function to perform RSA encryption on a secret using the public key of the remot
 function rsaauthentication_encrypt(remoteibnfhandler::RemoteHTTPHandler, unencryptedsecret::String)
     remotepublickeyb64 = getibnfhandlerrsapublickey(remoteibnfhandler)
     remotepublickeypem = convertb64keytopem(remotepublickeyb64, HTTPMessages.KEY_TYPEOFPUBLICKEY)
-    
+
     pk_ctx = MbedTLS.PKContext()
     MbedTLS.parse_public_key!(pk_ctx, remotepublickeypem)
-    
+
     secretbytes = Vector{UInt8}(codeunits(unencryptedsecret))
 
     rng = MbedTLS.CtrDrbg()
@@ -131,7 +131,7 @@ The path can be absolute or relative to the current working directory.
 The paths of the files referenced in the configuration file can be absolute or relative to the directory of the configuration file.
 """
 function main()
-    verbose=false
+    verbose = false
     MAINDIR = pwd()
     if length(ARGS) < 1
         error("Usage: julia MINDFul.main() <configX.toml>")
@@ -160,23 +160,23 @@ function main()
     localprivatekeyfile = config["local"]["rsaprivatekey"]
     finallocalprivatekeyfile = checkfilepath(CONFIGDIR, localprivatekeyfile)
     localprivatekey = readb64keys(finallocalprivatekeyfile)
-    
+
     neighboursconfig = config["remote"]["neighbours"]
     neighbourips = [n["ip"] for n in neighboursconfig]
     neighbourports = [n["port"] for n in neighboursconfig]
     neighbourids = [n["ibnfid"] for n in neighboursconfig]
     neigbhbourpermissions = [n["permission"] for n in neighboursconfig]
     neighbourpublickeyfiles = [n["rsapublickey"] for n in neighboursconfig]
-    neighbourpublickeys = [readb64keys(checkfilepath(CONFIGDIR, pkfile)) for pkfile in neighbourpublickeyfiles]   
+    neighbourpublickeys = [readb64keys(checkfilepath(CONFIGDIR, pkfile)) for pkfile in neighbourpublickeyfiles]
 
 
     hdlr = Vector{RemoteHTTPHandler}()
-    localURI = HTTP.URI(; scheme=urischeme, host=localip, port=string(localport))
+    localURI = HTTP.URI(; scheme = urischeme, host = localip, port = string(localport))
     localURIstring = string(localURI)
     push!(hdlr, RemoteHTTPHandler(UUID(localid), localURIstring, "full", localprivatekey, "", "", ""))
     for i in eachindex(neighbourips)
-        URI = HTTP.URI(; scheme=urischeme, host=neighbourips[i], port=string(neighbourports[i]))
-        URIstring=string(URI)
+        URI = HTTP.URI(; scheme = urischeme, host = neighbourips[i], port = string(neighbourports[i]))
+        URIstring = string(URI)
         push!(hdlr, RemoteHTTPHandler(UUID(neighbourids[i]), URIstring, neigbhbourpermissions[i], neighbourpublickeys[i], "", "", ""))
     end
 
@@ -191,7 +191,7 @@ function main()
         end
     end
 
-    if ibnf === nothing
+    return if ibnf === nothing
         error("No matching ibnf found for ibnfid $localid")
     end
 end

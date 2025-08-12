@@ -1,16 +1,15 @@
-
 @testset ExtendedTestSet "rsaauthentication.jl"  begin
     secret = rand(UInt8, 32)
 
     CONFIGDIR = joinpath(TESTDIR, "data")
     MINDF.generateRSAkeys(CONFIGDIR)
-    
+
     rsapublickeyb64 = MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_pub1.pem"))
     rsapublickeypem = MINDF.convertb64keytopem(rsapublickeyb64, MINDF.HTTPMessages.KEY_TYPEOFPUBLICKEY)
 
-    rsaprivatekeyb64= MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_priv1.pem"))
+    rsaprivatekeyb64 = MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_priv1.pem"))
     rsaprivatekeypem = MINDF.convertb64keytopem(rsaprivatekeyb64, MINDF.HTTPMessages.KEY_TYPEOFPRIVATEKEY)
-    
+
     pk_ctx_encrypt = MbedTLS.PKContext()
     MbedTLS.parse_public_key!(pk_ctx_encrypt, rsapublickeypem)
 

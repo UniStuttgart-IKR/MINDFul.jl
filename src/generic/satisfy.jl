@@ -1,7 +1,7 @@
 function issatisfied(ibnf::IBNFramework, intentid::UUID, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
     return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid), orderedllis; noextrallis, verbose)
 end
-function issatisfied(ibnf::IBNFramework, intentid::UUID;  onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+function issatisfied(ibnf::IBNFramework, intentid::UUID; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
     return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, noextrallis, verbose)
 end
 function getlogicallliorder(ibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
@@ -66,8 +66,10 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLi
     firstlli = orderedllis[1]
     opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
     if !isnothing(opticalinitiateconstraint)
-        if !(firstlli isa OXCAddDropBypassSpectrumLLI && getlocalnode(firstlli) == sourcelocalnode &&
-                getlocalnode_input(firstlli) == something(getlocalnode(getibnag(ibnf), getglobalnode_input(opticalinitiateconstraint))))
+        if !(
+                firstlli isa OXCAddDropBypassSpectrumLLI && getlocalnode(firstlli) == sourcelocalnode &&
+                    getlocalnode_input(firstlli) == something(getlocalnode(getibnag(ibnf), getglobalnode_input(opticalinitiateconstraint)))
+            )
             istotalsatisfied = false
         end
     else
@@ -89,16 +91,16 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLi
             globalllinode = getglobalnode(ibnag, getlocalnode(lastlli))
             globalllinode_output = getglobalnode(ibnag, getlocalnode_output(lastlli))
 
-            idagnodeconnectivityintent = getfirst(getidagnodedescendants(idag, getidagnodeid(idagnode); includeroot=true)) do idagnodedesc
+            idagnodeconnectivityintent = getfirst(getidagnodedescendants(idag, getidagnodeid(idagnode); includeroot = true)) do idagnodedesc
                 @returnfalseiffalse(verbose, getintent(idagnodedesc) isa ConnectivityIntent || getintent(idagnodedesc) isa CrossLightpathIntent)
-                conintent = getintent(idagnodedesc) isa ConnectivityIntent ? getintent(idagnodedesc) : getremoteconnectivityintent(getintent(idagnodedesc)) 
-                @returnfalseiffalse(verbose, globalllinode_output == getsourcenode(conintent)) 
-                @returnfalseiffalse(verbose, getdestinationnode(conintent) == getdestinationnode(getintent(idagnode))) 
+                conintent = getintent(idagnodedesc) isa ConnectivityIntent ? getintent(idagnodedesc) : getremoteconnectivityintent(getintent(idagnodedesc))
+                @returnfalseiffalse(verbose, globalllinode_output == getsourcenode(conintent))
+                @returnfalseiffalse(verbose, getdestinationnode(conintent) == getdestinationnode(getintent(idagnode)))
                 # there needs to be an OpticalInitiate
                 initconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(conintent))
                 @returnfalseiffalse(verbose, !isnothing(initconstraint))
-                @returnfalseiffalse(verbose, getspectrumslotsrange(lastlli) == getspectrumslotsrange(initconstraint)) 
-                @returnfalseiffalse(verbose, globalllinode == getglobalnode_input(initconstraint)) 
+                @returnfalseiffalse(verbose, getspectrumslotsrange(lastlli) == getspectrumslotsrange(initconstraint))
+                @returnfalseiffalse(verbose, globalllinode == getglobalnode_input(initconstraint))
                 return true
             end
 
@@ -178,22 +180,22 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{
         end
     end
 
-    lliidx_start = !isnothing(lliidx1)  ? lliidx1 : let
-        lliidx1_cands = findall(llis) do lli
-            singlenextchoice = length(getafterlliidx(ibnf, conintent, llis, lli)) == 1
-            singlenextchoice && return false
-            nodestnode = getlocalnode(lli) !== destlocalnode
-            return nodestnode
+    lliidx_start = !isnothing(lliidx1) ? lliidx1 : let
+            lliidx1_cands = findall(llis) do lli
+                singlenextchoice = length(getafterlliidx(ibnf, conintent, llis, lli)) == 1
+                singlenextchoice && return false
+                nodestnode = getlocalnode(lli) !== destlocalnode
+                return nodestnode
         end
-        if length(lliidx1_cands) == 1
-            lliidx1_cands[1]
+            if length(lliidx1_cands) == 1
+                lliidx1_cands[1]
         elseif length(lliidx1_cands) == 2
-            # there are only two points. Will pick the one that gives a longer series.
-            series1 = _getlogicallliorder_coreloop(ibnf, deepcopy(llis), conintent, lliidx1_cands[1]) 
-            series2 = _getlogicallliorder_coreloop(ibnf, deepcopy(llis), conintent, lliidx1_cands[2]) 
-            length(series1) > length(series2) ? lliidx1_cands[1] : lliidx1_cands[2]
+                # there are only two points. Will pick the one that gives a longer series.
+                series1 = _getlogicallliorder_coreloop(ibnf, deepcopy(llis), conintent, lliidx1_cands[1])
+                series2 = _getlogicallliorder_coreloop(ibnf, deepcopy(llis), conintent, lliidx1_cands[2])
+                length(series1) > length(series2) ? lliidx1_cands[1] : lliidx1_cands[2]
         else
-            nothing
+                nothing
         end
     end
 
@@ -202,7 +204,7 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{
     return _getlogicallliorder_coreloop(ibnf, llis, conintent, lliidx_start; verbose)
 end
 
-function _getlogicallliorder_coreloop(ibnf, llis, conintent::ConnectivityIntent, startingindex::Int, orderedllis = LowLevelIntent[]; verbose::Bool=false)
+function _getlogicallliorder_coreloop(ibnf, llis, conintent::ConnectivityIntent, startingindex::Int, orderedllis = LowLevelIntent[]; verbose::Bool = false)
     push!(orderedllis, popat!(llis, startingindex))
     # continue to the second and so on...
     validcontinuity = true
@@ -330,10 +332,14 @@ $(TYPEDSIGNATURES)
 """
 function logicalordergetpath(lo::Vector{<:LowLevelIntent})
     function validnextinsert(nd, p)
-        return !iszero(nd) && 
-            (isempty(p) ||
-                 ((length(p) == 1 && nd != p[end]) || 
-                 (length(p) >= 2 && nd != p[end] && nd != p[end-1])) ) 
+        return !iszero(nd) &&
+            (
+            isempty(p) ||
+                (
+                (length(p) == 1 && nd != p[end]) ||
+                    (length(p) >= 2 && nd != p[end] && nd != p[end - 1])
+            )
+        )
     end
 
     path = LocalNode[]
@@ -357,8 +363,8 @@ This means that the order of the LLIs should be
 (RouterPortLLI) -> (TransmissionModuleLLI) -> OXCAddDropLLI -> (TranmsissionModuleLLI) -> (RouterPortLLI)
 """
 function logicalorderissinglelightpath(lo::Vector{<:LowLevelIntent})
-    phase = 1 
-    if first(lo) isa TransmissionModuleLLI || last(lo) isa TransmissionModuleLLI 
+    phase = 1
+    if first(lo) isa TransmissionModuleLLI || last(lo) isa TransmissionModuleLLI
         return false
     end
     for loi in lo

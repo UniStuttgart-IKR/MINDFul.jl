@@ -37,10 +37,10 @@ end
 
 function default_routerports()
     return [
-        fill(RouterPort(u"100.0Gbps"), 60)..., 
-        fill(RouterPort(u"400.0Gbps"), 20)..., 
-        fill(RouterPort(u"700.0Gbps"), 40)..., 
-        fill(RouterPort(u"1000.0Gbps"), 10)..., 
+        fill(RouterPort(u"100.0Gbps"), 60)...,
+        fill(RouterPort(u"400.0Gbps"), 20)...,
+        fill(RouterPort(u"700.0Gbps"), 40)...,
+        fill(RouterPort(u"1000.0Gbps"), 10)...,
     ]
 end
 
@@ -71,7 +71,7 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int)
     end
     linkspectrumavailabilities = Dict(ed => fill(true, spectrumslots)  for ed in edgs)
     linkstates = Dict(ed => construct_BoolLogState() for ed in edgs)
-    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), Set{OXCAddDropBypassSpectrumLLI}(),linkspectrumavailabilities, linkstates)
+    return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), Set{OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities, linkstates)
 end
 
 function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, isexternal::Bool)
@@ -92,8 +92,8 @@ function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int
     # nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
     nodeviews = [
         let
-            isexternal = va[:globalnode_ibnfid] != ibnfid
-            default_nodeview(constructfromdict(NodeProperties, va, extrafielddict); spectrumslots, isexternal)
+                isexternal = va[:globalnode_ibnfid] != ibnfid
+                default_nodeview(constructfromdict(NodeProperties, va, extrafielddict); spectrumslots, isexternal)
         end for (va, extrafielddict) in zip(AG.vertex_attr(ag), extrafielddicts)
     ]
     edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k, v) in edge_attr(ag))
@@ -101,4 +101,3 @@ function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int
     # return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
     return AG.AttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
 end
-

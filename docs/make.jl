@@ -38,9 +38,8 @@ function generate_swagger_html(output_path::String, swagger_json_path::String)
     open(output_path, "w") do file
         write(file, html_template)
     end
-    println("Swagger HTML file generated at $output_path")
+    return println("Swagger HTML file generated at $output_path")
 end
-
 
 
 open(joinpath(@__DIR__, "src", "swagger.json"), "w") do file
@@ -58,7 +57,7 @@ generate_swagger_html(joinpath(@__DIR__, "src", "swagger.html"), "swagger.json")
 
 makedocs(
     #checkdocs=:none,
-    format = Documenter.HTML(; size_threshold=1_000_000),
+    format = Documenter.HTML(; size_threshold = 1_000_000),
     sitename = "MINDFul.jl",
     modules = [MINDFul],
     pages = [
@@ -74,8 +73,6 @@ makedocs(
     ],
 
 )
-
-
 
 
 deploydocs(

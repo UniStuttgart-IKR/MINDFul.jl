@@ -47,6 +47,5 @@ $(TYPEDSIGNATURES)
 Implementing BoolLogState() is type piracy.
 """
 function construct_BoolLogState(initialstate = true)
-    return [(now(), initialstate)]    
+    return [(now(), initialstate)]
 end
-

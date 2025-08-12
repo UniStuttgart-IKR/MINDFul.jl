@@ -1,9 +1,9 @@
 """
-    The HTTP codes and data defined for the different requests.
-    All the `const` variables have a `String` value that represents the endpoint of the URL or the data that is passed respectively.
-    With full permission, the domains can access all the functions of the remote IBN framework.
-    With limited permission, the domains can only access the defined limited set of functions.
- """
+   The HTTP codes and data defined for the different requests.
+   All the `const` variables have a `String` value that represents the endpoint of the URL or the data that is passed respectively.
+   With full permission, the domains can access all the functions of the remote IBN framework.
+   With limited permission, the domains can only access the defined limited set of functions.
+"""
 module HTTPMessages
 
 const URI_IBNAGRAPH = "/api/ibnattributegraph"
@@ -190,7 +190,7 @@ const LIST_ALLFUNCTIONS = [
     URI_LOGICALORDER,
     URI_LIGHTPATHS,
     URI_INTENTGLOBALPATH,
-    URI_ELECTRICALPRESENCE
+    URI_ELECTRICALPRESENCE,
 ]
 
 
@@ -208,7 +208,7 @@ const LIST_LIMITEDFUNCTIONS = [
     URI_LOGICALORDER,
     URI_LIGHTPATHS,
     URI_INTENTGLOBALPATH,
-    URI_ELECTRICALPRESENCE
+    URI_ELECTRICALPRESENCE,
 ]
 
 end

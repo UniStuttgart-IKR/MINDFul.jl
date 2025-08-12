@@ -38,7 +38,7 @@ $(TYPEDSIGNATURES)
 
 Give back the symbol mapped to the algorithm
 """
-function getcompilationalgorithmkeyword(c::T) where {T<:IntentCompilationAlgorithm}
+function getcompilationalgorithmkeyword(c::T) where {T <: IntentCompilationAlgorithm}
     return getcompilationalgorithmkeyword(T)
 end
 
@@ -72,11 +72,13 @@ $(TYPEDSIGNATURES)
         choosespectrum = choosespectrum_firstfit,
         chooseoxcadddropport = chooseoxcadddropport_first,
     )
-    compileintenttemplate!(ibnf, idagnode, kspffcomp;
+    compileintenttemplate!(
+        ibnf, idagnode, kspffcomp;
         verbose,
         intradomainalgfun = intradomaincompilationalg,
         externaldomainalgkeyword = getcompilationalgorithmkeyword(kspffcomp),
         prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
-        @passtime)
+        @passtime
+    )
 end

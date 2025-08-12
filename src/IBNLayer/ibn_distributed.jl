@@ -4,25 +4,25 @@ Function used to send a request to a remote IBNFramework handler.
 It also handles the initial authentication and sends the requests with the provided data.
 """
 @recvtime function sendrequest(ibnf::IBNFramework, remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
-    if getibnfhandlerrecvtoken(remotehandler) == ""        
+    if getibnfhandlerrecvtoken(remotehandler) == ""
         encryptedsecret = rsaauthentication_init(ibnf, remotehandler)
         token = handshake_init!(ibnf, remotehandler, encryptedsecret)
     else
         token = getibnfhandlerrecvtoken(remotehandler)
     end
     push!(data, HTTPMessages.KEY_TOKEN => token)
-    
+
     url = getbaseurl(remotehandler) * endpoint
-    
+
     if offsettime == now()
         push!(data, HTTPMessages.KEY_OFFSETTIME => HTTPMessages.KEY_NOTHING)
     else
         push!(data, HTTPMessages.KEY_OFFSETTIME => string(@logtime))
     end
-    body = JSON.json(data)  
+    body = JSON.json(data)
     headers = Dict("Content-Type" => "application/json") # "Connection" => "close" "Content-Length" => string(length(body)
-    
-    hasverbose = haskey(data, HTTPMessages.KEY_VERBOSE) 
+
+    hasverbose = haskey(data, HTTPMessages.KEY_VERBOSE)
     if hasverbose && data[HTTPMessages.KEY_VERBOSE] == true
         println(" ")
         println("SENDING REQUEST TO $url")
@@ -30,7 +30,7 @@ It also handles the initial authentication and sends the requests with the provi
         println("Logtime = $logtime")
     end
 
-    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
+    response = HTTP.post(url, headers, body; keepalive = false, require_ssl_verification = false)
     return response
 end
 
@@ -50,7 +50,7 @@ function ipfiltering(tcp, neighbourips)
 
     if host == Sockets.localhost || string(host) in neighbourips
         return true
-    else 
+    else
         return false
     end
 end
@@ -59,7 +59,7 @@ end
 $(TYPEDSIGNATURES)
 Function to start the HTTP server of an IBNFramework.
 """
-function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, neighbourips::Vector{String}, port::Int; verbose::Bool=false)    
+function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, neighbourips::Vector{String}, port::Int; verbose::Bool = false)
     if verbose == true
         verbose = 0
     else
@@ -67,24 +67,25 @@ function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, n
     end
 
     if encryption
-        sslconf=MbedTLS.SSLConfig("selfsignedTLS.cert", "selfsignedTLS.key")
+        sslconf = MbedTLS.SSLConfig("selfsignedTLS.cert", "selfsignedTLS.key")
     else
-        sslconf=nothing
+        sslconf = nothing
     end
-    
+
     try
-        httpserver = Server.serve(host="0.0.0.0", port=port;
-            async=true, context=ibnfsdict, serialize=false, swagger=true, access_log=nothing, show_banner=false, verbose,
-            tcpisvalid= tcp->ipfiltering(tcp, neighbourips),
-            sslconfig=sslconf,
-            )
+        httpserver = Server.serve(
+            host = "0.0.0.0", port = port;
+            async = true, context = ibnfsdict, serialize = false, swagger = true, access_log = nothing, show_banner = false, verbose,
+            tcpisvalid = tcp -> ipfiltering(tcp, neighbourips),
+            sslconfig = sslconf,
+        )
         return httpserver
     catch e
         if isa(e, Base.IOError)
             println("Server at 0.0.0.0:$port is already running")
             exit(1)
         else
-            rethrow(e)  
+            rethrow(e)
         end
     end
 end
@@ -94,13 +95,14 @@ $(TYPEDSIGNATURES)
 Function to gracefully close the server of an IBNFramework.
 """
 function closeibnfserver(ibnf::IBNFramework)
-    close(getibnfserver(ibnf))
+    return close(getibnfserver(ibnf))
 end
 
 function closeibnfserver(ibnfs::Vector{<:IBNFramework})
     for ibnf in ibnfs
         close(getibnfserver(ibnf))
     end
+    return
 end
 
 

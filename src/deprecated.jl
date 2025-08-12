@@ -12,9 +12,9 @@ function diffiehellman_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHan
     url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_DIFFIEHELLMAN
     headers = Dict("Content-Type" => "application/json")
     data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_PUBLICNUMBER => publicnumber)
-    body = JSON.json(data)  
-    
-    response = HTTP.post(url, headers, body; keepalive=false, require_ssl_verification=false)
+    body = JSON.json(data)
+
+    response = HTTP.post(url, headers, body; keepalive = false, require_ssl_verification = false)
     if response.status == 200
         parsedresponse = JSON.parse(String(response.body))
         recievednumber = parsedresponse[HTTPMessages.KEY_PUBLICNUMBER]
