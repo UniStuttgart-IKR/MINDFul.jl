@@ -14,7 +14,7 @@ $(TYPEDSIGNATURES)
 Request topology information
 """
 function requestibnattributegraph_init(myibnf::IBNFramework, remoteibnf::IBNFramework)
-    myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
+    myibnfhandler = getibnfid(remoteibnf) == getibnfid(myibnf) ? remoteibnf : getibnfhandler(remoteibnf, getibnfid(myibnf)) 
     return requestibnattributegraph_term!(myibnfhandler, remoteibnf)
 end
 
