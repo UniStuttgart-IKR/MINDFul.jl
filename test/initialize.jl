@@ -6,7 +6,7 @@ using JLD2, UUIDs
 using Unitful, UnitfulData
 import Dates: now, Hour
 import Random: MersenneTwister, randperm
-using HTTP, TOML
+using HTTP, TOML, MbedTLS
 
 import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo, getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst
 
@@ -52,60 +52,56 @@ function loadmultidomaintestibnfs()
 end
 
 function loadmultidomaintestidistributedbnfs()
-    config = TOML.parsefile(TESTDIR * "/" * "data/config.toml")
+    configfilepath = joinpath(TESTDIR, "data/config.toml")
+    config = TOML.parsefile(configfilepath)
+    CONFIGDIR = dirname(configfilepath)
+
     domainfile = config["domainfile"]
-    if startswith(domainfile, "/") 
-        finaldomainfile = configpath
-    else
-        finaldomainfile = TESTDIR * "/" * domainfile
-    end
-    encryption = config["encryption"]
-
-    ips = Vector{String}()
-    ports = Vector{Int}()
-    ibnfids = Vector{Int}()
-    permissions = Vector{String}()
-
-    for n in config["domains"]["config"]
-        push!(ips, n["ip"])
-        push!(ports, n["port"])
-        push!(ibnfids, n["ibnfid"])
-        append!(permissions, n["permissions"])
-    end
-
+    finaldomainfile = MINDF.checkfilepath(CONFIGDIR, domainfile)
     domains_name_graph = first(JLD2.load(finaldomainfile))[2]
+    
+    MINDF.generateRSAkeys(CONFIGDIR)
+
+    domainsconfig = config["domains"]["config"]
+    ips = [n["ip"] for n in domainsconfig]
+    ports = [n["port"] for n in domainsconfig]
+    ibnfids = [n["ibnfid"] for n in domainsconfig]
+    permissions = [perm for n in domainsconfig for perm in n["permissions"]]
+    privatekeysfiles = [n["rsaprivatekey"] for n in domainsconfig]
+    privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in privatekeysfiles]
+    publickeysfiles = [n["rsapublickey"] for n in domainsconfig]
+    publickeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in publickeysfiles]
+
+    encryption = config["encryption"]
     if encryption
         urischeme = "https"
-        run(`$(TESTDIR)/data/generatecerts.sh`)
+        MINDF.generateTLScertificate()
     else
         urischeme = "http"
     end
-
-
-    ibnfs = Vector{IBNFramework}()    
+ 
     ibnfsdict = Dict{Int, IBNFramework}()
-    i = 1
     index = 1
-    for name_graph in domains_name_graph
-        hdlr = Vector{MINDF.RemoteHTTPHandler}()
-        localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
-        localURIstring = string(localURI)
-        push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", "", ""))
-        for j in eachindex(ibnfids)
-            i == j && continue
-            URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
-            URIstring = string(URI)
-            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], "", ""))
-            index += 1
-        end
+    ibnfs = [
+        let
+            hdlr = Vector{MINDF.RemoteHTTPHandler}()
+            localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+            localURIstring = string(localURI)
+            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", privatekeys[i], "", "", ""))
+            for j in eachindex(ibnfids)
+                i == j && continue
+                URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+                URIstring = string(URI)
+                push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], publickeys[j], "", "", ""))
+                index += 1
+            end
 
-        ag = name_graph[2]
-        ibnag = MINDFul.default_IBNAttributeGraph(ag)
-        ibnf = MINDFul.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
-        
-        push!(ibnfs, ibnf)
-        i += 1
-    end
+            ag = name_graph[2]
+            ibnag = MINDF.default_IBNAttributeGraph(ag)
+            ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
+        end for (i, name_graph) in enumerate(domains_name_graph)
+    ]
+
 
     return ibnfs
 end

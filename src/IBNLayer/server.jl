@@ -50,17 +50,17 @@ export serve
         recvtoken = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         handler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
 
-        if recvtoken == MINDF.getibnfhandlertokengen(handler)
-            if MINDF.getibnfhandlerperm(handler) == "none"
-                return false
-            elseif MINDF.getibnfhandlerperm(handler) == "full"
+        if recvtoken == MINDF.getibnfhandlergentoken(handler)
+            if MINDF.getibnfhandlerperm(handler) == MINDF.HTTPMessages.KEY_FULLPERMISSION
                 return true
-            elseif MINDF.getibnfhandlerperm(handler) == "limited"
+            elseif MINDF.getibnfhandlerperm(handler) == MINDF.HTTPMessages.KEY_LIMITEDPERMISSION
                 if uri in MINDF.HTTPMessages.LIST_LIMITEDFUNCTIONS
                     return true
                 else
-                  return false
+                    return false
                 end
+            else
+                return false
             end
         else
             return false
@@ -95,21 +95,73 @@ export serve
     """
     @post api("/handshake") function (req; context)
         ibnf = getmyibnf(req, context)
-        myibnfid = string(MINDF.getibnfid(ibnf))
+        
         parsedbody = JSON.parse(String(HTTP.payload(req)))
         remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
+        encryptedsecret = parsedbody[MINDF.HTTPMessages.KEY_RSASECRET]
+        decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
+        secret = MINDF.getibnfhandlerrsasecret(remotehandler)
+        if decryptedsecret != secret
+            return HTTP.Response(403, "RSA authentication failed with: received secret does not match the expected secret")
+        end
+
         token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
         availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
         #println("\nDomain $myibnfid has access to the following functions in remote domain $remoteibnfid: $availablefunctions \n")
         remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
         
-        if !isnothing(token)
-            remotehandler.recvtoken = token
-            myibnfid = string(MINDF.getibnfid(ibnf))
-            gentoken, availablefunctions = MINDF.handshake_term(myibnfid, remotehandler)
-            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => gentoken,MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
+        if !isnothing(token) 
+            MINDF.setibnfhandlerrecvtoken!(remotehandler, token)
+            generatedtoken, availablefunctions = MINDF.handshake_term(remotehandler)
+            MINDF.setibnfhandlergentoken!(remotehandler, generatedtoken)
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_TOKEN => generatedtoken, MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions)))
         else
             return HTTP.Response(403, "Token not received")
+        end        
+    end
+
+
+    @swagger """
+    /api/rsaauthentication:
+      post:
+        description: RSA authentication with remote IBNF
+        requestBody:
+          description: The remote IBNF ID and encrypted secret
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatoribnfid:
+                    type: string
+                  rsasecret:
+                    type: string
+        responses:
+          "200":
+            description: Retrieving RSA concatenated secret encrypted with the initiator's public key.
+          "403":
+            description: Forbidden. Secret not received.
+    """
+    @post api("/rsaauthentication") function (req; context)
+        ibnf = getmyibnf(req, context)
+        
+        parsedbody = JSON.parse(String(HTTP.payload(req)))
+        remoteibnfid = parsedbody[MINDF.HTTPMessages.KEY_INITIATORIBNFID]
+        encryptedsecret = parsedbody[MINDF.HTTPMessages.KEY_RSASECRET]
+        
+        remotehandler = MINDF.getibnfhandler(ibnf, UUID(remoteibnfid))
+     
+        if !isnothing(encryptedsecret) 
+            decryptedsecret = MINDF.rsaauthentication_term(ibnf, encryptedsecret)
+            newsecret = String(rand(UInt8, 32))
+            MINDF.setibnfhandlerrsasecret!(remotehandler, newsecret)
+            concatenatedsecret = decryptedsecret * "||" * newsecret
+            encryptedconcatenatedsecret = MINDF.rsaauthentication_encrypt(remotehandler, concatenatedsecret)
+            return HTTP.Response(200, JSON.json(Dict(MINDF.HTTPMessages.KEY_RSASECRET => encryptedconcatenatedsecret)))
+        else
+            return HTTP.Response(403, "Secret not received")
         end        
     end
 

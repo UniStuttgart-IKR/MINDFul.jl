@@ -1,9 +1,14 @@
-@recvtime function sendrequest(remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
-    if getibnfhandlertokenrecv(remotehandler) == ""
-        initiatoribnfid = data[HTTPMessages.KEY_INITIATORIBNFID]
-        token = handshake_init(initiatoribnfid, remotehandler)
+"""
+$(TYPEDSIGNATURES)
+Function used to send a request to a remote IBNFramework handler.
+It also handles the initial authentication and sends the requests with the provided data.
+"""
+@recvtime function sendrequest(ibnf::IBNFramework, remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
+    if getibnfhandlerrecvtoken(remotehandler) == ""        
+        encryptedsecret = rsaauthentication_init(ibnf, remotehandler)
+        token = handshake_init!(ibnf, remotehandler, encryptedsecret)
     else
-        token = getibnfhandlertokenrecv(remotehandler)
+        token = getibnfhandlerrecvtoken(remotehandler)
     end
     push!(data, HTTPMessages.KEY_TOKEN => token)
     
@@ -29,6 +34,12 @@
     return response
 end
 
+"""
+$(TYPEDSIGNATURES)
+Function to filter incoming TCP connections based on the IP address.
+It checks if the IP address of the incoming connection is either localhost or in the list of neighbour IPs.
+This is useful to prevent unauthorized access to the IBNFramework server.
+"""
 function ipfiltering(tcp, neighbourips)
     if tcp isa MbedTLS.SSLContext
         socket = tcp.bio
@@ -44,7 +55,10 @@ function ipfiltering(tcp, neighbourips)
     end
 end
 
-
+"""
+$(TYPEDSIGNATURES)
+Function to start the HTTP server of an IBNFramework.
+"""
 function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, neighbourips::Vector{String}, port::Int; verbose::Bool=false)    
     if verbose == true
         verbose = 0
@@ -53,7 +67,7 @@ function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, n
     end
 
     if encryption
-        sslconf=MbedTLS.SSLConfig("selfsigned.cert", "selfsigned.key")
+        sslconf=MbedTLS.SSLConfig("selfsignedTLS.cert", "selfsignedTLS.key")
     else
         sslconf=nothing
     end
@@ -75,6 +89,10 @@ function startibnserver!(ibnfsdict::Dict{Int, IBNFramework}, encryption::Bool, n
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+Function to gracefully close the server of an IBNFramework.
+"""
 function closeibnfserver(ibnf::IBNFramework)
     close(getibnfserver(ibnf))
 end
@@ -88,15 +106,15 @@ end
 
 function serializeglobaledge(edge::GlobalEdge)
     return Dict(
-        HTTPMessages.KEY_SRC => serializeglobalnode(edge.src),  # Serializing the source node
-        HTTPMessages.KEY_DST => serializeglobalnode(edge.dst)   # Serializing the destination node
+        HTTPMessages.KEY_SRC => serializeglobalnode(edge.src),
+        HTTPMessages.KEY_DST => serializeglobalnode(edge.dst)
     )
 end
 
 function serializeglobalnode(node::GlobalNode)
     return Dict(
-        HTTPMessages.KEY_IBNFID => string(node.ibnfid),  # UUID to string
-        HTTPMessages.KEY_LOCALNODE => node.localnode    # localnode as Int64
+        HTTPMessages.KEY_IBNFID => string(node.ibnfid),
+        HTTPMessages.KEY_LOCALNODE => node.localnode
     )
 end
 
