@@ -105,3 +105,57 @@ function loadmultidomaintestidistributedbnfs()
 
     return ibnfs
 end
+
+function loadpermissionedbnfs()
+    configfilepath = joinpath(TESTDIR, "data/config.toml")
+    config = TOML.parsefile(configfilepath)
+    CONFIGDIR = dirname(configfilepath)
+
+    domainfile = config["domainfile"]
+    finaldomainfile = MINDF.checkfilepath(CONFIGDIR, domainfile)
+    domains_name_graph = first(JLD2.load(finaldomainfile))[2]
+    
+    MINDF.generateRSAkeys(CONFIGDIR)
+
+    domainsconfig = config["domains"]["config"]
+    ips = [n["ip"] for n in domainsconfig]
+    ports = [n["port"] for n in domainsconfig]
+    ibnfids = [n["ibnfid"] for n in domainsconfig]
+    permissions = ["limited", "limited", "full", "none", "full", "full"]
+    privatekeysfiles = [n["rsaprivatekey"] for n in domainsconfig]
+    privatekeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in privatekeysfiles]
+    publickeysfiles = [n["rsapublickey"] for n in domainsconfig]
+    publickeys = [MINDF.readb64keys(MINDF.checkfilepath(CONFIGDIR, pkfile)) for pkfile in publickeysfiles]
+
+    encryption = config["encryption"]
+    if encryption
+        urischeme = "https"
+        MINDF.generateTLScertificate()
+    else
+        urischeme = "http"
+    end
+
+    ibnfsdict = Dict{Int, IBNFramework}()
+    index = 1
+    ibnfs = [
+        let
+            hdlr = Vector{MINDF.RemoteHTTPHandler}()
+            localURI = HTTP.URI(; scheme=urischeme, host=ips[i], port=ports[i])
+            localURIstring = string(localURI)
+            push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[i]), localURIstring, "full", privatekeys[i], "", "", ""))
+            for j in eachindex(ibnfids)
+                i == j && continue
+                URI = HTTP.URI(; scheme=urischeme, host=ips[j], port=ports[j])
+                URIstring = string(URI)
+                push!(hdlr, MINDF.RemoteHTTPHandler(UUID(ibnfids[j]), URIstring, permissions[index], publickeys[j], "", "", ""))
+                index += 1
+            end
+
+            ag = name_graph[2]
+            ibnag = MINDF.default_IBNAttributeGraph(ag)
+            ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose=false)
+        end for (i, name_graph) in enumerate(domains_name_graph)
+    ]
+
+    return ibnfs
+end

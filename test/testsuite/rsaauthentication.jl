@@ -1,4 +1,5 @@
-function testsuitersa()
+
+@testset ExtendedTestSet "rsaauthentication.jl"  begin
     secret = rand(UInt8, 32)
 
     CONFIGDIR = joinpath(TESTDIR, "data")
@@ -27,10 +28,5 @@ function testsuitersa()
     outlen = MbedTLS.decrypt!(pk_ctx_decrypt, encryptedsecret, decryptedsecret, rng)
 
     @test decryptedsecret[1:outlen] == secret
-end
-
-@testset ExtendedTestSet "rsaauthentication.jl"  begin
-
-testsuitersa()
 
 end
