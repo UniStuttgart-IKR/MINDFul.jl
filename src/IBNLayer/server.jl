@@ -109,7 +109,7 @@ end
     if decryptedsecret != secret
         return HTTP.Response(403, "RSA authentication failed with: received secret does not match the expected secret")
     end
-    MINDF.setibnfhandlerrsasecret(remotehandler, "")
+    MINDF.setibnfhandlerrsasecret!(remotehandler, "")
 
     token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
     availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
