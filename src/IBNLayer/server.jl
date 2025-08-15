@@ -14,7 +14,9 @@ import .OxygenInstance: @get, @put, @post, @delete, mergeschema, serve, router
 
 export serve
 
-api = OxygenInstance.router("/api", tags = ["API handshake endpoint"])
+api = OxygenInstance.router("/api", tags = ["API handshake endpoints"])
+limited = OxygenInstance.router("", tags = ["Limited-permission endpoints"])
+full = OxygenInstance.router("/api", tags = ["Full-permission endpoints"])
 
 function getmyibnf(req, context::Dict{Int, <:MINDF.IBNFramework})
     ibnfsdict::Dict{Int, <:MINDF.IBNFramework} = context
@@ -70,9 +72,9 @@ function checktoken(ibnf, parsedbody, uri)
 end
 
 @swagger """
-/api/handshake:
+/api/tokenhandshake:
   post:
-    description: Handshake exchange with remote IBNF
+    description: Token exchange with remote IBNF
     requestBody:
       description: The remote IBNF ID, token and available functions
       required: true
@@ -91,11 +93,11 @@ end
                   type: string
     responses:
       "200":
-        description: Successfully initiated handshake.
+        description: Successfully initiated token handshake.
       "403":
         description: Forbidden. Token not received.
 """
-@post api("/handshake") function (req; context)
+@post api("/tokenhandshake") function (req; context)
     ibnf = getmyibnf(req, context)
 
     parsedbody = JSON.parse(String(HTTP.payload(req)))
@@ -107,6 +109,7 @@ end
     if decryptedsecret != secret
         return HTTP.Response(403, "RSA authentication failed with: received secret does not match the expected secret")
     end
+    MINDF.setibnfhandlerrsasecret(remotehandler, "")
 
     token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
     availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
@@ -192,7 +195,8 @@ end
       "404":
         description: Compilation algorithms not found.
 """
-@post MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
+#@post MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
+@post limited(MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -1094,7 +1098,7 @@ end
 
 # TODO ma1069
 # Generating and integrating OpenAPI (Swagger) documentation the HTTP API endpoints:
-info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
+info = Dict("title" => "MINDFul distributed API", "version" => "1.0.0")
 openApi = OpenAPI("3.0", info)
 swaggerdocument = build(openApi)
 

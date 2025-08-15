@@ -44,7 +44,7 @@ const URI_INTENTGLOBALPATH = "/api/intentglobalpath"
 
 const URI_ELECTRICALPRESENCE = "/api/electricalpresence"
 
-const URI_HANDSHAKE = "/api/handshake"
+const URI_TOKENHANDSHAKE = "/api/tokenhandshake"
 
 const URI_DIFFIEHELLMAN = "/api/diffiehellman"
 

@@ -861,7 +861,7 @@ function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandle
     setibnfhandlergentoken!(remoteibnfhandler, generatedtoken)
 
     initiatoribnfid = string(getibnfid(ibnf))
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
+    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_TOKENHANDSHAKE
     headers = Dict("Content-Type" => "application/json")
     data = Dict(
         HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid,
