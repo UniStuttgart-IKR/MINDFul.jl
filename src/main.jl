@@ -186,7 +186,7 @@ function main()
         ag = name_graph[2]
         ibnag = default_IBNAttributeGraph(ag)
         if getibnfid(ibnag) == UUID(localid)
-            ibnf = IBNFramework(ibnag, hdlr, encryption, neighbourips, ibnfsdict, SDNdummy(); verbose)
+            ibnf = IBNFramework(ibnag, hdlr, encryption, neighbourips, SDNdummy(), ibnfsdict; verbose)
             break
         end
     end
