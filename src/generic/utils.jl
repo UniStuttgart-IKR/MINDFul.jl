@@ -197,3 +197,31 @@ end
 function iszeroornothing(s)
     return isnothing(s) || iszero(s)
 end
+
+"""
+Get uptime and downtime periods from link states.
+Return a tuple with the first element being the uptimes in Milliseconds and the second the downtimes in Milliseconds.
+If endtime is different that the one in list, pass it.
+"""
+function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
+    uptimes = Vector{Dates.Millisecond}()
+	downtimes = empty(uptimes)
+	for (prev,now) in zip(ls[1:end-1], ls[2:end])
+		dt = now[1] - prev[1]
+		if prev[2] == true
+			push!(uptimes, dt)
+		elseif prev[2] == false
+			push!(downtimes, dt)
+		end
+	end
+    # TODO double code
+    if !isnothing(endtime)
+        dt = endtime - ls[end][1]
+        if ls[end][2] == true 
+			push!(uptimes, dt)
+		elseif ls[end][2] == false
+			push!(downtimes, dt)
+		end
+    end
+    return UpDownTimes(uptimes, downtimes )
+end

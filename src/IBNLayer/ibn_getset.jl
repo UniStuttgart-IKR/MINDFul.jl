@@ -603,3 +603,17 @@ Get the RSA secret for authenticating a remote domain.
 function getibnfhandlerrsasecret(remotehandler::RemoteHTTPHandler)
     return remotehandler.rsasecret
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getavailabilityrequirement(ac::AvailabilityConstraint)
+    return ac.availabilityrequirement
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getcompliancetarget(ac::AvailabilityConstraint)
+    return ac.compliancetarget
+end

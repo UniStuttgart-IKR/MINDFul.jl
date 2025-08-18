@@ -265,7 +265,7 @@ function Base.show(io::IO, connectivityintent::ConnectivityIntent)
     constraints = getconstraints(connectivityintent)
     print(io, ", $(length(constraints)) constraints:")
     foreach(constraints) do constraint
-        print(io, " ", typeof(constraint))
+        print(io, " ", constraint)
     end
     return print(io, ")")
 end
@@ -311,6 +311,18 @@ struct OpticalInitiateConstraint <: AbstractIntentConstraint
     opticalreach::KMf
     "Requirements for termination in the electical layer"
     transmissionmodulecompat::TransmissionModuleCompatibility
+end
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+"""
+struct AvailabilityConstraint <: AbstractIntentConstraint
+    "A float between 0 and 1 for the desired availability"
+    availabilityrequirement::Float64
+    "A float between 0 and 1 expressing the desired probability to cover the availability requirement"
+    compliancetarget::Float64
 end
 
 

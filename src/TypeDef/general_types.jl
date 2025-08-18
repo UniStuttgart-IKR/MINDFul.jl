@@ -46,6 +46,27 @@ $(TYPEDSIGNATURES)
 
 Implementing BoolLogState() is type piracy.
 """
-function construct_BoolLogState(initialstate = true)
-    return [(now(), initialstate)]
+function construct_BoolLogState(offsettime=now(), initialstate = true)
+    return [(offsettime, initialstate)]
+end
+
+struct UpDownTimes
+    uptimes::Vector{Dates.Millisecond}
+    downtimes::Vector{Dates.Millisecond}
+end
+
+function getuptimes(updt::UpDownTimes) 
+    return updt.uptimes
+end
+
+function getuptimestohours(updt::UpDownTimes)
+    return getuptimes(updt).value ./ 1000 ./ 60
+end
+
+function getdowntimes(updt::UpDownTimes) 
+    return updt.downtimes
+end
+
+function getdowntimestohours(updt::UpDownTimes)
+    return getdowntimes(updt).value ./ 1000 ./ 60
 end

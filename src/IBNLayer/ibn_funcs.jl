@@ -1125,3 +1125,9 @@ function areintentsequal(conintent1::ConnectivityIntent, conintent2::Connectivit
         c1 == c2
     end
 end
+
+function setforopticalinitiate!(mena::MutableEndNodeAllocations)
+    setrouterportindex!(mena, nothing)
+    settransmissionmoduleviewpoolindex!(mena, nothing)
+    settransmissionmodesindex!(mena, nothing)
+end

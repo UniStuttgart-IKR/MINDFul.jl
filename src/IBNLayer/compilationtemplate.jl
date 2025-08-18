@@ -62,6 +62,7 @@ prioritizesplitbordernodes(
         if isinternalorborderintent(ibnf, getintent(idagnode); noremoteintent = true)
             # intra-domain
             returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
+            # TODO  expect also an availability fail error here
             if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
                 verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
                 # get a node in between the shortest paths
@@ -78,7 +79,7 @@ prioritizesplitbordernodes(
             updateidagnodestates!(ibnf, idagnode; @passtime)
         elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
             # source intra-domain , destination cross-domain
-            # TODO cross-lightpath grooming with strict same destination
+            # TODO availability split logic based on estimations
             # border-node
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
@@ -102,14 +103,14 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Splits connectivity intent on `splitglobalnode`
+Splits connectivity intent on `splitglobalnode` with O-E-O conversion
 """
 @recvtime function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, splitglobalnode::GlobalNode; verbose::Bool = false) where {F <: Function}
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
     intent = getintent(idagnode)
     idag = getidag(ibnf)
-    firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), getconstraints(intent))
+    firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), filter!(x ->!(x isa OpticalTerminateConstraint), getconstraints(intent)))
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose, @passtime)
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
@@ -143,6 +144,7 @@ $(TYPEDSIGNATURES)
     any(x -> getintent(x) isa CrossLightpathIntent, getidagnodedescendants(idag, getidagnodeid(internalidagnode))) && return returncode
 
     # need first to compile that to get the optical choice
+    # TODO: what if protection is used ???
     opticalinitiateconstraint = getopticalinitiateconstraint(ibnf, getidagnodeid(internalidagnode))
     externalintent = ConnectivityIntent(mediatorbordernode, getdestinationnode(intent), getrate(intent), vcat(getconstraints(intent), opticalinitiateconstraint))
     externalidagnode = addidagnode!(ibnf, externalintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
@@ -229,12 +231,12 @@ $(TYPEDSIGNATURES)
 
 Return the [`GlobalNode`](@ref) contained in the shortest path that is the longest to reach given the optical reach situation.
 The [`GlobalNode`](@ref) is used to break up the [`ConnectivityIntent`](@ref) into two.
-Not several candidates are returned but only a single choice.
 """
 function prioritizesplitnodes_longestfirstshortestpath(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm)
     globalnodecandidates = GlobalNode[]
     ibnag = getibnag(ibnf)
     opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idagnode)))
+    # I think that assert may not be needed and have to adjust for this case
     @assert !isnothing(opticalinitiateconstraint)
     opticalreach = getopticalreach(opticalinitiateconstraint)
     sourceglobalnode = getsourcenode(getintent(idagnode))
@@ -293,6 +295,7 @@ getcandidatepathsnum(
 
 Return the candidate paths with highest priority first as `Vector{Vector{Int}}}`.
 Return empty collection if non available.
+TODO docts protection: Protection paths... shouldnt end on border node !
 ```
 prioritizepaths(
     ibnf::IBNFramework,
@@ -389,71 +392,102 @@ chooseoxcadddropport(
         candidatepaths = prioritizepaths(ibnf, idagnode, intentcompilationalgorithm)
 
         lowlevelintentstoadd = LowLevelIntent[]
-        srcallocations = MutableEndNodeAllocations()
-        setlocalnode!(srcallocations, sourcelocalnode)
-        dstallocations = MutableEndNodeAllocations()
-        setlocalnode!(dstallocations, destlocalnode)
-        spectrumslotsrange = 0:0
-        lpath = Vector{LocalNode}()
+        prsrcallocations = [MutableEndNodeAllocations()]
+        setlocalnode!(prsrcallocations[1], sourcelocalnode)
+        prdstallocations = [MutableEndNodeAllocations()]
+        setlocalnode!(prdstallocations[], destlocalnode)
+        prspectrumslotsrange = [0:0]
+        prlpath = [Vector{LocalNode}()]
         usedgrooming = false
 
         opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
         if !isnothing(opticalinitiateconstraint) # cannot groom
-            setrouterportindex!(srcallocations, nothing)
-            settransmissionmoduleviewpoolindex!(srcallocations, nothing)
-            settransmissionmodesindex!(srcallocations, nothing)
             returncode = ReturnCodes.FAIL_CANDIDATEPATHS
-            for path in candidatepaths
-                lpath = path
-                verbose && @info("Testing path $(path)")
-                # find transmission module and mode
-                spectrumslotsrange = getspectrumslotsrange(opticalinitiateconstraint)
-                if length(path) > 1
-                    if getopticalreach(opticalinitiateconstraint) < getpathdistance(ibnag, path)
-                        returncode = ReturnCodes.FAIL_OPTICALREACH_OPTINIT
-                        continue
+            for protectedpaths in candidatepaths
+                deleteat!(prsrcallocations, 2:length(prsrcallocations))
+                deleteat!(prdstallocations, 2:length(prdstallocations))
+                deleteat!(prspectrumslotsrange, 2:length(prspectrumslotsrange))
+                deleteat!(prlpath, 2:length(prlpath))
+
+
+                for pi in eachindex(protectedpaths)
+                    if pi < length(prsrcallocations)
+                        push!(prsrcallocations, MutableEndNodeAllocations())
+                        setlocalnode!(prsrcallocations[pi], sourcelocalnode)
+                        setforopticalinitiate!(prsrcallocations[pi])
                     end
-                    pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
-                    if !all(pathspectrumavailability[spectrumslotsrange])
-                        returncode = ReturnCodes.FAIL_SPECTRUM_OPTINIT
-                        continue
+                    srcallocations = prsrcallocations[pi]
+
+                    if pi < length(prdstallocations)
+                        push!(prdstallocations, MutableEndNodeAllocations())
+                        setlocalnode!(prdstallocations[pi], destlocalnode)
                     end
+                    dstallocations = prdstallocations[pi]
+
+                    if pi < length(prspectrumslotsrange)
+                        push!(prspectrumslotsrange, 0:0)
+                    end
+
+                    path = protectedpaths[pi]
+                    if pi < length(prspectrumslotsrange)
+                        push!(prlpath, path)
+                    else
+                        prlpath[pi] = path
+                    end
+
+
+                    verbose && @info("Testing path $(path)")
+                    # find transmission module and mode
+                    prspectrumslotsrange[pi] = getspectrumslotsrange(opticalinitiateconstraint)
+                    if length(path) > 1
+                        if getopticalreach(opticalinitiateconstraint) < getpathdistance(ibnag, path)
+                            returncode = ReturnCodes.FAIL_OPTICALREACH_OPTINIT
+                            continue
+                        end
+                        pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
+                        if !all(pathspectrumavailability[prspectrumslotsrange[pi]])
+                            returncode = ReturnCodes.FAIL_SPECTRUM_OPTINIT
+                            continue
+                        end
+                    end
+
+                    transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
+                    verbose && @info("Solving for initial transmission module compatibility", transmissionmodulecompat)
+
+                    sourceadddropport = nothing
+                    setadddropport!(srcallocations, sourceadddropport)
+                    opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
+                    if length(path) == 1
+                        oxcview = getoxcview(getnodeview(ibnag, path[]))
+                        hassameallocation = any(values(getreservations(oxcview))) do oxclli
+                            getlocalnode_input(oxclli) == opticalinitincomingnode || return false
+                            getlocalnode(oxclli) == path[] || return false
+                            getspectrumslotsrange(oxclli) == prspectrumslotsrange[pi] || return false
+                            return true
+                        end
+                        if hassameallocation
+                            returncode = ReturnCodes.FAIL_SAMEOXCLLI
+                            continue
+                        end
+                    end
+                    setlocalnode_input!(srcallocations, opticalinitincomingnode)
+
+                    # double code with the second if
+                    setadddropport!(dstallocations, nothing)
+                    verbose && @info("Picked OXC LLIs with initial constraints", prspectrumslotsrange[pi])
+
+                    # successful source-path configuration
+                    opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+                    if !isnothing(opticalterminateconstraint)
+                        # no need to do something more. add intents and return true
+                        returncode = ReturnCodes.SUCCESS
+                    else
+                        opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end - 1]
+                        returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, transmissionmodulecompat, opticalincomingnode, prspectrumslotsrange[pi], prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
+                    end
+                    issuccess(returncode) || break # if one protection path at least is not successfuly go check the next group of protected paths
                 end
-
-                transmissionmodulecompat = gettransmissionmodulecompat(opticalinitiateconstraint)
-                verbose && @info("Solving for initial transmission module compatibility", transmissionmodulecompat)
-
-                sourceadddropport = nothing
-                setadddropport!(srcallocations, sourceadddropport)
-                opticalinitincomingnode = something(getlocalnode(ibnag, getglobalnode_input(opticalinitiateconstraint)))
-                if length(path) == 1
-                    oxcview = getoxcview(getnodeview(ibnag, path[]))
-                    hassameallocation = any(values(getreservations(oxcview))) do oxclli
-                        getlocalnode_input(oxclli) == opticalinitincomingnode || return false
-                        getlocalnode(oxclli) == path[] || return false
-                        getspectrumslotsrange(oxclli) == spectrumslotsrange || return false
-                        return true
-                    end
-                    if hassameallocation
-                        returncode = ReturnCodes.FAIL_SAMEOXCLLI
-                        continue
-                    end
-                end
-                setlocalnode_input!(srcallocations, opticalinitincomingnode)
-
-                # double code with the second if
-                setadddropport!(dstallocations, nothing)
-                verbose && @info("Picked OXC LLIs with initial constraints", spectrumslotsrange)
-
-                # successful source-path configuration
-                opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
-                if !isnothing(opticalterminateconstraint)
-                    # no need to do something more. add intents and return true
-                    returncode = ReturnCodes.SUCCESS
-                else
-                    opticalincomingnode = length(path) == 1 ? opticalinitincomingnode : path[end - 1]
-                    returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
-                end
+                # overall success return
                 issuccess(returncode) && break
             end
         else
@@ -465,95 +499,128 @@ chooseoxcadddropport(
             shortestpathdists = Graphs.johnson_shortest_paths(getibnag(ibnf)).dists
 
             for sourcerouteridx in sourcerouteridxs
-                setrouterportindex!(srcallocations, sourcerouteridx)
+                setrouterportindex!(prsrcallocations[1], sourcerouteridx)
                 sourcerouterview = getrouterview(getnodeview(getibnag(ibnf), sourcelocalnode))
                 sourcerouterportrate = getrate(getrouterport(sourcerouterview, sourcerouteridx))
                 verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
 
                 returncode = ReturnCodes.FAIL_CANDIDATEPATHS
-                for path in candidatepaths
-                    lpath = path
-                    verbose && @info("Testing path $(path)")
+                for protectedpaths in candidatepaths
+                    deleteat!(prsrcallocations, 2:length(prsrcallocations))
+                    deleteat!(prdstallocations, 2:length(prdstallocations))
+                    deleteat!(prspectrumslotsrange, 2:length(prspectrumslotsrange))
+                    deleteat!(prlpath, 2:length(prlpath))
 
-                    # try grooming
-                    if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
-                        usedgrooming = true
-                        groomingpossibilitiesidxs2dlt = empty(groomingpossibilitiesidxs)
-                        for (groomingpossibilityidxidx, groomingpossibilityidx) in enumerate(groomingpossibilitiesidxs)
-                            push!(groomingpossibilitiesidxs2dlt, groomingpossibilityidxidx)
-                            groomingpossibility = groomingpossibilities[groomingpossibilityidx]
-                            nogroomingnewhops = sum(shortestpathdists[src(e), dst(e)] for e in Iterators.filter(x -> x isa Edge, groomingpossibility); init = 0.0)
-                            if nogroomingnewhops < length(path) # do grooming
-                                returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#"; verbose, @passtime)
-                                if issuccess(returncode)
-                                    break
+                    for pi in eachindex(protectedpaths)
+                        if pi < length(prsrcallocations)
+                            push!(prsrcallocations, MutableEndNodeAllocations())
+                            setlocalnode!(prsrcallocations[pi], sourcelocalnode)
+                            setrouterportindex!(prsrcallocations[pi], sourcerouteridx)
+                        end
+                        srcallocations = prsrcallocations[pi]
+
+                        if pi < length(prdstallocations)
+                            push!(prdstallocations, MutableEndNodeAllocations())
+                            setlocalnode!(prdstallocations[pi], destlocalnode)
+                        end
+                        dstallocations = prdstallocations[pi]
+
+                        if pi < length(prspectrumslotsrange)
+                            push!(prspectrumslotsrange, 0:0)
+                        end
+
+                        path = protectedpaths[pi]
+                        if pi < length(prspectrumslotsrange)
+                            push!(prlpath, path)
+                        else
+                            prlpath[pi] = path
+                        end
+                        verbose && @info("Testing path $(path)")
+
+                        # try grooming
+                        if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+                            usedgrooming = true
+                            groomingpossibilitiesidxs2dlt = empty(groomingpossibilitiesidxs)
+                            for (groomingpossibilityidxidx, groomingpossibilityidx) in enumerate(groomingpossibilitiesidxs)
+                                push!(groomingpossibilitiesidxs2dlt, groomingpossibilityidxidx)
+                                groomingpossibility = groomingpossibilities[groomingpossibilityidx]
+                                nogroomingnewhops = sum(shortestpathdists[src(e), dst(e)] for e in Iterators.filter(x -> x isa Edge, groomingpossibility); init = 0.0)
+                                if nogroomingnewhops < length(path) # do grooming
+                                    returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#"; verbose, @passtime)
+                                    if issuccess(returncode)
+                                        break
+                                    end
                                 end
                             end
-                        end
-                        # put groomingpossibilityidx out of the list for the next time
-                        deleteat!(groomingpossibilitiesidxs, groomingpossibilitiesidxs2dlt)
-                    end
-
-                    issuccess(returncode) && break
-                    usedgrooming = false
-
-                    # find transmission module and mode
-                    sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
-                    returncode = ReturnCodes.FAIL_SRCTRANSMDL
-                    for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode, path, sourcerouterportrate)
-                        sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
-                        sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
-                        ## define a TransmissionModuleCompatibility for the destination node
-                        demandslotsneeded = getspectrumslotsneeded(sourcetransmissionmode)
-                        transmissionmoderate = getrate(sourcetransmissionmode)
-                        transmissionmodulename = getname(sourcetransmissionmodule)
-
-                        transmissionmodulecompat = TransmissionModuleCompatibility(sourcerouterportrate, transmissionmoderate, demandslotsneeded, transmissionmodulename)
-
-                        startingslot = choosespectrum(ibnf, idagnode, intentcompilationalgorithm, path, demandslotsneeded)
-                        if isnothing(startingslot)
-                            returncode = ReturnCodes.FAIL_SPECTRUM
-                            continue
+                            # put groomingpossibilityidx out of the list for the next time
+                            deleteat!(groomingpossibilitiesidxs, groomingpossibilitiesidxs2dlt)
                         end
 
-                        # are there oxc ports in the source ?
-                        sourceadddropport = chooseoxcadddropport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
-                        if isnothing(sourceadddropport)
-                            returncode = ReturnCodes.FAIL_SRCOXCADDDROPPORT
-                            continue
-                        end
-                        setadddropport!(srcallocations, sourceadddropport)
-
-                        sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx, sourcerouteridx, sourceadddropport)
-                        settransmissionmoduleviewpoolindex!(srcallocations, sourcetransmdlidx)
-                        settransmissionmodesindex!(srcallocations, sourcetransmissiomodeidx)
-                        verbose && @info("Picking transmission module at source node", sourcetransmissionmodulelli)
-
-                        opticalinitincomingnode = nothing
-                        setlocalnode_input!(srcallocations, opticalinitincomingnode)
-                        spectrumslotsrange = startingslot:(startingslot + demandslotsneeded - 1)
-
-                        # double code with the first if
-                        verbose && @info("Picked OXC LLIs at", spectrumslotsrange)
-
-                        # successful source-path configuration
-                        opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
-                        if !isnothing(opticalterminateconstraint)
-                            # no need to do something more. add intents and return true
-                            returncode = ReturnCodes.SUCCESS
-                        else
-                            # need to allocate a router port, a transmission module and mode, and an OXC configuration
-                            opticalincomingnode = path[end - 1]
-                            returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, transmissionmodulecompat, opticalincomingnode, spectrumslotsrange, prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
-                        end
+                        # TODO what about protection here ? --> findout resulting spectrum of optical terminate if any and withhold that for next protection path
                         issuccess(returncode) && break
+                        usedgrooming = false
+
+                        # find transmission module and mode
+                        sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
+                        returncode = ReturnCodes.FAIL_SRCTRANSMDL
+                        for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode, path, sourcerouterportrate)
+                            sourcetransmissionmodule = sourcetransmissionmoduleviewpool[sourcetransmdlidx]
+                            sourcetransmissionmode = gettransmissionmode(sourcetransmissionmodule, sourcetransmissiomodeidx)
+                            ## define a TransmissionModuleCompatibility for the destination node
+                            demandslotsneeded = getspectrumslotsneeded(sourcetransmissionmode)
+                            transmissionmoderate = getrate(sourcetransmissionmode)
+                            transmissionmodulename = getname(sourcetransmissionmodule)
+
+                            transmissionmodulecompat = TransmissionModuleCompatibility(sourcerouterportrate, transmissionmoderate, demandslotsneeded, transmissionmodulename)
+
+                            # TODO if opticalterminate spectrum must be found same for all protected paths
+                            startingslot = choosespectrum(ibnf, idagnode, intentcompilationalgorithm, path, demandslotsneeded)
+                            if isnothing(startingslot)
+                                returncode = ReturnCodes.FAIL_SPECTRUM
+                                continue
+                            end
+
+                            # are there oxc ports in the source ?
+                            sourceadddropport = chooseoxcadddropport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
+                            if isnothing(sourceadddropport)
+                                returncode = ReturnCodes.FAIL_SRCOXCADDDROPPORT
+                                continue
+                            end
+                            setadddropport!(srcallocations, sourceadddropport)
+
+                            sourcetransmissionmodulelli = TransmissionModuleLLI(sourcelocalnode, sourcetransmdlidx, sourcetransmissiomodeidx, sourcerouteridx, sourceadddropport)
+                            settransmissionmoduleviewpoolindex!(srcallocations, sourcetransmdlidx)
+                            settransmissionmodesindex!(srcallocations, sourcetransmissiomodeidx)
+                            verbose && @info("Picking transmission module at source node", sourcetransmissionmodulelli)
+
+                            opticalinitincomingnode = nothing
+                            setlocalnode_input!(srcallocations, opticalinitincomingnode)
+                            prspectrumslotsrange[pi] = startingslot:(startingslot + demandslotsneeded - 1)
+
+                            # double code with the first if
+                            verbose && @info("Picked OXC LLIs at", prspectrumslotsrange[pi])
+
+                            # successful source-path configuration
+                            opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+                            if !isnothing(opticalterminateconstraint)
+                                # no need to do something more. add intents and return true
+                                returncode = ReturnCodes.SUCCESS
+                            else
+                                # need to allocate a router port, a transmission module and mode, and an OXC configuration
+                                opticalincomingnode = path[end - 1]
+                                returncode = intradomaincompilationtemplate_destination!(ibnf, idagnode, intentcompilationalgorithm, transmissionmodulecompat, opticalincomingnode, prspectrumslotsrange[pi], prioritizerouterport, prioritizetransmdlandmode, chooseoxcadddropport, dstallocations; verbose, @passtime)
+                            end
+                            issuccess(returncode) && break
+                        end
+
+                        issuccess(returncode) || break # if one protection path at least is not successfuly go check the next group of protected paths
                     end
                     issuccess(returncode) && break
                 end
                 issuccess(returncode) && break
             end
             if !issuccess(returncode)
-                # try out all grooming options
+                # try out all grooming options as last chance
                 usedgrooming = true
                 if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
                     for groomingpossibilityidx in groomingpossibilitiesidxs
@@ -567,7 +634,7 @@ chooseoxcadddropport(
             end
         end
         if issuccess(returncode) && !usedgrooming
-            lpi = LightpathIntent(srcallocations, dstallocations, spectrumslotsrange, lpath)
+            lpi = LightpathIntent(prsrcallocations[1], prdstallocations[1], prspectrumslotsrange[1], prlpath[1])
             lpidagnode = addidagnode!(ibnf, lpi; parentids = [idagnodeid], intentissuer = MachineGenerated(), @passtime)
             returncode = compileintent!(ibnf, lpidagnode, intentcompilationalgorithm; verbose, @passtime)
         end
@@ -689,7 +756,7 @@ chooseoxcadddropport(
 
     # need to allocate a router port and a transmission module and mode
     # template chooserouterport
-    destrouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, destlocalnode)
+    destrouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, destlocalnode, getrate(transmissionmodulecompat))
     !isempty(destrouteridxs) || return ReturnCodes.FAIL_DSTROUTERPORT
     destrouteridx = first(destrouteridxs)
     destrouterportlli = RouterPortLLI(destlocalnode, destrouteridx)
@@ -740,7 +807,7 @@ function prioritizepaths_shortest(ibnf::IBNFramework, idagnode::IntentDAGNode{<:
         end
     end
 
-    return operatingpaths
+    return [[opel] for opel in operatingpaths]
 end
 
 "Don't do grooming"
@@ -791,7 +858,7 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
             getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
     end
 
-    for candidatepath in candidatepaths
+    for candidatepath in Iterators.flatten(candidatepaths)
         containedinstalledlightpaths = filter(installedlightpaths) do (intentid, lightpathrepresentation)
             issubpath(candidatepath, getpath(lightpathrepresentation)) || return false
             opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
@@ -846,13 +913,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function prioritizerouterports_lowestrate(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode)
+function prioritizerouterports_lowestrate(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, node::LocalNode, transmissionmoderate::GBPSf = GBPSf(-Inf))
     routerview = getrouterview(getnodeview(getibnag(ibnf), node))
     portrates = getrate.(getrouterports(routerview))
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
     stagedrouterports = getrouterportindex.(getstaged(routerview))
     filteredports = filter(1:getportnumber(routerview)) do x
-        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] > getrate(getintent(idagnode))
+        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] > getrate(getintent(idagnode)) && portrates[x] > transmissionmoderate
     end
     sort!(filteredports; by = x -> portrates[x])
     return filteredports
