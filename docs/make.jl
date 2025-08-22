@@ -47,13 +47,9 @@ open(joinpath(@__DIR__, "src", "swagger.json"), "w") do file
     JSON.print(file, swagger_document)
 end
 
+
 generate_swagger_html(joinpath(@__DIR__, "src", "swagger.html"), "swagger.json")
 
-
-#=Documenter.HTML(assets = [
-    asset("assets/swagger/swagger@5.7.2/swagger-ui-bundle.js", class=:js, islocal=true),
-    #asset(joinpath(@__DIR__, "src/assets/swagger/swagger@5.7.2/swagger-ui-bundle.js"), class=:js, islocal=true),
-])=#
 
 makedocs(
     #checkdocs=:none,
@@ -65,18 +61,15 @@ makedocs(
         "Developing" => "dev.md",
         "ROADMap" => "roadmap.md",
         "API" => "API.md",
-        "Distributed API" => [
-            "HTTP" => "HTTP.md",
+        "Distributed Operation" => [
+            "HTTP API" => "HTTP.md",
             "OxygenInstance" => "OxygenInstance.md",
             "Docker" => "Docker.md",
         ],
     ],
-
 )
 
 
 deploydocs(
-    # devbranch = "MA1069PR-2",
-    # repo = "github.com/fgobantes/MINDFul.jl.git"
     repo = "https://github.com/UniStuttgart-IKR/MINDFul.jl.git"
 )
