@@ -20,7 +20,7 @@ const URI_DELEGATEINTENT = "/api/delegateintent"
 
 const URI_REMOTEINTENTSTATEUPDATE = "/api/remoteintentstateupdate"
 
-const URI_ISSATISFIED = "/api/requestissatisfied"
+const URI_ISSATISFIED = "/api/issatisfied"
 
 const URI_INSTALLINTENT = "/api/installintent"
 
@@ -34,9 +34,9 @@ const URI_REQUESTLINKSTATES = "/api/requestlinkstates"
 
 const URI_REQUESTIDAG = "/api/requestidag"
 
-const URI_REQUESTHANDLERS = "/api/requesthandlers"
+const URI_REQUESTHANDLERS = "/api/requestibnfhandlers"
 
-const URI_LOGICALORDER = "/api/logicalorder"
+const URI_LOGICALORDER = "/api/logicallliorder"
 
 const URI_LIGHTPATHS = "/api/lightpaths"
 
