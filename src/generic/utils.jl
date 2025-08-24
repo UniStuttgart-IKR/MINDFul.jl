@@ -116,6 +116,19 @@ end
     Pass a `Vector{Vector{Int}}` where `Int` are the nodes of each lightpath.
     Return a `Vector{Vector{Int}}` where `Int` is the index of the contained lightpaths.
     if `startingnode = true`, `node` is starting else is ending.
+
+```
+julia> MINDF.consecutivelightpathsidx([
+       [1,3,7], #1
+       [2,5,7], #2
+       [2,8,9], #3
+       [7,4,2]
+       ], 1; startingnode=true)
+3-element Vector{Vector{Int64}}:
+ [1]
+ [1, 4]
+ [1, 4, 3]
+```
 """
 function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, node::Int; startingnode = true)
     firstorlast = startingnode ? first : last
@@ -129,6 +142,16 @@ function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, node
         isempty(buildinglightpathscollections) && break
     end
     return startinglightpathscollections
+end
+
+"""
+    Return all possible combination of the lightpath indices passed such that `path` is formed
+"""
+function consecutivelightpathsidx(containedlightpaths::Vector{Vector{Int}}, path::Vector{Int})
+    consecutivestartingnode = consecutivelightpathsidx(containedlightpaths, path[1]; startingnode= true)
+    return filter!(consecutivestartingnode) do csn
+        containedlightpaths[csn[end]][end] == path[end]
+    end
 end
 
 function _coreloop_consecutivelightpathsidx!(startinglightpathscollections::Vector{Vector{Int}}, containedlightpaths::Vector{Vector{Int}}, buildinglightpathscollections::Vector{Vector{Int}}; startingnode = true)

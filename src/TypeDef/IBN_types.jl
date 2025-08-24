@@ -29,9 +29,14 @@ abstract type AbstractOperationMode end
 struct DefaultOperationMode <: AbstractOperationMode end
 
 """
+Stores a single log element for the intent state and time
+"""
+const IntentLogStateTuple{S <: Enum{Int32}} = Tuple{DateTime, S}
+
+"""
 Stores a vector of the history of the intent states and their timings
 """
-const IntentLogState{S <: Enum{Int32}} = Vector{Tuple{DateTime, S}}
+const IntentLogState{S <: Enum{Int32}} = Vector{IntentLogStateTuple{S}}
 
 """
 $(TYPEDSIGNATURES)
@@ -94,7 +99,7 @@ Represents an implementation of a ConnectivityIntent as a lightpath
 """
 struct LightpathRepresentation
     "The nodes comprising the lightpath"
-    path::Vector{LocalNode}
+    path::Vector{Vector{LocalNode}}
     "`true` if it starts optically (due to `OpticalInitiateConstraint`) or `false` otherwise"
     startsoptically::Bool
     "`true` if it terminates optically (due to `OpticalTerminateConstraint`) or `false` otherwise"
@@ -250,6 +255,27 @@ function Base.show(io::IO, lpt::LightpathIntent)
         "full"
     end
     return print(io, description, " lightpath ", lpt.path, " ", lpt.spectrumslotsrange)
+end
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+
+An accumulation of lightpaths such that they get protected
+It's being translated down to many Lightpath intents that have certain LLIs groomed with one another
+Furthermore, only one lightpath is installed and the others are staged.
+In case of a failure a different working lightpath will be installed instead
+"""
+struct ProtectedLightpathIntent <: AbstractIntent
+    prsourcenodeallocations::Vector{EndNodeAllocations}
+    prdestinationnodeallocations::Vector{EndNodeAllocations}
+    prspectrumslotsrange::Vector{UnitRange{Int}}
+    prpath::Vector{Vector{LocalNode}}
+end
+
+function ProtectedLightpathIntent(prsrcallocations::Vector{MutableEndNodeAllocations}, prdstallocations::Vector{MutableEndNodeAllocations}, prspecrumslotsrange::Vector{UnitRange{Int}}, prpath::Vector{Vector{LocalNode}})
+    return ProtectedLightpathIntent(EndNodeAllocations.(prsrcallocations), EndNodeAllocations.(prdstallocations), prspecrumslotsrange, prpath)
 end
 
 function ConnectivityIntent(sourcenode::GlobalNode, destinationnode::GlobalNode, rate::GBPSf)

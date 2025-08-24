@@ -1,4 +1,3 @@
-
 """
 $(TYPEDSIGNATURES)
 
@@ -22,6 +21,13 @@ function getdictlinkempiricalavailabilities(ibnf; checkfirst = true, verbose::Bo
                 for ed in edges(getibnag(ibnf)))
 end
 
+function getempiricalavailability(ibnf::IBNFramework, path::Vector{Int}; checkfirst::Bool = true, verbose::Bool = false, endtime=nothing)
+    return reduce(*, [let 
+        ludts = getlinkupdowntimes(ibnf, ed; checkfirst, verbose, endtime) 
+        isempty(getuptimes(ludts)) ? 1.0 : sum(getuptimes(ludts)) / (sum(getdowntimes(ludts)) + sum(getuptimes(ludts)))
+    end for ed in edgeify(path)])
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -37,6 +43,10 @@ $(TYPEDSIGNATURES)
 """
 function calculatepathavailability(availabilities::Vector{Float64})
     return reduce(*, availabilities)
+end
+
+function calculateparallelavailability(avails::Float64...)
+    return 1 - reduce(*, [1 - avail for avail in avails])
 end
 
 """
@@ -62,7 +72,7 @@ function calculateprotectedpathavailability(p1edges::Vector{Edge{Int}}, p1avails
         end
     end
 
-    protectedpathavailability = 1 - (1 - p1branchavail) * (1 - p2branchavail)
+    protectedpathavailability = calculateparallelavailability(p1branchavail, p2branchavail)
     protectedpathavailability *= reduce(*, p1avails[commonedges1inds])
 
     return protectedpathavailability

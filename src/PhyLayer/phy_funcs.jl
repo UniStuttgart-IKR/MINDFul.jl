@@ -282,6 +282,25 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getoxclliedges(oxclli::OXCAddDropBypassSpectrumLLI)
+    oxclliedges = Edge{Int}[]
+    getlocalnode_input(oxclli) != 0 && push!(oxclliedges, Edge(getlocalnode_input(oxclli), getlocalnode(oxclli)))
+    getlocalnode_output(oxclli) != 0 && push!(oxclliedges, Edge(getlocalnode(oxclli), getlocalnode_output(oxclli)))
+    return oxclliedges
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return `true` if oxclli is involved with failed equipment
+"""
+function isoxcllifail(ibnf::IBNFramework, oxclli::OXCAddDropBypassSpectrumLLI)
+    return !reduce(&, [getcurrentlinkstate(ibnf, ed) for ed in getoxclliedges(oxclli)])
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function isnodeviewinternal(nv::NodeView)
     return !isnothing(nv.routerview) && !isnothing(nv.oxcview) && !isnothing(nv.transmissionmoduleviewpool) && !isnothing(nv.transmissionmodulereservations) && !isnothing(nv.transmissionmodulestaged)
 end
@@ -289,16 +308,23 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function stage!(resourceview::ReservableResourceView, lli::LowLevelIntent)
+function stage!(resourceview::ReservableResourceView, lli::LowLevelIntent; verbose::Bool = false)
     stagedset = getstaged(resourceview)
     push!(stagedset, lli)
+    if lli isa OXCAddDropBypassSpectrumLLI && resourceview isa OXCView
+        setoxcviewlinkavailabilities!(resourceview, lli, false; verbose)
+    end
     return ReturnCodes.SUCCESS
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function unstage!(resourceview::ReservableResourceView, lli::LowLevelIntent)
+function unstage!(resourceview::ReservableResourceView, lli::LowLevelIntent; verbose::Bool = false, about2install::Bool = false)
     stagedset = something(getstaged(resourceview))
-    return delete!(stagedset, lli)
+    delete!(stagedset, lli)
+    if !about2install && lli isa OXCAddDropBypassSpectrumLLI && resourceview isa OXCView
+        setoxcviewlinkavailabilities!(resourceview, lli, true; verbose)
+    end
+    return ReturnCodes.SUCCESS
 end

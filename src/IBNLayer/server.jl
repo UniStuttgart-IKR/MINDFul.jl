@@ -529,7 +529,8 @@ end
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
     onlyinstalled = parsedbody[MINDF.HTTPMessages.KEY_ONLYINSTALLED]
     noextrallis = parsedbody[MINDF.HTTPMessages.KEY_NOEXTRALLIS]
-    issatisfiedresult = MINDF.requestissatisfied_term!(remoteibnfhandler, ibnf, idagnodeid; onlyinstalled, noextrallis)
+    choosealternativeorder = parsedbody[MINDF.HTTPMessages.KEY_CHOOSEALTERNATIVEORDER]
+    issatisfiedresult = MINDF.requestissatisfied_term!(remoteibnfhandler, ibnf, idagnodeid; onlyinstalled, noextrallis, choosealternativeorder)
     if !isnothing(issatisfiedresult)
         return HTTP.Response(200, JSON.json(issatisfiedresult))
     else

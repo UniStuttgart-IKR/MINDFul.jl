@@ -106,8 +106,22 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getlogtuplettime(intentlogstatetuple::IntentLogStateTuple)
+    return intentlogstatetuple[1]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getlogtupletstate(intentlogstatetuple::IntentLogStateTuple)
+    return intentlogstatetuple[2]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getcurrentstate(intentlogstate::IntentLogState)
-    return intentlogstate[end][2]
+    return getlogtupletstate(intentlogstate[end])
 end
 
 """
@@ -465,6 +479,34 @@ $(TYPEDSIGNATURES)
 """
 function getpath(lpintent::LightpathIntent)
     return lpintent.path
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getprsourcenodeallocations(prlpintent::ProtectedLightpathIntent)
+    return prlpintent.prsourcenodeallocations
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getprdestinationnodeallocations(prlpintent::ProtectedLightpathIntent)
+    return prlpintent.prdestinationnodeallocations
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getprspectrumslotsrange(prlpintent::ProtectedLightpathIntent)
+    return prlpintent.prspectrumslotsrange
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getprpath(prlpintent::ProtectedLightpathIntent)
+    return prlpintent.prpath
 end
 
 """

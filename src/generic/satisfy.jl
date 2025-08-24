@@ -1,11 +1,11 @@
 function issatisfied(ibnf::IBNFramework, intentid::UUID, orderedllis::Vector{<:LowLevelIntent}; noextrallis = true, verbose::Bool = false)
     return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid), orderedllis; noextrallis, verbose)
 end
-function issatisfied(ibnf::IBNFramework, intentid::UUID; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
-    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, noextrallis, verbose)
+function issatisfied(ibnf::IBNFramework, intentid::UUID; onlyinstalled = true, noextrallis = true, verbose::Bool = false, choosealternativeorder::Int = 0)
+    return issatisfied(ibnf, getidagnode(getidag(ibnf), intentid); onlyinstalled, noextrallis, verbose, choosealternativeorder)
 end
-function getlogicallliorder(ibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false)
-    return getlogicallliorder(ibnf, getidagnode(getidag(ibnf), intentuuid); onlyinstalled, verbose)
+function getlogicallliorder(ibnf::IBNFramework, intentuuid::UUID; onlyinstalled = true, verbose::Bool = false, choosealternativeorder::Int = 0)
+    return getlogicallliorder(ibnf, getidagnode(getidag(ibnf), intentuuid); onlyinstalled, verbose, choosealternativeorder)
 end
 
 """
@@ -17,31 +17,32 @@ The options are:
 - onlyinstalled: only consideres installed intents
 - noextrallis: all LLI must be used
 - orderedllis: pass list to access ordered llis
+- choosealternativeorder::Int. `0` to error in case multiple logical orders are available and the index of the alternative otherwise.
 
 The function is not a definite assertion.
 The following cases are not covered:
 - transmission module compatibility
 - optical reach
 """
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}; onlyinstalled = true, noextrallis = true, verbose::Bool = false, choosealternativeorder::Int = 0)
     idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
     if length(idagnodechildren) == 1 && getintent(idagnodechildren[1]) isa RemoteIntent
-        return issatisfied(ibnf, idagnodechildren[1]; onlyinstalled, noextrallis, verbose)
+        return issatisfied(ibnf, idagnodechildren[1]; onlyinstalled, noextrallis, verbose, choosealternativeorder)
     else
-        orderedllis = getlogicallliorder(ibnf, idagnode; onlyinstalled, verbose)
+        orderedllis = getlogicallliorder(ibnf, idagnode; onlyinstalled, verbose, choosealternativeorder)
         return issatisfied(ibnf, idagnode, orderedllis; noextrallis, verbose)
     end
 end
 
-function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false)
+function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}; onlyinstalled = true, noextrallis = true, verbose::Bool = false, choosealternativeorder::Int = 0)
     remoteintent = getintent(idagnode)
     if getisinitiator(remoteintent)
         ibnfhandler = getibnfhandler(ibnf, getibnfid(remoteintent))
-        requestissatisfied_init(ibnf, ibnfhandler, getidagnodeid(remoteintent); onlyinstalled, noextrallis)
+        requestissatisfied_init(ibnf, ibnfhandler, getidagnodeid(remoteintent); onlyinstalled, noextrallis, choosealternativeorder)
     else
         idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
         length(idagnodechildren) == 1 || return false
-        return issatisfied(ibnf, idagnodechildren[1]; onlyinstalled, noextrallis, verbose)
+        return issatisfied(ibnf, idagnodechildren[1]; onlyinstalled, noextrallis, verbose, choosealternativeorder)
     end
 end
 
@@ -134,13 +135,13 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLi
     return istotalsatisfied
 end
 
-function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}; onlyinstalled = true, verbose::Bool = false)
+function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}; onlyinstalled = true, verbose::Bool = false, choosealternativeorder::Int = 0)
     idagnodechildren = getidagnodechildren(getidag(ibnf), idagnode)
     length(idagnodechildren) == 1 || return false
-    return getlogicallliorder(ibnf, idagnodechildren[1]; onlyinstalled, verbose)
+    return getlogicallliorder(ibnf, idagnodechildren[1]; onlyinstalled, verbose, choosealternativeorder)
 end
 
-function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}; onlyinstalled = true, verbose::Bool = false)
+function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLightpathIntent, ConnectivityIntent}}; onlyinstalled = true, verbose::Bool = false, choosealternativeorder::Int = 0)
     idag = getidag(ibnf)
     ibnag = getibnag(ibnf)
 
@@ -201,10 +202,10 @@ function getlogicallliorder(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{
 
     isnothing(lliidx_start) && return orderedllis
 
-    return _getlogicallliorder_coreloop(ibnf, llis, conintent, lliidx_start; verbose)
+    return _getlogicallliorder_coreloop(ibnf, llis, conintent, lliidx_start; verbose, choosealternativeorder)
 end
 
-function _getlogicallliorder_coreloop(ibnf, llis, conintent::ConnectivityIntent, startingindex::Int, orderedllis = LowLevelIntent[]; verbose::Bool = false)
+function _getlogicallliorder_coreloop(ibnf, llis, conintent::ConnectivityIntent, startingindex::Int, orderedllis = LowLevelIntent[]; verbose::Bool = false, choosealternativeorder::Int = 0)
     push!(orderedllis, popat!(llis, startingindex))
     # continue to the second and so on...
     validcontinuity = true
@@ -213,21 +214,33 @@ function _getlogicallliorder_coreloop(ibnf, llis, conintent::ConnectivityIntent,
             if lastlli isa RouterPortLLI
                 nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
                 if length(nextlliidx) != 1
-                    validcontinuity = false
+                    if iszero(choosealternativeorder)  || choosealternativeorder > length(nextlliidx) 
+                        validcontinuity = false
+                    else
+                        push!(orderedllis, popat!(llis, nextlliidx[choosealternativeorder]))
+                    end
                 else
                     push!(orderedllis, popat!(llis, first(nextlliidx)))
                 end
             elseif lastlli isa TransmissionModuleLLI
                 nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
                 if length(nextlliidx) != 1
-                    validcontinuity = false
+                    if iszero(choosealternativeorder)  || choosealternativeorder > length(nextlliidx) 
+                        validcontinuity = false
+                    else
+                        push!(orderedllis, popat!(llis, nextlliidx[choosealternativeorder]))
+                    end
                 else
                     push!(orderedllis, popat!(llis, first(nextlliidx)))
                 end
             elseif lastlli isa OXCAddDropBypassSpectrumLLI
                 nextlliidx = getafterlliidx(ibnf, conintent, llis, lastlli; verbose)
                 if length(nextlliidx) != 1
-                    validcontinuity = false
+                    if iszero(choosealternativeorder)  || choosealternativeorder > length(nextlliidx) 
+                        validcontinuity = false
+                    else
+                        push!(orderedllis, popat!(llis, nextlliidx[choosealternativeorder]))
+                    end
                 else
                     push!(orderedllis, popat!(llis, first(nextlliidx)))
                 end

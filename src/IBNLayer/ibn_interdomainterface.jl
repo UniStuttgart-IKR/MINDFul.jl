@@ -370,15 +370,33 @@ $(TYPEDSIGNATURES)
     localnodedst = something(getlocalnode(myibnag, dst(ge)))
     le = Edge(localnodesrc, localnodedst)
 
+    # TODO tomorrow : check intents failing before and after and trigger reinstallation ?
+    idagnodeids = getidagnodeid.(getnetworkoperatoridagnodes(getidag(myibnf)))
+    rootintentstatesbefore = getidagnodestate.(getnetworkoperatoridagnodes(getidag(myibnf)))
+
+    returnvalue = nothing
     if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
         # src is remote, dst is intra
-        return setlinkstate!(myibnf, something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
+        returnvalue = setlinkstate!(myibnf, something(getoxcview(nodeviewdst)), le, operatingstate; @passtime)
     elseif getibnfid(getglobalnode(getproperties(nodeviewdst))) == getibnfid(remoteibnfhandler)
         # dst is remote, src is intra
-        return setlinkstate!(myibnf, something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
+        returnvalue = setlinkstate!(myibnf, something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
     end
 
-    return nothing
+    rootintentstatesafter = getidagnodestate.(getnetworkoperatoridagnodes(getidag(myibnf)))
+
+    for (idnid, risb, risa) in zip(idagnodeids, rootintentstatesbefore, rootintentstatesafter)
+        if any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodedescendants(getidag(myibnf), idnid))
+            if risb == IntentState.Installed && risa == IntentState.Failed
+                # reinstall in case there is protection deployed
+                installintent!(myibnf, idnid; @passtime)
+            elseif risb == risa == IntentState.Failed && !isempty(getidagnodeleafs2install(myibnf, idnid))
+                installintent!(myibnf, idnid; @passtime)
+            end
+        end
+    end
+
+    return returnvalue
 end
 
 """
@@ -535,9 +553,9 @@ $(TYPEDSIGNATURES)
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """
-function requestissatisfied_init(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool = true, noextrallis::Bool = true)
+function requestissatisfied_init(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool = true, noextrallis::Bool = true, choosealternativeorder::Int = 0)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
-    return requestissatisfied_term!(myibnfhandler, remoteibnf, idagnodeid; onlyinstalled, noextrallis)
+    return requestissatisfied_term!(myibnfhandler, remoteibnf, idagnodeid; onlyinstalled, noextrallis, choosealternativeorder)
 end
 
 """
@@ -741,7 +759,7 @@ MA1069 implementation
 
 Request to `remoteibnf` whether the `idagnode` is theoretically satisfied
 """
-function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; onlyinstalled::Bool = true, noextrallis::Bool = true)
+function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; onlyinstalled::Bool = true, noextrallis::Bool = true, choosealternativeorder::Int = 0)
     initiatoribnfid = string(getibnfid(myibnf))
 
     resp = sendrequest(
@@ -750,7 +768,8 @@ function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::Remote
             HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid,
             HTTPMessages.KEY_IDAGNODEID => string(idagnodeid),
             HTTPMessages.KEY_ONLYINSTALLED => onlyinstalled,
-            HTTPMessages.KEY_NOEXTRALLIS => noextrallis
+            HTTPMessages.KEY_NOEXTRALLIS => noextrallis,
+            HTTPMessages.KEY_CHOOSEALTERNATIVEORDER => choosealternativeorder
         )
     )
 
@@ -768,8 +787,8 @@ function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::Remote
     end
 end
 
-function requestissatisfied_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool)
-    return issatisfied(myibnf, idagnodeid; onlyinstalled, noextrallis)
+function requestissatisfied_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; onlyinstalled::Bool, noextrallis::Bool, choosealternativeorder::Int = 0)
+    return issatisfied(myibnf, idagnodeid; onlyinstalled, noextrallis, choosealternativeorder)
 end
 
 

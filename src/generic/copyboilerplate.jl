@@ -37,7 +37,6 @@ function isthesame(obj1::T, obj2::T) where {T}
             if obj1 == obj2
                 return true
             else
-                @show obj1, obj2
                 return false
             end
         end

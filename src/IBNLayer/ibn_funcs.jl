@@ -68,6 +68,46 @@ $(TYPEDSIGNATURES)
     return ReturnCodes.SUCCESS
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ProtectedLightpathIntent}, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
+    prlpintent = getintent(idagnode)
+    prlpidagnodeid = getidagnodeid(idagnode)
+
+    for (sourcenodeallocations, destinationnodeallocations, spectrumslotsrange, path) in zip(getprsourcenodeallocations(prlpintent), getprdestinationnodeallocations(prlpintent), getprspectrumslotsrange(prlpintent), getprpath(prlpintent))
+        lpintent = LightpathIntent(sourcenodeallocations, destinationnodeallocations, spectrumslotsrange, path)
+        lpidagnode = addidagnode!(ibnf, lpintent; parentids = [prlpidagnodeid], intentissuer = MachineGenerated(), @passtime)
+        lpidagnodeid = getidagnodeid(lpidagnode)
+
+        # same code as compileintent! for LightpathIntent
+        for endnodeallocations in [getsourcenodeallocations(lpintent), getdestinationnodeallocations(lpintent)]
+            if !isonlyoptical(endnodeallocations)
+                routerportlli = getrouterlli(endnodeallocations)
+                groomifllichildexists!(getidag(ibnf), idagnode, lpidagnode, routerportlli) || stageaddidagnode!(ibnf, routerportlli; parentid = lpidagnodeid, intentissuer = MachineGenerated(), @passtime)
+                transmdllli = gettrasmissionmodulelli(endnodeallocations)
+                groomifllichildexists!(getidag(ibnf), idagnode, lpidagnode, transmdllli) || stageaddidagnode!(ibnf, transmdllli; parentid = lpidagnodeid, intentissuer = MachineGenerated(), @passtime)
+            end
+        end
+
+        oxcadddropbypassspectrumllis = generatelightpathoxcadddropbypassspectrumlli(
+            getpath(lpintent),
+            getspectrumslotsrange(lpintent);
+            sourceadddropport = getadddropport(getsourcenodeallocations(lpintent)),
+            opticalinitincomingnode = getlocalnode_input(getsourcenodeallocations(lpintent)),
+            destadddropport = getadddropport(getdestinationnodeallocations(lpintent))
+        )
+
+        for lli in oxcadddropbypassspectrumllis
+            groomifllichildexists!(getidag(ibnf), idagnode, lpidagnode, lli) || stageaddidagnode!(ibnf, lli; parentid = lpidagnodeid, intentissuer = MachineGenerated(), @passtime)
+        end
+    end
+
+    # return ReturnCodes.FAIL
+    return ReturnCodes.SUCCESS
+end
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -197,20 +237,28 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
-    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Compiled, IntentState.Installing])
-    # unblock from the Compiled state
+    @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Compiled, IntentState.Installing, IntentState.Failed])
+    startingstate = getidagnodestate(getidag(ibnf), idagnodeid) 
+    # unblock from the Compiled state. needed due to grooming which locks parents intents from getting installed if all LLIs are installed.
+    idagnodeleafs = getidagnodeleafs2install(ibnf, idagnodeid)
+    @returniffalse(verbose, !isempty(idagnodeleafs))
+
+    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose)
     updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime)
     # run once to sync with idag
-    idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
     foreach(idagnodeleafs) do idagnodeleaf
-        if getidagnodestate(idagnodeleaf) == IntentState.Installing
+        if getidagnodestate(idagnodeleaf) == IntentState.Installing # || (startingstate == IntentState.Failed && getidagnodestate(idagnodeleaf) == IntentState.Compiled)
             reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
         end
     end
 
     for idagnodex in getidagnodedescendants(getidag(ibnf), idagnodeid; includeroot = true)
         if getidagnodestate(idagnodex) == IntentState.Installing
-            updateidagstates!(ibnf, getidagnodeid(idagnodex); @passtime)
+            if getintent(idagnodex) isa LowLevelIntent
+                updateidagstates!(ibnf, getidagnodeid(idagnodex), IntentState.Compiled; @passtime)
+            else
+                updateidagstates!(ibnf, getidagnodeid(idagnodex); @passtime)
+            end
         end
     end
 
@@ -226,6 +274,7 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed, IntentState.Pending])
+    # this check is for grooming cases, such that LLIs don't get uninstalled as long as a parent is installed
     if all(x -> getidagnodestate(x) == IntentState.Compiled, getidagnodeparents(getidag(ibnf), idagnodeid))
         idagnodechildren = getidagnodechildren(getidag(ibnf), idagnodeid)
         if length(idagnodechildren) == 0
@@ -238,10 +287,6 @@ $(TYPEDSIGNATURES)
         end
     end
 
-    # idagnodeleafs = getidagnodeleafs(getidag(ibnf), idagnodeid; exclusive = false)
-    # foreach(idagnodeleafs) do idagnodeleaf
-    #     reserveunreserveleafintents!(ibnf, idagnodeleaf, false; verbose, @passtime)
-    # end
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
         return ReturnCodes.SUCCESS
     else
@@ -282,8 +327,16 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
         issuccessfull = issuccess(successflag)
         if doinstall
             if issuccessfull
-                pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
-                stageunstageleafintent!(ibnf, leafintent, false)
+                if getintent(idagnodeleaf) isa OXCAddDropBypassSpectrumLLI
+                    if isoxcllifail(ibnf, getintent(idagnodeleaf))
+                        pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Failed; @passtime)
+                    else
+                        pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+                    end
+                else
+                    pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+                end
+                stageunstageleafintent!(ibnf, leafintent, false; about2install = true)
             end
         else
             if issuccessfull
@@ -322,8 +375,9 @@ end
 """
 $(TYPEDSIGNATURES)
 `dostage` `true` for stage, `false` for unstage
+`about2install = true` only when `dostage=false` for unstaging when groing to installed state. This is only used to not deallocate the spectrum.
 """
-function stageunstageleafintent!(ibnf::IBNFramework, lli::LowLevelIntent, dostage::Bool)
+function stageunstageleafintent!(ibnf::IBNFramework, lli::LowLevelIntent, dostage::Bool; about2install::Bool=false)
     localnode = getlocalnode(lli)
     nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
 
@@ -331,19 +385,19 @@ function stageunstageleafintent!(ibnf::IBNFramework, lli::LowLevelIntent, dostag
         if dostage
             stage!(nodeview, lli)
         else
-            unstage!(nodeview, lli)
+            unstage!(nodeview, lli; about2install)
         end
     elseif lli isa RouterPortLLI
         if dostage
             stage!(getrouterview(nodeview), lli)
         else
-            unstage!(getrouterview(nodeview), lli)
+            unstage!(getrouterview(nodeview), lli; about2install)
         end
     elseif lli isa OXCAddDropBypassSpectrumLLI
         if dostage
             stage!(getoxcview(nodeview), lli)
         else
-            unstage!(getoxcview(nodeview), lli)
+            unstage!(getoxcview(nodeview), lli; about2install)
         end
     end
 end
@@ -579,6 +633,9 @@ Set the link state on both OXCView ends of `edge`
     @returniffalse(verbose, !(issrcbordernode && isdstbordernode))
     globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
 
+    idagnodeids = getidagnodeid.(getnetworkoperatoridagnodes(getidag(ibnf)))
+    rootintentstatesbefore = getidagnodestate.(getnetworkoperatoridagnodes(getidag(ibnf)))
+
     if issrcbordernode
         remoteibnfid = getibnfid(getglobalnode(ibnag, edsrc))
         ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
@@ -594,6 +651,22 @@ Set the link state on both OXCView ends of `edge`
     else
         setlinkstate!(ibnf, getoxcview(nodeviewdst), edge, operatingstate; @passtime)
     end
+
+    rootintentstatesafter = getidagnodestate.(getnetworkoperatoridagnodes(getidag(ibnf)))
+
+    for (idnid, risb, risa) in zip(idagnodeids, rootintentstatesbefore, rootintentstatesafter)
+        if any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodedescendants(getidag(ibnf), idnid))
+            if risb == IntentState.Installed && risa == IntentState.Failed
+                # reinstall in case there is protection deployed
+                installintent!(ibnf, idnid; @passtime)
+            elseif risb == risa == IntentState.Failed && !isempty(getidagnodeleafs2install(ibnf, idnid))
+                installintent!(ibnf, idnid; @passtime)
+            end
+        end
+    end
+    # TODO tomorrow : check intents failing before and after and trigger reinstallation ?
+    
+    return ReturnCodes.SUCCESS
 end
 
 """
@@ -992,10 +1065,74 @@ function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<
         end
     end
     if getintent(idagnode) isa LightpathIntent
-        lightpathrepresentation = LightpathRepresentation(path, startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), path[end]))
+        lightpathrepresentation = LightpathRepresentation([path], startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), path[end]))
     elseif getintent(idagnode) isa CrossLightpathIntent
-        lightpathrepresentation = LightpathRepresentation(path, startsoptically, terminatesoptically, totalbandwidth, getdestinationnode(getremoteconnectivityintent(getintent(idagnode))))
+        lightpathrepresentation = LightpathRepresentation([path], startsoptically, terminatesoptically, totalbandwidth, getdestinationnode(getremoteconnectivityintent(getintent(idagnode))))
     end
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+    return true
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{ProtectedLightpathIntent})
+    lpintents::Vector{LightpathIntent} = getintent.(getidagnodechildren(getidag(ibnf), idagnode))
+
+    paths = getpath.(lpintents)
+    @assert all(p -> paths[1][end] == p[end], paths)
+
+    startsopticallys = [isonlyoptical(getsourcenodeallocations(lpintent)) for lpintent in lpintents]
+    @assert all(so -> so == startsopticallys[1], startsopticallys)
+    startsoptically = startsopticallys[1]
+    terminatesopticallys = [isonlyoptical(getdestinationnodeallocations(lpintent)) for lpintent in lpintents]
+    @assert all(to -> to == terminatesopticallys[1], terminatesopticallys)
+    terminatesoptically = terminatesopticallys[1]
+
+    lightpathidagnodeid = getidagnodeid(idagnode)
+    # totalbandwidth
+    totalbandwidth = GBPSf(0)
+    if !startsoptically
+        for lpintent in lpintents
+            nodeview = getnodeview(getibnag(ibnf), getlocalnode(getsourcenodeallocations(lpintent)))
+            transmissionmodule = gettransmissionmoduleviewpool(nodeview)[gettransmissionmoduleviewpoolindex(getsourcenodeallocations(lpintent))]
+            transmissionmode = gettransmissionmodes(transmissionmodule)[gettransmissionmodesindex(getsourcenodeallocations(lpintent))]
+            totalbandwidth_i = getrate(transmissionmode)
+            if totalbandwidth == GBPSf(0) || totalbandwidth_i < totalbandwidth
+                totalbandwidth = totalbandwidth_i
+            end
+        end
+    elseif !terminatesoptically
+        for lpintent in lpintents
+            nodeview = getnodeview(getibnag(ibnf), getlocalnode(getdestinationnodeallocations(lpintent)))
+            transmissionmodule = gettransmissionmoduleviewpool(nodeview)[gettransmissionmoduleviewpoolindex(getdestinationnodeallocations(lpintent))]
+            transmissionmode = gettransmissionmodes(transmissionmodule)[gettransmissionmodesindex(getdestinationnodeallocations(lpintent))]
+            totalbandwidth_i = getrate(transmissionmode)
+            if totalbandwidth == GBPSf(0) || totalbandwidth_i < totalbandwidth
+                totalbandwidth = totalbandwidth_i
+            end
+        end
+    else
+        # I doubt ProtectedLightpathIntent ever comes here. Code is copied from the Lightpath/CrossLightpath use case
+        # starts and terminates optically meaning it will have a parent intent with IntiateOpticalConstraint with TransmissionModuleCompatibility
+        idagnoderoots = getidagnoderoots(getidag(ibnf), getidagnodeid(idagnode))
+        for idnr in idagnoderoots
+            if getintent(idnr) isa RemoteIntent
+                optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(getintent(idnr))))
+                if !isnothing(optinitconstraint)
+                    totalbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+                end
+            elseif getintent(idnr) isa ConnectivityIntent
+                optinitconstraint = getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getintent(idnr)))
+                if !isnothing(optinitconstraint)
+                    totalbandwidth = getrate(gettransmissionmodulecompat(optinitconstraint))
+                end
+            end
+        end
+    end
+    lightpathrepresentation = LightpathRepresentation(paths, startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), paths[1][end]))
     installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
     installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
     return true
@@ -1026,7 +1163,7 @@ function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<
             # search on source or destination
             searchallidagfortransmissionrate(ibnf, lollis)
         end
-        lightpathrepresentation = LightpathRepresentation(path, startoptically, terminatesoptically, totalbandwidth, getidagnodeid.(lliidagnodechildren))
+        lightpathrepresentation = LightpathRepresentation([path], startoptically, terminatesoptically, totalbandwidth, getidagnodeid.(lliidagnodechildren))
         installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
         installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
     end
@@ -1130,4 +1267,54 @@ function setforopticalinitiate!(mena::MutableEndNodeAllocations)
     setrouterportindex!(mena, nothing)
     settransmissionmoduleviewpoolindex!(mena, nothing)
     settransmissionmodesindex!(mena, nothing)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Return the leaf idagnodes to install. Code is very similar to getidagnodeleafs(::IntentDAG) but suited for exactly the isntallation scenario
+If installation is not possible return empty.
+"""
+function getidagnodeleafs2install(ibnf::IBNFramework, idagnodeid::UUID)
+    idag = getidag(ibnf)
+    idns = IntentDAGNode[]
+
+    _leafs_recu2install!(idns, ibnf, getidagnode(idag, idagnodeid))
+
+    return idns
+end
+
+function _leafs_recu2install!(vidns::Vector{IntentDAGNode}, ibnf::IBNFramework, idn::IntentDAGNode)
+    dag = getidag(ibnf)
+    if hasidagnodechildren(dag, idn)
+        if getintent(idn) isa ProtectedLightpathIntent
+            chidns = getidagnodechildren(dag, idn)
+
+            chidnshavenofailchildren = [
+                let
+                    chidnchidns = getidagnodechildren(dag, chidn)
+                    !any(chidnchidn -> getintent(chidnchidn) isa OXCAddDropBypassSpectrumLLI && isoxcllifail(ibnf, getintent(chidnchidn)), chidnchidns)
+                end
+                for chidn in chidns]
+
+            if all(!, chidnshavenofailchildren)
+                empty!(vidns)
+                return true
+            end
+
+            for chidn in chidns[chidnshavenofailchildren]
+                killswitch = _leafs_recu2install!(vidns, ibnf, chidn)
+                killswitch && return true
+                break
+            end
+        else
+            for chidn in getidagnodechildren(dag, idn)
+                killswitch = _leafs_recu2install!(vidns, ibnf, chidn)
+                killswitch && return true
+            end
+        end
+    else
+        any(x -> x === idn, vidns) || push!(vidns, idn)
+    end
+    return false
 end

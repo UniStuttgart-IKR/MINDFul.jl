@@ -75,6 +75,8 @@ const KEY_ONLYINSTALLED = "onlyinstalled"
 
 const KEY_NOEXTRALLIS = "noextrallis"
 
+const KEY_CHOOSEALTERNATIVEORDER = "choosealternativeorder"
+
 const KEY_VERBOSE = "verbose"
 
 const KEY_LINKDATETIME = "linkdatetime"

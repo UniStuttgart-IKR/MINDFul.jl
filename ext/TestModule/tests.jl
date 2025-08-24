@@ -148,7 +148,9 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
     oxcllifinishprevious3 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 21:26)
     @test canreserve(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3)
     @test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious3, UUID(0x0fffffff); verbose = true))
-
+    
+    @test issuccess(reserve!(getsdncontroller(ibnfs[1]), getoxcview(getnodeview(ibnfs[1], 8)), OXCAddDropBypassSpectrumLLI(8, 2, 3, 0, 21:26), UUID(0x01ffffff); verbose = true))
+    
     # intradomain with `OpticalInitaiteConstraint and OpticalTerminateConstraint`
     conintent_intra_optseg = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(GlobalNode(UUID(1), 22)), OpticalInitiateConstraint(GlobalNode(UUID(1), 2), 31:34, u"500.0km", TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
     intentuuid4 = addintent!(ibnfs[1], conintent_intra_optseg, NetworkOperator())
@@ -158,15 +160,17 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
     vorletzteglobalsnode4 = getlocalnode(orderedllis4[end])
     @test installintent!(ibnfs[1], intentuuid4) == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid4; onlyinstalled = true, noextrallis = true)
-
+    
     oxcllifinishprevious4 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 31:34)
     @test canreserve(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4)
     @test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_2, oxcllifinishprevious4, UUID(0x0ffffff1); verbose = true))
-
+    @test issuccess(reserve!(getsdncontroller(ibnfs[1]), getoxcview(getnodeview(ibnfs[1], 8)), OXCAddDropBypassSpectrumLLI(8, 2, 3, 0, 31:34), UUID(0x02ffffff); verbose = true))
+    
     oxcview1_22 = getoxcview(getnodeview(ibnfs[1], 22))
     oxcllifinishprevious4_1 = OXCAddDropBypassSpectrumLLI(22, vorletzteglobalsnode4, 2, 0, 31:34)
     @test canreserve(getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1)
     @test issuccess(reserve!(getsdncontroller(ibnfs[1]), oxcview1_22, oxcllifinishprevious4_1, UUID(0x0ffffff2); verbose = true))
+    @test issuccess(reserve!(getsdncontroller(ibnfs[1]), getoxcview(getnodeview(ibnfs[1], vorletzteglobalsnode4)), OXCAddDropBypassSpectrumLLI(vorletzteglobalsnode4, 0, 3, 22, 31:34), UUID(0x03ffffff); verbose = true))
 
     return foreach(ibnfs) do ibnf
         testlocalnodeisindex(ibnf)
@@ -349,6 +353,7 @@ function testsuitefailingintime!(ibnfs)
     @test compileintent!(ibnfs[1], intentuuid_external, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
     remoteibnfid_external, remoteintentid_external = getfirstremoteintent(ibnfs[1], intentuuid_external)
     remoteibnf_external = getibnfhandler(ibnfs[1], remoteibnfid_external)
+
     @test installintent!(ibnfs[1], intentuuid_external; verbose = false) == ReturnCodes.SUCCESS
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_external)])
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnfs[1], remoteibnf_external), remoteintentid_external)])
@@ -400,8 +405,8 @@ function testsuitegrooming!(ibnfs)
     installedlightpathsibnfs1 = getinstalledlightpaths(getidaginfo(getidag(ibnfs[1])))
     @test length(installedlightpathsibnfs1) == 1
     lpr1 = installedlightpathsibnfs1[UUID(0x02)]
-    @test first(MINDF.getpath(lpr1)) == 4
-    @test last(MINDF.getpath(lpr1)) == 8
+    @test first(MINDF.getpath(lpr1)[1]) == 4
+    @test last(MINDF.getpath(lpr1)[1]) == 8
     @test MINDF.getstartsoptically(lpr1) == false
     @test MINDF.getterminatessoptically(lpr1) == false
     @test MINDF.gettotalbandwidth(lpr1) == GBPSf(100)
@@ -746,8 +751,8 @@ function testsuitegroomingonfail!(ibnfs)
     installedlightpathsibnfs1 = getinstalledlightpaths(getidaginfo(getidag(ibnfs[1])))
     @test length(installedlightpathsibnfs1) == 1
     lpr1 = installedlightpathsibnfs1[UUID(0x02)]
-    @test first(MINDF.getpath(lpr1)) == 4
-    @test last(MINDF.getpath(lpr1)) == 8
+    @test first(MINDF.getpath(lpr1)[1]) == 4
+    @test last(MINDF.getpath(lpr1)[1]) == 8
     @test MINDF.getstartsoptically(lpr1) == false
     @test MINDF.getterminatessoptically(lpr1) == false
     @test MINDF.gettotalbandwidth(lpr1) == GBPSf(100)

@@ -190,18 +190,14 @@ Return value is true if state is changed.
     changedstate = false
     newstate::Union{Nothing, IntentState.T} = nothing
 
-    # if !isnothing(offsettime)
-    #     if Dates.year(offsettime) == 2025 && Dates.month(offsettime) == 7 && Dates.day(offsettime) == 16
-    #         error("shouldnt have come here")
-    #     end
-    # end
-
     if makestate == IntentState.Installing # only state that propagates down the DAG
-        if currentstate == IntentState.Compiled
-            changedstate = true
+        if currentstate in [IntentState.Compiled, IntentState.Failed] 
+            # changedstate = true
             newstate = makestate
+            changedstate = true
             pushstatetoidagnode!(idagnode, newstate; @passtime)
         end
+        # propagate down anyhow to turn all "Compiled" to "Installing"
     elseif makestate == IntentState.Compiled && currentstate in [IntentState.Installed, IntentState.Failed]
         changedstate = true
         newstate = makestate
@@ -228,7 +224,7 @@ Return value is true if state is changed.
             newstate = IntentState.Uncompiled
             pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
         end
-    elseif all(==(IntentState.Installed), childrenstates)
+    elseif all(==(IntentState.Installed), childrenstates) || (any(==(IntentState.Installed), childrenstates) && getintent(idagnode) isa ProtectedLightpathIntent)
         if currentstate == IntentState.Uncompiled
             changedstate = true
             newstate = IntentState.Compiled
@@ -275,13 +271,15 @@ Return value is true if state is changed.
             end
         end
         if newstate == IntentState.Installed && getintent(idagnode) isa LightpathIntent
-            if !isonlyoptical(getsourcenodeallocations(getintent(idagnode))) && !isonlyoptical(getdestinationnodeallocations(getintent(idagnode)))
-                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+            if !any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodeparents(getidag(ibnf), idagnode))
+                if !isonlyoptical(getsourcenodeallocations(getintent(idagnode))) && !isonlyoptical(getdestinationnodeallocations(getintent(idagnode)))
+                    addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+                end
             end
-        elseif newstate == IntentState.Installed && getintent(idagnode) isa CrossLightpathIntent
+        elseif newstate == IntentState.Installed && (getintent(idagnode) isa CrossLightpathIntent || getintent(idagnode) isa ProtectedLightpathIntent)
             addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
         end
-        if newstate == IntentState.Compiled && (getintent(idagnode) isa LightpathIntent || getintent(idagnode) isa CrossLightpathIntent)
+        if newstate == IntentState.Compiled && (getintent(idagnode) isa LightpathIntent || getintent(idagnode) isa CrossLightpathIntent || getintent(idagnode) isa ProtectedLightpathIntent)
             removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
         end
         if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode)) # notify initiator domain
@@ -465,24 +463,67 @@ $(TYPEDSIGNATURES)
 
 Get the leafs of DAG `dag` starting from node `idn`.
 Set `exclusive=true` to get nodes that have `idn` as the only ancestor
+With `chooseprotected::Int` you can choose which protected path to select. Default is `1`. With `0` you choose all.
+If an intent contains more than one `ProtectedLightpathIntent` there is no way to choose exactly.
+Pass `autoinstall:Bool = true` to ignore failed regions of the intent DAG and auto-choose protection path. It will choose the available path from `1` to `n`. `chooseprotected` must still be non-zero.
 """
-function getidagnodeleafs(idag::IntentDAG, idagnodeid::UUID; exclusive = false)
+function getidagnodeleafs(idag::IntentDAG, idagnodeid::UUID; exclusive::Bool = false, chooseprotected::Int=0, autoinstall::Bool = false)
     idns = IntentDAGNode[]
-    for chidn in getidagnodechildren(idag, idagnodeid)
-        _leafs_recu!(idns, idag, chidn; exclusive)
+    if getintent(getidagnode(idag, idagnodeid)) isa ProtectedLightpathIntent && !iszero(chooseprotected)
+        if autoinstall
+            for chidn in getidagnodechildren(idag, idagnodeid)
+                getidagnodestate(chidn) == IntentState.Failed && continue
+                _leafs_recu!(idns, idag, chidn; exclusive, chooseprotected, autoinstall)
+                break
+            end
+        else
+            idagnodechildren = getidagnodechildren(idag, idagnodeid)
+            if chooseprotected <= length(idagnodechildren)
+                chidn = idagnodechildren[chooseprotected]
+            else
+                chidn = idagnodechildren[1]
+            end
+        end
+
+        _leafs_recu!(idns, idag, chidn; exclusive, chooseprotected)
+    else
+        for chidn in getidagnodechildren(idag, idagnodeid)
+            _leafs_recu!(idns, idag, chidn; exclusive, chooseprotected, autoinstall)
+        end
     end
     return idns
 end
 
-function _leafs_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentDAGNode; exclusive)
+function _leafs_recu!(vidns::Vector{IntentDAGNode}, dag::IntentDAG, idn::IntentDAGNode; exclusive::Bool, chooseprotected::Int, autoinstall::Bool)
     exclusive && length(getidagnodeparents(dag, idn)) > 1 && return
-    return if hasidagnodechildren(dag, idn)
-        for chidn in getidagnodechildren(dag, idn)
-            _leafs_recu!(vidns, dag, chidn; exclusive)
+    if hasidagnodechildren(dag, idn)
+        if getintent(idn) isa ProtectedLightpathIntent && !iszero(chooseprotected)
+            if autoinstall
+                # chidns = getidagnodechildren(dag, idn)
+                # if getintent(idn) isa ProtectedLightpathIntent && any(chidn -> getintent(chidn) isa OXCAddDropBypassSpectrumLLI && isoxcllifail(ib), chidns)
+                for chidn in getidagnodechildren(dag, idn)
+                    getidagnodestate(chidn) == IntentState.Failed && continue
+                    _leafs_recu!(vidns, dag, chidn; exclusive, chooseprotected, autoinstall)
+                    break
+                end
+            else
+                idagnodechildren = getidagnodechildren(dag, idn)
+                if chooseprotected <= length(idagnodechildren)
+                    chidn = idagnodechildren[chooseprotected]
+                else
+                    chidn = idagnodechildren[1]
+                end
+                _leafs_recu!(vidns, dag, chidn; exclusive, chooseprotected)
+            end
+        else
+            for chidn in getidagnodechildren(dag, idn)
+                _leafs_recu!(vidns, dag, chidn; exclusive, chooseprotected, autoinstall)
+            end
         end
     else
         any(x -> x === idn, vidns) || push!(vidns, idn)
     end
+    return
 end
 
 """
@@ -519,4 +560,26 @@ function issubdaggrooming(idag::IntentDAG, idagnodeid::UUID)
         end
     end
     return false
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Groom (i.e. connect outgoing edge to the LLI) if it exists already as a child to `idagnode`
+Return `true` if it happens and `false` otherwise
+"""
+function groomifllichildexists!(idag::IntentDAG, idagnodegrandpa::IntentDAGNode, idagnodeparent::IntentDAGNode, lli::LowLevelIntent)
+    allidagnodes = getidagnodes(idag)
+    lliidx = getfirst(getidagnodeidxsdescendants(idag, getidagnodeid(idagnodegrandpa))) do vertexi
+        getintent(allidagnodes[vertexi]) == lli || return false
+        return true
+    end
+
+    if isnothing(lliidx)
+        return false
+    else
+        parentidx = getidagnodeidx(idag, getidagnodeid(idagnodeparent))
+        add_edge!(idag, parentidx, lliidx)
+        return true
+    end
 end

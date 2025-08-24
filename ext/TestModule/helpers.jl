@@ -320,13 +320,13 @@ function testoxcllistateconsistency(ibnf::IBNFramework)
     for nodeview in MINDF.getintranodeviews(getibnag(ibnf))
         oxcview = getoxcview(nodeview)
         for (intentuuid, oxclli) in getreservations(oxcview)
-            for ed in edges(getibnag(ibnf))
-                MINDF.oxcllicontainsedge(oxclli, ed) || continue
-                if MINDF.getcurrentlinkstate(ibnf, ed)
-                    @test MINDF.getidagnodestate(getidag(ibnf), intentuuid) == MINDF.IntentState.Installed
-                else
-                    @test MINDF.getidagnodestate(getidag(ibnf), intentuuid) == MINDF.IntentState.Failed
-                end
+            # for ed in edges(getibnag(ibnf))
+            oxcllieds = MINDF.getoxclliedges(oxclli)
+                # MINDF.oxcllicontainsedge(oxclli, ed) || continue
+            if reduce(&, [MINDF.getcurrentlinkstate(ibnf, ed) for ed in oxcllieds])
+                @test MINDF.getidagnodestate(getidag(ibnf), intentuuid) == MINDF.IntentState.Installed
+            else
+                @test MINDF.getidagnodestate(getidag(ibnf), intentuuid) == MINDF.IntentState.Failed
             end
         end
     end
