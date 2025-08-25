@@ -99,7 +99,7 @@ function loadmultidomaintestidistributedbnfs()
 
                 ag = name_graph[2]
                 ibnag = MINDF.default_IBNAttributeGraph(ag)
-                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose = false)
+                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
     ]
 
@@ -154,7 +154,7 @@ function loadpermissionedbnfs()
 
                 ag = name_graph[2]
                 ibnag = MINDF.default_IBNAttributeGraph(ag)
-                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, ibnfsdict; verbose = false)
+                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
     ]
 

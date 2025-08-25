@@ -773,17 +773,17 @@ function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::Remote
         )
     )
 
-    issatisfiedreturn = JSON.parse(String(resp.body))
-    return if resp.status == 200
-        if issatisfiedreturn == true
+    issatisfied = JSON.parse(String(resp.body))
+    if resp.status == 200
+        if issatisfied == true
             return true
-        elseif issatisfiedreturn == false
+        elseif issatisfied == false
             return false
         else
-            return Symbol(issatisfiedreturn)
+            return Symbol(issatisfied)
         end
     else
-        error("Failed to check if intent is satisfied: $issatisfiedreturn")
+        error("Failed to check if intent is satisfied: $issatisfied")
     end
 end
 
@@ -825,13 +825,14 @@ function rsaauthentication_init(ibnf::IBNFramework, remoteibnfhandler::RemoteHTT
     secret = String(rand(UInt8, 32))
     encryptedsecret_b64 = rsaauthentication_encrypt(remoteibnfhandler, secret)
 
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_RSAAUTHENTICATION
-    headers = Dict("Content-Type" => "application/json")
-    data = Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, HTTPMessages.KEY_RSASECRET => encryptedsecret_b64)
-    body = JSON.json(data)
-
-    response = HTTP.post(url, headers, body; keepalive = false, require_ssl_verification = false)
-    return if response.status == 200
+    response = sendrequest(
+        ibnf, remoteibnfhandler, HTTPMessages.URI_RSAAUTHENTICATION,
+        Dict(
+            HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid, 
+            HTTPMessages.KEY_RSASECRET => encryptedsecret_b64
+        )
+    )
+    if response.status == 200
         parsedresponse = JSON.parse(String(response.body))
         receivedsecret = parsedresponse[HTTPMessages.KEY_RSASECRET]
         decryptedreceivedsecret = rsaauthentication_term(ibnf, receivedsecret)
@@ -880,17 +881,16 @@ function handshake_init!(ibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandle
     setibnfhandlergentoken!(remoteibnfhandler, generatedtoken)
 
     initiatoribnfid = string(getibnfid(ibnf))
-    url = getbaseurl(remoteibnfhandler) * HTTPMessages.URI_HANDSHAKE
-    headers = Dict("Content-Type" => "application/json")
-    data = Dict(
-        HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid,
-        HTTPMessages.KEY_TOKEN => generatedtoken,
-        HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions,
-        HTTPMessages.KEY_RSASECRET => encryptedsecret
-    )
-    body = JSON.json(data)
 
-    response = HTTP.post(url, headers, body; keepalive = false, require_ssl_verification = false)
+    response = sendrequest(
+        ibnf, remoteibnfhandler, HTTPMessages.URI_TOKENHANDSHAKE,
+        Dict(
+            HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid,
+            HTTPMessages.KEY_TOKEN => generatedtoken,
+            HTTPMessages.KEY_AVAILABLEFUNCTIONS => availablefunctions,
+            HTTPMessages.KEY_RSASECRET => encryptedsecret
+        )
+    )
     if response.status == 200
         parsedresponse = JSON.parse(String(response.body))
         recievedtoken = parsedresponse[HTTPMessages.KEY_TOKEN]

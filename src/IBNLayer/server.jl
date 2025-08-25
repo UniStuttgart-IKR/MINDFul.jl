@@ -14,7 +14,9 @@ import .OxygenInstance: @get, @put, @post, @delete, mergeschema, serve, router
 
 export serve
 
-api = OxygenInstance.router("/api", tags = ["API handshake endpoint"])
+full = OxygenInstance.router("", tags = ["Full-permission required"])
+limited = OxygenInstance.router("", tags = ["Limited-permission required"])
+api = OxygenInstance.router("", tags = ["API handshake endpoints"])
 
 function getmyibnf(req, context::Dict{Int, <:MINDF.IBNFramework})
     ibnfsdict::Dict{Int, <:MINDF.IBNFramework} = context
@@ -70,9 +72,9 @@ function checktoken(ibnf, parsedbody, uri)
 end
 
 @swagger """
-/api/handshake:
+/api/tokenhandshake:
   post:
-    description: Handshake exchange with remote IBNF
+    description: Token exchange with remote IBNF
     requestBody:
       description: The remote IBNF ID, token and available functions
       required: true
@@ -91,11 +93,11 @@ end
                   type: string
     responses:
       "200":
-        description: Successfully initiated handshake.
+        description: Successfully initiated token handshake.
       "403":
         description: Forbidden. Token not received.
 """
-@post api("/handshake") function (req; context)
+@post api(MINDF.HTTPMessages.URI_TOKENHANDSHAKE) function (req; context)
     ibnf = getmyibnf(req, context)
 
     parsedbody = JSON.parse(String(HTTP.payload(req)))
@@ -107,6 +109,7 @@ end
     if decryptedsecret != secret
         return HTTP.Response(403, "RSA authentication failed with: received secret does not match the expected secret")
     end
+    MINDF.setibnfhandlerrsasecret!(remotehandler, "")
 
     token = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
     availablefunctions = parsedbody[MINDF.HTTPMessages.KEY_AVAILABLEFUNCTIONS]
@@ -146,7 +149,7 @@ end
       "403":
         description: Forbidden. Secret not received.
 """
-@post api("/rsaauthentication") function (req; context)
+@post api(MINDF.HTTPMessages.URI_RSAAUTHENTICATION) function (req; context)
     ibnf = getmyibnf(req, context)
 
     parsedbody = JSON.parse(String(HTTP.payload(req)))
@@ -192,7 +195,7 @@ end
       "404":
         description: Compilation algorithms not found.
 """
-@post MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS function (req; context)
+@post limited(MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -245,7 +248,7 @@ end
       "404":
         description: Spectrum availability not found.
 """
-@post MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY function (req; context)
+@post limited(MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -302,7 +305,7 @@ end
       "404":
         description: Currently link not available.
 """
-@post MINDF.HTTPMessages.URI_CURRENTLINKSTATE function (req; context)
+@post limited(MINDF.HTTPMessages.URI_CURRENTLINKSTATE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_CURRENTLINKSTATE) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -353,7 +356,7 @@ end
       "404":
         description: Not possible to compile the intent.
 """
-@post MINDF.HTTPMessages.URI_COMPILEINTENT function (req; context)
+@post full(MINDF.HTTPMessages.URI_COMPILEINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILEINTENT) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -420,7 +423,7 @@ end
       "404":
         description: Delegation not worked.
 """
-@post MINDF.HTTPMessages.URI_DELEGATEINTENT function (req; context)
+@post full(MINDF.HTTPMessages.URI_DELEGATEINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_DELEGATEINTENT) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -472,7 +475,7 @@ end
       "404":
         description: Not possible to update the intent state.
 """
-@post MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE function (req; context)
+@post limited(MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -520,7 +523,7 @@ end
       "404":
         description: Not possible to check if the intent is satisfied.
 """
-@post MINDF.HTTPMessages.URI_ISSATISFIED function (req; context)
+@post limited(MINDF.HTTPMessages.URI_ISSATISFIED) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ISSATISFIED) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -564,7 +567,7 @@ end
       "404":
         description: Not possible to install the intent.
 """
-@post MINDF.HTTPMessages.URI_INSTALLINTENT function (req; context)
+@post full(MINDF.HTTPMessages.URI_INSTALLINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INSTALLINTENT) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -605,7 +608,7 @@ end
       "404":
         description: Not possible to uninstall the intent.
 """
-@post MINDF.HTTPMessages.URI_UNINSTALLINTENT function (req; context)
+@post full(MINDF.HTTPMessages.URI_UNINSTALLINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNINSTALLINTENT) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -646,7 +649,7 @@ end
       "404":
         description: Not possible to install the intent.
 """
-@post MINDF.HTTPMessages.URI_UNCOMPILEINTENT function (req; context)
+@post full(MINDF.HTTPMessages.URI_UNCOMPILEINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNCOMPILEINTENT) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -704,7 +707,7 @@ end
       "404":
         description: Set link state not possible.
 """
-@post MINDF.HTTPMessages.URI_SETLINKSTATE function (req; context)
+@post limited(MINDF.HTTPMessages.URI_SETLINKSTATE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SETLINKSTATE) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -765,7 +768,7 @@ end
       "404":
         description: Set link state not possible.
 """
-@post MINDF.HTTPMessages.URI_REQUESTLINKSTATES function (req; context)
+@post limited(MINDF.HTTPMessages.URI_REQUESTLINKSTATES) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTLINKSTATES) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -809,7 +812,7 @@ end
       "404":
         description: Not possible to request the IDAG.
 """
-@post MINDF.HTTPMessages.URI_REQUESTIDAG function (req; context)
+@post limited(MINDF.HTTPMessages.URI_REQUESTIDAG) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTIDAG) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -852,7 +855,7 @@ end
       "404":
         description: Not possible to request the IBNF's attribute graph.
 """
-@post MINDF.HTTPMessages.URI_IBNAGRAPH function (req; context)
+@post limited(MINDF.HTTPMessages.URI_IBNAGRAPH) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_IBNAGRAPH) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -872,7 +875,7 @@ end
 end
 
 @swagger """
-/api/ibnfhandlers:
+/api/requestibnfhandlers:
   post:
     description: Request the IBNF handlers
     requestBody:
@@ -895,7 +898,7 @@ end
       "404":
         description: Not possible to request the IBNF handlers.
 """
-@post MINDF.HTTPMessages.URI_REQUESTHANDLERS function (req; context)
+@post limited(MINDF.HTTPMessages.URI_REQUESTHANDLERS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTHANDLERS) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -938,7 +941,7 @@ end
       "404":
         description: Not possible to request the logical LLI order.
 """
-@post MINDF.HTTPMessages.URI_LOGICALORDER function (req; context)
+@post limited(MINDF.HTTPMessages.URI_LOGICALORDER) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LOGICALORDER) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -985,7 +988,7 @@ end
       "404":
         description: Not possible to request the intent global path.
 """
-@post MINDF.HTTPMessages.URI_INTENTGLOBALPATH function (req; context)
+@post limited(MINDF.HTTPMessages.URI_INTENTGLOBALPATH) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INTENTGLOBALPATH) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -1030,7 +1033,7 @@ end
       "404":
         description: Not possible to request the electrical presence.
 """
-@post MINDF.HTTPMessages.URI_ELECTRICALPRESENCE function (req; context)
+@post limited(MINDF.HTTPMessages.URI_ELECTRICALPRESENCE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ELECTRICALPRESENCE) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -1075,7 +1078,7 @@ end
       "404":
         description: Not possible to request the light paths.
 """
-@post MINDF.HTTPMessages.URI_LIGHTPATHS function (req; context)
+@post limited(MINDF.HTTPMessages.URI_LIGHTPATHS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
     if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LIGHTPATHS) == false
         return HTTP.Response(403, "Forbidden. Invalid token")
@@ -1095,7 +1098,7 @@ end
 
 # TODO ma1069
 # Generating and integrating OpenAPI (Swagger) documentation the HTTP API endpoints:
-info = Dict("title" => "MINDFul Api", "version" => "1.0.0")
+info = Dict("title" => "MINDFul.jl HTTP-API endpoints", "version" => "1.0.0")
 openApi = OpenAPI("3.0", info)
 swaggerdocument = build(openApi)
 

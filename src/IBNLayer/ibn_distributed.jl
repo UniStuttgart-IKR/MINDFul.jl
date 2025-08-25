@@ -4,13 +4,15 @@ Function used to send a request to a remote IBNFramework handler.
 It also handles the initial authentication and sends the requests with the provided data.
 """
 @recvtime function sendrequest(ibnf::IBNFramework, remotehandler::RemoteHTTPHandler, endpoint::String, data::Dict)
-    if getibnfhandlerrecvtoken(remotehandler) == ""
-        encryptedsecret = rsaauthentication_init(ibnf, remotehandler)
-        token = handshake_init!(ibnf, remotehandler, encryptedsecret)
-    else
-        token = getibnfhandlerrecvtoken(remotehandler)
+    if endpoint != HTTPMessages.URI_RSAAUTHENTICATION && endpoint != HTTPMessages.URI_TOKENHANDSHAKE
+        if getibnfhandlerrecvtoken(remotehandler) == ""
+            encryptedsecret = rsaauthentication_init(ibnf, remotehandler)
+            token = handshake_init!(ibnf, remotehandler, encryptedsecret)
+        else
+            token = getibnfhandlerrecvtoken(remotehandler)
+        end
+        push!(data, HTTPMessages.KEY_TOKEN => token)
     end
-    push!(data, HTTPMessages.KEY_TOKEN => token)
 
     url = getbaseurl(remotehandler) * endpoint
 

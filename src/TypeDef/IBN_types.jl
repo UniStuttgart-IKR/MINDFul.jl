@@ -470,11 +470,11 @@ $(TYPEDSIGNATURES)
 
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool = false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler}
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, sdncontroller::S, ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool = false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler, S <: AbstractSDNController}
     ibnfid = AG.graph_attr(ibnag)
 
     ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
-    ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+    ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, sdncontroller)
 
     port = getibnfhandlerport(getibnfhandlers(ibnf)[1])
     push!(ibnfsdict, port => ibnf)
