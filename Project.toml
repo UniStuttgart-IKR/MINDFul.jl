@@ -28,8 +28,8 @@ UnitfulData = "479269fd-87c4-43d6-a395-02aad47d928b"
 
 [weakdeps]
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [extensions]
 TestModule = ["JET", "Test", "Random"]
@@ -45,7 +45,7 @@ Graphs = "1.13"
 HTTP = "1.10.17"
 IterTools = "1.4"
 JET = "0.9"
-JLD2 = "0.5.15"
+JLD2 = "0.5.15, 0.6"
 JSON = "0.21.4"
 MbedTLS = "1.1.9"
 Oxygen = "1.7.2"
