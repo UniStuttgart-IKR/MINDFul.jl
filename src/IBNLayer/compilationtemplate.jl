@@ -111,7 +111,7 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     intent = getintent(idagnode)
     idag = getidag(ibnf)
 
-    # TODO : give some availability target 
+    # TODO : give some availability target  (could be iterative) : split availability proportionally per shortest path length
 
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), filter!(x ->!(x isa OpticalTerminateConstraint), getconstraints(intent)))
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
@@ -137,7 +137,7 @@ $(TYPEDSIGNATURES)
     intent = getintent(idagnode)
     returncode::Symbol = ReturnCodes.FAIL
 
-    # TODO : give some availability target 
+    # TODO : give some availability target (could be iterative) : split availability based on availability estimation from mediatorbordernode
 
     internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint(getdestinationnode(intent))))
 
@@ -974,7 +974,6 @@ end
 $(TYPEDSIGNATURES)
 """
 function choosespectrum_firstfit(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, path::Vector{LocalNode}, demandslotsneeded::Int)
-    # TODO : NOW, considered staged constraints
     pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
     return firstfit(pathspectrumavailability, demandslotsneeded)
 end

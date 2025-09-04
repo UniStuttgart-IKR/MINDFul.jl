@@ -664,7 +664,6 @@ Set the link state on both OXCView ends of `edge`
             end
         end
     end
-    # TODO tomorrow : check intents failing before and after and trigger reinstallation ?
     
     return ReturnCodes.SUCCESS
 end

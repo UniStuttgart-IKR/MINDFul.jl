@@ -1096,7 +1096,6 @@ end
 end
 
 
-# TODO ma1069
 # Generating and integrating OpenAPI (Swagger) documentation the HTTP API endpoints:
 info = Dict("title" => "MINDFul.jl HTTP-API endpoints", "version" => "1.0.0")
 openApi = OpenAPI("3.0", info)

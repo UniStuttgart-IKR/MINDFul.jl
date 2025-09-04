@@ -370,7 +370,6 @@ $(TYPEDSIGNATURES)
     localnodedst = something(getlocalnode(myibnag, dst(ge)))
     le = Edge(localnodesrc, localnodedst)
 
-    # TODO tomorrow : check intents failing before and after and trigger reinstallation ?
     idagnodeids = getidagnodeid.(getnetworkoperatoridagnodes(getidag(myibnf)))
     rootintentstatesbefore = getidagnodestate.(getnetworkoperatoridagnodes(getidag(myibnf)))
 
