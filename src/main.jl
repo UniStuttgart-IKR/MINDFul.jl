@@ -184,7 +184,7 @@ function main()
     ibnf = nothing
     for name_graph in domains_name_graph
         ag = name_graph[2]
-        ibnag = default_IBNAttributeGraph(ag)
+        ibnag = default_IBNAttributeGraph(ag, 10, 10)
         if getibnfid(ibnag) == UUID(localid)
             ibnf = IBNFramework(ibnag, hdlr, encryption, neighbourips, SDNdummy(), ibnfsdict; verbose)
             break

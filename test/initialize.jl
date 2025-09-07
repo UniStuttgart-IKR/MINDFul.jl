@@ -34,7 +34,7 @@ function loadmultidomaintestibnfs(offsettime=now())
     ibnfs = [
         let
                 ag = name_graph[2]
-                ibnag = MINDF.default_IBNAttributeGraph(ag; offsettime)
+                ibnag = MINDF.default_IBNAttributeGraph(ag, 10, 10; offsettime)
                 ibnf = IBNFramework(ibnag)
         end for name_graph in domains_name_graph
     ]
@@ -98,7 +98,7 @@ function loadmultidomaintestidistributedbnfs()
             end
 
                 ag = name_graph[2]
-                ibnag = MINDF.default_IBNAttributeGraph(ag)
+                ibnag = MINDF.default_IBNAttributeGraph(ag, 10, 10)
                 ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
     ]
@@ -153,7 +153,7 @@ function loadpermissionedbnfs()
             end
 
                 ag = name_graph[2]
-                ibnag = MINDF.default_IBNAttributeGraph(ag)
+                ibnag = MINDF.default_IBNAttributeGraph(ag, 10, 10)
                 ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
     ]

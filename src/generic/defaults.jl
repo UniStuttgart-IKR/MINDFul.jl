@@ -28,10 +28,10 @@ function default_dummyflexiblepluggable()
     )
 end
 
-function default_transmissionmodules()
+function default_transmissionmodules(transpondernumber::Int=10, pluggablenumber::Int=10)
     return [
-        fill(default_dummyflexibletransponder(), 25)...,
-        fill(default_dummyflexiblepluggable(), 25)...,
+        fill(default_dummyflexibletransponder(), transpondernumber)...,
+        fill(default_dummyflexiblepluggable(), pluggablenumber)...,
     ]
 end
 
@@ -74,10 +74,10 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int, off
     return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), Set{OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities, linkstates)
 end
 
-function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, isexternal::Bool, offsettime = now())
+function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int=10, pluggablenumber::Int=10; spectrumslots::Int, isexternal::Bool, offsettime = now())
     rv = default_routerview()
     ov = default_OXCview(nodeproperties, spectrumslots, offsettime)
-    tms = default_transmissionmodules()
+    tms = default_transmissionmodules(transpondernumber, pluggablenumber)
     if isexternal
         return NodeView{typeof(rv), typeof(ov), eltype(tms)}(nodeproperties, nothing, nothing, nothing, nothing, nothing)
     else
@@ -85,7 +85,7 @@ function default_nodeview(nodeproperties::NodeProperties; spectrumslots::Int, is
     end
 end
 
-function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}}; offsettime=now())
+function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}}, transpondernumber::Int=10, pluggablenumber::Int=10; offsettime=now())
     spectrumslots = AG.graph_attr(ag)[:spectrumslots]
     ibnfid = AG.graph_attr(ag)[:ibnfid]
     extrafielddicts = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
@@ -93,7 +93,7 @@ function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int
     nodeviews = [
         let
                 isexternal = va[:globalnode_ibnfid] != ibnfid
-                default_nodeview(constructfromdict(NodeProperties, va, extrafielddict); spectrumslots, isexternal, offsettime)
+                default_nodeview(constructfromdict(NodeProperties, va, extrafielddict), transpondernumber, pluggablenumber; spectrumslots, isexternal, offsettime)
         end for (va, extrafielddict) in zip(AG.vertex_attr(ag), extrafielddicts)
     ]
     edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k, v) in edge_attr(ag))

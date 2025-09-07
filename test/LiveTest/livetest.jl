@@ -16,7 +16,7 @@ domains_name_graph = first(JLD2.load(TESTDIR * "/data/itz_IowaStatewideFiberMap-
 ibnfs = [
     let
             ag = name_graph[2]
-            ibnag = MINDF.default_IBNAttributeGraph(ag)
+            ibnag = MINDF.default_IBNAttributeGraph(ag, 10, 10)
             ibnf = IBNFramework(ibnag)
     end for name_graph in domains_name_graph
 ]

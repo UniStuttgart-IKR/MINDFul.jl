@@ -17,7 +17,7 @@ domains_name_graph = first(JLD2.load("../data/itz_IowaStatewideFiberMap-itz_Miss
 
 ag1 = first(domains_name_graph)[2]
 
-ibnag1 = MINDF.default_IBNAttributeGraph(ag1)
+ibnag1 = MINDF.default_IBNAttributeGraph(ag1, 10, 10)
 
 ibnf1 = MINDF.IBNFramework(ibnag1)
 
