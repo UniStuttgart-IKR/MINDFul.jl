@@ -191,7 +191,9 @@ function main()
         end
     end
 
-    return if ibnf === nothing
+    if ibnf === nothing
         error("No matching ibnf found for ibnfid $localid")
+    else
+        return ibnf
     end
 end
