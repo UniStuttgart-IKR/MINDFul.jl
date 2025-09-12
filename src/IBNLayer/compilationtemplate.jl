@@ -62,7 +62,7 @@ prioritizesplitbordernodes(
         if isinternalorborderintent(ibnf, getintent(idagnode); noremoteintent = true)
             # intra-domain
             returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
-            # TODO  expect also an availability fail error here
+            # TODO:  expect also an availability fail error here
             if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
                 verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
                 # get a node in between the shortest paths
@@ -79,7 +79,9 @@ prioritizesplitbordernodes(
             updateidagnodestates!(ibnf, idagnode; @passtime)
         elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
             # source intra-domain , destination cross-domain
-            # TODO availability split logic based on estimations
+            # TODO: availability split logic based on estimations
+            # what's the availability estimation from border 
+
             # border-node
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
@@ -112,6 +114,15 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     idag = getidag(ibnf)
 
     # TODO : give some availability target  (could be iterative) : split availability proportionally per shortest path length
+    
+    masteravcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(intent))
+    ## estimate sourceglobalonode --> splitglobalnode availability
+    # if !isnothing(masteravcon)
+    #     firsthalfe2eavailability = estimateend2endavailability(ibnf, sourceglobalnode, splitglobalnode, intentcompilationalgorithm)
+    #     secondhalfe2eavailability = estimateend2endavailability(ibnf, splitglobalnode, destinationglobalnode, intentcompilationalgorithm)
+    #     firstavacon = calculatefirstavailabilityconstrain(ibnf, masteravcon, firsthalfe2eavailability, secondhalfe2eavailability, intentcompilationalgorithm)
+    #
+    # end
 
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), filter!(x ->!(x isa OpticalTerminateConstraint), getconstraints(intent)))
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
@@ -120,6 +131,13 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     issuccess(returncode) || return returncode
 
     # TODO : revise and calculate rest of availability
+
+    # if !isnothing(masteravcon)
+    #     firsthalfpathavailability = estimatepathavailability(ibnf, getidagnodeid(firsthalfidagnode), intentcompilationalgorithm)
+    #     secondhalfavailabilityrequirement = getavailabilityrequirement(masteravcon) / firsthalfavailability
+    #     avcon2 = AvailabilityConstraint(secondhalfavailabilityrequirement, getcompliancetarget(masteravcon))
+    #     firstavacon = calculatesecondavailabilityconstraint(ibnf, masteravcon, firsthalfpathavailability, intentcompilationalgorithm)
+    # end
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
     secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)

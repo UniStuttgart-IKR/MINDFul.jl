@@ -222,6 +222,8 @@ function iszeroornothing(s)
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Get uptime and downtime periods from link states.
 Return a tuple with the first element being the uptimes in Milliseconds and the second the downtimes in Milliseconds.
 If endtime is different that the one in list, pass it.
@@ -231,20 +233,130 @@ function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
 	downtimes = empty(uptimes)
 	for (prev,now) in zip(ls[1:end-1], ls[2:end])
 		dt = now[1] - prev[1]
-		if prev[2] == true
+        # if prev[2] == true || prev[2] == IntentState.Installed
+        if prev[2] !== now[2] && prev[2] == gettruesingleton(T)
 			push!(uptimes, dt)
-		elseif prev[2] == false
+		elseif prev[2] !== now[2] && prev[2] == getfalsesingleton(T)
 			push!(downtimes, dt)
 		end
 	end
     # TODO double code
     if !isnothing(endtime)
         dt = endtime - ls[end][1]
-        if ls[end][2] == true 
-			push!(uptimes, dt)
-		elseif ls[end][2] == false
-			push!(downtimes, dt)
-		end
+        if !iszero(dt)
+            if ls[end][2] == gettruesingleton(T)
+                push!(uptimes, dt)
+            elseif ls[end][2] == getfalsesingleton(T)
+                push!(downtimes, dt)
+            end
+        end
     end
     return UpDownTimes(uptimes, downtimes )
+end
+
+function gettruesingleton(::Type{Bool})
+    return true
+end
+function getfalsesingleton(::Type{Bool})
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Incremeantaly update `updowntimesndatetime` given the new `ls`
+"""
+function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
+    laststateindex = findfirst(lg -> lg[1] > getdatetime(updowntimesndatetime), ls)
+
+    uptimes = getuptimes(updowntimesndatetime)
+    downtimes = getdowntimes(updowntimesndatetime)
+    
+    if isnothing(laststateindex)
+        if isnothing(endtime)
+            return updowntimesndatetime
+        else
+            # increase the last uptime or downtime
+            previoustimestate = ls[end]
+            newstate = getdatetime(updowntimesndatetime) == previoustimestate[1] 
+            previoustime = getdatetime(updowntimesndatetime) > previoustimestate[1] ? getdatetime(updowntimesndatetime) : previoustimestate[1]
+            dt = endtime - previoustime
+            if !iszero(dt)
+                if previoustimestate[2] == gettruesingleton(T)
+                    if length(uptimes) > 0
+                        if newstate
+                            push!(uptimes, endtime - previoustime)
+                        else
+                            uptimes[end] += endtime - previoustime
+                        end
+                    else
+                        push!(uptimes, endtime - previoustime)
+                    end
+                    setdatetime!(updowntimesndatetime, endtime)
+                elseif previoustimestate[2] == getfalsesingleton(T)
+                    if length(downtimes) > 0
+                        if newstate
+                            push!(downtimes, endtime - previoustime)
+                        else
+                            downtimes[end] += endtime - previoustime
+                        end
+                    else
+                        push!(downtimes, endtime - previoustime)
+                    end
+                    setdatetime!(updowntimesndatetime, endtime)
+                end
+            end
+        end
+    else
+        for (prev,now) in zip(ls[laststateindex-1:end-1], ls[laststateindex:end])
+            dt = now[1] - prev[1]
+            if prev[2] !== now[2] && prev[2] == gettruesingleton(T)
+                push!(uptimes, dt)
+                setdatetime!(uptimes, now[1])
+            elseif prev[2] !== now[2] && prev[2] == getfalsesingleton(T)
+                push!(downtimes, dt)
+                setdatetime!(uptimes, now[1])
+            end
+        end
+
+        # TODO double code
+        if !isnothing(endtime)
+            dt = endtime - ls[end][1]
+            if !iszero(dt)
+                if ls[end][2] == gettruesingleton(T)
+                    push!(uptimes, dt)
+                    setdatetime!(updowntimesndatetime, endtime)
+                elseif ls[end][2] == getfalsesingleton(T)
+                    push!(downtimes, dt)
+                    setdatetime!(updowntimesndatetime, endtime)
+                end
+            end
+        end
+    end
+    return updowntimesndatetime
+end
+
+
+function millisecondtohour(ms::Number)
+    return ms / 1_000 / 60 / 60
+end
+
+function millisecondtohour(ms::Dates.Millisecond)
+    return ms.value / 1_000 / 60 / 60
+end
+
+function millisecondtoday(ms::Number)
+    return ms / 1_000 / 60 / 60 / 24
+end
+
+function millisecondtoday(ms::Dates.Millisecond)
+    return ms.value / 1_000 / 60 / 60 / 24
+end
+
+function millisecondtomonth(ms::Number)
+    return ms / 1_000 / 60 / 60 / 24 / 30
+end
+
+function millisecondtomonth(ms::Dates.Millisecond)
+    return ms.value / 1_000 / 60 / 60 / 24 / 30
 end

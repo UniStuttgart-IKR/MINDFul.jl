@@ -14,6 +14,7 @@ include("testsuite/rsaauthentication.jl")
 
 include("testsuite/singledomainavailabilityprotection.jl")
 include("testsuite/singledomainavailabilityprotection_grooming.jl")
-# run testsuite/manyrandomprotectedintents.jl
+
+# include("testsuite/logintraintertest.jl")
 
 nothing

@@ -30,9 +30,9 @@ public getsdncontroller, getibnag, getibnfid, getidag, getibnfhandlers, getibnfh
 
 
 include("TypeDef/ReturnCodes.jl")
+include("TypeDef/TypeDef.jl")
 include("generic/utils.jl")
 include("generic/macromagic.jl")
-include("TypeDef/TypeDef.jl")
 include("generic/io.jl")
 include("generic/getset.jl")
 include("PhyLayer/PhyLayer.jl")

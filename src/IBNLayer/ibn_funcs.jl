@@ -236,7 +236,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
+@recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID, intentcompilation::Union{Nothing, <:IntentCompilationAlgorithm}=nothing; verbose::Bool = false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Compiled, IntentState.Installing, IntentState.Failed])
     startingstate = getidagnodestate(getidag(ibnf), idagnodeid) 
     # unblock from the Compiled state. needed due to grooming which locks parents intents from getting installed if all LLIs are installed.
@@ -244,25 +244,33 @@ $(TYPEDSIGNATURES)
     @returniffalse(verbose, !isempty(idagnodeleafs))
 
     startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose)
-    updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime)
+    updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime, intentcompilation)
     # run once to sync with idag
     foreach(idagnodeleafs) do idagnodeleaf
         if getidagnodestate(idagnodeleaf) == IntentState.Installing # || (startingstate == IntentState.Failed && getidagnodestate(idagnodeleaf) == IntentState.Compiled)
-            reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime)
+            reserveunreserveleafintents!(ibnf, idagnodeleaf, true; verbose, @passtime, intentcompilation)
         end
     end
 
     for idagnodex in getidagnodedescendants(getidag(ibnf), idagnodeid; includeroot = true)
         if getidagnodestate(idagnodex) == IntentState.Installing
             if getintent(idagnodex) isa LowLevelIntent
-                updateidagstates!(ibnf, getidagnodeid(idagnodex), IntentState.Compiled; @passtime)
+                updateidagstates!(ibnf, getidagnodeid(idagnodex), IntentState.Compiled; @passtime, intentcompilation)
             else
-                updateidagstates!(ibnf, getidagnodeid(idagnodex); @passtime)
+                updateidagstates!(ibnf, getidagnodeid(idagnodex); @passtime, intentcompilation)
             end
         end
     end
 
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
+        if !isnothing(intentcompilation)
+            idagnode = getidagnode(getidag(ibnf), idagnodeid) 
+            intent = getintent(idagnode)
+            if intent isa ConnectivityIntent
+                setdatetime!(intentcompilation, @logtime)
+                logintrapathsandinterintents!(ibnf, idagnode, intentcompilation)
+            end
+        end
         return ReturnCodes.SUCCESS
     else
         return ReturnCodes.FAIL
@@ -299,7 +307,7 @@ $(TYPEDSIGNATURES)
 
 to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
 """
-@recvtime function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool = false)
+@recvtime function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool = false,  intentcompilation::Union{Nothing, <:IntentCompilationAlgorithm}=nothing)
     leafintent = getintent(idagnodeleaf)
     leafid = getidagnodeid(idagnodeleaf)
     if leafintent isa LowLevelIntent
@@ -356,7 +364,7 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
     end
     # call updateidagstates
     return any(getidagnodeparents(getidag(ibnf), idagnodeleaf)) do idagnodeparent
-        updateidagnodestates!(ibnf, idagnodeparent; @passtime)
+        updateidagnodestates!(ibnf, idagnodeparent; @passtime, intentcompilation)
     end
 end
 
@@ -1316,4 +1324,8 @@ function _leafs_recu2install!(vidns::Vector{IntentDAGNode}, ibnf::IBNFramework, 
         any(x -> x === idn, vidns) || push!(vidns, idn)
     end
     return false
+end
+
+function getlateststateloggeddatetime(idagnode::IntentDAGNode)
+    return getlogstate(idagnode)[end][1]
 end

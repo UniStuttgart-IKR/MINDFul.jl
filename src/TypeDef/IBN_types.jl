@@ -12,6 +12,13 @@ Another intent state schema could be defined.
     Failed
 end
 
+function gettruesingleton(::Type{IntentState.T})
+    return IntentState.Installed
+end
+function getfalsesingleton(::Type{IntentState.T})
+    return IntentState.Failed
+end
+
 "Special requirements for an intent (such as QoS)"
 abstract type AbstractIntentConstraint end
 

@@ -50,23 +50,47 @@ function construct_BoolLogState(offsettime=now(), initialstate = true)
     return [(offsettime, initialstate)]
 end
 
-struct UpDownTimes
+abstract type AbstractUpDownTimes end
+
+struct UpDownTimes <: AbstractUpDownTimes 
     uptimes::Vector{Dates.Millisecond}
     downtimes::Vector{Dates.Millisecond}
 end
 
-function getuptimes(updt::UpDownTimes) 
+function getuptimes(updt::AbstractUpDownTimes) 
     return updt.uptimes
 end
 
-function getuptimestohours(updt::UpDownTimes)
-    return getuptimes(updt).value ./ 1000 ./ 60
+function getuptimeshour(updt::AbstractUpDownTimes) 
+    return millisecondtohour.(updt.uptimes)
 end
 
-function getdowntimes(updt::UpDownTimes) 
+function getuptimesmonth(updt::AbstractUpDownTimes) 
+    return millisecondtomonth.(updt.uptimes)
+end
+
+function getdowntimes(updt::AbstractUpDownTimes) 
     return updt.downtimes
 end
 
-function getdowntimestohours(updt::UpDownTimes)
-    return getdowntimes(updt).value ./ 1000 ./ 60
+function getdowntimeshour(updt::AbstractUpDownTimes) 
+    return millisecondtohour.(updt.downtimes)
+end
+
+function getdowntimesmonth(updt::AbstractUpDownTimes) 
+    return millisecondtomonth.(updt.downtimes)
+end
+
+mutable struct UpDownTimesNDatetime <: AbstractUpDownTimes 
+    uptimes::Vector{Dates.Millisecond}
+    downtimes::Vector{Dates.Millisecond}
+    datetime::DateTime
+end
+
+function getdatetime(uptnd::UpDownTimesNDatetime)
+    return uptnd.datetime
+end
+
+function setdatetime!(uptnd::UpDownTimesNDatetime, datetime::DateTime)
+    uptnd.datetime = datetime
 end
