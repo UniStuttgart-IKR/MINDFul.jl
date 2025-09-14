@@ -50,18 +50,23 @@ prioritizesplitbordernodes(
         prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom
     ) where {F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function}
+    # TODO : accelerate : cache candidate paths ?
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
+
+    cachedintentresult = Dict{ConnectivityIntent, Symbol}()
 
     returncode::Symbol = ReturnCodes.FAIL
     verbose && @info("Compiling intent ", getidagnodeid(idagnode), getintent(idagnode))
 
     if !issuccess(returncode)
         # if didn't groom
-        # if getibnfid(ibnf) == getibnfid(sourceglobalnode) == getibnfid(destinationglobalnode)
         if isinternalorborderintent(ibnf, getintent(idagnode); noremoteintent = true)
             # intra-domain
-            returncode = intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm; verbose, @passtime)
+            returncode = haskey(cachedintentresult, getintent(idagnode)) ? cachedintentresult[getintent(idagnode)] : intradomainalgfun(ibnf, idagnode, intentcompilationalgorithm, cachedintentresult; verbose, @passtime)
+            if !haskey(cachedintentresult, getintent(idagnode)) 
+                cachedintentresult[getintent(idagnode)] = returncode
+            end
             # TODO:  expect also an availability fail error here
             if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_OPTICALREACH
                 verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent in two...")
@@ -72,7 +77,7 @@ prioritizesplitbordernodes(
                 for splitglobalnode in candidatesplitglobalnodes
                     @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
                     verbose && @info("Attenmpting splitting intent at GlobalNode", splitglobalnode)
-                    returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode; verbose, @passtime)
+                    returncode = splitandcompileintradomainconnecivityintent!(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, splitglobalnode,cachedintentresult ; verbose, @passtime)
                     issuccess(returncode) && break
                 end
             end
@@ -85,7 +90,7 @@ prioritizesplitbordernodes(
             # border-node
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
-                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode; verbose, @passtime)
+                returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalnode, cachedintentresult; verbose, @passtime)
             else
                 # select border node
                 candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode, intentcompilationalgorithm)
@@ -93,7 +98,7 @@ prioritizesplitbordernodes(
                 for destinationglobalbordernode in candidatedestinationglobalbordernodes
                     uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
                     verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
-                    returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode; verbose, @passtime)
+                    returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intentcompilationalgorithm, intradomainalgfun, externaldomainalgkeyword, destinationglobalbordernode, cachedintentresult; verbose, @passtime)
                     issuccess(returncode) && break
                 end
             end
@@ -107,7 +112,7 @@ $(TYPEDSIGNATURES)
 
 Splits connectivity intent on `splitglobalnode` with O-E-O conversion
 """
-@recvtime function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, splitglobalnode::GlobalNode; verbose::Bool = false) where {F <: Function}
+@recvtime function splitandcompileintradomainconnecivityintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, splitglobalnode::GlobalNode, cachedintentresult::Dict{ConnectivityIntent, Symbol}; verbose::Bool = false) where {F <: Function}
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
     intent = getintent(idagnode)
@@ -126,7 +131,10 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
 
     firsthalfintent = ConnectivityIntent(sourceglobalnode, splitglobalnode, getrate(intent), filter!(x ->!(x isa OpticalTerminateConstraint), getconstraints(intent)))
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm; verbose, @passtime)
+    returncode = haskey(cachedintentresult, firsthalfintent) ? cachedintentresult[firsthalfintent] : intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm, cachedintentresult; verbose, @passtime)
+    if !haskey(cachedintentresult, firsthalfintent) 
+        cachedintentresult[firsthalfintent] = returncode
+    end
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
@@ -141,7 +149,10 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
 
     secondhalfintent = ConnectivityIntent(splitglobalnode, destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
     secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm; verbose, @passtime)
+    returncode = haskey(cachedintentresult, secondhalfintent) ? cachedintentresult[secondhalfintent] : intradomainalgfun(ibnf, secondhalfidagnode, intentcompilationalgorithm, cachedintentresult; verbose, @passtime)
+    if !haskey(cachedintentresult, secondhalfintent) 
+        cachedintentresult[secondhalfintent] = returncode
+    end
     updateidagnodestates!(ibnf, secondhalfidagnode; @passtime)
     return returncode
 end
@@ -150,7 +161,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function splitandcompilecrossdomainconnectivityintent(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, externaldomainalgkeyword::Symbol, mediatorbordernode::GlobalNode; verbose::Bool = false) where {F <: Function}
+@recvtime function splitandcompilecrossdomainconnectivityintent(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, externaldomainalgkeyword::Symbol, mediatorbordernode::GlobalNode, cachedintentresult::Dict{ConnectivityIntent, Symbol}; verbose::Bool = false) where {F <: Function}
     idag = getidag(ibnf)
     intent = getintent(idagnode)
     returncode::Symbol = ReturnCodes.FAIL
@@ -160,7 +171,10 @@ $(TYPEDSIGNATURES)
     internalintent = ConnectivityIntent(getsourcenode(intent), mediatorbordernode, getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint(getdestinationnode(intent))))
 
     internalidagnode = addidagnode!(ibnf, internalintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-    returncode = intradomainalgfun(ibnf, internalidagnode, intentcompilationalgorithm; verbose, @passtime)
+    returncode = haskey(cachedintentresult, internalintent) ? cachedintentresult[internalintent] : intradomainalgfun(ibnf, internalidagnode, intentcompilationalgorithm, cachedintentresult; verbose, @passtime)
+    if !haskey(cachedintentresult, internalintent) 
+        cachedintentresult[internalintent] = returncode
+    end
     updateidagnodestates!(ibnf, internalidagnode; @passtime)
 
     issuccess(returncode) || return returncode
@@ -397,7 +411,7 @@ chooseoxcadddropport(
         chooseoxcadddropport = chooseoxcadddropport_first,
     )
 
-    return @recvtime function (ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm; verbose::Bool = false)
+    return @recvtime function (ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm, cachedintentresult::Dict{ConnectivityIntent, Symbol}; verbose::Bool = false)
         # needed variables
         ibnag = getibnag(ibnf)
         idag = getidag(ibnf)
@@ -415,6 +429,7 @@ chooseoxcadddropport(
         verbose && @info("Compiling intradomain intent ", getidagnodeid(idagnode), getintent(idagnode))
         returncode::Symbol = ReturnCodes.FAIL
         candidatepaths = prioritizepaths(ibnf, idagnode, intentcompilationalgorithm)
+        verbose && @info("Calculated candidatepaths $(candidatepaths)")
 
         lowlevelintentstoadd = LowLevelIntent[]
         prsrcallocations = [MutableEndNodeAllocations()]
@@ -519,7 +534,7 @@ chooseoxcadddropport(
             returncode = ReturnCodes.FAIL_SRCROUTERPORT
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, intentcompilationalgorithm, sourcelocalnode)
 
-            groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm; candidatepaths)
+            groomingpossibilities = prioritizegrooming(ibnf, idagnode, intentcompilationalgorithm; candidatepaths=candidatepaths)
             groomingpossibilitiesidxs = collect(eachindex(groomingpossibilities))
             shortestpathdists = Graphs.johnson_shortest_paths(getibnag(ibnf)).dists
 
@@ -566,10 +581,12 @@ chooseoxcadddropport(
                         if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
                             usedgrooming = true
                             for (groomingpossibilityidxidx, groomingpossibilityidx) in enumerate(groomingpossibilitiesidxs)
+
+                                verbose && @info("Try grooming possibility $(groomingpossibilityidx)/$(length(groomingpossibilitiesidxs))")
                                 groomingpossibility = groomingpossibilities[groomingpossibilityidx]
                                 # if protection indented only do grooming if it exactly matches the path ! ! !
                                 if choosegroominornot(ibnf, protectedpaths, pi, shortestpathdists, groomingpossibility, intentcompilationalgorithm) # do grooming
-                                    returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#"; verbose, @passtime)
+                                    returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#", cachedintentresult; verbose, @passtime)
                                     if issuccess(returncode)
                                         deleteat!(groomingpossibilitiesidxs, groomingpossibilityidxidx)
                                         break
@@ -641,13 +658,15 @@ chooseoxcadddropport(
                 end
                 issuccess(returncode) && break
             end
+
             if !issuccess(returncode)
                 # try out all grooming options as last chance
                 usedgrooming = true
                 if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
                     for groomingpossibilityidx in groomingpossibilitiesidxs
+                        verbose && @info("Try last resort grooming possibility $(groomingpossibilityidx)/$(length(groomingpossibilitiesidxs))")
                         groomingpossibility = groomingpossibilities[groomingpossibilityidx]
-                        returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#"; verbose, @passtime)
+                        returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, intentcompilationalgorithm, var"#self#", cachedintentresult; verbose, @passtime)
                         if issuccess(returncode)
                             break
                         end
@@ -665,6 +684,7 @@ chooseoxcadddropport(
             returncode = compileintent!(ibnf, plpidagnode, intentcompilationalgorithm; verbose, @passtime)
         end
 
+        verbose && @info("About to return $(returncode)")
         return returncode
     end
 end
@@ -674,7 +694,8 @@ $(TYPEDSIGNATURES)
 
 Returns ReturnCode on whether it managed to compile the grooming possibility passed.
 """
-@recvtime function compilegroomingpossibility(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, groomingpossibility::Vector{Union{Edge{Int}, UUID}}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F; verbose::Bool = false) where {F <: Function}
+@recvtime function compilegroomingpossibility(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, groomingpossibility::Vector{Union{Edge{Int}, UUID}}, intentcompilationalgorithm::IntentCompilationAlgorithm, intradomainalgfun::F, cachedintentresult::Dict{ConnectivityIntent, Symbol}; verbose::Bool = false) where {F <: Function}
+    verbose && @info("Investigating grooming possibility", groomingpossibility)
     returncode = ReturnCodes.FAIL
     lplength = length(groomingpossibility)
     for (lpidx, lightpath) in enumerate(groomingpossibility)
@@ -692,9 +713,13 @@ Returns ReturnCode on whether it managed to compile the grooming possibility pas
             else
                 lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
             end
+            # TODO : check if already tried this intent
             lpidagnode = addidagnode!(ibnf, lpintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
             # var#self# is the non documented way to reference the self anonymous function
-            returncode = intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm; verbose, @passtime)
+            returncode = haskey(cachedintentresult, lpintent) ? cachedintentresult[lpintent] : intradomainalgfun(ibnf, lpidagnode, intentcompilationalgorithm, cachedintentresult; verbose, @passtime)
+            if !haskey(cachedintentresult, lpintent) 
+                cachedintentresult[lpintent] = returncode
+            end
             updateidagnodestates!(ibnf, lpidagnode; @passtime)
         elseif lightpath isa UUID
             addidagedge!(ibnf, getidagnodeid(idagnode), lightpath; @passtime)
@@ -875,7 +900,9 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
     end
 
     # these are already fail-free
-    candidatepaths = prioritizepaths_shortest(ibnf, idagnode, intentcompilationalgorithm)
+    if isempty(candidatepaths)
+        candidatepaths = prioritizepaths_shortest(ibnf, idagnode, intentcompilationalgorithm)
+    end
 
     # intentuuid => LightpathRepresentation
     installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))

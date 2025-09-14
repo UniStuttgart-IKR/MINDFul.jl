@@ -178,6 +178,14 @@ struct ConnectivityIntent{T <: AbstractIntentConstraint} <: AbstractIntent
     constraints::Vector{T}
 end
 
+function Base.hash(ci::ConnectivityIntent, h::UInt)
+    return hash(ci.sourcenode, hash(ci.destinationnode, hash(ci.rate, hash(ci.constraints, h))))
+end
+
+function Base.isequal(ci1::ConnectivityIntent, ci2::ConnectivityIntent)
+    return ci1.sourcenode == ci2.sourcenode && ci1.destinationnode == ci2.destinationnode && ci1.rate == ci2.rate && ci1.constraints == ci2.constraints
+end
+
 """
 $(TYPEDEF)
 

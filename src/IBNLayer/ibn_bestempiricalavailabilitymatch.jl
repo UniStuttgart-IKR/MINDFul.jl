@@ -34,18 +34,12 @@ mutable struct BestEmpiricalAvailabilityCompilation <: IntentCompilationAlgorith
     """
     logintrapaths::Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}
     """
-    The intents used to fill `logintetupdowntimes`, corresponds to a cross-domain `ConnectivityIntent` as keys.
-    Values are the last log state considered. if there are more, the `UpDownTimes` of `loginterupdowntimes` are updated.
-    """
-    # TODO : tomorrow: deleted: loginterintentsuuid::Vector{UUID}
-    """
     Log here the up/downtimes of border-node to cross node.
     Add new elements upon installation.
     Update entries upon compilation.
     All UUIDs correspond to Remote Connectivity intents
     """
     loginterupdowntimes::Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime}}
-    # TODO : tomorrow made UpdDownTimesNDatatime -> Dict
 end
 
 function BestEmpiricalAvailabilityCompilation(candidatepathsnum::Int, pathforprotectionnum::Int)
@@ -206,7 +200,6 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, beacomp::BestEmpiricalAvailabilityCompilation; verbose::Bool = false)
     setdatetime!(beacomp, @logtime)
-    # TODO : NOW: update loginterupdowntimes
     updateloginterintent!(ibnf, beacomp)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_bestempiricalavailability,

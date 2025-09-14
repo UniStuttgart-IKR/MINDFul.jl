@@ -1,3 +1,4 @@
+@testset ExtendedTestSet "logintraintertest.jl"  begin
 nowtime = starttime = DateTime("2026-01-01")
 ibnfs = loadmultidomaintestibnfs()
 
@@ -125,3 +126,4 @@ nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibn
 @test length(MINDF.getloginterupdowntimes(beacomp)[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))]) == 2
 remidagnode3 = getfirst(x -> getintent(x) isa RemoteIntent{<:ConnectivityIntent}, MINDF.getidagnodedescendants(MINDF.getidag(ibnfs[1]), intentuuid3))
 updowntimesndatetime3 = MINDF.getloginterupdowntimes(beacomp)[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode3)]
+end
