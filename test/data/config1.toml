@@ -3,7 +3,7 @@ encryption = true
 
 [local]
 ip = "127.0.0.1"
-port = 8081
+port = 8091
 ibnfid = 0x1
 rsaprivatekey = "rsa_priv1.pem"
 
@@ -13,12 +13,12 @@ rsaprivatekey = "rsa_priv1.pem"
 ip = "127.0.0.1"
 port = 8082
 ibnfid = 0x2
-permission = "limited"
+permission = "full"
 rsapublickey = "rsa_pub2.pem"
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
 port = 8083
 ibnfid = 0x3
-permission = "limited"
+permission = "full"
 rsapublickey = "rsa_pub3.pem"

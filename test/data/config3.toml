@@ -11,7 +11,7 @@ rsaprivatekey = "rsa_priv3.pem"
 
 [[remote.neighbours]]
 ip = "127.0.0.1"
-port = 8081
+port = 8091
 ibnfid = 0x1
 permission = "full"
 rsapublickey = "rsa_pub1.pem"

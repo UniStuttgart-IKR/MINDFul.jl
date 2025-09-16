@@ -10,3 +10,4 @@ Manifest.toml
 docs/build/
 *.cov
 MYREADME.md
+test/LiveTest_ma1069

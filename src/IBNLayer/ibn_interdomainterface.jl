@@ -24,6 +24,10 @@ function requestibnattributegraph_init(myibnf::IBNFramework, remoteibnfhandler::
     resp = sendrequest(myibnf, remoteibnfhandler, HTTPMessages.URI_IBNAGRAPH, Dict(HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid))
     if resp.status == 200
         return deserialize(IOBuffer(resp.body))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestibnattributegraph_init(myibnf, remoteibnfhandler)
     else
         error("Failed to get IBNAttributeGraph: $(resp.body)")
     end
@@ -72,6 +76,10 @@ function requestibnfhandlers_init(myibnf::IBNFramework, remoteibnfhandler::Remot
                 ) for d in JSON.parse(String(resp.body))
         ]
         return ibnfhandlers
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestibnfhandlers_init(myibnf, remoteibnfhandler)
     else
         error("Failed to get IBNFHandlers: $(JSON.parse(String(resp.body)))")
     end
@@ -108,6 +116,10 @@ function requestlogicallliorder_init(myibnf::IBNFramework, remoteibnfhandler::Re
         parsedjson = JSON.parse(String(resp.body))
         logicalorder = [deserializelowlevelintent(d) for d in parsedjson]
         return logicalorder
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestlogicallliorder_init(myibnf, remoteibnfhandler, intentuuid; onlyinstalled, verbose)
     else
         error("Failed to get logical low level intent sequence: $parsedjson")
     end
@@ -154,6 +166,10 @@ function requestintentglobalpath_init(myibnf::IBNFramework, remoteibnfhandler::R
         parsedjson = JSON.parse(String(resp.body))
         intentglobalpath = [GlobalNode(UUID(path[HTTPMessages.KEY_IBNFID]), path[HTTPMessages.KEY_LOCALNODE]) for path in parsedjson]
         return intentglobalpath
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestintentglobalpath_init(myibnf, remoteibnfhandler, intentuuid; onlyinstalled)
     else
         error("Failed to get intent global path: $parsedjson")
     end
@@ -194,6 +210,10 @@ function requestglobalnodeelectricalpresence_init(myibnf::IBNFramework, remoteib
         parsedjson = JSON.parse(String(resp.body))
         electricalpresence = [GlobalNode(UUID(path[HTTPMessages.KEY_IBNFID]), path[HTTPMessages.KEY_LOCALNODE]) for path in parsedjson]
         return electricalpresence
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestglobalnodeelectricalpresence_init(myibnf, remoteibnfhandler, intentuuid; onlyinstalled)
     else
         error("Failed to get global node electrical presence: $parsedjson")
     end
@@ -234,6 +254,10 @@ function requestintentgloballightpaths_init(myibnf::IBNFramework, remoteibnfhand
         parsedjson = JSON.parse(String(resp.body))
         lightpaths = [GlobalNode[GlobalNode(UUID(node[HTTPMessages.KEY_IBNFID]), node[HTTPMessages.KEY_LOCALNODE]) for node in path] for path in parsedjson]
         return lightpaths
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestintentgloballightpaths_init(myibnf, remoteibnfhandler, intentuuid; onlyinstalled)
     else
         error("Failed to get intent global light paths: $parsedjson")
     end
@@ -305,6 +329,10 @@ function requestlinkstates_init(myibnf::IBNFramework, remoteibnfhandler::RemoteH
         parsed = JSON.parse(String(resp.body))
         result = [(DateTime(item[HTTPMessages.KEY_LINKDATETIME]), Bool(item[HTTPMessages.KEY_LINKSTATE])) for item in parsed]
         return result
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestlinkstates_init(myibnf, remoteibnfhandler, ge)
     else
         error("Failed to set link state: $parsed")
     end
@@ -354,6 +382,10 @@ end
 
     if resp.status == 200
         return Symbol(JSON.parse(String(resp.body)))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestsetlinkstate_init!(myibnf, remoteibnfhandler, ge, operatingstate)
     else
         error("Failed to set link state: $(JSON.parse(String(resp.body)))")
     end
@@ -461,6 +493,10 @@ end
 
     if resp.status == 200
         return JSON.parse(String(resp.body))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestinstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
     else
         error("Failed to install intent: $(JSON.parse(String(resp.body)))")
     end
@@ -495,6 +531,10 @@ end
 
     if resp.status == 200
         return JSON.parse(String(resp.body))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestuninstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
     else
         error("Failed to uninstall intent: $(JSON.parse(String(resp.body)))")
     end
@@ -530,6 +570,10 @@ end
 
     if resp.status == 200
         return Symbol(returncompileinit)
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestuncompileintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
     else
         error("Failed to uncompile intent: $returncompileinit")
     end
@@ -582,6 +626,10 @@ end
 
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestremoteintentstateupdate_init!(myibnf, remoteibnfhandler, idagnodeid, newstate)
     else
         error("Failed to update remote intent state: $(JSON.parse(String(resp.body)))")
     end
@@ -621,6 +669,10 @@ function requestidag_init(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHan
     if resp.status == 200
         idag = deserialize(IOBuffer(resp.body))
         return idag
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestidag_init(myibnf, remoteibnfhandler)
     else
         error("Failed to get IBNAttributeGraph: $(JSON.parse(String(resp.body)))")
     end
@@ -644,6 +696,10 @@ function requestspectrumavailability_init!(myibnf::IBNFramework, remoteibnfhandl
 
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestspectrumavailability_init!(myibnf, remoteibnfhandler, ge)
     else
         error("Failed to request spectrum availability: $(JSON.parse(String(resp.body)))")
     end
@@ -693,6 +749,10 @@ Return the id of the new dag node if successful and `nothing` otherwise
     if resp.status == 200
         uuidreturned = JSON.parse(String(resp.body))
         return UUID(uuidreturned[HTTPMessages.KEY_VALUE])
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestdelegateintent_init!(myibnf, remoteibnfhandler, intent, internalidagnodeid)
     else
         error("Failed to delegate intent: $uuidreturned")
     end
@@ -716,6 +776,10 @@ function requestavailablecompilationalgorithms_init!(myibnf::IBNFramework, remot
 
     if resp.status == 200
         return JSON.parse(String(resp.body))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestavailablecompilationalgorithms_init!(myibnf, remoteibnfhandler)
     else
         error("Failed to get available compilation algorithms: $(JSON.parse(String(resp.body)))")
     end
@@ -747,6 +811,10 @@ MA1069 implementation
     if resp.status == 200
         returncompileinit = JSON.parse(String(resp.body))
         return Symbol(returncompileinit)
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestcompileintent_init!(myibnf, remoteibnfhandler, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; verbose)
     else
         error("Failed to compile intent: $returncompileinit")
     end
@@ -782,6 +850,10 @@ function requestissatisfied_init(myibnf::IBNFramework, remoteibnfhandler::Remote
         else
             return Symbol(issatisfied)
         end
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestissatisfied_init(myibnf, remoteibnfhandler, idagnodeid; onlyinstalled, noextrallis, choosealternativeorder)
     else
         error("Failed to check if intent is satisfied: $issatisfied")
     end
@@ -806,6 +878,10 @@ function requestcurrentlinkstate_init(myibnf::IBNFramework, remoteibnfhandler::R
 
     if resp.status == 200
         return Bool.(JSON.parse(String(resp.body)))
+    elseif resp.status == 202
+        encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
+        token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
+        requestcurrentlinkstate_init(myibnf, remoteibnfhandler, ge)
     else
         error("Failed to request current link state: $(JSON.parse(String(resp.body)))")
     end
