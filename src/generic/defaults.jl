@@ -28,7 +28,7 @@ function default_dummyflexiblepluggable()
     )
 end
 
-function default_transmissionmodules(transpondernumber::Int=10, pluggablenumber::Int=10)
+function default_transmissionmodules(transpondernumber::Int=25, pluggablenumber::Int=25)
     return [
         fill(default_dummyflexibletransponder(), transpondernumber)...,
         fill(default_dummyflexiblepluggable(), pluggablenumber)...,
@@ -74,7 +74,7 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int, off
     return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), Set{OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities, linkstates)
 end
 
-function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int=10, pluggablenumber::Int=10; spectrumslots::Int, isexternal::Bool, offsettime = now())
+function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int=25, pluggablenumber::Int=25; spectrumslots::Int, isexternal::Bool, offsettime = now())
     rv = default_routerview()
     ov = default_OXCview(nodeproperties, spectrumslots, offsettime)
     tms = default_transmissionmodules(transpondernumber, pluggablenumber)
@@ -85,7 +85,7 @@ function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int
     end
 end
 
-function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}}, transpondernumber::Int=10, pluggablenumber::Int=10; offsettime=now())
+function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}}, transpondernumber::Int=25, pluggablenumber::Int=25; offsettime=now())
     spectrumslots = AG.graph_attr(ag)[:spectrumslots]
     ibnfid = AG.graph_attr(ag)[:ibnfid]
     extrafielddicts = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]

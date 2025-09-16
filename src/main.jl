@@ -130,14 +130,11 @@ and start the HTTP server that enables communication between domains.
 The path can be absolute or relative to the current working directory.
 The paths of the files referenced in the configuration file can be absolute or relative to the directory of the configuration file.
 """
-function main()
+function main(; configfile="test/data/config1.toml")
     verbose = false
     MAINDIR = pwd()
-    if length(ARGS) < 1
-        error("Usage: julia MINDFul.main() <configX.toml>")
-    end
 
-    configpath = ARGS[1]
+    configpath = configfile
     finalconfigpath = checkfilepath(MAINDIR, configpath)
     CONFIGDIR = dirname(finalconfigpath)
     config = TOML.parsefile(finalconfigpath)
