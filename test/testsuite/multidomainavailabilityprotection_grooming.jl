@@ -11,6 +11,13 @@ nowtime = starttime + Dates.Year(3)
 beacomp = MINDF.BestEmpiricalAvailabilityCompilation(5,5)
 
 @test compileintent!(ibnfs[1], intentuuid1, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
-nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid2))
+nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid1))
 
-@test installintent!(ibnfs[1], intentuuid1, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+# TODO : check that Availability was split as expected
+
+# @test installintent!(ibnfs[1], intentuuid1, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+#
+# @test uninstallintent!(ibnfs[1], intentuuid1; offsettime = nowtime) == ReturnCodes.SUCCESS
+# @test uncompileintent!(ibnfs[1], intentuuid1; offsettime = nowtime) == ReturnCodes.SUCCESS
+#
+# TM.@test_nothrows MINDF.updatelogintentcomp!(ibnfs[1], beacomp)

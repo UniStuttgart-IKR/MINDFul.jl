@@ -659,3 +659,31 @@ $(TYPEDSIGNATURES)
 function getcompliancetarget(ac::AvailabilityConstraint)
     return ac.compliancetarget
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getavailabilityrequirement(ac::MutableAvailabilityConstraint)
+    return ac.availabilityrequirement
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getcompliancetarget(ac::MutableAvailabilityConstraint)
+    return ac.compliancetarget
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setavailabilityrequirement!(mav::MutableAvailabilityConstraint, newval::Float64)
+    mav.availabilityrequirement = newval
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setcompliancetarget!(mav::MutableAvailabilityConstraint, newval::Float64)
+    mav.compliancetarget = newval
+end

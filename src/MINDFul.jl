@@ -15,6 +15,9 @@ import Printf: @sprintf
 import AttributeGraphs as AG
 import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 
+# TODO : put it in Companion ?
+import Distributions: DiscreteNonParametric, cquantile
+
 # @template (FUNCTIONS, METHODS, MACROS) = """
 #                                          $(DOCSTRING)
 

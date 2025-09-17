@@ -106,12 +106,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function updateloginterintent!(ibnf::IBNFramework, intentcomp::IntentCompilationAlgorithm)
+@recvtime function updatelogintentcomp!(ibnf::IBNFramework, intentcomp::BestEmpiricalAvailabilityCompilation)
+    setdatetime!(intentcomp, @logtime)
     currentdatetime = getdatetime(intentcomp)
     for dictuuidupdowndatetime in values(getloginterupdowntimes(intentcomp))
         for (intentuuid, updownndatetime) in dictuuidupdowndatetime
-            logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
-            getupdowntimes!(updownndatetime, logstates, currentdatetime)
+            if intentuuid in getidagnodeid.(getidagnodes(getidag(ibnf)))
+                logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
+                getupdowntimes!(updownndatetime, logstates, currentdatetime)
+            end
         end
     end
 end
@@ -200,7 +203,6 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, beacomp::BestEmpiricalAvailabilityCompilation; verbose::Bool = false)
     setdatetime!(beacomp, @logtime)
-    updateloginterintent!(ibnf, beacomp)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_bestempiricalavailability,
         prioritizegrooming = prioritizegrooming_exactly,
@@ -228,6 +230,7 @@ $(TYPEDSIGNATURES)
 Return a `Vector{Vector{Int}}` vector of vector of paths.
 Each element in the outer vector is a combination of paths to be used for protection.
 The first path is supposed to be the one deployed and all other are the protection.
+Constrained to return protection only up to 2 paths
 """
 function prioritizepaths_bestempiricalavailability(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, beacomp::BestEmpiricalAvailabilityCompilation)
 
@@ -389,6 +392,7 @@ function prioritizegrooming_exactly(ibnf::IBNFramework, idagnode::IntentDAGNode{
 
     sort!(groomingpossibilities; by=length)
 
+
     return groomingpossibilities
 end
 
@@ -420,30 +424,103 @@ function choosegroominornot(ibnf::IBNFramework, protectedpaths::Vector{Vector{Lo
     return false
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function estimateintraconnectionavailability(ibnf::IBNFramework, srclocalnode::LocalNode, dstlocalnode::LocalNode, beacomp::BestEmpiricalAvailabilityCompilation)
+    ed = Edge(srclocalnode, dstlocalnode)
+    logintrapaths =  getlogintrapaths(beacomp)
+    if haskey(logintrapaths, ed)
+        pastpathsdict = logintrapaths[Edge(srclocalnode, dstlocalnode)]
+        ppathavails = [getempiricalavailability(ibnf, ppath; endtime=getdatetime(beacomp)) for ppath in keys(pastpathsdict)]
+        counts = values(pastpathsdict)
+    else
+        yenstate = Graphs.yen_k_shortest_paths(getibnag(ibnf), srclocalnode, dstlocalnode, getweights(getibnag(ibnf)), getcandidatepathsnum(beacomp))
+        ppathavails = [getempiricalavailability(ibnf, path; endtime=getdatetime(beacomp)) for path in yenstate.paths]
+        counts = fill(1, length(ppathavails))
+    end
+    return uniquesupportweightsDiscreteNonParametric(ppathavails, counts)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function estimatecrossconnectionavailability(ibnf::IBNFramework, srcglobalnode::GlobalNode, dstglobalnode::GlobalNode, beacomp::BestEmpiricalAvailabilityCompilation)
+    ged = GlobalEdge(srcglobalnode, dstglobalnode)
+    loginterupdowntimes = getloginterupdowntimes(beacomp)
+    if haskey(loginterupdowntimes, ged) 
+        updowntimesndatetimedict = loginterupdowntimes[ged]
+        updowntimesndatetimes = values(updowntimesndatetimedict)
+        externalintentavails = [calculateavailability(updowntimesndatetime) for updowntimesndatetime in updowntimesndatetimes]
+        weights = [sum(getuptimes(updowntimesndatetime)) + sum(getdowntimes(updowntimesndatetime))  for updowntimesndatetime in updowntimesndatetimes]
+        dnp = uniquesupportweightsDiscreteNonParametric(externalintentavails, weights)
+    else
+        externalintentavails = [1.0]
+        counts = [1]
+        dnp = uniquesupportweightsDiscreteNonParametric(externalintentavails, counts)
+    end
+    return dnp
+end
 
 """
 $(TYPEDSIGNATURES)
 
-Estimate the end 2 end availability without knowing which path to take.
-"""
-function estimateend2endavailability(ibnf::IBNFramework, srcglobalnode::GlobalNode, dstglobalnode::GlobalNode, beacomp::BestEmpiricalAvailabilityCompilation)
+`quantile(::DiscreteNonParametric, q)` gives smallest value `x` such that `cdf(::DiscreteNonParatetric, x) >= q`
+This means that there is `x` is the biggest value for `q`% of `::DiscreteNonParametric`.
+For example, `q=0.95` means that `x` will be bigger than 95% of the support of `::DiscreteNonParametric`.
+`cquantile` is exactly the opposite implying that it would be smaller than 95% of the support.
+For example, now talking availability requirements and compliance targets,  
 
+"""
+function chooseintrasplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability::DiscreteNonParametric, secondhalfavailability::DiscreteNonParametric, beacomp::BestEmpiricalAvailabilityCompilation)
+    availabilityrequirement = getavailabilityrequirement(avcon)
+    compliancetarget = getcompliancetarget(avcon)
+
+    sqrtcompliancetarget = sqrt(compliancetarget)
+
+    firsthalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
+    secondhalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
+
+    combinationfound = false
+    # begin from 100 % compliance target
+    for firstct in 1:-0.01:compliancetarget
+        setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
+        firstavailabilityrequirement = cquantile(firsthalfavailability, firstct)
+        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
+
+        secondcompliancetargetlimit = compliancetarget / firstct
+        for secondct in 1:-0.01:secondcompliancetargetlimit
+            setcompliancetarget!(secondhalfmutavailabilityconstraint, secondct)
+            secondavailabilityrequirement = cquantile(secondhalfavailability, secondct)
+            setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
+
+            if firstavailabilityrequirement * secondavailabilityrequirement >= availabilityrequirement
+                combinationfound = true
+                break
+            end
+        end
+        combinationfound && break
+    end
+
+    # Take leap of fath for external domain if current estimations are not enough (explore) by giving half compliance target for each domain
+    if !combinationfound
+        setcompliancetarget!(firsthalfmutavailabilityconstraint, sqrtcompliancetarget)
+        firstavailabilityrequirement = cquantile(firsthalfavailability, sqrtcompliancetarget)
+        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
+
+        setcompliancetarget!(secondhalfmutavailabilityconstraint, sqrtcompliancetarget)
+        secondavailabilityrequirement = availabilityrequirement / firstavailabilityrequirement
+        setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
+    end
+
+    firsthalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(firsthalfmutavailabilityconstraint), getcompliancetarget(firsthalfmutavailabilityconstraint)) 
+    secondhalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(secondhalfmutavailabilityconstraint), getcompliancetarget(secondhalfmutavailabilityconstraint)) 
+    return firsthalfavailabilityconstraint, secondhalfavailabilityconstraint
 end
 
 """
-`firsthalfe2eavailability` and `secondhalfe2eavailability` are given from `estimateend2endavailability`
+$(TYPEDSIGNATURES)
 """
-function calculatefirstavailabilityconstrain(ibnf::IBNFramework, firsthalfe2eavailability, secondhalfe2eavailability, beacomp::BestEmpiricalAvailabilityCompilation)
-
+function choosecrosssplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability, secondhalfavailability, beacomp::BestEmpiricalAvailabilityCompilation)
+    return chooseintrasplitavailabilities(avcon, firsthalfavailability, secondhalfavailability, beacomp)
 end
-
-function estimatepathavailability(ibnf::IBNFramework, idagnodeid::UUID, beacomp::BestEmpiricalAvailabilityCompilation)
-end
-
-"""
-`firsthalfe2eavailability` is given from `estimatepathavailability`
-"""
-function calculatesecondavailabilityconstraint(ibnf::IBNFramework, firsthalfe2eavailability, beacomp::BestEmpiricalAvailabilityCompilation)
-
-end
-

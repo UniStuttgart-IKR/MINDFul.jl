@@ -366,6 +366,11 @@ struct AvailabilityConstraint <: AbstractIntentConstraint
     compliancetarget::Float64
 end
 
+mutable struct MutableAvailabilityConstraint <: AbstractIntentConstraint
+    availabilityrequirement::Float64
+    compliancetarget::Float64
+end
+
 
 """
 $(TYPEDEF)
@@ -509,4 +514,16 @@ function Base.show(io::IO, ibnf::I) where {I <: IBNFramework}
     print(io, ", IBNAttributeGraph(", nv(getibnag(ibnf)), ", ", ne(getibnag(ibnf)), ")")
     print(io, ", ", getibnfid.(getibnfhandlers(ibnf)))
     return print(io, ", ", typeof(getsdncontroller(ibnf)))
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+The return value from the `prioritizesplitnode` and `prioritizesplitbordernode` functions
+"""
+struct SplitGlobalNode
+    globalnode::GlobalNode
+    firsthalfavailabilityconstraint::Union{Nothing, AvailabilityConstraint}
+    secondhalfavailabilityconstraint::Union{Nothing, AvailabilityConstraint}
 end

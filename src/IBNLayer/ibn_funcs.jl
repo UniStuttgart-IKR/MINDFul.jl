@@ -20,19 +20,20 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
+@recvtime function compileintent!(ibnf::IBNFramework, idagnodeid::UUID, intentcomp::IntentCompilationAlgorithm; verbose::Bool = false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
+    updatelogintentcomp!(ibnf, intentcomp; @passtime)
     idagnode = getidagnode(getidag(ibnf), idagnodeid)
-    return compileintent!(ibnf, idagnode, algorithm; verbose, @passtime)
+    return compileintent!(ibnf, idagnode, intentcomp; verbose, @passtime)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, algorithm::IntentCompilationAlgorithm; verbose::Bool = false)
+@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:RemoteIntent}, intentcomp::IntentCompilationAlgorithm; verbose::Bool = false)
     if !getisinitiator(getintent(idagnode))
         idagnodechild = addidagnode!(ibnf, getintent(getintent(idagnode)); parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
-        return compileintent!(ibnf, idagnodechild, algorithm; verbose, @passtime)
+        return compileintent!(ibnf, idagnodechild, intentcomp; verbose, @passtime)
     else
         return ReturnCodes.FAIL
     end
@@ -111,8 +112,11 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
+@recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID, intentcompilation::Union{Nothing, <:IntentCompilationAlgorithm}=nothing; verbose::Bool = false)
     @returniffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
+    if !isnothing(intentcompilation)
+        updatelogintentcomp!(ibnf, intentcompilation; @passtime)
+    end
     deleteedgesuntilgroomingfound!(getidag(ibnf), idagnodeid)
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid; parentsfirst = false)
     foreach(idagnodedescendants) do idagnodedescendant
@@ -1329,3 +1333,32 @@ end
 function getlateststateloggeddatetime(idagnode::IntentDAGNode)
     return getlogstate(idagnode)[end][1]
 end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function SplitGlobalNode(globalnode::GlobalNode)
+    return SplitGlobalNode(globalnode, nothing, nothing)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getglobalnode(splitglobalnode::SplitGlobalNode)
+     return splitglobalnode.globalnode
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getfirsthalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
+     return splitglobalnode.firsthalfavailabilityconstraint
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getsecondhalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
+     return splitglobalnode.secondhalfavailabilityconstraint
+end
+

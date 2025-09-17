@@ -32,7 +32,7 @@ installintent!(ibnfs[1], intentuuid1, beacomp; offsettime = nowtime)
 
 conintent2 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[3]), 12), u"5.0Gbps", [avcon1])
 intentuuid2 = addintent!(ibnfs[1], conintent2, NetworkOperator(); offsettime = nowtime)
-compileintent!(ibnfs[1], intentuuid2, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+@test compileintent!(ibnfs[1], intentuuid2, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
 nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid2))
 installintent!(ibnfs[1], intentuuid2, beacomp; offsettime = nowtime)
 nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid2))
@@ -48,14 +48,12 @@ updowntimesndatetime2 = MINDF.getloginterupdowntimes(beacomp)[GlobalEdge(GlobalN
 
 nowtime1 = nowtime
 nowtime += Dates.Year(1) 
-MINDF.setdatetime!(beacomp, nowtime)
-MINDF.updateloginterintent!(ibnfs[1], beacomp)
+MINDF.updatelogintentcomp!(ibnfs[1], beacomp; offsettime=nowtime)
 
 @test (nowtime - nowtime1) - Dates.Second(5) <= sum(MINDF.getuptimes(updowntimesndatetime2)) < (nowtime - nowtime1) + Dates.Second(5)
 
 nowtime += Dates.Month(3) 
-MINDF.setdatetime!(beacomp, nowtime)
-MINDF.updateloginterintent!(ibnfs[1], beacomp)
+MINDF.updatelogintentcomp!(ibnfs[1], beacomp; offsettime=nowtime)
 
 @test (nowtime - nowtime1) - Dates.Second(5) <= sum(MINDF.getuptimes(updowntimesndatetime2)) < (nowtime - nowtime1) + Dates.Second(5)
 # upon compilation of another intent that should change time
@@ -65,14 +63,12 @@ setlinkstate!(ibnfs[3], Edge(23=>15), false; offsettime = nowtime)
 nowtime += Dates.Second(5)
 
 nowtime += Dates.Month(2) 
-MINDF.setdatetime!(beacomp, nowtime)
-MINDF.updateloginterintent!(ibnfs[1], beacomp)
+MINDF.updatelogintentcomp!(ibnfs[1], beacomp; offsettime=nowtime)
 
 @test (nowtime - nowtime2) - Dates.Second(10) <= sum(MINDF.getdowntimes(updowntimesndatetime2)) < (nowtime - nowtime2) + Dates.Second(10)
 
 nowtime += Dates.Month(2) 
-MINDF.setdatetime!(beacomp, nowtime)
-MINDF.updateloginterintent!(ibnfs[1], beacomp)
+MINDF.updatelogintentcomp!(ibnfs[1], beacomp; offsettime=nowtime)
 
 @test (nowtime - nowtime2) - Dates.Second(10) <= sum(MINDF.getdowntimes(updowntimesndatetime2)) < (nowtime - nowtime2) + Dates.Second(10)
 
@@ -81,8 +77,7 @@ setlinkstate!(ibnfs[3], Edge(23=>15), true; offsettime = nowtime)
 nowtime += Dates.Second(5)
 
 nowtime += Dates.Month(3) 
-MINDF.setdatetime!(beacomp, nowtime)
-MINDF.updateloginterintent!(ibnfs[1], beacomp)
+MINDF.updatelogintentcomp!(ibnfs[1], beacomp; offsettime=nowtime)
 
 upperiod2 = (nowtime - nowtime1) - (nowtime3 - nowtime2)
 @test upperiod2 - Dates.Second(5) <= sum(MINDF.getuptimes(updowntimesndatetime2)) < upperiod2 + Dates.Second(5)
@@ -94,8 +89,7 @@ setlinkstate!(ibnfs[3], Edge(23=>15), false; offsettime = nowtime)
 nowtime += Dates.Second(5)
 
 nowtime += Dates.Month(4) 
-MINDF.setdatetime!(beacomp, nowtime)
-MINDF.updateloginterintent!(ibnfs[1], beacomp)
+MINDF.updatelogintentcomp!(ibnfs[1], beacomp; offsettime=nowtime)
 
 downperiod = (nowtime - nowtime4) + (nowtime3 - nowtime2)
 @test downperiod - Dates.Second(5) <= sum(MINDF.getdowntimes(updowntimesndatetime2)) < downperiod + Dates.Second(5)
@@ -119,6 +113,27 @@ upperiod2_2 = upperiod2 + (nowtime - nowtime5)
 @test length(MINDF.getuptimes(updowntimesndatetime2)) == 3
 @test length(MINDF.getdowntimes(updowntimesndatetime2)) == 2
 
+# uncompiling should also update the logs
+
+uncompileintent!(ibnfs[1], intentuuid3, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+@test upperiod2_2 - Dates.Second(10) <= sum(MINDF.getuptimes(updowntimesndatetime2)) < upperiod2_2 + Dates.Second(10)
+@test length(MINDF.getuptimes(updowntimesndatetime2)) == 3
+@test length(MINDF.getdowntimes(updowntimesndatetime2)) == 2
+
+# compile and keep going
+compileintent!(ibnfs[1], intentuuid3, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+
+# give some time
+nowtime += Dates.Month(2)
+upperiod2_3 = upperiod2 + (nowtime - nowtime5)
+uncompileintent!(ibnfs[1], intentuuid3, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+@test upperiod2_3 - Dates.Second(10) <= sum(MINDF.getuptimes(updowntimesndatetime2)) < upperiod2_3 + Dates.Second(10)
+@test length(MINDF.getuptimes(updowntimesndatetime2)) == 3
+@test length(MINDF.getdowntimes(updowntimesndatetime2)) == 2
+
+# compile and keep going
+compileintent!(ibnfs[1], intentuuid3, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+
 
 installintent!(ibnfs[1], intentuuid3, beacomp; offsettime = nowtime)
 nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid3))
@@ -126,4 +141,5 @@ nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibn
 @test length(MINDF.getloginterupdowntimes(beacomp)[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))]) == 2
 remidagnode3 = getfirst(x -> getintent(x) isa RemoteIntent{<:ConnectivityIntent}, MINDF.getidagnodedescendants(MINDF.getidag(ibnfs[1]), intentuuid3))
 updowntimesndatetime3 = MINDF.getloginterupdowntimes(beacomp)[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode3)]
+
 end

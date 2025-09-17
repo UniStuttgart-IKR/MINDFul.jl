@@ -1,5 +1,5 @@
 @testset ExtendedTestSet "singledomainavailabilityprotection.jl"  begin
-# @testset ExtendedTestSet "singledomainavailabilityprotection.jl"  begin
+
 starttime = DateTime("2026-01-01")
 ibnfs = loadmultidomaintestibnfs()
 
@@ -40,7 +40,7 @@ protectedpath1 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], in
 @test protectedpath1 == [4, 3, 14, 15, 20, 8]
 protectedpath2 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=false, choosealternativeorder=2))
 @test protectedpath2 == [4, 1, 6, 20, 8]
-protectedpath1availability = MINDF.getempiricalavailability(ibnfs[1], protectedpath2; endtime = nowtime)
+protectedpath1availability = MINDF.getempiricalavailability(ibnfs[1], protectedpath1; endtime = nowtime)
 protectedpath2availability = MINDF.getempiricalavailability(ibnfs[1], protectedpath2; endtime = nowtime)
 @test MINDF.calculateparallelavailability(protectedpath1availability, protectedpath2availability) > MINDF.getavailabilityrequirement(avcon1)
 
@@ -97,7 +97,6 @@ MINDF.setlinkstate!(ibnfs[1], Edge(15, 20), true; offsettime=nowtime)
 @test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 @test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(100)
 
-
 # what if the failed equipment is shared ?
 nowtime += Dates.Hour(1)
 MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false; offsettime=nowtime)
@@ -113,5 +112,14 @@ MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), true; offsettime=nowtime)
 @test !MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 @test isempty(MINDF.getidagnodeleafs2install(ibnfs[1], intentuuid1))
 @test Dates.Hour(1) + Dates.Millisecond(100) >= nowtime - MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) >= Dates.Hour(1)
+
+
+# give an impossible availability to cover
+avcon2 = MINDF.AvailabilityConstraint(0.9999, 0.99999) 
+conintent2 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon2])
+intentuuid2 = addintent!(ibnfs[1], conintent1, NetworkOperator())
+
+@test compileintent!(ibnfs[1], intentuuid2, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
+@test installintent!(ibnfs[1], intentuuid2; offsettime = nowtime) == ReturnCodes.FAIL
 
 end

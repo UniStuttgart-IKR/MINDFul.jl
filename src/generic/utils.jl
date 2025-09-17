@@ -312,10 +312,10 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
             dt = now[1] - prev[1]
             if prev[2] !== now[2] && prev[2] == gettruesingleton(T)
                 push!(uptimes, dt)
-                setdatetime!(uptimes, now[1])
+                setdatetime!(updowntimesndatetime, now[1])
             elseif prev[2] !== now[2] && prev[2] == getfalsesingleton(T)
                 push!(downtimes, dt)
-                setdatetime!(uptimes, now[1])
+                setdatetime!(updowntimesndatetime, now[1])
             end
         end
 
@@ -359,4 +359,19 @@ end
 
 function millisecondtomonth(ms::Dates.Millisecond)
     return ms.value / 1_000 / 60 / 60 / 24 / 30
+end
+
+function uniquesupportweightsDiscreteNonParametric(support::Vector, weights::Vector)
+    uniquesupport = unique(support)
+    sameelements = [findall(==(us), support) for us in uniquesupport]
+
+    weights = [
+        let
+            sum(weights[sameels])
+        end for sameels in sameelements
+    ]
+
+    ps = weights ./ sum(weights)
+
+    return DiscreteNonParametric(uniquesupport, ps)
 end

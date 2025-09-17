@@ -21,11 +21,42 @@ function getdictlinkempiricalavailabilities(ibnf; checkfirst = true, verbose::Bo
                 for ed in edges(getibnag(ibnf)))
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculate empirical availability of a path
+"""
 function getempiricalavailability(ibnf::IBNFramework, path::Vector{Int}; checkfirst::Bool = true, verbose::Bool = false, endtime=nothing)
     return reduce(*, [let 
         ludts = getlinkupdowntimes(ibnf, ed; checkfirst, verbose, endtime) 
-        isempty(getuptimes(ludts)) ? 1.0 : sum(getuptimes(ludts)) / (sum(getdowntimes(ludts)) + sum(getuptimes(ludts)))
+        isempty(getuptimes(ludts)) ? 1.0 : calculateavailability(ludts)
     end for ed in edgeify(path)])
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate empirical availability of a protected path
+"""
+function getempiricalavailability(ibnf::IBNFramework, ppath::Vector{Vector{Int}}; checkfirst::Bool = true, verbose::Bool = false, endtime=nothing)
+    @assert length(ppath) <= 2
+    if length(ppath) == 1
+        return getempiricalavailability(ibnf, ppath[1]; checkfirst, verbose, endtime)
+    else
+        p1edges = edgeify(ppath[1])
+        p1avails = [let
+            ludts = getlinkupdowntimes(ibnf, ed; checkfirst, verbose, endtime) 
+            isempty(getuptimes(ludts)) ? 1.0 : calculateavailability(ludts)
+        end for ed in p1edges]
+
+        p2edges = edgeify(ppath[2])
+        p2avails = [let
+            ludts = getlinkupdowntimes(ibnf, ed; checkfirst, verbose, endtime) 
+            isempty(getuptimes(ludts)) ? 1.0 : calculateavailability(ludts)
+        end for ed in p2edges]
+
+        return calculateprotectedpathavailability(p1edges, p1avails, p2edges, p2avails)
+    end
 end
 
 """
@@ -36,6 +67,14 @@ Return the up and downtimes for the specific link
 function getlinkupdowntimes(ibnf, edge; checkfirst = true, verbose::Bool = false, endtime=nothing)
     linkstates = getlinkstates(ibnf, edge; checkfirst, verbose)
     return getupdowntimes(linkstates, endtime)
+end
+
+function calculateavailability(updowntimes::UpDownTimes)
+    return sum(getuptimes(updowntimes)) / (sum(getdowntimes(updowntimes)) + sum(getuptimes(updowntimes)))
+end
+
+function calculateavailability(updowntimes::UpDownTimesNDatetime)
+    return sum(getuptimes(updowntimes)) / (sum(getdowntimes(updowntimes)) + sum(getuptimes(updowntimes)))
 end
 
 """
@@ -76,4 +115,14 @@ function calculateprotectedpathavailability(p1edges::Vector{Edge{Int}}, p1avails
     protectedpathavailability *= reduce(*, p1avails[commonedges1inds])
 
     return protectedpathavailability
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+# TODO : need to finish it if I ever use more than 2 protection paths
+"""
+function calculateprotectedpathavailability(pedges::Vector{Vector{Edge{Int}}}, pavails::Vector{Vector{Float64}})
+    @assert all( pes_pas -> length(pes_pas[1]) == length(pes_pas[2]), zip(pedges, pavails))
+    return 0.0
 end
