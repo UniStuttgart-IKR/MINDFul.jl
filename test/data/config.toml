@@ -5,7 +5,7 @@ encryption = true
 
 [[domains.config]]
 ip = "0.0.0.0"
-port = 8081
+port = 8091
 ibnfid = 0x1
 permissions = ["full", "full"]
 rsaprivatekey = "rsa_priv1.pem"

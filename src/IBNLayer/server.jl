@@ -54,7 +54,7 @@ function checktoken(ibnf, parsedbody, uri)
     recvtoken = parsedbody[MINDF.HTTPMessages.KEY_TOKEN]
     handler = MINDF.getibnfhandler(ibnf, initiatoribnfid)
 
-    if recvtoken == MINDF.getibnfhandlergentoken(handler)
+    if recvtoken == MINDF.getibnfhandlergentoken(handler) && MINDF.getibnfhandlergentoken(handler) != ""
         if MINDF.getibnfhandlerperm(handler) == MINDF.HTTPMessages.KEY_FULLPERMISSION
             return true
         elseif MINDF.getibnfhandlerperm(handler) == MINDF.HTTPMessages.KEY_LIMITEDPERMISSION
@@ -67,7 +67,7 @@ function checktoken(ibnf, parsedbody, uri)
             return false
         end
     else
-        return false
+        return :auth
     end
 end
 
@@ -197,8 +197,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS) == false
-        return HTTP.Response(403, "Forbidden. Invalid token")
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILATIONALGORITHMS)
+    if vrfy == false
+        return HTTP.Response(403, "Forbidden. Invalid permission")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     compilationalgorithms = MINDF.requestavailablecompilationalgorithms_term!(remoteibnfhandler, ibnf)
@@ -250,8 +253,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SPECTRUMAVAILABILITY)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -307,8 +313,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_CURRENTLINKSTATE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_CURRENTLINKSTATE) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_CURRENTLINKSTATE)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -358,8 +367,11 @@ end
 """
 @post full(MINDF.HTTPMessages.URI_COMPILEINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILEINTENT) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_COMPILEINTENT)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -425,8 +437,11 @@ end
 """
 @post full(MINDF.HTTPMessages.URI_DELEGATEINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_DELEGATEINTENT) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_DELEGATEINTENT)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     internalidagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTERNALIDAGNODEID])
@@ -477,8 +492,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REMOTEINTENTSTATEUPDATE)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -525,8 +543,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_ISSATISFIED) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ISSATISFIED) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ISSATISFIED)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -569,8 +590,11 @@ end
 """
 @post full(MINDF.HTTPMessages.URI_INSTALLINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INSTALLINTENT) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INSTALLINTENT)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -610,8 +634,11 @@ end
 """
 @post full(MINDF.HTTPMessages.URI_UNINSTALLINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNINSTALLINTENT) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNINSTALLINTENT)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -651,8 +678,11 @@ end
 """
 @post full(MINDF.HTTPMessages.URI_UNCOMPILEINTENT) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNCOMPILEINTENT) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_UNCOMPILEINTENT)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
@@ -709,8 +739,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_SETLINKSTATE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SETLINKSTATE) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_SETLINKSTATE)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -770,8 +803,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_REQUESTLINKSTATES) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTLINKSTATES) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTLINKSTATES)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     gedata = parsedbody[MINDF.HTTPMessages.KEY_GLOBALEDGE]
@@ -814,8 +850,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_REQUESTIDAG) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTIDAG) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTIDAG)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     idag = MINDF.requestidag_term(remoteibnfhandler, ibnf)
@@ -857,8 +896,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_IBNAGRAPH) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_IBNAGRAPH) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_IBNAGRAPH)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     ibnattributegraph = MINDF.requestibnattributegraph_term!(remoteibnfhandler, ibnf)
@@ -900,8 +942,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_REQUESTHANDLERS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTHANDLERS) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_REQUESTHANDLERS)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     ibnfhandlers = MINDF.requestibnfhandlers_term(remoteibnfhandler, ibnf)
@@ -943,8 +988,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_LOGICALORDER) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LOGICALORDER) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LOGICALORDER)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
@@ -990,8 +1038,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_INTENTGLOBALPATH) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INTENTGLOBALPATH) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_INTENTGLOBALPATH)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
@@ -1035,8 +1086,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_ELECTRICALPRESENCE) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ELECTRICALPRESENCE) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_ELECTRICALPRESENCE)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
@@ -1080,8 +1134,11 @@ end
 """
 @post limited(MINDF.HTTPMessages.URI_LIGHTPATHS) function (req; context)
     ibnf, parsedbody, remoteibnfhandler, verbose, otime = extractgeneraldata(req, context)
-    if checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LIGHTPATHS) == false
+    vrfy = checktoken(ibnf, parsedbody, MINDF.HTTPMessages.URI_LIGHTPATHS)
+    if vrfy == false
         return HTTP.Response(403, "Forbidden. Invalid token")
+    elseif vrfy == :auth
+        return HTTP.Response(202, "Authentication required")
     end
 
     intentuuid = UUID(parsedbody[MINDF.HTTPMessages.KEY_INTENTUUID])
