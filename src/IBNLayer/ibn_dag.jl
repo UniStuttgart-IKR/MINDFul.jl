@@ -171,17 +171,17 @@ function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     return ReturnCodes.SUCCESS
 end
 
-@recvtime function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID, makestate::Union{Nothing, IntentState.T} = nothing;  intentcompilation::Union{Nothing, <:IntentCompilationAlgorithm}=nothing)
+@recvtime function updateidagstates!(ibnf::IBNFramework, idagnodeid::UUID, makestate::Union{Nothing, IntentState.T} = nothing;)
     idag = getidag(ibnf)
     idagnode = getidagnode(idag, idagnodeid)
-    return updateidagnodestates!(ibnf, idagnode, makestate; intentcompilation, @passtime)
+    return updateidagnodestates!(ibnf, idagnode, makestate; @passtime)
 end
 
 """
 $(TYPEDSIGNATURES)
 Return value is true if state is changed.
 """
-@recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode, makestate::Union{Nothing, IntentState.T} = nothing; intentcompilation::Union{Nothing, <:IntentCompilationAlgorithm}=nothing)
+@recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode, makestate::Union{Nothing, IntentState.T} = nothing)
     idag = getidag(ibnf)
     idagnodeid = getidagnodeid(idagnode)
     idagnodechildren = getidagnodechildren(idag, idagnodeid)
@@ -263,11 +263,11 @@ Return value is true if state is changed.
     if changedstate
         if newstate == IntentState.Installing # go down the DAG
             foreach(getidagnodechildren(idag, idagnodeid)) do idagnodechild
-                updateidagnodestates!(ibnf, idagnodechild, IntentState.Installing; @passtime, intentcompilation)
+                updateidagnodestates!(ibnf, idagnodechild, IntentState.Installing; @passtime)
             end
         else # go up the DAG
             foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-                updateidagnodestates!(ibnf, idagnodeparent; @passtime, intentcompilation)
+                updateidagnodestates!(ibnf, idagnodeparent; @passtime)
             end
         end
         if newstate == IntentState.Installed && getintent(idagnode) isa LightpathIntent

@@ -1,6 +1,8 @@
 @testset ExtendedTestSet "opticalconstraintssingledomain.jl"  begin
 
-    ibnfs = loadmultidomaintestibnfs()
+    kspffcomp = KShorestPathFirstFitCompilation(10; nodenum=1)
+
+    ibnfs = loadmultidomaintestibnfs(kspffcomp)
     TM.testsuiteopticalconstraintssingledomain!(ibnfs)
 
 end

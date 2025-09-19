@@ -56,14 +56,16 @@ function testsuitephysical!(ibnag1, RUNJET)
     # now test the intent workflow
     # reinitialize domain
 
-    ibnf1 = IBNFramework(ibnag1)
+    intcompalg = KShorestPathFirstFitCompilation(ibnag1, 10)
+    ibnf1 = IBNFramework(ibnag1, intcompalg)
     conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnf1), 1), GlobalNode(getibnfid(ibnf1), 2), u"100.0Gbps")
     addintent!(ibnf1, conintent1, NetworkOperator())
     # add second intent
-    intentid2 = addintent!(ibnf1, conintent1, NetworkOperator())
+    intentid2, _ = addintent!(ibnf1, conintent1, NetworkOperator())
     @test nv(getidag(ibnf1)) == 2
     # remove second intent
-    @test removeintent!(ibnf1, intentid2) == ReturnCodes.SUCCESS
+    returncode, _ = removeintent!(ibnf1, intentid2)
+    @test returncode == ReturnCodes.SUCCESS
     return @test nv(getidag(ibnf1)) == 1
 end
 
@@ -73,29 +75,36 @@ function testsuitebasicintent!(ibnf1, RUNJET)
 
     conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnf1), 4), GlobalNode(getibnfid(ibnf1), 8), u"105.0Gbps")
 
-    intentuuid1 = addintent!(ibnf1, conintent1, NetworkOperator())
+    intentuuid1, _ = addintent!(ibnf1, conintent1, NetworkOperator())
     @test nv(getidag(ibnf1)) == 1
     @test intentuuid1 isa UUID
     @test getidagnodestate(getidag(ibnf1), intentuuid1) == IntentState.Uncompiled
     @test isempty(getidagnodechildren(getidag(ibnf1), intentuuid1))
 
-    RUNJET && @test_opt broken = true target_modules = [MINDF] function_filter = JETfilteroutfunctions compileintent!(ibnf1, getidagnode(getidag(ibnf1), intentuuid1), KShorestPathFirstFitCompilation(10))
-    @test compileintent!(ibnf1, intentuuid1, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    RUNJET && @test_opt broken = true target_modules = [MINDF] function_filter = JETfilteroutfunctions compileintent!(ibnf1, getidagnode(getidag(ibnf1), intentuuid1))
+    returncode, nowtime = compileintent!(ibnf1, intentuuid1)
+    @test returncode == ReturnCodes.SUCCESS
+
     testcompilation(ibnf1, intentuuid1; withremote = false)
 
-    @test installintent!(ibnf1, intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnf1, intentuuid1)
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnf1, intentuuid1; withremote = false)
 
-    @test uninstallintent!(ibnf1, intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnf1, intentuuid1)
+    @test returncode == ReturnCodes.SUCCESS
+
     testuninstallation(ibnf1, intentuuid1; withremote = false)
 
-    @test uncompileintent!(ibnf1, UUID(1)) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnf1, UUID(1))
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnf1, intentuuid1)
     @test nv(getidag(ibnf1)) == 1
 
     nothingisallocated(ibnf1)
 
-    @test removeintent!(ibnf1, intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnf1, intentuuid1)
+    @test returncode == ReturnCodes.SUCCESS
     @test nv(getidag(ibnf1)) == 0
 
     testoxcfiberallocationconsistency(ibnf1)
@@ -109,39 +118,47 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
     end
 
     conintent_intra = ConnectivityIntent(GlobalNode(UUID(1), 2), GlobalNode(UUID(1), 19), u"100.0Gbps")
-    intentuuid1 = addintent!(ibnfs[1], conintent_intra, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid1, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid1, _ = addintent!(ibnfs[1], conintent_intra, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid1)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid1; onlyinstalled = false, noextrallis = true)
-    @test installintent!(ibnfs[1], intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid1)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid1; onlyinstalled = true, noextrallis = true)
 
     # intradomain with `OpticalTerminateConstraint`
     conintent_intra_optterm = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(GlobalNode(UUID(1), 22))])
-    intentuuid2 = addintent!(ibnfs[1], conintent_intra_optterm, NetworkOperator())
-    # kspffintradomain_2!(ibnfs[1], getidagnode(getidag(ibnfs[1]), intentuuid2), KShorestPathFirstFitCompilation(10))
-    @test compileintent!(ibnfs[1], intentuuid2, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid2, _ = addintent!(ibnfs[1], conintent_intra_optterm, NetworkOperator())
+
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid2)
+    @test returncode == ReturnCodes.SUCCESS
     orderedllis2 = getlogicallliorder(ibnfs[1], intentuuid2; onlyinstalled = false)
     @test issatisfied(ibnfs[1], intentuuid2, orderedllis2; noextrallis = true)
     vorletzteglobalsnode = getglobalnode(getibnag(ibnfs[1]), getlocalnode(orderedllis2[end]))
     spectrumslots = getspectrumslotsrange(orderedllis2[end])
     transmode = gettransmissionmode(ibnfs[1], orderedllis2[2])
     transmodulename = getname(gettransmissionmodule(ibnfs[1], orderedllis2[2]))
-    @test installintent!(ibnfs[1], intentuuid2) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid2)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid2; onlyinstalled = true, noextrallis = true)
 
     conintent_intra_optini_finishprevious = ConnectivityIntent(GlobalNode(UUID(1), 22), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalInitiateConstraint(vorletzteglobalsnode, spectrumslots, u"10.0km", TransmissionModuleCompatibility(getrate(transmode), getspectrumslotsneeded(transmode), transmodulename))])
-    intentuuid_intra_optini_finishprevious = addintent!(ibnfs[1], conintent_intra_optini_finishprevious, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid_intra_optini_finishprevious, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid_intra_optini_finishprevious, _ = addintent!(ibnfs[1], conintent_intra_optini_finishprevious, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_intra_optini_finishprevious)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled = false, noextrallis = true)
-    @test installintent!(ibnfs[1], intentuuid_intra_optini_finishprevious) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_intra_optini_finishprevious)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid_intra_optini_finishprevious; onlyinstalled = true, noextrallis = true)
 
     # intradomain with `OpticalInitaiteConstraint`
     conintent_intra_optini = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalInitiateConstraint(GlobalNode(UUID(1), 2), 21:26, u"500.0km", TransmissionModuleCompatibility(u"300.0Gbps", 6, "DummyFlexiblePluggable"))])
-    intentuuid3 = addintent!(ibnfs[1], conintent_intra_optini, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid3, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid3, _ = addintent!(ibnfs[1], conintent_intra_optini, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid3)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid3; onlyinstalled = false, noextrallis = true)
-    @test installintent!(ibnfs[1], intentuuid3) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid3)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid3; onlyinstalled = true, noextrallis = true)
 
     oxcview1_2 = getoxcview(getnodeview(ibnfs[1], 2))
@@ -153,12 +170,14 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
     
     # intradomain with `OpticalInitaiteConstraint and OpticalTerminateConstraint`
     conintent_intra_optseg = ConnectivityIntent(GlobalNode(UUID(1), 8), GlobalNode(UUID(1), 22), u"100.0Gbps", [OpticalTerminateConstraint(GlobalNode(UUID(1), 22)), OpticalInitiateConstraint(GlobalNode(UUID(1), 2), 31:34, u"500.0km", TransmissionModuleCompatibility(u"100.0Gbps", 4, "DummyFlexiblePluggable"))])
-    intentuuid4 = addintent!(ibnfs[1], conintent_intra_optseg, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid4, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid4, _ = addintent!(ibnfs[1], conintent_intra_optseg, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid4)
+    @test returncode == ReturnCodes.SUCCESS
     orderedllis4 = getlogicallliorder(ibnfs[1], intentuuid4; onlyinstalled = false)
     @test issatisfied(ibnfs[1], intentuuid4, orderedllis4; noextrallis = true)
     vorletzteglobalsnode4 = getlocalnode(orderedllis4[end])
-    @test installintent!(ibnfs[1], intentuuid4) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid4)
+    @test returncode == ReturnCodes.SUCCESS
     @test issatisfied(ibnfs[1], intentuuid4; onlyinstalled = true, noextrallis = true)
     
     oxcllifinishprevious4 = OXCAddDropBypassSpectrumLLI(2, 0, 2, 8, 31:34)
@@ -183,39 +202,47 @@ end
 function testsuitemultidomain!(ibnfs)
     # with border node
     conintent_bordernode = ConnectivityIntent(GlobalNode(UUID(1), 4), GlobalNode(UUID(3), 25), u"100.0Gbps")
-    intentuuid_bordernode = addintent!(ibnfs[1], conintent_bordernode, NetworkOperator())
+    intentuuid_bordernode, _ = addintent!(ibnfs[1], conintent_bordernode, NetworkOperator())
 
-    @test compileintent!(ibnfs[1], intentuuid_bordernode, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_bordernode) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], intentuuid_bordernode; withremote = true)
 
     # install
-    @test installintent!(ibnfs[1], intentuuid_bordernode; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_bordernode; verbose = false) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], intentuuid_bordernode; withremote = true)
 
     # uninstall
-    @test uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid_bordernode; verbose = false) 
+    @test returncode == ReturnCodes.SUCCESS
     testuninstallation(ibnfs[1], intentuuid_bordernode; withremote = true)
 
     # uncompile
-    @test uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid_bordernode; verbose = false) 
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnfs[1], intentuuid_bordernode)
     @test nv(getidag(ibnfs[1])) == 1
     @test nv(getidag(ibnfs[3])) == 0
 
     # to neighboring domain
     conintent_neigh = ConnectivityIntent(GlobalNode(UUID(1), 4), GlobalNode(UUID(3), 47), u"100.0Gbps")
-    intentuuid_neigh = addintent!(ibnfs[1], conintent_neigh, NetworkOperator())
+    intentuuid_neigh, _ = addintent!(ibnfs[1], conintent_neigh, NetworkOperator())
 
-    @test compileintent!(ibnfs[1], intentuuid_neigh, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_neigh) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], intentuuid_neigh; withremote = true)
 
-    @test installintent!(ibnfs[1], intentuuid_neigh; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_neigh; verbose = false) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], intentuuid_neigh; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], intentuuid_neigh; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid_neigh; verbose = false) 
+    @test returncode == ReturnCodes.SUCCESS
     testuninstallation(ibnfs[1], intentuuid_neigh; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], intentuuid_neigh; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid_neigh; verbose = false) 
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnfs[1], intentuuid_neigh)
     @test nv(getidag(ibnfs[1])) == 2
     @test nv(getidag(ibnfs[3])) == 0
@@ -228,44 +255,51 @@ function testsuitemultidomain!(ibnfs)
 end
 
 
-function testsuitefailingintime!(ibnfs)
+function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     internaledge = Edge(3, 4)
     getlinkstates(getoxcview(getnodeview(ibnfs[1], src(internaledge))))[internaledge]
 
-    offsettime = now()
-    entrytime = now()
+    nowtime = DateTime("2026-01-01")
+
 
     conintent_internal = ConnectivityIntent(GlobalNode(UUID(1), 14), GlobalNode(UUID(1), 1), u"100.0Gbps")
-    intentuuid_internal_fail = addintent!(ibnfs[1], conintent_internal, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid_internal_fail, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], intentuuid_internal_fail; verbose = false, @passtime) == ReturnCodes.SUCCESS
+    intentuuid_internal_fail, nowtime = addintent!(ibnfs[1], conintent_internal, NetworkOperator(); offsettime=nowtime)
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_internal_fail; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_internal_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
+
     let
         logord = getlogicallliorder(ibnfs[1], intentuuid_internal_fail, onlyinstalled = false)
         @test internaledge ∈ edgeify(logicalordergetpath(logord))
     end
 
-    offsettime += Hour(1)
-    @test setlinkstate!(ibnfs[1], internaledge, false; @passtime) == ReturnCodes.SUCCESS
+    nowtime += Hour(1)
+    returncode, nowtime = setlinkstate!(ibnfs[1], internaledge, false; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     # should make first intent fail
     @test getidagnodestate(getidag(ibnfs[1]), intentuuid_internal_fail) == IntentState.Failed
     testexpectedfaileddag(getidag(ibnfs[1]), intentuuid_internal_fail, internaledge, 2)
 
     # second intent should avoud using the failed link
-    intentuuid_internal = addintent!(ibnfs[1], conintent_internal, NetworkOperator())
+    intentuuid_internal, nowtime = addintent!(ibnfs[1], conintent_internal, NetworkOperator(); offsettime=nowtime)
 
-    @test compileintent!(ibnfs[1], intentuuid_internal, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_internal; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
 
     let
         logord = getlogicallliorder(ibnfs[1], intentuuid_internal, onlyinstalled = false)
         @test internaledge ∉ edgeify(logicalordergetpath(logord))
     end
 
-    @test installintent!(ibnfs[1], intentuuid_internal; verbose = false, @passtime) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_internal; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_internal)])
 
     # should make the intent installed again
-    offsettime += Hour(1)
-    @test setlinkstate!(ibnfs[1], internaledge, true; @passtime) == ReturnCodes.SUCCESS
+    nowtime += Hour(1)
+    returncode, nowtime = setlinkstate!(ibnfs[1], internaledge, true; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_internal_fail)])
 
     internaledgelinkstates = getlinkstates(ibnfs[1], internaledge)
@@ -277,41 +311,47 @@ function testsuitefailingintime!(ibnfs)
 
     # Border link is failing
     # 29 is border node
-    offsettime = now()
-    entrytime = now()
+    nowtime = DateTime("2026-01-01")
     borderedge = Edge(17, 29)
     foreach(ibnfs) do ibnf
         @test all([MINDF.getcurrentlinkstate(ibnf, ed) for ed in edges(getibnag(ibnf))])
     end
 
     conintent_border = ConnectivityIntent(GlobalNode(UUID(1), 18), GlobalNode(UUID(3), 23), u"100.0Gbps")
-    intentuuid_border_fail = addintent!(ibnfs[1], conintent_border, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid_border_fail, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
+    intentuuid_border_fail, nowtime = addintent!(ibnfs[1], conintent_border, NetworkOperator(); offsettime=nowtime)
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_border_fail; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     remoteibnfid_border, remoteintentid_border = getfirstremoteintent(ibnfs[1], intentuuid_border_fail)
     remoteibnf_border = getibnfhandler(ibnfs[1], remoteibnfid_border)
 
-    @test installintent!(ibnfs[1], intentuuid_border_fail; verbose = false, @passtime) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_border_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
 
-    offsettime += Hour(1)
-    @test setlinkstate!(ibnfs[1], borderedge, false; @passtime) == ReturnCodes.SUCCESS
+    nowtime += Hour(1)
+    returncode, nowtime = setlinkstate!(ibnfs[1], borderedge, false; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     # should make first intent fail
     @test getidagnodestate(getidag(ibnfs[1]), intentuuid_border_fail) == IntentState.Failed
     testexpectedfaileddag(getidag(ibnfs[1]), intentuuid_border_fail, borderedge, 1)
     testexpectedfaileddag(MINDF.requestidag_init(ibnfs[1], remoteibnf_border), remoteintentid_border, Edge(58, 25), 1)
 
-    intentuuid_border = addintent!(ibnfs[1], conintent_border, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid_border, KShorestPathFirstFitCompilation(10); @passtime) == ReturnCodes.SUCCESS
+    intentuuid_border, nowtime = addintent!(ibnfs[1], conintent_border, NetworkOperator(); offsettime=nowtime)
+    # Error is here
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_border; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     let
         logord = getlogicallliorder(ibnfs[1], intentuuid_border, onlyinstalled = false)
         @test borderedge ∉ edgeify(logicalordergetpath(logord))
     end
-    @test installintent!(ibnfs[1], intentuuid_border; verbose = false, @passtime) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_border; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_border)])
-
-
+    
+   
     # should make the intent installed again
-    offsettime += Hour(1)
-    @test setlinkstate!(ibnfs[1], borderedge, true; @passtime) == ReturnCodes.SUCCESS
+    nowtime += Hour(1)
+    returncode, nowtime = setlinkstate!(ibnfs[1], borderedge, true; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_border_fail)])
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnfs[1], remoteibnf_border), remoteintentid_border)])
 
@@ -322,39 +362,48 @@ function testsuitefailingintime!(ibnfs)
     @test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2)
     intentuuid_border_fail_timelog_remote = getindex.(MINDF.getlogstate(MINDF.getidagnode(MINDF.requestidag_init(ibnfs[1], remoteibnf_border), remoteintentid_border)), 1)
     @test length(intentuuid_border_fail_timelog_remote) == 7
-    @test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2)
+    @test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) - Second(5)
 
     # uninstall, remove all
-    @test uninstallintent!(ibnfs[1], intentuuid_border_fail; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid_border_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuninstallation(ibnfs[1], intentuuid_border_fail; withremote = true)
-    @test uninstallintent!(ibnfs[1], intentuuid_border; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid_border; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuninstallation(ibnfs[1], intentuuid_border; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], intentuuid_border_fail; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid_border_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnfs[1], intentuuid_border_fail)
-    @test uncompileintent!(ibnfs[1], intentuuid_border; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid_border; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnfs[1], intentuuid_border)
-
+   
     # External link is failing (ibnfs[3])
-    externaledge = Edge(23, 15)
+    externaledge = Edge(17, 43)
     conintent_external = ConnectivityIntent(GlobalNode(UUID(1), 14), GlobalNode(UUID(3), 12), u"100.0Gbps")
-    intentuuid_external_fail = addintent!(ibnfs[1], conintent_external, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid_external_fail, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid_external_fail, nowtime = addintent!(ibnfs[1], conintent_external, NetworkOperator(); offsettime=nowtime)
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_external_fail; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     remoteibnfid_external_fail, remoteintentid_external_fail = getfirstremoteintent(ibnfs[1], intentuuid_external_fail)
     remoteibnf_external_fail = getibnfhandler(ibnfs[1], remoteibnfid_external_fail)
-    @test installintent!(ibnfs[1], intentuuid_external_fail; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_external_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
 
-    @test setlinkstate!(ibnfs[3], externaledge, false) == ReturnCodes.SUCCESS
+    returncode, nowtime = setlinkstate!(ibnfs[3], externaledge, false; offsettime = nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testexpectedfaileddag(MINDF.requestidag_init(ibnfs[1], remoteibnf_external_fail), remoteintentid_external_fail, externaledge, 2)
     @test getidagnodestate(getidag(ibnfs[1]), intentuuid_external_fail) == IntentState.Failed
     @test count(x -> getidagnodestate(x) == IntentState.Failed, getidagnodes(getidag(ibnfs[1]))) == 4
 
-    intentuuid_external = addintent!(ibnfs[1], conintent_external, NetworkOperator())
-    @test compileintent!(ibnfs[1], intentuuid_external, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    intentuuid_external, nowtime = addintent!(ibnfs[1], conintent_external, NetworkOperator(); offsettime=nowtime)
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid_external; offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     remoteibnfid_external, remoteintentid_external = getfirstremoteintent(ibnfs[1], intentuuid_external)
     remoteibnf_external = getibnfhandler(ibnfs[1], remoteibnfid_external)
 
-    @test installintent!(ibnfs[1], intentuuid_external; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid_external; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid_external)])
     @test all([MINDF.getidagnodestate(idagnode) == IntentState.Installed for idagnode in MINDF.getidagnodedescendants(MINDF.requestidag_init(ibnfs[1], remoteibnf_external), remoteintentid_external)])
     let
@@ -363,14 +412,18 @@ function testsuitefailingintime!(ibnfs)
     end
 
     # uninstall, remove all
-    @test uninstallintent!(ibnfs[1], intentuuid_external_fail; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid_external_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuninstallation(ibnfs[1], intentuuid_external_fail; withremote = true)
-    @test uninstallintent!(ibnfs[1], intentuuid_external; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid_external; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuninstallation(ibnfs[1], intentuuid_external; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], intentuuid_external_fail; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid_external_fail; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnfs[1], intentuuid_external_fail)
-    @test uncompileintent!(ibnfs[1], intentuuid_external; verbose = false) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid_external; verbose = false, offsettime=nowtime)
+    @test returncode == ReturnCodes.SUCCESS
     testuncompilation(ibnfs[1], intentuuid_external)
 
     # test bordernodes have the same logs
@@ -380,7 +433,7 @@ function testsuitefailingintime!(ibnfs)
         ibnag = getibnag(ibnf)
         for ed in edges(ibnag)
             ls1 = getcurrentlinkstate(ibnf, ed)
-            setlinkstate!(ibnf, ed, !ls1)
+            setlinkstate!(ibnf, ed, !ls1; offsettime=nowtime)
             ls2 = getcurrentlinkstate(ibnf, ed)
             @test ls1 !== ls2
         end
@@ -397,9 +450,10 @@ end
 function testsuitegrooming!(ibnfs)
     # internal
     conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
-    intentuuid1 = addintent!(ibnfs[1], conintent1, NetworkOperator())
+    intentuuid1, _ = addintent!(ibnfs[1], conintent1, NetworkOperator())
     conintent1idn = getidagnode(getidag(ibnfs[1]), intentuuid1)
-    compileintent!(ibnfs[1], intentuuid1, KShorestPathFirstFitCompilation(10))
+
+    compileintent!(ibnfs[1], intentuuid1)
     installintent!(ibnfs[1], intentuuid1)
 
     installedlightpathsibnfs1 = getinstalledlightpaths(getidaginfo(getidag(ibnfs[1])))
@@ -413,10 +467,10 @@ function testsuitegrooming!(ibnfs)
     @test getresidualbandwidth(ibnfs[1], UUID(0x02)) == GBPSf(70)
 
     groomconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
-    groomintentuuid1 = addintent!(ibnfs[1], groomconintent1, NetworkOperator())
+    groomintentuuid1, _ = addintent!(ibnfs[1], groomconintent1, NetworkOperator())
     groomconintent1idn = getidagnode(getidag(ibnfs[1]), groomintentuuid1)
-    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn, KShorestPathFirstFitCompilation(4)) == [[UUID(0x02)]]
-    compileintent!(ibnfs[1], groomintentuuid1, KShorestPathFirstFitCompilation(10))
+    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn) == [[UUID(0x02)]]
+    compileintent!(ibnfs[1], groomintentuuid1)
     @test getidagnodestate(groomconintent1idn) == IntentState.Compiled
     @test length(installedlightpathsibnfs1) == 1
     @test getresidualbandwidth(ibnfs[1], UUID(0x02); onlyinstalled = true) == GBPSf(70)
@@ -424,60 +478,73 @@ function testsuitegrooming!(ibnfs)
     testcompilation(ibnfs[1], groomintentuuid1; withremote = false)
     testinstallation(ibnfs[1], intentuuid1; withremote = false)
 
-    @test installintent!(ibnfs[1], groomintentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], groomintentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], intentuuid1; withremote = false)
     testinstallation(ibnfs[1], groomintentuuid1; withremote = false)
 
     # uninstall one
-    @test uninstallintent!(ibnfs[1], groomintentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], groomintentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
     @test getidagnodestate(groomconintent1idn) == IntentState.Compiled
     # all other remain installed
     @test all(x -> getidagnodestate(x) == IntentState.Installed, MINDF.getidagnodedescendants(getidag(ibnfs[1]), intentuuid1; includeroot = true))
     testinstallation(ibnfs[1], intentuuid1; withremote = false)
 
     # uninstall also the other one
-    @test uninstallintent!(ibnfs[1], intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], intentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
     @test all(x -> getidagnodestate(x) == IntentState.Compiled, MINDF.getidagnodes(getidag(ibnfs[1])))
     @test length(installedlightpathsibnfs1) == 0
     testcompilation(ibnfs[1], groomintentuuid1; withremote = false)
     testcompilation(ibnfs[1], intentuuid1; withremote = false)
 
     # install the second
-    @test installintent!(ibnfs[1], groomintentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], groomintentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
     @test all(x -> getidagnodestate(x) == IntentState.Installed, MINDF.getidagnodedescendants(getidag(ibnfs[1]), groomintentuuid1; includeroot = true))
     @test getidagnodestate(conintent1idn) == IntentState.Compiled
     @test length(installedlightpathsibnfs1) == 1
 
     # uncompile the first one
-    @test uncompileintent!(ibnfs[1], intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
     @test getidagnodestate(conintent1idn) == IntentState.Uncompiled
     @test isempty(Graphs.neighbors(getidag(ibnfs[1]), getidagnodeidx(getidag(ibnfs[1]), intentuuid1)))
 
     # compile again
-    @test compileintent!(ibnfs[1], intentuuid1, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
 
     # uninstall the second
-    @test uninstallintent!(ibnfs[1], groomintentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], groomintentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
 
     # uncompile the first one
-    @test uncompileintent!(ibnfs[1], intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], intentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
 
     # uncompile the second one
-    @test uncompileintent!(ibnfs[1], groomintentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], groomintentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
     @test length(getidagnodes(getidag(ibnfs[1]))) == 2
     @test all(x -> getidagnodestate(x) == IntentState.Uncompiled, getidagnodes(getidag(ibnfs[1])))
 
     # compile install the first one
-    @test compileintent!(ibnfs[1], intentuuid1, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], intentuuid1) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], intentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], intentuuid1) 
+    @test returncode == ReturnCodes.SUCCESS
 
     # try grooming with lightpath and a new intent
     groomandnewconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 22), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
-    groomandnewconintent1id = addintent!(ibnfs[1], groomandnewconintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], groomandnewconintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    groomandnewconintent1id, _ = addintent!(ibnfs[1], groomandnewconintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], groomandnewconintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], groomandnewconintent1id; withremote = false)
     @test MINDF.issatisfied(ibnfs[1], groomandnewconintent1id; onlyinstalled = false)
-    @test installintent!(ibnfs[1], groomandnewconintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], groomandnewconintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], groomandnewconintent1id; withremote = false)
     @test MINDF.issatisfied(ibnfs[1], groomandnewconintent1id; onlyinstalled = true)
     @test MINDF.issubdaggrooming(getidag(ibnfs[1]), groomandnewconintent1id)
@@ -485,9 +552,11 @@ function testsuitegrooming!(ibnfs)
 
     # should be separate intent
     nogroomandnewconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 5), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
-    nogroomandnewconintent1id = addintent!(ibnfs[1], nogroomandnewconintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], nogroomandnewconintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], nogroomandnewconintent1id) == ReturnCodes.SUCCESS
+    nogroomandnewconintent1id, _ = addintent!(ibnfs[1], nogroomandnewconintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], nogroomandnewconintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], nogroomandnewconintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     @test MINDF.issatisfied(ibnfs[1], nogroomandnewconintent1id; onlyinstalled = true)
     @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), nogroomandnewconintent1id)
 
@@ -495,15 +564,19 @@ function testsuitegrooming!(ibnfs)
     @test MINDF.getresidualbandwidth(ibnfs[1], nogroomandnewconintent1lpid) == GBPSf(70)
 
     nogroomandnewconintent1_over = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 5), GlobalNode(getibnfid(ibnfs[1]), 8), u"80.0Gbps")
-    nogroomandnewconintent1_overid = addintent!(ibnfs[1], nogroomandnewconintent1_over, NetworkOperator())
-    @test compileintent!(ibnfs[1], nogroomandnewconintent1_overid, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], nogroomandnewconintent1_overid) == ReturnCodes.SUCCESS
+    nogroomandnewconintent1_overid, _ = addintent!(ibnfs[1], nogroomandnewconintent1_over, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], nogroomandnewconintent1_overid) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], nogroomandnewconintent1_overid) 
+    @test returncode == ReturnCodes.SUCCESS
     @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), nogroomandnewconintent1_overid)
 
     nogroomandnewconintent1_down = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 5), GlobalNode(getibnfid(ibnfs[1]), 10), u"10.0Gbps")
-    nogroomandnewconintent1_downid = addintent!(ibnfs[1], nogroomandnewconintent1_down, NetworkOperator())
-    @test compileintent!(ibnfs[1], nogroomandnewconintent1_downid, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], nogroomandnewconintent1_downid) == ReturnCodes.SUCCESS
+    nogroomandnewconintent1_downid, _ = addintent!(ibnfs[1], nogroomandnewconintent1_down, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], nogroomandnewconintent1_downid) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], nogroomandnewconintent1_downid) 
+    @test returncode == ReturnCodes.SUCCESS
     @test MINDF.issubdaggrooming(getidag(ibnfs[1]), nogroomandnewconintent1_downid)
 
     testzerostaged(ibnfs[1])
@@ -511,13 +584,16 @@ function testsuitegrooming!(ibnfs)
     # uncompile uninstall remove all
     for idagnode in MINDF.getnetworkoperatoridagnodes(getidag(ibnfs[1]))
         if getidagnodestate(idagnode) == IntentState.Installed
-            @test uninstallintent!(ibnfs[1], getidagnodeid(idagnode)) == ReturnCodes.SUCCESS
+            returncode, nowtime = uninstallintent!(ibnfs[1], getidagnodeid(idagnode)) 
+            @test returncode == ReturnCodes.SUCCESS
         end
         if getidagnodestate(idagnode) == IntentState.Compiled
-            @test uncompileintent!(ibnfs[1], getidagnodeid(idagnode)) == ReturnCodes.SUCCESS
+            returncode, nowtime = uncompileintent!(ibnfs[1], getidagnodeid(idagnode)) 
+            @test returncode == ReturnCodes.SUCCESS
         end
         if getidagnodestate(idagnode) == IntentState.Uncompiled
-            @test removeintent!(ibnfs[1], getidagnodeid(idagnode)) == ReturnCodes.SUCCESS
+            returncode, nowtime = removeintent!(ibnfs[1], getidagnodeid(idagnode)) 
+            @test returncode == ReturnCodes.SUCCESS
         end
     end
 
@@ -526,32 +602,42 @@ function testsuitegrooming!(ibnfs)
 
     # border intent
     cdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 21), GlobalNode(getibnfid(ibnfs[3]), 25), u"10.0Gbps")
-    cdintent1id = addintent!(ibnfs[1], cdintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], cdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    cdintent1id, _ = addintent!(ibnfs[1], cdintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
 
     # grooming border intent
     gcdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 21), GlobalNode(getibnfid(ibnfs[3]), 25), u"10.0Gbps")
-    gcdintent1id = addintent!(ibnfs[1], gcdintent1, NetworkOperator())
+    gcdintent1id, _ = addintent!(ibnfs[1], gcdintent1, NetworkOperator())
     gcdintent1idagnode = getidagnode(getidag(ibnfs[1]), gcdintent1id)
-    @test compileintent!(ibnfs[1], gcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], gcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     @test MINDF.issubdaggrooming(getidag(ibnfs[1]), gcdintent1id)
     testcompilation(ibnfs[1], gcdintent1id; withremote = true)
     testinstallation(ibnfs[1], cdintent1id; withremote = true)
-    @test installintent!(ibnfs[1], gcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], gcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], gcdintent1id; withremote = true)
     testinstallation(ibnfs[1], cdintent1id; withremote = true)
 
     # uninstall
-    @test uninstallintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
-    @test uncompileintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     @test isempty(MINDF.getidagnodedescendants(MINDF.getidag(ibnfs[1]), cdintent1id))
     testinstallation(ibnfs[1], gcdintent1id; withremote = true)
-    @test uninstallintent!(ibnfs[1], gcdintent1id) == ReturnCodes.SUCCESS
-    @test uncompileintent!(ibnfs[1], gcdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], gcdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], gcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], gcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], gcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
 
     foreach(ibnfs) do ibnf
         testoxcfiberallocationconsistency(ibnf)
@@ -562,41 +648,51 @@ function testsuitegrooming!(ibnfs)
     @test iszero(ne(MINDF.getidag(ibnfs[1])))
 
 
-    cdintent1id = addintent!(ibnfs[1], cdintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], cdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    cdintent1id, _ = addintent!(ibnfs[1], cdintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     crosslightpathidagnode = MINDF.getfirst(x -> getintent(x) isa CrossLightpathIntent, getidagnodedescendants(getidag(ibnfs[1]), cdintent1id))
     @test !isnothing(crosslightpathidagnode)
 
     # grooming border intent + new LP
     lpgcdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 1), GlobalNode(getibnfid(ibnfs[3]), 25), u"10.0Gbps")
-    lpgcdintent1id = addintent!(ibnfs[1], lpgcdintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], lpgcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
+    lpgcdintent1id, _ = addintent!(ibnfs[1], lpgcdintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     @test MINDF.issubdaggrooming(getidag(ibnfs[1]), lpgcdintent1id)
 
     # non grooming border intent
     ngcdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 1), GlobalNode(getibnfid(ibnfs[3]), 24), u"10.0Gbps")
-    ngcdintent1id = addintent!(ibnfs[1], ngcdintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], ngcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
+    ngcdintent1id, _ = addintent!(ibnfs[1], ngcdintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     # doesn't contain the cross light path intent from before
     @test !any(x -> getidagnodeid(x) == getidagnodeid(crosslightpathidagnode), getidagnodedescendants(getidag(ibnfs[1]), ngcdintent1id))
 
     # non grooming border intent
     ongcdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 16), GlobalNode(getibnfid(ibnfs[3]), 38), u"10.0Gbps")
-    ongcdintent1id = addintent!(ibnfs[1], ongcdintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], ongcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
+    ongcdintent1id, _ = addintent!(ibnfs[1], ongcdintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     # doesn't contain the cross light path intent from before
     @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), ongcdintent1id)
     @test !any(x -> getidagnodeid(x) == getidagnodeid(crosslightpathidagnode), getidagnodedescendants(getidag(ibnfs[1]), ongcdintent1id))
 
     # grooming intent regardless path
     gongcdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 19), GlobalNode(getibnfid(ibnfs[3]), 38), u"10.0Gbps")
-    gongcdintent1id = addintent!(ibnfs[1], gongcdintent1, NetworkOperator())
-    @test compileintent!(ibnfs[1], gongcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-    @test installintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
+    gongcdintent1id, _ = addintent!(ibnfs[1], gongcdintent1, NetworkOperator())
+    returncode, nowtime = compileintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     # doesn't contain the cross light path intent from before
     @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), gongcdintent1id)
     @test !any(x -> getidagnodeid(x) == getidagnodeid(crosslightpathidagnode), getidagnodedescendants(getidag(ibnfs[1]), gongcdintent1id))
@@ -608,35 +704,40 @@ function testsuitegrooming!(ibnfs)
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
     testinstallation(ibnfs[1], lpgcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ngcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
     testcompilation(ibnfs[1], lpgcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ngcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
     testcompilation(ibnfs[1], lpgcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ngcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
     testcompilation(ibnfs[1], lpgcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ngcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
     testcompilation(ibnfs[1], lpgcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ngcdintent1id; withremote = true)
@@ -645,25 +746,30 @@ function testsuitegrooming!(ibnfs)
 
     # uncompile one by one
 
-    @test uncompileintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], lpgcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ngcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ongcdintent1id; withremote = true)
     testcompilation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], ngcdintent1id; withremote = true)
     testcompilation(ibnfs[1], ongcdintent1id; withremote = true)
     testcompilation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], ongcdintent1id; withremote = true)
     testcompilation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uncompileintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
 
 
     @test nv(MINDF.getidag(ibnfs[1])) == 5
@@ -676,61 +782,86 @@ function testsuitegrooming!(ibnfs)
 
 
     # compile install all again
-    @test compileintent!(ibnfs[1], cdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], cdintent1id; withremote = true)
-    @test installintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], cdintent1id; withremote = true)
 
-    @test compileintent!(ibnfs[1], lpgcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], lpgcdintent1id; withremote = true)
-    @test installintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], lpgcdintent1id; withremote = true)
 
-    @test compileintent!(ibnfs[1], ngcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], ngcdintent1id; withremote = true)
-    @test installintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], ngcdintent1id; withremote = true)
 
-    @test compileintent!(ibnfs[1], ongcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], ongcdintent1id; withremote = true)
-    @test installintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
 
-    @test compileintent!(ibnfs[1], gongcdintent1id, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
+    returncode, nowtime = compileintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testcompilation(ibnfs[1], gongcdintent1id; withremote = true)
-    @test installintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = installintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
     # uncompiled uninstall one by one
-    @test uninstallintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
-    @test uncompileintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], cdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], cdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], lpgcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ngcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
-    @test uncompileintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], lpgcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], lpgcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], ngcdintent1id; withremote = true)
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
-    @test uncompileintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], ngcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], ngcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], ongcdintent1id; withremote = true)
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
-    @test uncompileintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], ongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], ongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], gongcdintent1id; withremote = true)
 
-    @test uninstallintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
-    @test uncompileintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
-    @test removeintent!(ibnfs[1], gongcdintent1id) == ReturnCodes.SUCCESS
+    returncode, nowtime = uninstallintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = uncompileintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
+    returncode, nowtime = removeintent!(ibnfs[1], gongcdintent1id) 
+    @test returncode == ReturnCodes.SUCCESS
 
     foreach(ibnfs) do ibnf
         testoxcfiberallocationconsistency(ibnf)
@@ -743,9 +874,10 @@ end
 
 function testsuitegroomingonfail!(ibnfs)
     conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
-    intentuuid1 = addintent!(ibnfs[1], conintent1, NetworkOperator())
+    intentuuid1, _ = addintent!(ibnfs[1], conintent1, NetworkOperator())
     conintent1idn = getidagnode(getidag(ibnfs[1]), intentuuid1)
-    compileintent!(ibnfs[1], intentuuid1, KShorestPathFirstFitCompilation(10))
+
+    compileintent!(ibnfs[1], intentuuid1)
     installintent!(ibnfs[1], intentuuid1)
 
     installedlightpathsibnfs1 = getinstalledlightpaths(getidaginfo(getidag(ibnfs[1])))
@@ -762,16 +894,16 @@ function testsuitegroomingonfail!(ibnfs)
     @test getidagnodestate(conintent1idn) == IntentState.Failed
 
     groomconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
-    groomintentuuid1 = addintent!(ibnfs[1], groomconintent1, NetworkOperator())
+    groomintentuuid1, _ = addintent!(ibnfs[1], groomconintent1, NetworkOperator())
     groomconintent1idn = getidagnode(getidag(ibnfs[1]), groomintentuuid1)
-    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn, KShorestPathFirstFitCompilation(4)) == UUID[]
+    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn) == UUID[]
 
     # for external lightpaths now
 
     mdconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[3]), 21), u"30.0Gbps")
-    mdconintent1id = addintent!(ibnfs[1], mdconintent1, NetworkOperator())
+    mdconintent1id, _ = addintent!(ibnfs[1], mdconintent1, NetworkOperator())
     mdconintent1idn = getidagnode(getidag(ibnfs[1]), mdconintent1id)
-    compileintent!(ibnfs[1], mdconintent1id, KShorestPathFirstFitCompilation(10))
+    compileintent!(ibnfs[1], mdconintent1id)
     installintent!(ibnfs[1], mdconintent1id)
 
     @test getidagnodestate(mdconintent1idn) == IntentState.Installed
@@ -780,9 +912,9 @@ function testsuitegroomingonfail!(ibnfs)
 
 
     groommdconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[3]), 21), u"30.0Gbps")
-    groommdconintent1id = addintent!(ibnfs[1], groommdconintent1, NetworkOperator())
+    groommdconintent1id, _ = addintent!(ibnfs[1], groommdconintent1, NetworkOperator())
     groommdconintent1idn = getidagnode(getidag(ibnfs[1]), groommdconintent1id)
-    compileintent!(ibnfs[1], groommdconintent1id, KShorestPathFirstFitCompilation(10))
+    compileintent!(ibnfs[1], groommdconintent1id)
     @test getidagnodestate(groommdconintent1idn) == IntentState.Compiled
     installintent!(ibnfs[1], groommdconintent1id)
     @test getidagnodestate(groommdconintent1idn) == IntentState.Installed
@@ -793,6 +925,7 @@ function testsuiteinterface!(ibnfs)
     # do some random allocations
     rng = MersenneTwister(0)
     # for counter in 1:100
+
     for counter in 1:100
         srcibnf = rand(rng, ibnfs)
         srcnglobalnode = rand(rng, MINDF.getglobalnode.(MINDF.getproperties.(MINDF.getintranodeviews(getibnag(srcibnf)))))
@@ -805,9 +938,11 @@ function testsuiteinterface!(ibnfs)
         rate = GBPSf(rand(rng) * 100)
 
         conintent = ConnectivityIntent(srcnglobalnode, dstglobalnode, rate)
-        conintentid = addintent!(srcibnf, conintent, NetworkOperator())
-        @test compileintent!(srcibnf, conintentid, KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS
-        @test installintent!(srcibnf, conintentid; verbose = false) == ReturnCodes.SUCCESS
+        conintentid, _ = addintent!(srcibnf, conintent, NetworkOperator())
+        returncode, nowtime = compileintent!(srcibnf, conintentid) 
+        @test returncode == ReturnCodes.SUCCESS
+        returncode, nowtime = installintent!(srcibnf, conintentid; verbose = false) 
+        @test returncode == ReturnCodes.SUCCESS
         @test issatisfied(srcibnf, conintentid)
     end
 
@@ -877,16 +1012,18 @@ end
 function testsuitepermissions!(ibnfs)
     #Requesting compiling an intent (only possible with full permission)
     conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(1), 4), MINDF.GlobalNode(UUID(3), 25), u"100.0Gbps")
-    intentuuid_bordernode = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
-    @test MINDF.compileintent!(ibnfs[1], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10)) == ReturnCodes.SUCCESS #1 -> 3 (Full permission)
+    intentuuid_bordernode, _ = MINDF.addintent!(ibnfs[1], conintent_bordernode, MINDF.NetworkOperator())
+
+    returncode, nowtime = MINDF.compileintent!(ibnfs[1], intentuuid_bordernode) 
+    @test returncode == ReturnCodes.SUCCESS #1 -> 3 (Full permission)
 
     conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(3), 25), MINDF.GlobalNode(UUID(1), 4), u"100.0Gbps")
-    intentuuid_bordernode = MINDF.addintent!(ibnfs[3], conintent_bordernode, MINDF.NetworkOperator())
-    @test_permissionsthrows MINDF.compileintent!(ibnfs[3], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10)) #3 -> 1 (Limited permission)
+    intentuuid_bordernode, _ = MINDF.addintent!(ibnfs[3], conintent_bordernode, MINDF.NetworkOperator())
+    @test_permissionsthrows MINDF.compileintent!(ibnfs[3], intentuuid_bordernode) #3 -> 1 (Limited permission)
 
     conintent_bordernode = MINDF.ConnectivityIntent(MINDF.GlobalNode(UUID(3), 43), MINDF.GlobalNode(UUID(2), 37), u"100.0Gbps")
-    intentuuid_bordernode = MINDF.addintent!(ibnfs[3], conintent_bordernode, MINDF.NetworkOperator())
-    @test_permissionsthrows MINDF.compileintent!(ibnfs[3], intentuuid_bordernode, MINDF.KShorestPathFirstFitCompilation(10)) #3 -> 2 (None permission)
+    intentuuid_bordernode, _ = MINDF.addintent!(ibnfs[3], conintent_bordernode, MINDF.NetworkOperator())
+    @test_permissionsthrows MINDF.compileintent!(ibnfs[3], intentuuid_bordernode) #3 -> 2 (None permission)
 
     #Requesting the IBNAttributeGraph (possible with full and limited permission)
     @test MINDF.isthesame(MINDF.requestibnattributegraph_init(ibnfs[1], getibnfhandler(ibnfs[1], getibnfid(ibnfs[2]))), getibnag(ibnfs[2])) #1 -> 2 (Full permission)

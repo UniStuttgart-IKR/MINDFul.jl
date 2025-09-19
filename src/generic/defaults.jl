@@ -28,6 +28,27 @@ function default_dummyflexiblepluggable()
     )
 end
 
+function shortopticalreach_transmissionmodules(transpondernumber::Int=25, pluggablenumber::Int=25)
+    return [ 
+    fill( TransmissionModuleView(
+            TransmissionModuleDummy(),
+            "DummyShortReachPluggable",
+            [
+                TransmissionMode(u"480.0km", u"400.0Gbps", 6),
+            ],
+            8.0
+        ), pluggablenumber)...
+    , fill( TransmissionModuleView( 
+            TransmissionModuleDummy(),
+        "DummyShortReachTransponder",
+        [
+            TransmissionMode(u"400.0km", u"800.0Gbps", 10),
+        ],
+        20.0
+        ), transpondernumber)...
+    ]
+end
+
 function default_transmissionmodules(transpondernumber::Int=25, pluggablenumber::Int=25)
     return [
         fill(default_dummyflexibletransponder(), transpondernumber)...,
@@ -74,10 +95,14 @@ function default_OXCview(nodeproperties::NodeProperties, spectrumslots::Int, off
     return OXCView(OXCDummy(), 50, Dict{UUID, OXCAddDropBypassSpectrumLLI}(), Set{OXCAddDropBypassSpectrumLLI}(), linkspectrumavailabilities, linkstates)
 end
 
-function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int=25, pluggablenumber::Int=25; spectrumslots::Int, isexternal::Bool, offsettime = now())
+function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int=25, pluggablenumber::Int=25; spectrumslots::Int, isexternal::Bool, offsettime = now(), useshortreachtransmissionmodules=false)
     rv = default_routerview()
     ov = default_OXCview(nodeproperties, spectrumslots, offsettime)
-    tms = default_transmissionmodules(transpondernumber, pluggablenumber)
+    if useshortreachtransmissionmodules
+        tms = shortopticalreach_transmissionmodules(transpondernumber, pluggablenumber)
+    else
+        tms = default_transmissionmodules(transpondernumber, pluggablenumber)
+    end
     if isexternal
         return NodeView{typeof(rv), typeof(ov), eltype(tms)}(nodeproperties, nothing, nothing, nothing, nothing, nothing)
     else
@@ -85,15 +110,14 @@ function default_nodeview(nodeproperties::NodeProperties, transpondernumber::Int
     end
 end
 
-function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}}, transpondernumber::Int=25, pluggablenumber::Int=25; offsettime=now())
+function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int}, Dict{Symbol}, Dict{Symbol}, Dict{Symbol, Any}}, transpondernumber::Int=25, pluggablenumber::Int=25; offsettime=now(), useshortreachtransmissionmodules=false)
     spectrumslots = AG.graph_attr(ag)[:spectrumslots]
     ibnfid = AG.graph_attr(ag)[:ibnfid]
     extrafielddicts = [Dict(:inneighbors => innei, :outneighbors => outnei) for (innei, outnei) in zip(inneighbors.([ag], vertices(ag)), outneighbors.([ag], vertices(ag))) ]
-    # nodeviews = default_nodeview.(constructfromdict.(NodeProperties, vertex_attr(ag), extrafielddict); spectrumslots)
     nodeviews = [
         let
                 isexternal = va[:globalnode_ibnfid] != ibnfid
-                default_nodeview(constructfromdict(NodeProperties, va, extrafielddict), transpondernumber, pluggablenumber; spectrumslots, isexternal, offsettime)
+                default_nodeview(constructfromdict(NodeProperties, va, extrafielddict), transpondernumber, pluggablenumber; spectrumslots, isexternal, offsettime, useshortreachtransmissionmodules)
         end for (va, extrafielddict) in zip(AG.vertex_attr(ag), extrafielddicts)
     ]
     edgeviews = Dict(Edge(k[1], k[2]) => EdgeView(constructfromdict(EdgeProperties, v)) for (k, v) in edge_attr(ag))

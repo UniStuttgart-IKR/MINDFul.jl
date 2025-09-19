@@ -94,3 +94,61 @@ end
 function setdatetime!(uptnd::UpDownTimesNDatetime, datetime::DateTime)
     uptnd.datetime = datetime
 end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+What most time-sensitive functions return
+"""
+struct ReturnCodeTime
+    returncode::Symbol
+    datetime::DateTime
+end
+
+function Base.iterate(c::ReturnCodeTime, state = 0)
+    state >= nfields(c) && return nothing
+    return Base.getfield(c, state+1), state+1
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getreturncode(rct::ReturnCodeTime)
+    rct.returncode
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getdatetime(rct::ReturnCodeTime)
+    rct.datetime
+end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+"""
+struct ReturnUUIDTime
+    uuid::UUID
+    datetime::DateTime
+end
+
+function Base.iterate(c::ReturnUUIDTime, state = 0)
+    state >= nfields(c) && return nothing
+    return Base.getfield(c, state+1), state+1
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getuuid(rct::ReturnUUIDTime)
+    rct.uuid
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getdatetime(rct::ReturnUUIDTime)
+    rct.datetime
+end

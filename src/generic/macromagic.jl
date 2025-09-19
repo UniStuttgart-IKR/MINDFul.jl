@@ -20,6 +20,27 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Return a `return ReturnCodeTime(ReturnCodes.Fail, @logtime)` if the expression `ex` evaluates to false.
+That need to happen inside a `@recvtime` function
+If `verbose=true` print the statement and the location.
+If the expression passed is `true` do nothing.
+TODO: have also a helper message be printed
+"""
+macro returnwtimeiffalse(verbose, ex)
+    return quote
+        if !($(esc(ex)))
+            if $(esc(verbose))
+                println("False expression in", $(string(__source__.file)), ':', $(__source__.line), " --> ", $(string(ex)))
+            end
+            return ReturnCodeTime(ReturnCodes.FAIL, isnothing($(esc(:offsettime))) ? now() : $(esc(:offsettime)) + (now() - $(esc(:entrytime))))
+        end
+    end
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
 Return a `return false` if the expression `ex` evaluates to false.
 If `verbose=true` print the statement and the location.
 If the expression passed is `true` do nothing.

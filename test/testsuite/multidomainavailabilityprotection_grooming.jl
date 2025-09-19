@@ -1,5 +1,5 @@
 starttime = DateTime("2026-01-01")
-ibnfs = loadmultidomaintestibnfs()
+ibnfs = loadmultidomaintestibnfs(starttime)
 
 # basically best effort
 avcon1 = MINDF.AvailabilityConstraint(0.94, 0.9) 

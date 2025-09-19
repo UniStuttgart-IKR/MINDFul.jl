@@ -67,10 +67,6 @@ const KEY_INTENT = "intent"
 
 const KEY_INTENTUUID = "intentuuid"
 
-const KEY_COMPILATIONKEY = "compilationalgorithmkey"
-
-const KEY_COMPILATIONARGS = "compilationalgorithmargs"
-
 const KEY_ONLYINSTALLED = "onlyinstalled"
 
 const KEY_NOEXTRALLIS = "noextrallis"

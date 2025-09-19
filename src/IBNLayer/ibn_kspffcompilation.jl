@@ -5,65 +5,31 @@ $(TYPEDFIELDS)
 struct KShorestPathFirstFitCompilation <: IntentCompilationAlgorithm
     "How many k paths to check"
     candidatepathsnum::Int
+    cachedresults::CachedResults
+end
+
+const IBNFrameworkKSP = IBNFramework{A,B,C,D,R} where {A,B,C,D,R<:KShorestPathFirstFitCompilation}
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function KShorestPathFirstFitCompilation(ibnag::IBNAttributeGraph, candidatepathnum::Int)
+    cachedresults = CachedResults(ibnag, candidatepathnum)
+    return KShorestPathFirstFitCompilation(candidatepathnum, cachedresults)
+end
+
+function KShorestPathFirstFitCompilation(candidatepathnum::Int; nodenum)
+    return KShorestPathFirstFitCompilation(candidatepathnum, CachedResults(nodenum))
+end
+
+function KShorestPathFirstFitCompilation(kspcomp::KShorestPathFirstFitCompilation, cachedresults::CachedResults)
+    return KShorestPathFirstFitCompilation(kspcomp.candidatepathsnum, cachedresults)
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-function getcandidatepathsnum(kspffcomp::KShorestPathFirstFitCompilation)
-    return kspffcomp.candidatepathsnum
-end
-
-"The keyword for [`KShorestPathFirstFitCompilation`](@ref)"
-const KSPFFalg = :kspff
-
-"""
-$(TYPEDSIGNATURES)
-
-Give back the algorithm mapped to the symbol
-"""
-function getcompilationalgorithmtype(s::Val{KSPFFalg})
-    return KShorestPathFirstFitCompilation
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getdefaultcompilationalgorithmargs(s::Val{KSPFFalg})
-    return (5,)
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Give back the symbol mapped to the algorithm
-"""
-function getcompilationalgorithmkeyword(c::T) where {T <: IntentCompilationAlgorithm}
-    return getcompilationalgorithmkeyword(T)
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Give back the symbol mapped to the algorithm
-"""
-function getcompilationalgorithmkeyword(::Type{KShorestPathFirstFitCompilation})
-    return KSPFFalg
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Can overload for different Operation Modes.
-"""
-function getdefaultcompilationalgorithm(ibnff::IBNFramework{<:AbstractOperationMode})
-    return :kspff
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, kspffcomp::KShorestPathFirstFitCompilation; verbose::Bool = false)
+@recvtime function compileintent!(ibnf::IBNFrameworkKSP, idagnode::IntentDAGNode{<:ConnectivityIntent}; verbose::Bool = false)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_shortest,
         prioritizegrooming = prioritizegrooming_default,
@@ -73,10 +39,9 @@ $(TYPEDSIGNATURES)
         chooseoxcadddropport = chooseoxcadddropport_first,
     )
     compileintenttemplate!(
-        ibnf, idagnode, kspffcomp;
+        ibnf, idagnode;
         verbose,
         intradomainalgfun = intradomaincompilationalg,
-        externaldomainalgkeyword = getcompilationalgorithmkeyword(kspffcomp),
         prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
         @passtime

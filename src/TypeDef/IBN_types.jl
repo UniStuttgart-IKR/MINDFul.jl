@@ -458,7 +458,7 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication} <: AbstractIBNFHandler
+struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication, R <: IntentCompilationAlgorithm} <: AbstractIBNFHandler
     "The operation mode of the IBN framework"
     operationmode::O
     "The id of this IBN Framework instance"
@@ -471,6 +471,8 @@ struct IBNFramework{O <: AbstractOperationMode, S <: AbstractSDNController, T <:
     ibnfcomm::I
     "SDN controller handle"
     sdncontroller::S
+    "Intent compilation algorithm"
+    intcompalg::R
 end
 
 """
@@ -478,11 +480,11 @@ $(TYPEDSIGNATURES)
 
 The most default construct with abstract type of IBN handlers
 """
-function IBNFramework(ibnag::T) where {T <: IBNAttributeGraph}
+function IBNFramework(ibnag::T, intcompalg::IntentCompilationAlgorithm) where {T <: IBNAttributeGraph}
     ibnfid = AG.graph_attr(ibnag)
     ibnfcomm = IBNFCommunication(nothing, IBNFramework{DefaultOperationMode, SDNdummy, T}[])
     # abstract type : for remote
-    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy())
+    return IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, SDNdummy(), intcompalg)
 end
 
 """
@@ -490,11 +492,11 @@ $(TYPEDSIGNATURES)
 
 Constructor that specify IBNFHandlers to make it potentially type stable
 """
-function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, sdncontroller::S, ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool = false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler, S <: AbstractSDNController}
+function IBNFramework(ibnag::T, ibnfhandlers::Vector{H}, encryption::Bool, ips::Vector{String}, sdncontroller::S, intcompalg::R,ibnfsdict::Dict{Int, IBNFramework} = Dict{Int, IBNFramework}(); verbose::Bool = false) where {T <: IBNAttributeGraph, H <: AbstractIBNFHandler, S <: AbstractSDNController, R<:IntentCompilationAlgorithm}
     ibnfid = AG.graph_attr(ibnag)
 
     ibnfcomm = IBNFCommunication(nothing, ibnfhandlers)
-    ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, sdncontroller)
+    ibnf = IBNFramework(DefaultOperationMode(), ibnfid, IntentDAG(), ibnag, ibnfcomm, sdncontroller, intcompalg)
 
     port = getibnfhandlerport(getibnfhandlers(ibnf)[1])
     push!(ibnfsdict, port => ibnf)
@@ -527,3 +529,4 @@ struct SplitGlobalNode
     firsthalfavailabilityconstraint::Union{Nothing, AvailabilityConstraint}
     secondhalfavailabilityconstraint::Union{Nothing, AvailabilityConstraint}
 end
+

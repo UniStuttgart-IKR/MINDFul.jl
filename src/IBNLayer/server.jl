@@ -375,9 +375,7 @@ end
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
-    compilationalgorithmkey = Symbol(parsedbody[MINDF.HTTPMessages.KEY_COMPILATIONKEY])
-    compilationalgorithmargs = Tuple(parsedbody[MINDF.HTTPMessages.KEY_COMPILATIONARGS])
-    compileintent = MINDF.requestcompileintent_term!(remoteibnfhandler, ibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; offsettime = otime)
+    compileintent = MINDF.requestcompileintent_term!(remoteibnfhandler, ibnf, idagnodeid; offsettime = otime)
     if !isnothing(compileintent)
         return HTTP.Response(200, JSON.json(string(compileintent)))
     else

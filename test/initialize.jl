@@ -1,15 +1,18 @@
+using MINDFul: IBNAttributeGraph, CachedResults
 using MINDFul
 using Test, TestSetExtensions
 using Graphs
 import AttributeGraphs as AG
 using JLD2, UUIDs
 using Unitful, UnitfulData
-import Dates: now, Hour, DateTime
+import Dates: now, Hour, DateTime, Second
 import Dates
 import Random: MersenneTwister, randperm
 using HTTP, TOML, MbedTLS
 
-import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo, getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst
+import Serialization: serialize, deserialize
+
+import MINDFul: ReturnCodes, IBNFramework, getibnfhandlers, GlobalNode, ConnectivityIntent, addintent!, NetworkOperator, compileintent!, KShorestPathFirstFitCompilation, installintent!, uninstallintent!, uncompileintent!, getidag, getrouterview, getoxcview, RouterPortLLI, TransmissionModuleLLI, OXCAddDropBypassSpectrumLLI, canreserve, reserve!, getlinkspectrumavailabilities, getreservations, unreserve!, getibnfid, getidagnodestate, IntentState, getidagnodechildren, getidagnode, OpticalTerminateConstraint, getlogicallliorder, issatisfied, getglobalnode, getibnag, getlocalnode, getspectrumslotsrange, gettransmissionmode, getname, gettransmissionmodule, TransmissionModuleCompatibility, getrate, getspectrumslotsneeded, OpticalInitiateConstraint, getnodeview, getnodeview, getsdncontroller, getrouterview, removeintent!, getlinkstates, getcurrentlinkstate, setlinkstate!, logicalordercontainsedge, logicalordergetpath, edgeify, getintent, RemoteIntent, getisinitiator, getidagnodeid, getibnfhandler, getidagnodes, @passtime, getlinkstates, issuccess, getstaged, getidaginfo, getinstalledlightpaths, LightpathRepresentation, GBPSf, getresidualbandwidth, getidagnodeidx, getidagnodedescendants, CrossLightpathIntent, GlobalEdge, getfirst, getintcompalg, getbasicalgmem, IntentCompilationAlgorithm, BestEmpiricalAvailabilityCompilation, getcandidatepathsnum
 
 const MINDF = MINDFul
 
@@ -17,25 +20,73 @@ import JET
 import JET: @test_opt
 
 TESTDIR = @__DIR__
+SERIALIZEDCACHEDRESULTSDICTPATH = joinpath(TESTDIR, "tmp", "serializedcachedresultsdict.bin")
 
 # if you don't want JET tests do `push!(ARGS, "--nojet")` before `include`ing
 RUNJET = !any(==("--nojet"), ARGS)
+
+# if you don't want to use serialized cached results do `push!(ARGS, "--nosercache")` before `include`ing
+USESERIALCACHE = !any(==("--nosercache"), ARGS)
+
+if !USESERIALCACHE
+    if isfile(SERIALIZEDCACHEDRESULTSDICTPATH)
+        rm(SERIALIZEDCACHEDRESULTSDICTPATH)
+    end
+end
 
 # get the test module from MINDFul
 TM = Base.get_extension(MINDFul, :TestModule)
 @test !isnothing(TM)
 
+begin 
+    testexpectedfaileddag = TM.testexpectedfaileddag
+    getfirstremoteintent = TM.getfirstremoteintent
+    testuninstallation = TM.testuninstallation
+    testuncompilation = TM.testuncompilation
+    testedgeoxclogs = TM.testedgeoxclogs
+    testoxcllistateconsistency = TM.testoxcllistateconsistency
+    testcompilation = TM.testcompilation
+    testinstallation = TM.testinstallation
+    testzerostaged = TM.testzerostaged
+end
+
 # some boilerplate functions
 
-function loadmultidomaintestibnfs(offsettime=now())
+intalgcompkspff(ibnag::IBNAttributeGraph, candidatepathsnum::Int; cachedresults = nothing) = isnothing(cachedresults) ? KShorestPathFirstFitCompilation(cachedresults, candidatepathsnum) : KShorestPathFirstFitCompilation(ibnag, candidatepathsnum)
+
+function deserializeorcalculatecachedresults(ibnag::IBNAttributeGraph, candidatepathsnum::Int)
+    ibnfid = AG.graph_attr(ibnag)
+    if isfile(SERIALIZEDCACHEDRESULTSDICTPATH)
+        serializedcachedresultsdict = deserialize(SERIALIZEDCACHEDRESULTSDICTPATH)
+        if haskey(serializedcachedresultsdict, (ibnfid, candidatepathsnum))
+            cachedresults = serializedcachedresultsdict[(ibnfid, candidatepathsnum)]
+        else
+            cachedresults = CachedResults(ibnag, candidatepathsnum)
+            serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
+            # update
+            serialize(SERIALIZEDCACHEDRESULTSDICTPATH, serializedcachedresultsdict)
+        end
+    else
+        serializedcachedresultsdict = Dict{Tuple{UUID, Int}, CachedResults}()
+        cachedresults = CachedResults(ibnag, candidatepathsnum)
+        serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
+        # store
+        serialize(SERIALIZEDCACHEDRESULTSDICTPATH, serializedcachedresultsdict)
+    end
+    return cachedresults
+end
+
+function loadmultidomaintestibnfs(compalg::IntentCompilationAlgorithm, offsettime=now(); useshortreachtransmissionmodules::Bool=false)
     domains_name_graph = first(JLD2.load(TESTDIR * "/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
 
 
     ibnfs = [
         let
                 ag = name_graph[2]
-                ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25; offsettime)
-                ibnf = IBNFramework(ibnag)
+                ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25; offsettime, useshortreachtransmissionmodules)
+                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg))
+                intcompalg = typeof(compalg)(compalg, cachedresults)
+                ibnf = IBNFramework(ibnag, intcompalg)
         end for name_graph in domains_name_graph
     ]
 
@@ -52,7 +103,7 @@ function loadmultidomaintestibnfs(offsettime=now())
     return ibnfs
 end
 
-function loadmultidomaintestidistributedbnfs()
+function loadmultidomaintestidistributedbnfs(compalg::IntentCompilationAlgorithm, offsettime=now()) 
     configfilepath = joinpath(TESTDIR, "data/config.toml")
     config = TOML.parsefile(configfilepath)
     CONFIGDIR = dirname(configfilepath)
@@ -98,8 +149,10 @@ function loadmultidomaintestidistributedbnfs()
             end
 
                 ag = name_graph[2]
-                ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25)
-                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), ibnfsdict; verbose = false)
+                ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25; offsettime)
+                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg))
+                intcompalg = typeof(compalg)(compalg, cachedresults)
+                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), intcompalg, ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
     ]
 
@@ -107,7 +160,7 @@ function loadmultidomaintestidistributedbnfs()
     return ibnfs
 end
 
-function loadpermissionedbnfs()
+function loadpermissionedbnfs(compalg::IntentCompilationAlgorithm)
     configfilepath = joinpath(TESTDIR, "data/config.toml")
     config = TOML.parsefile(configfilepath)
     CONFIGDIR = dirname(configfilepath)
@@ -154,7 +207,9 @@ function loadpermissionedbnfs()
 
                 ag = name_graph[2]
                 ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25)
-                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), ibnfsdict; verbose = false)
+                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg))
+                intcompalg = typeof(compalg)(compalg, cachedresults)
+                ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), intcompalg, ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
     ]
 

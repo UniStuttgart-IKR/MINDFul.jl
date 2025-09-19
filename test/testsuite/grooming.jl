@@ -1,12 +1,12 @@
 @testset ExtendedTestSet "grooming.jl"  begin
     # to test the following:
     # - do not groom if external lightpath is failed
-
-
-    ibnfs = loadmultidomaintestibnfs()
+    compalg = MINDF.KShorestPathFirstFitCompilation(10; nodenum=1)
+    #
+    ibnfs = loadmultidomaintestibnfs(compalg)
     TM.testsuitegrooming!(ibnfs)
 
-    ibnfs = loadmultidomaintestidistributedbnfs()
+    ibnfs = loadmultidomaintestidistributedbnfs(compalg)
     TM.testsuitegrooming!(ibnfs)
     MINDF.closeibnfserver(ibnfs)
 

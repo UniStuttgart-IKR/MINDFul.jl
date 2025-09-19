@@ -38,7 +38,7 @@ TestModule = ["JET", "Test", "Random"]
 [compat]
 AttributeGraphs = "0.3.0"
 Base64 = "1.11.0"
-DataStructures = "0.19"
+DataStructures = "0.18, 0.19"
 Dates = "1.11.0"
 Distributions = "0.25.120"
 DocStringExtensions = "0.9"

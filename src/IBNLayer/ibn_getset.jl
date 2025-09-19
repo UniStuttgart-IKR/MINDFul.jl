@@ -41,6 +41,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getintcompalg(s::IBNFramework)
+    return s.intcompalg
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getibnfhandlers(s::IBNFramework)
     return getibnfcomm(s).ibnfhandlers
 end
@@ -687,3 +694,4 @@ $(TYPEDSIGNATURES)
 function setcompliancetarget!(mav::MutableAvailabilityConstraint, newval::Float64)
     mav.compliancetarget = newval
 end
+

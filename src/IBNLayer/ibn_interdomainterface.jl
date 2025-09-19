@@ -455,9 +455,9 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `myibnf` asks `remoteibnf` to compile the external remote intent `idagnodeid` with the specified compilation algorithm
 """
-@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol = :default, compilationalgorithmargs::Tuple = (); verbose::Bool = false)
+@recvtime function requestcompileintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
-    requestcompileintent_term!(myibnfhandler, remoteibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; verbose, @passtime)
+    requestcompileintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose, @passtime)
 end
 
 """
@@ -465,9 +465,9 @@ $(TYPEDSIGNATURES)
 
 The initiator domain `remoteibnf` asks this domain `myibnf` to compile the internal remote intent `idagnodeid` with the specified compilation algorithm
 """
-@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID, compilationalgorithmkey::Symbol = :default, compilationalgorithmargs::Tuple = (); verbose::Bool = false)
-    compilationalgorithm = getcompilationalgorithm(myibnf, compilationalgorithmkey, compilationalgorithmargs)
-    return compileintent!(myibnf, idagnodeid, compilationalgorithm; verbose, @passtime)
+@recvtime function requestcompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
+    returncode, _ = compileintent!(myibnf, idagnodeid; verbose, @passtime)
+    return returncode
 end
 
 """
@@ -582,7 +582,7 @@ end
 $(TYPEDSIGNATURES) 
 """
 @recvtime function requestuncompileintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
-    uncompiledflag = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
+    uncompiledflag, _ = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
     if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
         removeintent!(myibnf, idagnodeid; verbose)
@@ -802,8 +802,6 @@ MA1069 implementation
         Dict(
             HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid,
             HTTPMessages.KEY_IDAGNODEID => string(idagnodeid),
-            HTTPMessages.KEY_COMPILATIONKEY => string(compilationalgorithmkey),
-            HTTPMessages.KEY_COMPILATIONARGS => JSON.json(compilationalgorithmargs)
         ); @passtime
     )
 
@@ -813,7 +811,7 @@ MA1069 implementation
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestcompileintent_init!(myibnf, remoteibnfhandler, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; verbose)
+        requestcompileintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
     else
         error("Failed to compile intent: $returncompileinit")
     end

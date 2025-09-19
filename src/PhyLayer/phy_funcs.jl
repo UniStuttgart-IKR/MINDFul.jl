@@ -179,7 +179,7 @@ Set the operating state of the edge in `oxcview` and trigger the state update of
             end
         end
     end
-    return ReturnCodes.SUCCESS
+    return ReturnCodeTime(ReturnCodes.SUCCESS, @logtime)
 end
 
 """

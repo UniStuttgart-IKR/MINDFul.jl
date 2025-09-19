@@ -11,7 +11,7 @@
 $(TYPEDEF)
 $(TYPEDFIELDS)
 """
-mutable struct BestEmpiricalAvailabilityCompilation <: IntentCompilationAlgorithm
+mutable struct BestEmpiricalAvailabilityCompilation <: IntentCompilationAlgorithmWithMemory
     "How many k paths to check"
     candidatepathsnum::Int
     """
@@ -19,190 +19,33 @@ mutable struct BestEmpiricalAvailabilityCompilation <: IntentCompilationAlgorith
     It investigates all possible pair of the first m paths
     """
     pathsforprotectionnum::Int
-    """
-    The simulated (or not) current datetime. 
-    It's used by the algorithm to build the uptime/downtime data
-    """
-    datetime::DateTime
-    # TODO : think: maybe delete ?
-    "The intents used to fill `logintrapaths`, correspond to either `LightpathIntent` or `ProtectedLightpathIntent`"
-    logintraintentsuuid::Vector{UUID}
-    """
-    Log here the selection of (protection) path for an intra node (+ border) intent after install. 
-    Add new elements upon installation
-    A new path `Vector{Vector{LocalNode}} is added per node pair and counted how many times was it used`
-    """
-    logintrapaths::Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}
-    """
-    Log here the up/downtimes of border-node to cross node.
-    Add new elements upon installation.
-    Update entries upon compilation.
-    All UUIDs correspond to Remote Connectivity intents
-    """
-    loginterupdowntimes::Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime}}
+    "cached information"
+    cachedresults::CachedResults
+    "The algorithm memory that is updated"
+    basicalgmem::BasicAlgorithmMemory
 end
 
-function BestEmpiricalAvailabilityCompilation(candidatepathsnum::Int, pathforprotectionnum::Int)
-    return BestEmpiricalAvailabilityCompilation(candidatepathsnum, pathforprotectionnum, now(), Vector{UUID}(), Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}(), Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime}}())
+const IBNFrameworkBEA = IBNFramework{A,B,C,D,BestEmpiricalAvailabilityCompilation} where {A,B,C,D}
+
+function BestEmpiricalAvailabilityCompilation(ibnag::IBNAttributeGraph, candidatepathsnum::Int, pathforprotectionnum::Int)
+    cachedresults = CachedResults(ibnag, candidatepathsnum)
+    return BestEmpiricalAvailabilityCompilation(candidatepathsnum, pathforprotectionnum, cachedresults, BasicAlgorithmMemory())
 end
 
-
-"""
-$(TYPEDSIGNATURES) 
-
-"""
-function logintrapathsandinterintents!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcomp::IntentCompilationAlgorithm)
-    intentuuidsalreadyaccessed = UUID[]
-    # traverse intent DAG
-    for childidagnode in getidagnodechildren(getidag(ibnf),idagnode)
-        _rec_logintrapathsandinterintents!(ibnf::IBNFramework, childidagnode, intentcomp::IntentCompilationAlgorithm, intentuuidsalreadyaccessed)
-    end
+function BestEmpiricalAvailabilityCompilation(candidatepathnum::Int, pathsforprotectionnum::Int; nodenum)
+    return BestEmpiricalAvailabilityCompilation(candidatepathnum, pathsforprotectionnum, CachedResults(nodenum), BasicAlgorithmMemory())
 end
 
-function _rec_logintrapathsandinterintents!(ibnf::IBNFramework, idagnode::IntentDAGNode, intentcomp::IntentCompilationAlgorithm, intentuuidsalreadyaccessed::Vector{UUID})
-    intent = getintent(idagnode)
-    continuedown = true
-    getidagnodeid(idagnode) in intentuuidsalreadyaccessed && return
-    push!(intentuuidsalreadyaccessed, getidagnodeid(idagnode))
-    if intent isa ProtectedLightpathIntent || intent isa LightpathIntent
-        prpath = if intent isa ProtectedLightpathIntent
-            getprpath(intent)
-        elseif intent isa LightpathIntent
-            [getpath(intent)]
-        end
-        srcdst = Edge(prpath[1][1], prpath[1][end])
-        logintrapaths = getlogintrapaths(intentcomp)
-        if !haskey(logintrapaths, srcdst)
-            logintrapaths[srcdst] = Dict{Vector{Vector{LocalNode}}, Int}()
-        end
-        if haskey(logintrapaths[srcdst], prpath)
-            logintrapaths[srcdst][prpath] += 1
-        else
-            logintrapaths[srcdst][prpath] = 1
-        end
-        continuedown = false
-    elseif intent isa RemoteIntent
-        conintent = getintent(intent)
-        sourcenode = getsourcenode(conintent)
-        destinationnode = getdestinationnode(conintent)
-        logstates = getlogstate(idagnode)
-        updowntimes = getupdowntimes(logstates, getdatetime(intentcomp))
-        globaledge = GlobalEdge(sourcenode, destinationnode) 
-        loginterupdowntimes = getloginterupdowntimes(intentcomp)
-        if haskey(loginterupdowntimes, globaledge)
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), getdatetime(intentcomp))
-        else
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, UpDownTimesNDatetime}(getidagnodeid(idagnode) => UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), getdatetime(intentcomp)))
-        end
-        continuedown = false
-    end
-    if continuedown
-        for childidagnode in getidagnodechildren(getidag(ibnf), idagnode)
-            _rec_logintrapathsandinterintents!(ibnf::IBNFramework, childidagnode, intentcomp::IntentCompilationAlgorithm, intentuuidsalreadyaccessed)
-        end
-    end
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@recvtime function updatelogintentcomp!(ibnf::IBNFramework, intentcomp::BestEmpiricalAvailabilityCompilation)
-    setdatetime!(intentcomp, @logtime)
-    currentdatetime = getdatetime(intentcomp)
-    for dictuuidupdowndatetime in values(getloginterupdowntimes(intentcomp))
-        for (intentuuid, updownndatetime) in dictuuidupdowndatetime
-            if intentuuid in getidagnodeid.(getidagnodes(getidag(ibnf)))
-                logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
-                getupdowntimes!(updownndatetime, logstates, currentdatetime)
-            end
-        end
-    end
+function BestEmpiricalAvailabilityCompilation(beacomp::BestEmpiricalAvailabilityCompilation, cachedresults::CachedResults)
+    return BestEmpiricalAvailabilityCompilation(beacomp.candidatepathsnum, beacomp.pathsforprotectionnum, cachedresults, BasicAlgorithmMemory())
 end
 
 
 """
 $(TYPEDSIGNATURES)
 """
-function getlogintraintentsuuid(intentcomp::IntentCompilationAlgorithm)
-    return intentcomp.logintraintentsuuid 
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getlogintrapaths(intentcomp::IntentCompilationAlgorithm)
-    return intentcomp.logintrapaths 
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getloginterupdowntimes(intentcomp::IntentCompilationAlgorithm)
-    return intentcomp.loginterupdowntimes 
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getcandidatepathsnum(beacomp::BestEmpiricalAvailabilityCompilation)
-    return beacomp.candidatepathsnum
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getdatetime(beacomp::BestEmpiricalAvailabilityCompilation)
-    return beacomp.datetime
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function setdatetime!(beacomp::BestEmpiricalAvailabilityCompilation, currentdatetime::DateTime)
-    return beacomp.datetime = currentdatetime
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getpathsforprotectionnum(beacomp::BestEmpiricalAvailabilityCompilation)
-    return beacomp.pathsforprotectionnum
-end
-
-"The keyword for [BestEmpiricalAvailabilityCompilation](@ref)"
-const BEAalg = :bestempiricalavailability
-
-"""
-$(TYPEDSIGNATURES)
-
-Give back the algorithm mapped to the symbol
-"""
-function getcompilationalgorithmtype(s::Val{BEAalg})
-    return BestEmpiricalAvailabilityCompilation
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function getdefaultcompilationalgorithmargs(s::Val{BEAalg})
-    return (5,5)
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Give back the symbol mapped to the algorithm
-"""
-function getcompilationalgorithmkeyword(::Type{BestEmpiricalAvailabilityCompilation})
-    return BEAalg
-end
-
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@recvtime function compileintent!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, beacomp::BestEmpiricalAvailabilityCompilation; verbose::Bool = false)
-    setdatetime!(beacomp, @logtime)
+@recvtime function compileintent!(ibnf::IBNFrameworkBEA, idagnode::IntentDAGNode{<:ConnectivityIntent}; verbose::Bool = false)
+    setdatetime!(getbasicalgmem(getintcompalg(ibnf)), @logtime)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_bestempiricalavailability,
         prioritizegrooming = prioritizegrooming_exactly,
@@ -212,10 +55,9 @@ $(TYPEDSIGNATURES)
         chooseoxcadddropport = chooseoxcadddropport_first,
     )
     compileintenttemplate!(
-        ibnf, idagnode, beacomp;
+        ibnf, idagnode;
         verbose,
         intradomainalgfun = intradomaincompilationalg,
-        externaldomainalgkeyword = getcompilationalgorithmkeyword(beacomp),
         prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
         @passtime
@@ -232,22 +74,19 @@ Each element in the outer vector is a combination of paths to be used for protec
 The first path is supposed to be the one deployed and all other are the protection.
 Constrained to return protection only up to 2 paths
 """
-function prioritizepaths_bestempiricalavailability(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, beacomp::BestEmpiricalAvailabilityCompilation)
+function prioritizepaths_bestempiricalavailability(ibnf::IBNFrameworkBEA, idagnode::IntentDAGNode{<:ConnectivityIntent})
 
     priorityprotectionpaths = Vector{Vector{Vector{LocalNode}}}()
 
     ibnag = getibnag(ibnf)
-    distweights = getweights(ibnag)
     sourcelocalnode = getlocalnode(ibnag, getsourcenode(getintent(idagnode)))
     destlocalnode = getlocalnode(ibnag, getdestinationnode(getintent(idagnode)))
 
-    if sourcelocalnode == destlocalnode
-        yenstate = Graphs.YenState([u"0.0km"], [[destlocalnode]])
-    else
-        yenstate = Graphs.yen_k_shortest_paths(ibnag, sourcelocalnode, destlocalnode, distweights, getcandidatepathsnum(beacomp))
-    end
+    intentcomp = getintcompalg(ibnf)
 
-    operatingpaths = filter(yenstate.paths) do path
+    yenstatepaths = getyenpathsdict(getcachedresults(intentcomp))[Edge(sourcelocalnode, destlocalnode)]
+
+    operatingpaths = filter(yenstatepaths) do path
         all(edgeify(path)) do ed
             getcurrentlinkstate(ibnf, ed; checkfirst = true)
         end
@@ -256,7 +95,7 @@ function prioritizepaths_bestempiricalavailability(ibnf::IBNFramework, idagnode:
     availabilityconstraint = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idagnode)))
     isnothing(availabilityconstraint) && return [[opel] for opel in operatingpaths]
 
-    dictlinkempiricalavail = getdictlinkempiricalavailabilities(ibnf; endtime = getdatetime(beacomp))
+    dictlinkempiricalavail = getdictlinkempiricalavailabilities(ibnf; endtime = getdatetime(getbasicalgmem(intentcomp)))
     pathempavail = Float64[]
     for op in operatingpaths
         pathempavailop = reduce(*, [dictlinkempiricalavail[e] for e in edgeify(op)])
@@ -266,11 +105,11 @@ function prioritizepaths_bestempiricalavailability(ibnf::IBNFramework, idagnode:
         end
     end
 
-    kprotectedpaths = yenstate.paths[1:getpathsforprotectionnum(beacomp)]
+    kprotectedpaths = yenstatepaths[1:getpathsforprotectionnum(intentcomp)]
     for i1 in eachindex(kprotectedpaths)
-        path1 = yenstate.paths[i1]
+        path1 = yenstatepaths[i1]
         for i2 in i1+1:length(kprotectedpaths)
-            path2 = yenstate.paths[i2]
+            path2 = yenstatepaths[i2]
             edges1 = edgeify(path1)
             avails1 = [dictlinkempiricalavail[ed] for ed in edges1]
             edges2 = edgeify(path2)
@@ -310,7 +149,7 @@ $(TYPEDSIGNATURES)
 Return suggestion that match exactly the candidatepaths, such that availability is not changed.
 All the protection paths need to be matched exactly.
 """
-function prioritizegrooming_exactly(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, intentcompilationalgorithm::IntentCompilationAlgorithm; candidatepaths::Vector{Vector{Vector{LocalNode}}} = Vector{Vector{Vector{LocalNode}}}())
+function prioritizegrooming_exactly(ibnf::IBNFrameworkBEA, idagnode::IntentDAGNode{<:ConnectivityIntent}; candidatepaths::Vector{Vector{Vector{LocalNode}}} = Vector{Vector{Vector{LocalNode}}}())
     intent = getintent(idagnode)
     srcglobalnode = getsourcenode(intent)
     dstglobalnode = getdestinationnode(intent)
@@ -401,7 +240,7 @@ Choose exactly the grooming for `protectedpaths`
 If many  protectedpaths are passed, there can only be matched with a single protection lightpath intent that has the same paths
 If just one path is passed, it can be broken down to several lightpaths but that must have the same nodes.
 """
-function choosegroominornot(ibnf::IBNFramework, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, shortestpathdists::Matrix, groomingpossibility::Vector{Union{UUID, Edge{Int}}}, beacomp::BestEmpiricalAvailabilityCompilation)
+function choosegroominornot(ibnf::IBNFrameworkBEA, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, shortestpathdists::Matrix, groomingpossibility::Vector{Union{UUID, Edge{Int}}})
     any(x -> x isa Edge, groomingpossibility) && return false
     groomingpaths = [getpath(getinstalledlightpaths(getidaginfo(getidag(ibnf)))[intentuuid]) for intentuuid in groomingpossibility]
     if length(protectedpaths) == 1
@@ -427,16 +266,18 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function estimateintraconnectionavailability(ibnf::IBNFramework, srclocalnode::LocalNode, dstlocalnode::LocalNode, beacomp::BestEmpiricalAvailabilityCompilation)
+function estimateintraconnectionavailability(ibnf::IBNFrameworkBEA, srclocalnode::LocalNode, dstlocalnode::LocalNode)
     ed = Edge(srclocalnode, dstlocalnode)
-    logintrapaths =  getlogintrapaths(beacomp)
+    intentcomp = getintcompalg(ibnf)
+    logintrapaths =  getlogintrapaths(intentcomp)
     if haskey(logintrapaths, ed)
         pastpathsdict = logintrapaths[Edge(srclocalnode, dstlocalnode)]
-        ppathavails = [getempiricalavailability(ibnf, ppath; endtime=getdatetime(beacomp)) for ppath in keys(pastpathsdict)]
+        ppathavails = [getempiricalavailability(ibnf, ppath; endtime=getdatetime(getbasicalgmem(intentcomp))) for ppath in keys(pastpathsdict)]
         counts = values(pastpathsdict)
     else
-        yenstate = Graphs.yen_k_shortest_paths(getibnag(ibnf), srclocalnode, dstlocalnode, getweights(getibnag(ibnf)), getcandidatepathsnum(beacomp))
-        ppathavails = [getempiricalavailability(ibnf, path; endtime=getdatetime(beacomp)) for path in yenstate.paths]
+        yenstatepaths = getyenpathsdict(getcachedresults(intentcomp))[Edge(srclocalnode, dstlocalnode)]
+
+        ppathavails = [getempiricalavailability(ibnf, path; endtime=getdatetime(getbasicalgmem(intentcomp))) for path in yenstatepaths]
         counts = fill(1, length(ppathavails))
     end
     return uniquesupportweightsDiscreteNonParametric(ppathavails, counts)
@@ -445,9 +286,9 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function estimatecrossconnectionavailability(ibnf::IBNFramework, srcglobalnode::GlobalNode, dstglobalnode::GlobalNode, beacomp::BestEmpiricalAvailabilityCompilation)
+function estimatecrossconnectionavailability(ibnf::IBNFrameworkBEA, srcglobalnode::GlobalNode, dstglobalnode::GlobalNode)
     ged = GlobalEdge(srcglobalnode, dstglobalnode)
-    loginterupdowntimes = getloginterupdowntimes(beacomp)
+    loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]
         updowntimesndatetimes = values(updowntimesndatetimedict)

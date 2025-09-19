@@ -243,7 +243,7 @@ function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
     # TODO double code
     if !isnothing(endtime)
         dt = endtime - ls[end][1]
-        if !iszero(dt)
+        if !iszero(dt) && dt > zero(dt)
             if ls[end][2] == gettruesingleton(T)
                 push!(uptimes, dt)
             elseif ls[end][2] == getfalsesingleton(T)
@@ -267,7 +267,8 @@ $(TYPEDSIGNATURES)
 Incremeantaly update `updowntimesndatetime` given the new `ls`
 """
 function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
-    laststateindex = findfirst(lg -> lg[1] > getdatetime(updowntimesndatetime), ls)
+    laststateindex_bigenough = findfirst(lg -> lg[1] > getdatetime(updowntimesndatetime), ls)
+    laststateindex = isnothing(laststateindex_bigenough) ? nothing : findfirst(i -> i > laststateindex_bigenough && (ls[i][2] == gettruesingleton(T) || ls[i][2] == getfalsesingleton(T)), eachindex(ls))
 
     uptimes = getuptimes(updowntimesndatetime)
     downtimes = getdowntimes(updowntimesndatetime)
@@ -281,27 +282,28 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
             newstate = getdatetime(updowntimesndatetime) == previoustimestate[1] 
             previoustime = getdatetime(updowntimesndatetime) > previoustimestate[1] ? getdatetime(updowntimesndatetime) : previoustimestate[1]
             dt = endtime - previoustime
+            @assert dt >= zero(dt)
             if !iszero(dt)
                 if previoustimestate[2] == gettruesingleton(T)
                     if length(uptimes) > 0
                         if newstate
-                            push!(uptimes, endtime - previoustime)
+                            push!(uptimes, dt)
                         else
-                            uptimes[end] += endtime - previoustime
+                            uptimes[end] += dt
                         end
                     else
-                        push!(uptimes, endtime - previoustime)
+                        push!(uptimes, dt)
                     end
                     setdatetime!(updowntimesndatetime, endtime)
                 elseif previoustimestate[2] == getfalsesingleton(T)
                     if length(downtimes) > 0
                         if newstate
-                            push!(downtimes, endtime - previoustime)
+                            push!(downtimes, dt)
                         else
-                            downtimes[end] += endtime - previoustime
+                            downtimes[end] += dt
                         end
                     else
-                        push!(downtimes, endtime - previoustime)
+                        push!(downtimes, dt)
                     end
                     setdatetime!(updowntimesndatetime, endtime)
                 end
@@ -310,6 +312,7 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
     else
         for (prev,now) in zip(ls[laststateindex-1:end-1], ls[laststateindex:end])
             dt = now[1] - prev[1]
+            @assert dt >= zero(dt)
             if prev[2] !== now[2] && prev[2] == gettruesingleton(T)
                 push!(uptimes, dt)
                 setdatetime!(updowntimesndatetime, now[1])
@@ -322,6 +325,7 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
         # TODO double code
         if !isnothing(endtime)
             dt = endtime - ls[end][1]
+            @assert dt >= zero(dt)
             if !iszero(dt)
                 if ls[end][2] == gettruesingleton(T)
                     push!(uptimes, dt)
