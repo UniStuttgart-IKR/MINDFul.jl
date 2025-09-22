@@ -61,9 +61,9 @@ prioritizesplitbordernodes(
             end
             # TODO:  expect also an availability fail error here
             if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_SRCTRANSMDL
-                returncode, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) 
-                @assert returncode == ReturnCodes.SUCCESS
                 verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent $(getintent(idagnode)) in two...")
+                returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) 
+                @assert returncodetemp == ReturnCodes.SUCCESS
                 # get a node in between the shortest paths
                 candidatesplitglobalnodes = prioritizesplitnodes(ibnf, idagnode)
                 isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
@@ -84,7 +84,8 @@ prioritizesplitbordernodes(
                     if issuccess(returncode)
                         break
                     else
-                        @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
+                        returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+                        @assert returncodetemp == ReturnCodes.SUCCESS
                     end
                 end
             end
@@ -214,7 +215,7 @@ $(TYPEDSIGNATURES)
 
     # TODO : give some availability target (could be iterative) : split availability based on availability estimation from splitbordernode
 
-internalintent = ConnectivityIntent(getsourcenode(intent), getglobalnode(splitbordernode), getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint(getdestinationnode(intent))))
+    internalintent = ConnectivityIntent(getsourcenode(intent), getglobalnode(splitbordernode), getrate(intent), vcat(getconstraints(intent), OpticalTerminateConstraint(getdestinationnode(intent))))
 
     internalidagnode = addidagnode!(ibnf, internalintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = haskey(cachedintentresult, internalintent) ? cachedintentresult[internalintent] : intradomainalgfun(ibnf, internalidagnode, cachedintentresult; verbose, @passtime)
@@ -411,9 +412,9 @@ function calcintrasplitglobalnode(ibnf::IBNFramework, intent::ConnectivityIntent
         dstnode = getlocalnode(getibnag(ibnf), getdestinationnode(intent))
         # calculate availability first half
         # TODO : implement, should return a DISTRIBUTION
-        firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode, intentcomp)
+        firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode)
         # calculate availability second half
-        secondhalfavailability = estimateintraconnectionavailability(ibnf, splitnode, dstnode, intentcomp)
+        secondhalfavailability = estimateintraconnectionavailability(ibnf, splitnode, dstnode)
         # make decision
         firsthalfavailabilityconstraint, secondhalfavailabilityconstraint = chooseintrasplitavailabilities(masteravcon, firsthalfavailability, secondhalfavailability, intentcomp)
         return SplitGlobalNode(splitglobalnodeonly, firsthalfavailabilityconstraint, secondhalfavailabilityconstraint)
@@ -795,7 +796,7 @@ chooseoxcadddropport(
             returncode = compileintent!(ibnf, plpidagnode; verbose, @passtime)
         end
 
-        verbose && @info("About to return $(returncode)")
+        verbose && @info("$(getidagnodeid(idagnode)): About to return $(returncode)")
         return returncode
     end
 end
@@ -837,7 +838,8 @@ Returns ReturnCode on whether it managed to compile the grooming possibility pas
             returncode = ReturnCodes.SUCCESS
         end
         if !issuccess(returncode)
-            @assert uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) == ReturnCodes.SUCCESS
+            returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+            @assert returncodetemp == ReturnCodes.SUCCESS
             break
         end
     end

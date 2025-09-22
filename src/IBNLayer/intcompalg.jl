@@ -149,6 +149,20 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getdatetime(intcompalg::IntentCompilationAlgorithm)
+    return intcompalg.datetime
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function setdatetime!(intcompalg::IntentCompilationAlgorithm, currentdatetime::DateTime)
+    return intcompalg.datetime = currentdatetime
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getlogintrapaths(intentcomp::IntentCompilationAlgorithmWithMemory)
     return getlogintrapaths(getbasicalgmem(intentcomp))
 end
@@ -241,8 +255,10 @@ $(TYPEDSIGNATURES)
     for dictuuidupdowndatetime in values(getloginterupdowntimes(intentcomp))
         for (intentuuid, updownndatetime) in dictuuidupdowndatetime
             if intentuuid in getidagnodeid.(getidagnodes(getidag(ibnf)))
-                logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
-                getupdowntimes!(updownndatetime, logstates, currentdatetime)
+                if currentdatetime > getdatetime(updownndatetime)
+                    logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
+                    getupdowntimes!(updownndatetime, logstates, currentdatetime)
+                end
             end
         end
     end

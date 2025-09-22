@@ -48,32 +48,7 @@ begin
     testcompilation = TM.testcompilation
     testinstallation = TM.testinstallation
     testzerostaged = TM.testzerostaged
-end
-
-# some boilerplate functions
-
-intalgcompkspff(ibnag::IBNAttributeGraph, candidatepathsnum::Int; cachedresults = nothing) = isnothing(cachedresults) ? KShorestPathFirstFitCompilation(cachedresults, candidatepathsnum) : KShorestPathFirstFitCompilation(ibnag, candidatepathsnum)
-
-function deserializeorcalculatecachedresults(ibnag::IBNAttributeGraph, candidatepathsnum::Int)
-    ibnfid = AG.graph_attr(ibnag)
-    if isfile(SERIALIZEDCACHEDRESULTSDICTPATH)
-        serializedcachedresultsdict = deserialize(SERIALIZEDCACHEDRESULTSDICTPATH)
-        if haskey(serializedcachedresultsdict, (ibnfid, candidatepathsnum))
-            cachedresults = serializedcachedresultsdict[(ibnfid, candidatepathsnum)]
-        else
-            cachedresults = CachedResults(ibnag, candidatepathsnum)
-            serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
-            # update
-            serialize(SERIALIZEDCACHEDRESULTSDICTPATH, serializedcachedresultsdict)
-        end
-    else
-        serializedcachedresultsdict = Dict{Tuple{UUID, Int}, CachedResults}()
-        cachedresults = CachedResults(ibnag, candidatepathsnum)
-        serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
-        # store
-        serialize(SERIALIZEDCACHEDRESULTSDICTPATH, serializedcachedresultsdict)
-    end
-    return cachedresults
+    deserializeorcalculatecachedresults = TM.deserializeorcalculatecachedresults
 end
 
 function loadmultidomaintestibnfs(compalg::IntentCompilationAlgorithm, offsettime=now(); useshortreachtransmissionmodules::Bool=false)
@@ -84,7 +59,7 @@ function loadmultidomaintestibnfs(compalg::IntentCompilationAlgorithm, offsettim
         let
                 ag = name_graph[2]
                 ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25; offsettime, useshortreachtransmissionmodules)
-                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg))
+                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg); serializedcachedresultsdictpath = SERIALIZEDCACHEDRESULTSDICTPATH)
                 intcompalg = typeof(compalg)(compalg, cachedresults)
                 ibnf = IBNFramework(ibnag, intcompalg)
         end for name_graph in domains_name_graph
@@ -150,7 +125,7 @@ function loadmultidomaintestidistributedbnfs(compalg::IntentCompilationAlgorithm
 
                 ag = name_graph[2]
                 ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25; offsettime)
-                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg))
+                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg); serializedcachedresultsdictpath = SERIALIZEDCACHEDRESULTSDICTPATH)
                 intcompalg = typeof(compalg)(compalg, cachedresults)
                 ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), intcompalg, ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)
@@ -207,7 +182,7 @@ function loadpermissionedbnfs(compalg::IntentCompilationAlgorithm)
 
                 ag = name_graph[2]
                 ibnag = MINDF.default_IBNAttributeGraph(ag, 25, 25)
-                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg))
+                cachedresults = deserializeorcalculatecachedresults(ibnag, getcandidatepathsnum(compalg); serializedcachedresultsdictpath = SERIALIZEDCACHEDRESULTSDICTPATH)
                 intcompalg = typeof(compalg)(compalg, cachedresults)
                 ibnf = MINDF.IBNFramework(ibnag, hdlr, encryption, ips, MINDF.SDNdummy(), intcompalg, ibnfsdict; verbose = false)
         end for (i, name_graph) in enumerate(domains_name_graph)

@@ -332,3 +332,31 @@ function testoxcllistateconsistency(ibnf::IBNFramework)
     end
     return
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Read and update the cached results in the file `serializedcachedresultsdictpath`
+"""
+function deserializeorcalculatecachedresults(ibnag::MINDF.IBNAttributeGraph, candidatepathsnum::Int; serializedcachedresultsdictpath::String)
+    ibnfid = AG.graph_attr(ibnag)
+    if isfile(serializedcachedresultsdictpath)
+        serializedcachedresultsdict = deserialize(serializedcachedresultsdictpath)
+        if haskey(serializedcachedresultsdict, (ibnfid, candidatepathsnum))
+            cachedresults = serializedcachedresultsdict[(ibnfid, candidatepathsnum)]
+        else
+            cachedresults = CachedResults(ibnag, candidatepathsnum)
+            serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
+            # update
+            serialize(serializedcachedresultsdictpath, serializedcachedresultsdict)
+        end
+    else
+        serializedcachedresultsdict = Dict{Tuple{UUID, Int}, CachedResults}()
+        cachedresults = CachedResults(ibnag, candidatepathsnum)
+        serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
+        # store
+        serialize(serializedcachedresultsdictpath, serializedcachedresultsdict)
+    end
+    return cachedresults
+end
+

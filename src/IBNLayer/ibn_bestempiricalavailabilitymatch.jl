@@ -45,7 +45,6 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function compileintent!(ibnf::IBNFrameworkBEA, idagnode::IntentDAGNode{<:ConnectivityIntent}; verbose::Bool = false)
-    setdatetime!(getbasicalgmem(getintcompalg(ibnf)), @logtime)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_bestempiricalavailability,
         prioritizegrooming = prioritizegrooming_exactly,
