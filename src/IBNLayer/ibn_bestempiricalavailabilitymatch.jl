@@ -240,7 +240,7 @@ Choose exactly the grooming for `protectedpaths`
 If many  protectedpaths are passed, there can only be matched with a single protection lightpath intent that has the same paths
 If just one path is passed, it can be broken down to several lightpaths but that must have the same nodes.
 """
-function choosegroominornot(ibnf::IBNFrameworkBEA, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, shortestpathdists::Matrix, groomingpossibility::Vector{Union{UUID, Edge{Int}}})
+function choosegroominornot(ibnf::IBNFrameworkBEA, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, groomingpossibility::Vector{Union{UUID, Edge{Int}}})
     any(x -> x isa Edge, groomingpossibility) && return false
     groomingpaths = [getpath(getinstalledlightpaths(getidaginfo(getidag(ibnf)))[intentuuid]) for intentuuid in groomingpossibility]
     if length(protectedpaths) == 1

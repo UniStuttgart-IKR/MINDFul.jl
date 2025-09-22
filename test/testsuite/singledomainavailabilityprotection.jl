@@ -13,7 +13,6 @@ conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(g
 intentuuid1, nowtime = addintent!(ibnfs[1], conintent1, NetworkOperator(); offsettime=nowtime)
 
 nowtime += Dates.Year(3) 
-@show nowtime
 
 returncode, nowtime = compileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 path1 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=false))

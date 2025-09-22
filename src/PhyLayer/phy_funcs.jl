@@ -188,9 +188,9 @@ $(TYPEDSIGNATURES)
 function getavailabletransmissionmoduleviewindex(nodeview::NodeView)
     reservedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(values(getreservations(nodeview)))
     stagedtransmoduleviewidx = gettransmissionmoduleviewpoolindex.(getstaged(nodeview))
-    allidx = eachindex(gettransmissionmoduleviewpool(nodeview))
+    allidx = collect(eachindex(gettransmissionmoduleviewpool(nodeview)))
     # pick out all indices that are not reserved
-    return filter(x -> x ∉ reservedtransmoduleviewidx && x ∉ stagedtransmoduleviewidx, allidx)
+    return filter!(x -> x ∉ reservedtransmoduleviewidx && x ∉ stagedtransmoduleviewidx, allidx)
 end
 
 """

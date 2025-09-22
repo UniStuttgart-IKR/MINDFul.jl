@@ -297,6 +297,7 @@ function prioritizesplitbordernodes_shortestorshortestrandom(ibnf::IBNFramework,
             ibnagaweights[src(ed), dst(ed)] = typemax(eltype(ibnagaweights))
         end
     end
+    # TODO : perf: it's already cached
     hopdists = Graphs.dijkstra_shortest_paths(ibnag, sourcelocalnode, ibnagaweights).dists
 
     borderlocalsofdestdomain = filter(localnode -> getibnfid(getglobalnode(ibnag, localnode)) == getibnfid(destinationglobalnode), borderlocals)
@@ -589,7 +590,7 @@ chooseoxcadddropport(
                     # find transmission module and mode
                     prspectrumslotsrange[pi] = getspectrumslotsrange(opticalinitiateconstraint)
                     if length(path) > 1
-                        if getopticalreach(opticalinitiateconstraint) < getpathdistance(ibnagweights, path)
+                        if getopticalreach(opticalinitiateconstraint) < getpathdistance3(ibnagweights, path)
                             returncode = ReturnCodes.FAIL_OPTICALREACH_OPTINIT
                             continue
                         end
@@ -645,7 +646,6 @@ chooseoxcadddropport(
 
             groomingpossibilities = prioritizegrooming(ibnf, idagnode; candidatepaths=candidatepaths)
             groomingpossibilitiesidxs = collect(eachindex(groomingpossibilities))
-            shortestpathdists = Graphs.johnson_shortest_paths(getibnag(ibnf)).dists
 
             for sourcerouteridx in sourcerouteridxs
                 setrouterportindex!(prsrcallocations[1], sourcerouteridx)
@@ -695,7 +695,7 @@ chooseoxcadddropport(
                                 verbose && @info("Try grooming possibility $(groomingpossibilityidx)/$(length(groomingpossibilitiesidxs))")
                                 groomingpossibility = groomingpossibilities[groomingpossibilityidx]
                                 # if protection indented only do grooming if it exactly matches the path ! ! !
-                                if choosegroominornot(ibnf, protectedpaths, pi, shortestpathdists, groomingpossibility) # do grooming
+                                if choosegroominornot(ibnf, protectedpaths, pi, groomingpossibility) # do grooming
                                     verbose && @info("Selected grooming")
                                     returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, var"#self#", cachedintentresult; verbose, @passtime)
                                     if issuccess(returncode)
@@ -1117,14 +1117,16 @@ function prioritizetransmdlmode_cheaplowrate(ibnf::IBNFramework, idagnode::Inten
     returnpriorities = Tuple{Int, Int}[]
     transmdlperm = sortperm(by = x -> getcost(x), transmissionmoduleviewpool)
     filter!(i -> i ∈ availtransmdlidxs, transmdlperm)
+    transmodeidxs = zeros(Int, 10) # don't expect more than 10 modes
     for transmdlidx in transmdlperm
         transmissionmodule = transmissionmoduleviewpool[transmdlidx]
         transmodes = gettransmissionmodes(transmissionmodule)
-        transmodeidxs = sortperm(transmodes; by = getrate)
-        for transmodeidx in transmodeidxs
+        transmodeidxsview = view(transmodeidxs, 1:length(transmodes))
+        sortperm!(transmodeidxsview, transmodes; by = getrate)
+        for transmodeidx in transmodeidxsview
             transmode = transmodes[transmodeidx]
             if !isnothing(path) && isnothing(transmdlcompat)
-                if getopticalreach(transmode) >= getpathdistance(ibnagweights, path) && getrate(transmode) >= demandrate && getrate(transmode) <= routerportrate
+                if getopticalreach(transmode) >= getpathdistance3(ibnagweights, path) && getrate(transmode) >= demandrate && getrate(transmode) <= routerportrate
                     push!(returnpriorities, (transmdlidx, transmodeidx))
                 end
             elseif isnothing(path) && !isnothing(transmdlcompat)
@@ -1156,7 +1158,7 @@ function prioritizetransmdlmode_default(ibnf::IBNFramework, idagnode::IntentDAGN
         for transmodeidx in transmodeidxs
             transmode = transmodes[transmodeidx]
             if !isnothing(path) && isnothing(transmdlcompat)
-                if getopticalreach(transmode) >= getpathdistance(ibnagweights, path) && getrate(transmode) >= demandrate && getrate(transmode) <= routerportrate
+                if getopticalreach(transmode) >= getpathdistance3(ibnagweights, path) && getrate(transmode) >= demandrate && getrate(transmode) <= routerportrate
                     push!(returnpriorities, (transmdlidx, transmodeidx))
                 end
             elseif isnothing(path) && !isnothing(transmdlcompat)
@@ -1194,9 +1196,14 @@ function chooseoxcadddropport_first(ibnf::IBNFramework, idagnode::IntentDAGNode{
     return nothing
 end
 
-function choosegroominornot(ibnf::IBNFramework{A,B,C,D,F}, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, shortestpathdists::Matrix, groomingpossibility::Vector{Union{UUID, Edge{Int}}}) where {A,B,C,D,F}
+function choosegroominornot(ibnf::IBNFramework{A,B,C,D,F}, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, groomingpossibility::Vector{Union{UUID, Edge{Int}}}) where {A,B,C,D,F}
+    ibnagweights = getibnagweights(getcachedresults(getintcompalg(ibnf)))
     path = protectedpaths[pi]
-    nogroomingnewhops = sum(shortestpathdists[src(e), dst(e)] for e in Iterators.filter(x -> x isa Edge, groomingpossibility); init = 0.0)
+    nogroomingnewhops = sum(
+        let
+            length(getyenpathsdict(getcachedresults(getintcompalg(ibnf)))[Edge(src(e), dst(e))][1])
+        end
+        for e in Iterators.filter(x -> x isa Edge, groomingpossibility); init = 0.0)
     return nogroomingnewhops < length(path)
 end
 

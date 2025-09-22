@@ -1009,6 +1009,30 @@ function getpathdistance(ws::Matrix, path::Vector{Int})
     return sum([getindex(ws, nodepair...) for nodepair in zip(path[1:(end-1)], path[2:end])])
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function getpathdistance2(ws::Matrix, path::Vector{Int})
+    mysum = zero(eltype(ws))
+    for nodepair in zip(path[1:(end-1)], path[2:end])
+        mysum += ws[nodepair...]
+    end
+    return mysum
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function getpathdistance3(ws::Matrix, path::Vector{Int})
+    mysum = zero(eltype(ws))
+    # for nodepair in zip(path[1:(end-1)], path[2:end])
+    for i in eachindex(path)
+        i == length(path) && break
+        mysum += ws[path[i], path[i+1]]
+    end
+    return mysum
+end
+
 
 """
 $(TYPEDSIGNATURES)

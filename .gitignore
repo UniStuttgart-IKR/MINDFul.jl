@@ -6,6 +6,7 @@ Manifest.toml
 *.key
 *.pem
 *.b64
+*.pb.gz
 .vscode/
 docs/build/
 *.cov
