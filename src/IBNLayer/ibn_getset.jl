@@ -85,6 +85,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getidagnodeidxdict(intentdaginfo::IntentDAGInfo)
+    return intentdaginfo.idagnodeidxdict
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getidagnodeid(idagnode::IntentDAGNode)
     return idagnode.idagnodeid
 end

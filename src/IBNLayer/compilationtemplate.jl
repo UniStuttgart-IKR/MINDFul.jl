@@ -42,7 +42,9 @@ prioritizesplitbordernodes(
         prioritizegrooming::F2 = prioritizegrooming_default,
         prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom,
-        cachedintentresult = Dict{ConnectivityIntent, Symbol}()
+        cachedintentresult = Dict{ConnectivityIntent, Symbol}(),
+        maximumsplitlevel::Int = 1
+        # maximumsplitlevel::Int = typemax(Int)
     ) where {F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function}
     # TODO : accelerate : cache candidate paths ?
     sourceglobalnode = getsourcenode(getintent(idagnode))
@@ -51,6 +53,13 @@ prioritizesplitbordernodes(
     returncode::Symbol = ReturnCodes.FAIL
     verbose && @info("Compiling intent ", getidagnodeid(idagnode), getintent(idagnode))
 
+    limitedsplitconstraint = getfirst(c -> c isa LimitedSplitConstraint, getconstraints(getintent(idagnode)))
+    finalmaximumsplitlevel = isnothing(limitedsplitconstraint) ? maximumsplitlevel : min(maximumsplitlevel, getmaximumsplitlevel(limitedsplitconstraint))
+    currentsplitlevel = isnothing(limitedsplitconstraint) ? 0 : getsplitlevel(limitedsplitconstraint)
+
+    verbose && @info("splitting level: $(currentsplitlevel)")
+
+    # TODO : check if split is permitted due to constraint
     if !issuccess(returncode)
         # if didn't groom
         if isinternalorborderintent(ibnf, getintent(idagnode); noremoteintent = true)
@@ -64,28 +73,32 @@ prioritizesplitbordernodes(
                 verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent $(getintent(idagnode)) in two...")
                 returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) 
                 @assert returncodetemp == ReturnCodes.SUCCESS
-                # get a node in between the shortest paths
-                candidatesplitglobalnodes = prioritizesplitnodes(ibnf, idagnode)
-                isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
 
-                for splitglobalnode in candidatesplitglobalnodes
-                    verbose && @info("Attenmpting splitting intent $(getintent(idagnode)) at GlobalNode", splitglobalnode)
-                    returncode = splitandcompileintradomainconnecivityintent!(
-                        ibnf, 
-                        idagnode, 
-                        intradomainalgfun, 
-                        splitglobalnode,
-                        cachedintentresult; 
-                        verbose, 
-                        prioritizegrooming,
-                        prioritizesplitnodes,
-                        prioritizesplitbordernodes,
-                        @passtime)
-                    if issuccess(returncode)
-                        break
-                    else
-                        returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
-                        @assert returncodetemp == ReturnCodes.SUCCESS
+                if currentsplitlevel < finalmaximumsplitlevel
+                    # get a node in between the shortest paths
+                    candidatesplitglobalnodes = prioritizesplitnodes(ibnf, idagnode)
+                    isempty(candidatesplitglobalnodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
+
+                    for splitglobalnode in candidatesplitglobalnodes
+                        verbose && @info("Attenmpting splitting intent $(getintent(idagnode)) at GlobalNode", splitglobalnode)
+                        returncode = splitandcompileintradomainconnecivityintent!(
+                            ibnf, 
+                            idagnode, 
+                            intradomainalgfun, 
+                            splitglobalnode,
+                            cachedintentresult; 
+                            verbose, 
+                            prioritizegrooming,
+                            prioritizesplitnodes,
+                            prioritizesplitbordernodes,
+                            maximumsplitlevel,
+                            @passtime)
+                        if issuccess(returncode)
+                            break
+                        else
+                            returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+                            @assert returncodetemp == ReturnCodes.SUCCESS
+                        end
                     end
                 end
             end
@@ -137,6 +150,7 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     prioritizegrooming::F2 = prioritizegrooming_default,
     prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
     prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom,
+    maximumsplitlevel::Int
     ) where {F <: Function, F2 <: Function, F3 <: Function, F4 <: Function}
 
     sourceglobalnode = getsourcenode(getintent(idagnode))
@@ -155,7 +169,17 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     #
     # end
 
-    firsthalfintent = ConnectivityIntent(sourceglobalnode, getglobalnode(splitglobalnode), getrate(intent), filter!(x ->!(x isa OpticalTerminateConstraint), getconstraints(intent)))
+    limitedsplitconstraint = getfirst(c -> c isa LimitedSplitConstraint, getconstraints(getintent(idagnode)))
+    finalmaximumsplitlevel = isnothing(limitedsplitconstraint) ? maximumsplitlevel : min(maximumsplitlevel, getmaximumsplitlevel(limitedsplitconstraint))
+
+    newfirsthalfconstraints = Vector{AbstractIntentConstraint}(filter(x ->!(x isa OpticalTerminateConstraint) && !(x isa LimitedSplitConstraint), getconstraints(intent)))
+    if !isnothing(limitedsplitconstraint)
+        push!(newfirsthalfconstraints, LimitedSplitConstraint(getsplitlevel(limitedsplitconstraint) + 1, finalmaximumsplitlevel))
+    else
+        push!(newfirsthalfconstraints, LimitedSplitConstraint(1, finalmaximumsplitlevel))
+    end
+
+    firsthalfintent = ConnectivityIntent(sourceglobalnode, getglobalnode(splitglobalnode), getrate(intent), newfirsthalfconstraints)
     firsthalfidagnode = addidagnode!(ibnf, firsthalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = haskey(cachedintentresult, firsthalfintent) ? cachedintentresult[firsthalfintent] : compileintenttemplate!(
                                 ibnf, 
@@ -182,8 +206,14 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     #     avcon2 = AvailabilityConstraint(secondhalfavailabilityrequirement, getcompliancetarget(masteravcon))
     #     firstavacon = calculatesecondavailabilityconstraint(ibnf, masteravcon, firsthalfpathavailability, intentcompilationalgorithm)
     # end
+    newsecondthalfconstraints = Vector{AbstractIntentConstraint}(filter(x ->!(x isa OpticalInitiateConstraint) && !(x isa LimitedSplitConstraint), getconstraints(intent)))
+    if !isnothing(limitedsplitconstraint)
+        push!(newsecondthalfconstraints, LimitedSplitConstraint(getsplitlevel(limitedsplitconstraint) + 1, finalmaximumsplitlevel))
+    else
+        push!(newsecondthalfconstraints, LimitedSplitConstraint(1, finalmaximumsplitlevel))
+    end
 
-    secondhalfintent = ConnectivityIntent(getglobalnode(splitglobalnode), destinationglobalnode, getrate(intent), filter(x -> !(x isa OpticalInitiateConstraint), getconstraints(intent)))
+    secondhalfintent = ConnectivityIntent(getglobalnode(splitglobalnode), destinationglobalnode, getrate(intent), newsecondthalfconstraints)
     secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = haskey(cachedintentresult, secondhalfintent) ? cachedintentresult[secondhalfintent] :  compileintenttemplate!(
                                 ibnf, 
@@ -645,73 +675,66 @@ chooseoxcadddropport(
             returncode = ReturnCodes.FAIL_SRCROUTERPORT
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, sourcelocalnode)
 
-            groomingpossibilities = prioritizegrooming(ibnf, idagnode; candidatepaths=candidatepaths)
-            groomingpossibilitiesidxs = collect(eachindex(groomingpossibilities))
 
-            for sourcerouteridx in sourcerouteridxs
-                setrouterportindex!(prsrcallocations[1], sourcerouteridx)
-                sourcerouterview = getrouterview(getnodeview(getibnag(ibnf), sourcelocalnode))
-                sourcerouterportrate = getrate(getrouterport(sourcerouterview, sourcerouteridx))
-                verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
+            for protectedpaths in candidatepaths
+                deleteat!(prsrcallocations, 2:length(prsrcallocations))
+                deleteat!(prdstallocations, 2:length(prdstallocations))
+                deleteat!(prspectrumslotsrange, 2:length(prspectrumslotsrange))
+                deleteat!(prlpath, 2:length(prlpath))
 
-                for protectedpaths in candidatepaths
-                    deleteat!(prsrcallocations, 2:length(prsrcallocations))
-                    deleteat!(prdstallocations, 2:length(prdstallocations))
-                    deleteat!(prspectrumslotsrange, 2:length(prspectrumslotsrange))
-                    deleteat!(prlpath, 2:length(prlpath))
+                # try grooming
+                # TODO : perf: do not repeat grooming upon same candidate path 
+                if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+                    usedgrooming = true
+                    groomingpossibilities = prioritizegrooming(ibnf, idagnode, protectedpaths)
 
-                    for pi in eachindex(protectedpaths)
-                        returncode = ReturnCodes.FAIL_CANDIDATEPATHS # restart fail for new protected path
-                        if pi > length(prsrcallocations)
-                            push!(prsrcallocations, MutableEndNodeAllocations())
-                            setlocalnode!(prsrcallocations[pi], sourcelocalnode)
-                            setrouterportindex!(prsrcallocations[pi], sourcerouteridx)
-                        end
-                        srcallocations = prsrcallocations[pi]
-
-                        if pi > length(prdstallocations)
-                            push!(prdstallocations, MutableEndNodeAllocations())
-                            setlocalnode!(prdstallocations[pi], destlocalnode)
-                        end
-                        dstallocations = prdstallocations[pi]
-
-                        if pi > length(prspectrumslotsrange)
-                            push!(prspectrumslotsrange, 0:0)
-                        end
-
-                        path = protectedpaths[pi]
-                        if pi > length(prlpath)
-                            push!(prlpath, path)
-                        else
-                            prlpath[pi] = path
-                        end
-                        verbose && @info("Testing path $(path)")
-
-                        # try grooming
-                        # TODO : irrelevant to port (should not happen in each iteration)
-                        if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
-                            usedgrooming = true
-                            for (groomingpossibilityidxidx, groomingpossibilityidx) in enumerate(groomingpossibilitiesidxs)
-
-                                verbose && @info("Try grooming possibility $(groomingpossibilityidx)/$(length(groomingpossibilitiesidxs))")
-                                groomingpossibility = groomingpossibilities[groomingpossibilityidx]
-                                # if protection indented only do grooming if it exactly matches the path ! ! !
-                                if choosegroominornot(ibnf, protectedpaths, pi, groomingpossibility) # do grooming
-                                    verbose && @info("Selected grooming")
-                                    returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, var"#self#", cachedintentresult; verbose, @passtime)
-                                    if issuccess(returncode)
-                                        deleteat!(groomingpossibilitiesidxs, groomingpossibilityidxidx)
-                                        break
-                                    end
-                                end
-                            end
-                        end
-
-                        # TODO what about protection here ? --> findout resulting spectrum of optical terminate if any and withhold that for next protection path
+                    for groomingpossibility in groomingpossibilities
+                        verbose && @info("Try grooming possibility $(groomingpossibility)")
+                        # if protection indented only do grooming if it exactly matches the path ! ! !
+                        verbose && @info("Selected grooming")
+                        returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, var"#self#", cachedintentresult; verbose, @passtime)
                         issuccess(returncode) && break
-                        usedgrooming = false
+                    end
+                end
+
+                # TODO what about protection here ? --> findout resulting spectrum of optical terminate if any and withhold that for next protection path
+                issuccess(returncode) && break
+                usedgrooming = false
+
+                for pi in eachindex(protectedpaths)
+                    returncode = ReturnCodes.FAIL_CANDIDATEPATHS # restart fail for new protected path
+                    if pi > length(prsrcallocations)
+                        push!(prsrcallocations, MutableEndNodeAllocations())
+                        setlocalnode!(prsrcallocations[pi], sourcelocalnode)
+                    end
+                    srcallocations = prsrcallocations[pi]
+
+                    if pi > length(prdstallocations)
+                        push!(prdstallocations, MutableEndNodeAllocations())
+                        setlocalnode!(prdstallocations[pi], destlocalnode)
+                    end
+                    dstallocations = prdstallocations[pi]
+
+                    if pi > length(prspectrumslotsrange)
+                        push!(prspectrumslotsrange, 0:0)
+                    end
+
+                    path = protectedpaths[pi]
+                    if pi > length(prlpath)
+                        push!(prlpath, path)
+                    else
+                        prlpath[pi] = path
+                    end
+                    verbose && @info("Testing path $(path)")
+
 
                         # find transmission module and mode
+                    for sourcerouteridx in sourcerouteridxs
+                        setrouterportindex!(prsrcallocations[pi], sourcerouteridx)
+                        sourcerouterview = getrouterview(getnodeview(getibnag(ibnf), sourcelocalnode))
+                        sourcerouterportrate = getrate(getrouterport(sourcerouterview, sourcerouteridx))
+                        verbose && @info("Picking router port $(sourcerouteridx) at source node $(sourcelocalnode)")
+
                         sourcetransmissionmoduleviewpool = gettransmissionmoduleviewpool(sourcenodeview)
                         returncode = ReturnCodes.FAIL_SRCTRANSMDL
                         for (sourcetransmdlidx, sourcetransmissiomodeidx) in prioritizetransmdlandmode(ibnf, idagnode, sourcelocalnode, path, sourcerouterportrate)
@@ -763,28 +786,28 @@ chooseoxcadddropport(
                             end
                             issuccess(returncode) && break
                         end
-                        issuccess(returncode) || break # if one protection path at least is not successfuly go check the next group of protected paths
-
+                        issuccess(returncode) && break
                     end
-                    issuccess(returncode) && break
+                    issuccess(returncode) || break # if one protection path at least is not successfuly go check the next group of protected paths
                 end
                 issuccess(returncode) && break
             end
 
-            if !issuccess(returncode)
-                # try out all grooming options as last chance
-                usedgrooming = true
-                if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
-                    for groomingpossibilityidx in groomingpossibilitiesidxs
-                        verbose && @info("Try last resort grooming possibility $(groomingpossibilityidx)/$(length(groomingpossibilitiesidxs))")
-                        groomingpossibility = groomingpossibilities[groomingpossibilityidx]
-                        returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, var"#self#", cachedintentresult; verbose, @passtime)
-                        if issuccess(returncode)
-                            break
-                        end
-                    end
-                end
-            end
+            # desperate grooming attempt
+            # if !issuccess(returncode)
+            #     # try out all grooming options as last chance
+            #     usedgrooming = true
+            #     if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
+            #         for groomingpossibilityidx in groomingpossibilitiesidxs
+            #             verbose && @info("Try last resort grooming possibility $(groomingpossibilityidx)/$(length(groomingpossibilitiesidxs))")
+            #             groomingpossibility = groomingpossibilities[groomingpossibilityidx]
+            #             returncode = compilegroomingpossibility(ibnf, idagnode, groomingpossibility, var"#self#", cachedintentresult; verbose, @passtime)
+            #             if issuccess(returncode)
+            #                 break
+            #             end
+            #         end
+            #     end
+            # end
         end
         if issuccess(returncode) && !usedgrooming
             if length(prsrcallocations) == length(prdstallocations) == length(prspectrumslotsrange) == length(prlpath) == 1
@@ -825,7 +848,6 @@ Returns ReturnCode on whether it managed to compile the grooming possibility pas
             else
                 lpintent = ConnectivityIntent(lpsourcenode, lpdstnode, getrate(getintent(idagnode)), [NoGroomingConstraint()])
             end
-            # TODO : check if already tried this intent
             lpidagnode = addidagnode!(ibnf, lpintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
             # var#self# is the non documented way to reference the self anonymous function
             returncode = haskey(cachedintentresult, lpintent) ? cachedintentresult[lpintent] : intradomainalgfun(ibnf, lpidagnode, cachedintentresult; verbose, @passtime)
@@ -973,25 +995,20 @@ function prioritizegrooming_none(ibnf::IBNFramework, idagnode::IntentDAGNode{<:C
     return groomingpossibilities
 end
 
+
 """
 $(TYPEDSIGNATURES)
-    Return a Vector of grooming possibilities.
-    Suggest grooming only if remains on the same path.
-    Suggest grooming only if one extra router port pair is used.
 
-    Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
-    Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
-
-    Sorting of the grooming possibilities is done just by minimizing lightpaths used
+Return a Dict{Edge{LocalNode}, Vector{GroomingPossibility}}
 """
-function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}; candidatepaths::Vector{Vector{Vector{LocalNode}}} = Vector{Vector{Vector{LocalNode}}}())
+function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, protectedpaths::Vector{Vector{LocalNode}})
+    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
+
     intent = getintent(idagnode)
     srcglobalnode = getsourcenode(intent)
     dstglobalnode = getdestinationnode(intent)
     srcnode = getlocalnode(getibnag(ibnf), srcglobalnode)
     dstnode = getlocalnode(getibnag(ibnf), dstglobalnode)
-
-    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
 
     if !(getibnfid(ibnf) == getibnfid(srcglobalnode) == getibnfid(dstglobalnode))
         if isbordernode(ibnf, srcglobalnode)
@@ -1005,69 +1022,77 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
         end
     end
 
-    # these are already fail-free
-    if isempty(candidatepaths)
-        candidatepaths = prioritizepaths_shortest(ibnf, idagnode)
-    end
+    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
 
     # intentuuid => LightpathRepresentation
-    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
-    filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
-        getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent) &&
-            getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
-    end
 
-    for candidatepath in Iterators.flatten(candidatepaths)
-        containedlightpaths = Vector{Vector{Int}}()
-        containedlpuuids = UUID[]
+    containedlightpaths = Vector{Vector{Int}}()
+    containedlpuuids = UUID[]
+    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
+    if length(protectedpaths) <= 1
+        # filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
+        #     getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent) &&
+        #         getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
+        # end
+        # can groom with OEO but still the path should be exactly the same
+        candidatepath = protectedpaths[1]
         for (intentid, lightpathrepresentation) in installedlightpaths
-            ff = findfirst( path -> issubpath(candidatepath, path), getpath(lightpathrepresentation))
-            if !isnothing(ff)
-                pathlightpathrepresentation = getpath(lightpathrepresentation)[ff]
-                opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
-                if pathlightpathrepresentation[end] == dstnode && !isnothing(opttermconstraint)
-                    if getterminatessoptically(lightpathrepresentation) && getdestinationnode(lightpathrepresentation) == getdestinationnode(opttermconstraint)
-                        push!(containedlightpaths, pathlightpathrepresentation)
-                        push!(containedlpuuids, intentid)
+              # Protected paths will not be groomed
+            if length(getpath(lightpathrepresentation)) <= 1 && getidagnodestate(getidag(ibnf), intentid) == IntentState.Installed
+                # have to find exactly the candidatepath
+                pathlightpathrepresentation = getpath(lightpathrepresentation)[1]
+                if issubpath(candidatepath, pathlightpathrepresentation)
+                    opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
+                    if !isnothing(opttermconstraint)
+                        if getterminatessoptically(lightpathrepresentation) && getdestinationnode(lightpathrepresentation) == getdestinationnode(opttermconstraint)
+                            if getresidualbandwidth(ibnf, intentid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent)
+                                push!(containedlightpaths, pathlightpathrepresentation)
+                                push!(containedlpuuids, intentid)
+                            end
+                        end
+                    else
+                        if getresidualbandwidth(ibnf, intentid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent)
+                            push!(containedlightpaths, pathlightpathrepresentation)
+                            push!(containedlpuuids, intentid)
+                        end
                     end
-                else
-                    push!(containedlightpaths, pathlightpathrepresentation)
-                    push!(containedlpuuids, intentid)
                 end
             end
         end
-
-        ## starting lightpaths
-        startinglightpathscollections = consecutivelightpathsidx(containedlightpaths, srcnode; startingnode = true)
-
-        ## ending lightpaths
-        endinglightpathscollections = consecutivelightpathsidx(containedlightpaths, dstnode; startingnode = false)
-
-        for lightpathcollection in Iterators.flatten((startinglightpathscollections, endinglightpathscollections))
-            lpc2insert = Vector{Union{UUID, Edge{Int}}}()
-            for lpidx in lightpathcollection
-                push!(lpc2insert, containedlpuuids[lpidx])
-            end
-
-            firstlightpath = containedlightpaths[lightpathcollection[1]]
-            if firstlightpath[1] != srcnode
-                pushfirst!(lpc2insert, Edge(srcnode, firstlightpath[1]))
-            end
-            lastlightpath = containedlightpaths[lightpathcollection[end]]
-            if lastlightpath[end] != dstnode
-                push!(lpc2insert, Edge(lastlightpath[end], dstnode))
-            end
-
-            # is it low-priority or high-priority ?
-            # TODO: prioritize shortest paths as well
-            index = searchsortedfirst(groomingpossibilities, lpc2insert; by = length)
-
-            if index > length(groomingpossibilities) || groomingpossibilities[index] != lpc2insert #if not already inside
-                insert!(groomingpossibilities, index, lpc2insert)
+        # build up the possible OEO lightpaths
+        # I want a combination of lightpaths in `containedlightpaths` such that exactly `candidatepath` is produced
+        lightpathcollections = consecutivelightpathsidx(containedlightpaths, candidatepath)
+        for lpcol in lightpathcollections
+            push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [containedlpuuids[lpcoli] for lpcoli in lpcol] ) )
+        end
+    else
+        # filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
+        #     getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent) &&
+        #         getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
+        # end
+        # need to find an installedlightpath with exactly this protection if any
+        for (intentid, lightpathrepresentation) in installedlightpaths
+            if length(getpath(lightpathrepresentation)) == length(protectedpaths) # && getidagnodestate(getidag(ibnf), intentid) == IntentState.Installed
+                # have to find exactly the candidatepath
+                if all(pl -> pl[1] == pl[2], zip(protectedpaths, getpath(lightpathrepresentation)))
+                    opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
+                    if !isnothing(opttermconstraint)
+                        if getterminatessoptically(lightpathrepresentation) && getdestinationnode(lightpathrepresentation) == getdestinationnode(opttermconstraint)
+                            if getresidualbandwidth(ibnf, intentid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent)
+                                push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [intentid] ) )
+                            end
+                        end
+                    else
+                        if getresidualbandwidth(ibnf, intentid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent)
+                            push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [intentid] ) )
+                        end
+                    end
+                end
             end
         end
-
     end
+
+    sort!(groomingpossibilities; by=length)
 
     return groomingpossibilities
 end

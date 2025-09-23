@@ -58,7 +58,13 @@ Errors if UUID doesn't exist.
 It's slow: maybe keep a dict/table ?
 """
 function getidagnodeidx(intentdag::IntentDAG, dagnodeid::UUID)
-    return something(findfirst(==(dagnodeid), getidagnodeid.(getidagnodes(intentdag))))
+    # return something(findfirst(==(dagnodeid), getidagnodeid.(getidagnodes(intentdag))))
+    idagnodeidxdict = getidagnodeidxdict(getidaginfo(intentdag))
+    if haskey(idagnodeidxdict, dagnodeid)
+        return idagnodeidxdict[dagnodeid]
+    else
+        return nothing
+    end
 end
 
 """
@@ -90,8 +96,11 @@ Return the `IntentDAGNode`
     end
 
     add_vertex!(intentdag)
+
     newidagnodeidx = nv(intentdag)
     push!(getidagnodes(intentdag), idagnode)
+
+    getidagnodeidxdict(getidaginfo(intentdag))[getidagnodeid(idagnode)] = newidagnodeidx
 
     for parentid in parentids
         parentidx = getidagnodeidx(intentdag, parentid)
@@ -104,6 +113,7 @@ Return the `IntentDAGNode`
         add_edge!(intentdag, newidagnodeidx, childidx)
         updateidagstates!(ibnf, getidagnodeid(idagnode); @passtime)
     end
+
 
     return idagnode
 end
@@ -121,6 +131,8 @@ function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentids::Ve
     newidagnodeidx = nv(intentdag)
     push!(getidagnodes(intentdag), idagnode)
 
+    getidagnodeidxdict(getidaginfo(intentdag))[getidagnodeid(idagnode)] = newidagnodeidx
+
     for parentid in parentids
         parentidx = getidagnodeidx(intentdag, parentid)
         add_edge!(intentdag, parentidx, newidagnodeidx)
@@ -132,6 +144,7 @@ function addidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode; parentids::Ve
         add_edge!(intentdag, newidagnodeidx, childidx)
         updateidagstates!(ibnf, getidagnodeid(idagnode))
     end
+
 
     return getidagnodeid(idagnode)
 end
@@ -163,11 +176,16 @@ function removeidagnode!(intentdag::IntentDAG, idagnodeid::UUID)
     rem_vertex!(intentdag, vertexidx)
     # Graphs.jl removing index swapps |V| with `vertexidx` and deletes last one.
     idagnodes = getidagnodes(intentdag)
+    idagnodeidxdict = getidagnodeidxdict(getidaginfo(intentdag))
     if length(idagnodes) == vertexidx
         pop!(idagnodes)
+        delete!(idagnodeidxdict, idagnodeid)
     else
-        idagnodes[vertexidx] = pop!(idagnodes)
+        idagnode = idagnodes[vertexidx] = pop!(idagnodes)
+        delete!(idagnodeidxdict, idagnodeid)
+        idagnodeidxdict[getidagnodeid(idagnode)] = vertexidx
     end
+
     return ReturnCodes.SUCCESS
 end
 

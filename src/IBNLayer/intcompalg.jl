@@ -250,11 +250,12 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function updatelogintentcomp!(ibnf::IBNFrameworkIntentAlgorithmWithMemory)
     intentcomp = getintcompalg(ibnf)
+    idagnodeids = getidagnodeid.(getidagnodes(getidag(ibnf)))
     setdatetime!(getbasicalgmem(intentcomp), @logtime)
     currentdatetime = getdatetime(getbasicalgmem(intentcomp))
     for dictuuidupdowndatetime in values(getloginterupdowntimes(intentcomp))
         for (intentuuid, updownndatetime) in dictuuidupdowndatetime
-            if intentuuid in getidagnodeid.(getidagnodes(getidag(ibnf)))
+            if intentuuid in idagnodeids
                 if currentdatetime > getdatetime(updownndatetime)
                     logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
                     getupdowntimes!(updownndatetime, logstates, currentdatetime)

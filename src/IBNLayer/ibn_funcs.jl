@@ -444,8 +444,12 @@ $(TYPEDSIGNATURES)
 Get spectrum availabilities along a `path` of nodes as a `BitVector`
 """
 function getpathspectrumavailabilities(ibnf::IBNFramework, localnodespath::Vector{LocalNode}; checkfirst::Bool=true)
-    alllinkspectrumavailabilities = [getfiberspectrumavailabilities(ibnf, edg; checkfirst) for edg in edgeify(localnodespath)]
-    return reduce(.&, alllinkspectrumavailabilities)
+    len::Int = length(first(values(getlinkspectrumavailabilities(getoxcview(first(getnodeviews(getibnag(ibnf))))))))
+    pathavailabilities = fill(true, len)
+    for (i,edg) in enumerate(edgeify(localnodespath))
+        pathavailabilities .&= getfiberspectrumavailabilities(ibnf, edg; checkfirst)
+    end
+    return pathavailabilities
 end
 
 """
@@ -1366,3 +1370,16 @@ function getsecondhalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
     return splitglobalnode.secondhalfavailabilityconstraint
 end
 
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getsplitlevel(lsc::LimitedSplitConstraint)
+    return lsc.splitlevel
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getmaximumsplitlevel(lsc::LimitedSplitConstraint)
+    return lsc.maximumsplitlevel
+end

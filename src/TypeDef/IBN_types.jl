@@ -132,6 +132,8 @@ mutable struct IntentDAGInfo
     intentcounter::Int
     "Logical representation of the installed intents as lightpaths (must be direct parent of the LLIs)"
     installedlightpaths::Dict{UUID, LightpathRepresentation}
+    "Dict to find the idx of a specific intent. For performance purposes"
+    idagnodeidxdict::Dict{UUID, Int}
 end
 
 """
@@ -140,7 +142,7 @@ $(TYPEDSIGNATURES)
 Empty constructor 
 """
 function IntentDAGInfo()
-    return IntentDAGInfo(0, Dict{UUID, LightpathRepresentation}())
+    return IntentDAGInfo(0, Dict{UUID, LightpathRepresentation}(), Dict{UUID, Int}())
 end
 
 "An `AttributeGraph` graph used as an intent Directed Acyclic Graph (DAG)"
@@ -317,6 +319,20 @@ $(TYPEDEF)
 Constraint that requires the intent is compiled without use of grooming techniques.
 """
 struct NoGroomingConstraint <: AbstractIntentConstraint end
+
+"""
+$(TYPEDEF)
+
+Constraint that obliges no limitless splitting of the intent
+Split level is `0` in root intent and increases `+1` for every child
+Splitting in border node doesn't count as it's necessary.
+"""
+struct LimitedSplitConstraint <: AbstractIntentConstraint
+    "Current split level, i.e., how many times the intent was already split"
+    splitlevel::Int
+    "Maximum splitting times"
+    maximumsplitlevel::Int
+end
 
 """
 $(TYPEDEF)

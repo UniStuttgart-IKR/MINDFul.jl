@@ -115,6 +115,7 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
     foreach(ibnfs) do ibnf
         testlocalnodeisindex(ibnf)
         testoxcfiberallocationconsistency(ibnf)
+        testalluuidnodeindices(ibnf)
     end
 
     conintent_intra = ConnectivityIntent(GlobalNode(UUID(1), 2), GlobalNode(UUID(1), 19), u"100.0Gbps")
@@ -195,6 +196,7 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
         testlocalnodeisindex(ibnf)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
+        testalluuidnodeindices(ibnf)
     end
 end
 
@@ -251,6 +253,7 @@ function testsuitemultidomain!(ibnfs)
     return foreach(ibnfs) do ibnf
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
+        testalluuidnodeindices(ibnf)
     end
 end
 
@@ -448,7 +451,6 @@ end
 
 
 function testsuitegrooming!(ibnfs)
-    # internal
     conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
     intentuuid1, _ = addintent!(ibnfs[1], conintent1, NetworkOperator())
     conintent1idn = getidagnode(getidag(ibnfs[1]), intentuuid1)
@@ -469,7 +471,7 @@ function testsuitegrooming!(ibnfs)
     groomconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
     groomintentuuid1, _ = addintent!(ibnfs[1], groomconintent1, NetworkOperator())
     groomconintent1idn = getidagnode(getidag(ibnfs[1]), groomintentuuid1)
-    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn) == [[UUID(0x02)]]
+    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn, [[4,3,14,15,20,8]]) == [[UUID(0x02)]]
     compileintent!(ibnfs[1], groomintentuuid1)
     @test getidagnodestate(groomconintent1idn) == IntentState.Compiled
     @test length(installedlightpathsibnfs1) == 1
@@ -536,7 +538,7 @@ function testsuitegrooming!(ibnfs)
     returncode, nowtime = installintent!(ibnfs[1], intentuuid1) 
     @test returncode == ReturnCodes.SUCCESS
 
-    # try grooming with lightpath and a new intent
+    # try grooming with lightpath and a new intent (no longer supported ?)
     groomandnewconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 22), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
     groomandnewconintent1id, _ = addintent!(ibnfs[1], groomandnewconintent1, NetworkOperator())
     returncode, nowtime = compileintent!(ibnfs[1], groomandnewconintent1id) 
@@ -547,7 +549,7 @@ function testsuitegrooming!(ibnfs)
     @test returncode == ReturnCodes.SUCCESS
     testinstallation(ibnfs[1], groomandnewconintent1id; withremote = false)
     @test MINDF.issatisfied(ibnfs[1], groomandnewconintent1id; onlyinstalled = true)
-    @test MINDF.issubdaggrooming(getidag(ibnfs[1]), groomandnewconintent1id)
+    @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), groomandnewconintent1id)
     @test length(installedlightpathsibnfs1) == 2
 
     # should be separate intent
@@ -577,7 +579,7 @@ function testsuitegrooming!(ibnfs)
     @test returncode == ReturnCodes.SUCCESS
     returncode, nowtime = installintent!(ibnfs[1], nogroomandnewconintent1_downid) 
     @test returncode == ReturnCodes.SUCCESS
-    @test MINDF.issubdaggrooming(getidag(ibnfs[1]), nogroomandnewconintent1_downid)
+    @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), nogroomandnewconintent1_downid)
 
     testzerostaged(ibnfs[1])
 
@@ -643,6 +645,7 @@ function testsuitegrooming!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         nothingisallocated(ibnf)
+        testalluuidnodeindices(ibnf)
     end
     @test iszero(nv(MINDF.getidag(ibnfs[1])))
     @test iszero(ne(MINDF.getidag(ibnfs[1])))
@@ -663,7 +666,7 @@ function testsuitegrooming!(ibnfs)
     @test returncode == ReturnCodes.SUCCESS
     returncode, nowtime = installintent!(ibnfs[1], lpgcdintent1id) 
     @test returncode == ReturnCodes.SUCCESS
-    @test MINDF.issubdaggrooming(getidag(ibnfs[1]), lpgcdintent1id)
+    @test !MINDF.issubdaggrooming(getidag(ibnfs[1]), lpgcdintent1id)
 
     # non grooming border intent
     ngcdintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 1), GlobalNode(getibnfid(ibnfs[3]), 24), u"10.0Gbps")
@@ -778,6 +781,7 @@ function testsuitegrooming!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         nothingisallocated(ibnf)
+        testalluuidnodeindices(ibnf)
     end
 
 
@@ -867,9 +871,44 @@ function testsuitegrooming!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         nothingisallocated(ibnf)
+        testalluuidnodeindices(ibnf)
     end
     @test iszero(nv(MINDF.getidag(ibnfs[1])))
-    return @test iszero(ne(MINDF.getidag(ibnfs[1])))
+    @test iszero(ne(MINDF.getidag(ibnfs[1])))
+
+    conintent_post1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 2), GlobalNode(getibnfid(ibnfs[1]), 5), u"5.0Gbps")
+    intentuuid_post1, _ = addintent!(ibnfs[1], conintent_post1, NetworkOperator())
+    compileintent!(ibnfs[1], intentuuid_post1)
+    installintent!(ibnfs[1], intentuuid_post1)
+    intentuuid_post1_ch = getidagnodeid(first(getidagnodechildren(getidag(ibnfs[1]), intentuuid_post1)))
+
+    conintent_post2 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 5), GlobalNode(getibnfid(ibnfs[1]), 22), u"5.0Gbps")
+    intentuuid_post2, _ = addintent!(ibnfs[1], conintent_post2, NetworkOperator())
+    compileintent!(ibnfs[1], intentuuid_post2)
+    installintent!(ibnfs[1], intentuuid_post2)
+    intentuuid_post2_ch = getidagnodeid(first(getidagnodechildren(getidag(ibnfs[1]), intentuuid_post2)))
+
+    conintent_post3 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 2), GlobalNode(getibnfid(ibnfs[1]), 22), u"5.0Gbps")
+    intentuuid_post3, _ = addintent!(ibnfs[1], conintent_post3, NetworkOperator())
+    compileintent!(ibnfs[1], intentuuid_post3)
+    installintent!(ibnfs[1], intentuuid_post3)
+    #test
+    idagnodedescids = getidagnodeid.(getidagnodedescendants(getidag(ibnfs[1]), intentuuid_post3))
+    @test intentuuid_post1_ch in idagnodedescids && intentuuid_post2_ch in idagnodedescids
+
+    conintent_post4 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 22), GlobalNode(getibnfid(ibnfs[1]), 23), u"5.0Gbps")
+    intentuuid_post4, _ = addintent!(ibnfs[1], conintent_post4, NetworkOperator())
+    compileintent!(ibnfs[1], intentuuid_post4)
+    installintent!(ibnfs[1], intentuuid_post4)
+    intentuuid_post4_ch = getidagnodeid(first(getidagnodechildren(getidag(ibnfs[1]), intentuuid_post4)))
+
+    conintent_post5 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 2), GlobalNode(getibnfid(ibnfs[1]), 23), u"5.0Gbps")
+    intentuuid_post5, _ = addintent!(ibnfs[1], conintent_post5, NetworkOperator())
+    compileintent!(ibnfs[1], intentuuid_post5)
+    installintent!(ibnfs[1], intentuuid_post5)
+    #test
+    idagnodedescids5 = getidagnodeid.(getidagnodedescendants(getidag(ibnfs[1]), intentuuid_post5))
+    @test intentuuid_post1_ch in idagnodedescids5 && intentuuid_post2_ch in idagnodedescids5 && intentuuid_post4_ch in idagnodedescids5
 end
 
 function testsuitegroomingonfail!(ibnfs)
@@ -896,7 +935,7 @@ function testsuitegroomingonfail!(ibnfs)
     groomconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
     groomintentuuid1, _ = addintent!(ibnfs[1], groomconintent1, NetworkOperator())
     groomconintent1idn = getidagnode(getidag(ibnfs[1]), groomintentuuid1)
-    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn) == UUID[]
+    @test MINDF.prioritizegrooming_default(ibnfs[1], groomconintent1idn, [[4,3,14,15,20,8]]) == UUID[]
 
     # for external lightpaths now
 

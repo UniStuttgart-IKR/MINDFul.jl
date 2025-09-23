@@ -8,3 +8,5 @@
     TM.testsuitemultidomain!(ibnfs)
     MINDF.closeibnfserver(ibnfs)
 end
+
+nothing

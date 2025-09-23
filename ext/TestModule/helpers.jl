@@ -360,3 +360,11 @@ function deserializeorcalculatecachedresults(ibnag::MINDF.IBNAttributeGraph, can
     return cachedresults
 end
 
+
+function testalluuidnodeindices(ibnf)
+    idagnodeidxdict = MINDF.getidagnodeidxdict(MINDF.getidaginfo(MINDF.getidag(ibnf))) 
+    @test all(keys(idagnodeidxdict)) do k
+        idagnode = getidagnode(getidag(ibnf), k)
+        return getidagnodeid(idagnode) == k
+    end
+end

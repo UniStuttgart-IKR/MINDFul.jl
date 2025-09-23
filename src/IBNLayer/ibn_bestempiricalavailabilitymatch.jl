@@ -47,7 +47,7 @@ $(TYPEDSIGNATURES)
 @recvtime function compileintent!(ibnf::IBNFrameworkBEA, idagnode::IntentDAGNode{<:ConnectivityIntent}; verbose::Bool = false)
     intradomaincompilationalg = intradomaincompilationtemplate(
         prioritizepaths = prioritizepaths_bestempiricalavailability,
-        prioritizegrooming = prioritizegrooming_exactly,
+        prioritizegrooming = prioritizegrooming_default,
         prioritizerouterport = prioritizerouterports_lowestrate,
         prioritizetransmdlandmode = prioritizetransmdlmode_cheaplowrate,
         choosespectrum = choosespectrum_firstfit,

@@ -1,3 +1,4 @@
+using MbedTLS: NetworkOptions
 @testset ExtendedTestSet "grooming.jl"  begin
     # to test the following:
     # - do not groom if external lightpath is failed
@@ -11,3 +12,4 @@
     MINDF.closeibnfserver(ibnfs)
 
 end
+
