@@ -17,7 +17,8 @@ intradomainalgfun(
 
 - `prioritizesplitnodes` is called when optical reach is not enough to have a lightpath end-to-end to serve the intent and a path to split was already selected.
 The node selected will break the intent into two pieces with the node standing in between.
-This function should return a vector of `GlobalNode`s with decreasing priority of which node should be chosen.
+This function should return a vector of `SplitGlobalNode`s with decreasing priority of which node should be chosen.
+The same split node might be returned multiple times, but with different availability requirements.
 ```
 prioritizesplitnodes(
     ibnf::IBNFramework,
@@ -27,6 +28,7 @@ prioritizesplitnodes(
 
 - `prioritizesplitbordernodes` is called to select the border node to work as the source node for the delegated intent in a neighboring domain.
 This function should return a vector of `SplitGlobalNode`s with decreasing priority of which node should be chosen.
+The same split node might be returned multiple times, but with different availability requirements.
 ```
 prioritizesplitbordernodes(
     ibnf::IBNFramework,
@@ -117,7 +119,6 @@ prioritizesplitbordernodes(
                 else
                     destinationsplitglobalnode = SplitGlobalNode(destinationglobalnode, masteravcon, nothing)
                 end
-                # TODO : also here calls inside with compileintenttemplate!
                 returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intradomainalgfun, destinationsplitglobalnode, cachedintentresult; verbose, @passtime)
             else
                 # select border node
@@ -161,22 +162,19 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     # TODO : give some availability target  (could be iterative) : split availability proportionally per shortest path length
     
     masteravcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(intent))
-    ## estimate sourceglobalonode --> splitglobalnode availability
-    # if !isnothing(masteravcon)
-    #     firsthalfe2eavailability = estimateend2endavailability(ibnf, sourceglobalnode, splitglobalnode, intentcompilationalgorithm)
-    #     secondhalfe2eavailability = estimateend2endavailability(ibnf, splitglobalnode, destinationglobalnode, intentcompilationalgorithm)
-    #     firstavacon = calculatefirstavailabilityconstrain(ibnf, masteravcon, firsthalfe2eavailability, secondhalfe2eavailability, intentcompilationalgorithm)
-    #
-    # end
 
     limitedsplitconstraint = getfirst(c -> c isa LimitedSplitConstraint, getconstraints(getintent(idagnode)))
     finalmaximumsplitlevel = isnothing(limitedsplitconstraint) ? maximumsplitlevel : min(maximumsplitlevel, getmaximumsplitlevel(limitedsplitconstraint))
 
-    newfirsthalfconstraints = Vector{AbstractIntentConstraint}(filter(x ->!(x isa OpticalTerminateConstraint) && !(x isa LimitedSplitConstraint), getconstraints(intent)))
+    newfirsthalfconstraints = Vector{AbstractIntentConstraint}(filter(x ->!(x isa OpticalTerminateConstraint) && !(x isa LimitedSplitConstraint) && !(x isa AvailabilityConstraint), getconstraints(intent)))
     if !isnothing(limitedsplitconstraint)
         push!(newfirsthalfconstraints, LimitedSplitConstraint(getsplitlevel(limitedsplitconstraint) + 1, finalmaximumsplitlevel))
     else
         push!(newfirsthalfconstraints, LimitedSplitConstraint(1, finalmaximumsplitlevel))
+    end
+    firsthalfavailabilityconstraint = getfirsthalfavailabilityconstraint(splitglobalnode)
+    if !isnothing(firsthalfavailabilityconstraint)
+        push!(newfirsthalfconstraints, firsthalfavailabilityconstraint)
     end
 
     firsthalfintent = ConnectivityIntent(sourceglobalnode, getglobalnode(splitglobalnode), getrate(intent), newfirsthalfconstraints)
@@ -189,6 +187,7 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
                                 prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
                                 prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
                                 cachedintentresult = cachedintentresult,
+                                maximumsplitlevel = finalmaximumsplitlevel, 
                                 @passtime)
         # intradomainalgfun(ibnf, firsthalfidagnode, intentcompilationalgorithm, cachedintentresult; verbose, @passtime)
 
@@ -198,22 +197,21 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     updateidagnodestates!(ibnf, firsthalfidagnode; @passtime)
     issuccess(returncode) || return returncode
 
-    # TODO : revise and calculate rest of availability
 
-    # if !isnothing(masteravcon)
-    #     firsthalfpathavailability = estimatepathavailability(ibnf, getidagnodeid(firsthalfidagnode), intentcompilationalgorithm)
-    #     secondhalfavailabilityrequirement = getavailabilityrequirement(masteravcon) / firsthalfavailability
-    #     avcon2 = AvailabilityConstraint(secondhalfavailabilityrequirement, getcompliancetarget(masteravcon))
-    #     firstavacon = calculatesecondavailabilityconstraint(ibnf, masteravcon, firsthalfpathavailability, intentcompilationalgorithm)
-    # end
-    newsecondthalfconstraints = Vector{AbstractIntentConstraint}(filter(x ->!(x isa OpticalInitiateConstraint) && !(x isa LimitedSplitConstraint), getconstraints(intent)))
+    newsecondhalfconstraints = Vector{AbstractIntentConstraint}(filter(x ->!(x isa OpticalInitiateConstraint) && !(x isa LimitedSplitConstraint) && !(x isa AvailabilityConstraint), getconstraints(intent)))
     if !isnothing(limitedsplitconstraint)
-        push!(newsecondthalfconstraints, LimitedSplitConstraint(getsplitlevel(limitedsplitconstraint) + 1, finalmaximumsplitlevel))
+        push!(newsecondhalfconstraints, LimitedSplitConstraint(getsplitlevel(limitedsplitconstraint) + 1, finalmaximumsplitlevel))
     else
-        push!(newsecondthalfconstraints, LimitedSplitConstraint(1, finalmaximumsplitlevel))
+        push!(newsecondhalfconstraints, LimitedSplitConstraint(1, finalmaximumsplitlevel))
+    end
+    # TODO : revise and calculate rest of availability
+    if !isnothing(masteravcon)
+        firsthaldfestimatedavailability = estimateintentavailability(ibnf, firsthalfidagnode)
+        secondhalfavailabilityconstraint = calcsecondhalfavailabilityconstraint(ibnf, firsthaldfestimatedavailability, masteravcon)
+        push!(newsecondhalfconstraints, secondhalfavailabilityconstraint)
     end
 
-    secondhalfintent = ConnectivityIntent(getglobalnode(splitglobalnode), destinationglobalnode, getrate(intent), newsecondthalfconstraints)
+    secondhalfintent = ConnectivityIntent(getglobalnode(splitglobalnode), destinationglobalnode, getrate(intent), newsecondhalfconstraints)
     secondhalfidagnode = addidagnode!(ibnf, secondhalfintent; parentids = [getidagnodeid(idagnode)], intentissuer = MachineGenerated(), @passtime)
     returncode = haskey(cachedintentresult, secondhalfintent) ? cachedintentresult[secondhalfintent] :  compileintenttemplate!(
                                 ibnf, 
@@ -223,6 +221,7 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
                                 prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
                                 prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
                                 cachedintentresult = cachedintentresult,
+                                maximumsplitlevel = finalmaximumsplitlevel, 
                                 @passtime)
 
 
@@ -355,7 +354,7 @@ function calcicrosssplitglobalnode(ibnf::IBNFramework, intent::ConnectivityInten
         # TODO : implement, should return a DISTRIBUTION
         firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode)
         # calculate availability second half
-        secondhalfavailability = estimatecrossconnectionavailability(ibnf, splitglobalnodeonly, dstglobalnode)
+        secondhalfavailability = estimatecrossconnectionavailability(ibnf, GlobalEdge(splitglobalnodeonly, dstglobalnode))
         # make decision
         firsthalfavailabilityconstraint, secondhalfavailabilityconstraint = choosecrosssplitavailabilities(masteravcon, firsthalfavailability, secondhalfavailability, getintcompalg(ibnf))
         return SplitGlobalNode(splitglobalnodeonly, firsthalfavailabilityconstraint, secondhalfavailabilityconstraint)
@@ -1030,11 +1029,6 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
     containedlpuuids = UUID[]
     installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
     if length(protectedpaths) <= 1
-        # filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
-        #     getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent) &&
-        #         getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
-        # end
-        # can groom with OEO but still the path should be exactly the same
         candidatepath = protectedpaths[1]
         for (intentid, lightpathrepresentation) in installedlightpaths
               # Protected paths will not be groomed
@@ -1066,10 +1060,6 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
             push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [containedlpuuids[lpcoli] for lpcoli in lpcol] ) )
         end
     else
-        # filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
-        #     getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent) &&
-        #         getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
-        # end
         # need to find an installedlightpath with exactly this protection if any
         for (intentid, lightpathrepresentation) in installedlightpaths
             if length(getpath(lightpathrepresentation)) == length(protectedpaths) # && getidagnodestate(getidag(ibnf), intentid) == IntentState.Installed
@@ -1108,7 +1098,7 @@ function prioritizerouterports_lowestrate(ibnf::IBNFramework, idagnode::IntentDA
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
     stagedrouterports = getrouterportindex.(getstaged(routerview))
     filteredports = filter(1:getportnumber(routerview)) do x
-        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] > getrate(getintent(idagnode)) && portrates[x] > transmissionmoderate
+        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] >= getrate(getintent(idagnode)) && portrates[x] >= transmissionmoderate
     end
     sort!(filteredports; by = x -> portrates[x])
     return filteredports
@@ -1123,7 +1113,7 @@ function prioritizerouterports_default(ibnf::IBNFramework, idagnode::IntentDAGNo
     reservedrouterports = getrouterportindex.(values(getreservations(routerview)))
     stagedrouterports = getrouterportindex.(getstaged(routerview))
     filteredports = filter(1:getportnumber(routerview)) do x
-        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] > getrate(getintent(idagnode)) && portrates[x] > transmissionmoderate
+        x ∉ reservedrouterports && x ∉ stagedrouterports && portrates[x] >= getrate(getintent(idagnode)) && portrates[x] >= transmissionmoderate
     end
     return filteredports
 end

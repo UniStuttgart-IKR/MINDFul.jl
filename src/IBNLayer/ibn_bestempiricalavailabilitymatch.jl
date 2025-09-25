@@ -59,6 +59,7 @@ $(TYPEDSIGNATURES)
         intradomainalgfun = intradomaincompilationalg,
         prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
+        maximumsplitlevel = 1,
         @passtime
     )
 end
@@ -144,126 +145,6 @@ end
 
 """
 $(TYPEDSIGNATURES)
-
-Return suggestion that match exactly the candidatepaths, such that availability is not changed.
-All the protection paths need to be matched exactly.
-"""
-function prioritizegrooming_exactly(ibnf::IBNFrameworkBEA, idagnode::IntentDAGNode{<:ConnectivityIntent}; candidatepaths::Vector{Vector{Vector{LocalNode}}} = Vector{Vector{Vector{LocalNode}}}())
-    intent = getintent(idagnode)
-    srcglobalnode = getsourcenode(intent)
-    dstglobalnode = getdestinationnode(intent)
-    srcnode = getlocalnode(getibnag(ibnf), srcglobalnode)
-    dstnode = getlocalnode(getibnag(ibnf), dstglobalnode)
-
-    groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
-
-    if !(getibnfid(ibnf) == getibnfid(srcglobalnode) == getibnfid(dstglobalnode))
-        if isbordernode(ibnf, srcglobalnode)
-            any(x -> x isa OpticalInitiateConstraint, getconstraints(intent)) || return groomingpossibilities
-        elseif isbordernode(ibnf, dstglobalnode)
-            any(x -> x isa OpticalTerminateConstraint, getconstraints(intent)) || return groomingpossibilities
-        else
-            # cross domain intent
-            # find lightpath combinations regardless of paths
-            return groomingpossibilities
-        end
-    end
-
-    # intentuuid => LightpathRepresentation
-    installedlightpaths = collect(pairs(getinstalledlightpaths(getidaginfo(getidag(ibnf)))))
-    filter!(installedlightpaths) do (lightpathuuid, lightpathrepresentation)
-        getresidualbandwidth(ibnf, lightpathuuid, lightpathrepresentation; onlyinstalled = false) >= getrate(intent) &&
-            getidagnodestate(getidag(ibnf), lightpathuuid) == IntentState.Installed
-    end
-
-    for protectedpaths in candidatepaths
-        containedlightpaths = Vector{Vector{Int}}()
-        containedlpuuids = UUID[]
-        if length(protectedpaths) <= 1
-            # can groom with OEO but still the path should be exactly the same
-            candidatepath = protectedpaths[1]
-            for (intentid, lightpathrepresentation) in installedlightpaths
-                if length(getpath(lightpathrepresentation)) <= 1  # Protected paths will not be groomed
-                    # have to find exactly the candidatepath
-                    pathlightpathrepresentation = getpath(lightpathrepresentation)[1]
-                    if issubpath(candidatepath, pathlightpathrepresentation)
-                        opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
-                        if !isnothing(opttermconstraint)
-                            if getterminatessoptically(lightpathrepresentation) && getdestinationnode(lightpathrepresentation) == getdestinationnode(opttermconstraint)
-                                push!(containedlightpaths, pathlightpathrepresentation)
-                                push!(containedlpuuids, intentid)
-                            end
-                        else
-                            push!(containedlightpaths, pathlightpathrepresentation)
-                            push!(containedlpuuids, intentid)
-                        end
-                    end
-                end
-            end
-            # build up the possible OEO lightpaths
-            # I want a combination of lightpaths in `containedlightpaths` such that exactly `candidatepath` is produced
-            lightpathcollections = consecutivelightpathsidx(containedlightpaths, candidatepath)
-            for lpcol in lightpathcollections
-                push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [containedlpuuids[lpcoli] for lpcoli in lpcol] ) )
-            end
-        else
-            # need to find an installedlightpath with exactly this protection if any
-            for (intentid, lightpathrepresentation) in installedlightpaths
-                if length(getpath(lightpathrepresentation)) == length(protectedpaths)  # Protected paths will not be groomed
-                    # have to find exactly the candidatepath
-                    if all(pl -> pl[1] == pl[2], zip(protectedpaths, getpath(lightpathrepresentation)))
-                        opttermconstraint = getfirst(c -> c isa OpticalTerminateConstraint, getconstraints(intent))
-                        if !isnothing(opttermconstraint)
-                            if getterminatessoptically(lightpathrepresentation) && getdestinationnode(lightpathrepresentation) == getdestinationnode(opttermconstraint)
-                                push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [intentid] ) )
-                            end
-                        else
-                            push!(groomingpossibilities, Vector{Union{UUID, Edge{Int}}}( [intentid] ) )
-                        end
-                    end
-                end
-            end
-
-        end
-        # reorder exactlyinstalledlightpaths
-    end
-
-    sort!(groomingpossibilities; by=length)
-
-
-    return groomingpossibilities
-end
-
-"""
-Choose exactly the grooming for `protectedpaths`
-If many  protectedpaths are passed, there can only be matched with a single protection lightpath intent that has the same paths
-If just one path is passed, it can be broken down to several lightpaths but that must have the same nodes.
-"""
-function choosegroominornot(ibnf::IBNFrameworkBEA, protectedpaths::Vector{Vector{LocalNode}}, pi::Int, groomingpossibility::Vector{Union{UUID, Edge{Int}}})
-    any(x -> x isa Edge, groomingpossibility) && return false
-    groomingpaths = [getpath(getinstalledlightpaths(getidaginfo(getidag(ibnf)))[intentuuid]) for intentuuid in groomingpossibility]
-    if length(protectedpaths) == 1
-        if all(p -> length(p) == 1, groomingpaths)
-            concatenatedgroomingpath = unique(vcat(getindex.(groomingpaths, 1)...))
-            if concatenatedgroomingpath == protectedpaths[1] 
-                return true
-            end
-        end
-        return false
-    else
-        if length(groomingpaths) == 1
-            if length(groomingpaths[1]) == length(protectedpaths)
-                return all(pl -> pl[1] == pl[2], zip(protectedpaths, groomingpaths[1]))
-            end
-        end
-        return false
-    end
-
-    return false
-end
-
-"""
-$(TYPEDSIGNATURES)
 """
 function estimateintraconnectionavailability(ibnf::IBNFrameworkBEA, srclocalnode::LocalNode, dstlocalnode::LocalNode)
     ed = Edge(srclocalnode, dstlocalnode)
@@ -285,8 +166,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function estimatecrossconnectionavailability(ibnf::IBNFrameworkBEA, srcglobalnode::GlobalNode, dstglobalnode::GlobalNode)
-    ged = GlobalEdge(srcglobalnode, dstglobalnode)
+function estimatecrossconnectionavailability(ibnf::IBNFrameworkBEA, ged::GlobalEdge)
     loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]
@@ -363,4 +243,59 @@ $(TYPEDSIGNATURES)
 """
 function choosecrosssplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability, secondhalfavailability, beacomp::BestEmpiricalAvailabilityCompilation)
     return chooseintrasplitavailabilities(avcon, firsthalfavailability, secondhalfavailability, beacomp)
+end
+
+# --------------------------- Estimating availability ------------------------------
+# Estimation is a DiscreteNonParametric
+
+function estimatepathavailability(ibnf::IBNFrameworkBEA, path::Vector{LocalNode})
+    return getempiricalavailability(ibnf, path; endtime = getdatetime(getintcompalg(ibnf)))
+end
+
+function estimateprpathavailability(ibnf::IBNFrameworkBEA, prpath::Vector{Vector{LocalNode}})
+    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getintcompalg(ibnf)))
+end
+
+function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::IntentDAGNode{<:ConnectivityIntent})
+    estimatedavailability = 1
+    remintent = nothing
+    for avawareintent in getidagnodedescendants_availabilityaware(ibnf, conintidagnode)
+        if avawareintent isa LightpathIntent
+            path = getpath(avawareintent)
+            estimatedavailability *= estimatepathavailability(ibnf, path)
+        elseif avawareintent isa ProtectedLightpathIntent
+            prpath = getprpath(avawareintent)
+            estimatedavailability *= estimateprpathavailability(ibnf, prpath)
+        elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
+            remintent = getintent(getintent(avawareintent))
+        end
+    end
+
+    if !isnothing(remintent)
+        srcglobalnode = getsourcenode(remintent)
+        dstglobalnode = getdestinationnode(remintent)
+        globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
+        dnp = estimatecrossconnectionavailability(ibnf, globaledge)
+        newsupport = dnp.support .* estimatedavailability
+        return DiscreteNonParametric(newsupport, dnp.p)
+    else
+        return DiscreteNonParametric([estimatedavailability], [1.])
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Must always return a AvailabilityConstraint
+
+Assumes equal compliance target split
+"""
+function calcsecondhalfavailabilityconstraint(ibnf::IBNFrameworkBEA, firsthalfavailability::DiscreteNonParametric, masteravconstr::AvailabilityConstraint)
+    mastercompliancetarget = getcompliancetarget(masteravconstr)
+    firstcompliancetarget = sqrt(mastercompliancetarget)
+    firstavailabilityrequirement = cquantile(firsthalfavailability, firstcompliancetarget)
+
+    secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firstavailabilityrequirement
+    secondcompliancetarget = firstcompliancetarget 
+    return AvailabilityConstraint(secondavailabilityrequirement, secondcompliancetarget)
 end

@@ -315,6 +315,35 @@ Get all descendants of DAG `dag` starting from node `idagnodeid`
 Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
 Set `parentsfirst=true` to get the upper level children first and false to get the leafs first.
 """
+function getidagnodedescendants_availabilityaware(idag::IntentDAG, idagnodeid::UUID)
+    idns = Vector{AbstractIntent}()
+    for chidn in getidagnodechildren(idag, idagnodeid)
+        _descendants_recu_availabilityaware!(idns, idag, getidagnodeid(chidn))
+    end
+    return idns
+end
+
+function _descendants_recu_availabilityaware!(vidns::Vector{AbstractIntent}, idag::IntentDAG, idagnodeid::UUID)
+    idn = getintent(getidagnode(idag, idagnodeid))
+    if idn isa LightpathIntent || idn isa ProtectedLightpathIntent || 
+        (idn isa RemoteIntent && !getisinitiator(getintent(idn)))
+
+        any(x -> x === idn, vidns) || push!(vidns, idn)
+        return nothing
+    end
+    for chidn in getidagnodechildren(idag, idagnodeid)
+        _descendants_recu_availabilityaware!(vidns, idag, getidagnodeid(chidn))
+    end
+    return nothing
+end
+"""
+
+$(TYPEDSIGNATURES) 
+
+Get all descendants of DAG `dag` starting from node `idagnodeid`
+Set `exclusive=true`  to get nodes that have `idagnodeid` as the only ancestor
+Set `parentsfirst=true` to get the upper level children first and false to get the leafs first.
+"""
 function getidagnodedescendants(idag::IntentDAG, idagnodeid::UUID; exclusive = false, includeroot = false, parentsfirst = true)
     idns = Vector{IntentDAGNode}()
     parentsfirst && includeroot && push!(idns, getidagnode(idag, idagnodeid))

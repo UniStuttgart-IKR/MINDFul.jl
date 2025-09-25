@@ -45,6 +45,7 @@ $(TYPEDSIGNATURES)
         intradomainalgfun = intradomaincompilationalg,
         prioritizesplitnodes = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes = prioritizesplitbordernodes_shortestorshortestrandom,
+        maximumsplitlevel = 1,
         @passtime
     )
 end

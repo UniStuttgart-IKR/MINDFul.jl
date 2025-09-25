@@ -85,6 +85,7 @@ function calculatepathavailability(availabilities::Vector{Float64})
 end
 
 function calculateparallelavailability(avails::Float64...)
+    # TODO : perf: avoid vector
     return 1 - reduce(*, [1 - avail for avail in avails])
 end
 
@@ -120,9 +121,80 @@ end
 """
 $(TYPEDSIGNATURES)
 
-# TODO : need to finish it if I ever use more than 2 protection paths
+# need to finish it if I ever use more than 2 protection paths
 """
 function calculateprotectedpathavailability(pedges::Vector{Vector{Edge{Int}}}, pavails::Vector{Vector{Float64}})
     @assert all( pes_pas -> length(pes_pas[1]) == length(pes_pas[2]), zip(pedges, pavails))
     return 0.0
+end
+
+
+# --------------------------- Estimating availability ------------------------------
+# Estimation is a Float
+# TODO: use average estimation instead of DiscreteNonParametric also for the pre-estimation
+
+function estimatepathavailability(ibnf::IBNFramework, path::Vector{LocalNode})
+    return getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
+end
+
+function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{LocalNode}})
+    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getintcompalg(ibnf)))
+end
+
+function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent})
+    estimatedavailability = 1
+    remintent = nothing
+    for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
+        if avawareintent isa LightpathIntent
+            path = getpath(avawareintent)
+            estimatedavailability *= estimatepathavailability(ibnf, path)
+        elseif avawareintent isa ProtectedLightpathIntent
+            prpath = getprpath(avawareintent)
+            estimatedavailability *= estimateprpathavailability(ibnf, prpath)
+        elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
+            remintent = getintent(getintent(avawareintent))
+            srcglobalnode = getsourcenode(remintent)
+            dstglobalnode = getdestinationnode(remintent)
+            globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
+            estimatedavailability *= estimatecrossconnectionavailability(ibnf, globaledge)
+        end
+    end
+    return estimatedavailability
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Final cross domain avaibility is the average empirical availability
+"""
+function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge)
+    loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
+    if haskey(loginterupdowntimes, ged) 
+        updowntimesndatetimedict = loginterupdowntimes[ged]
+        updowntimesndatetimes = values(updowntimesndatetimedict)
+        externalintentavails = [calculateavailability(updowntimesndatetime) for updowntimesndatetime in updowntimesndatetimes]
+        estimatedavailabilitysum = 1.0
+        count = 0
+        for updowntimesndatetime in updowntimesndatetimes
+            estimatedavailabilitysum += calculateavailability(updowntimesndatetime)
+            count += 1
+        end
+        estimatedavailability = estimatedavailabilitysum / count
+        return estimatedavailability
+    else
+        return 1.0
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Must always return a AvailabilityConstraint
+
+Assumes 100% compliance target
+"""
+function calcsecondhalfavailabilityconstraint(ibnf::IBNFramework, firsthalfavailability::Float64, masteravconstr::AvailabilityConstraint)
+    secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firsthalfavailability
+    secondcompliancetarget = getcompliancetarget(masteravconstr)
+    return AvailabilityConstraint(secondavailabilityrequirement, secondcompliancetarget)
 end
