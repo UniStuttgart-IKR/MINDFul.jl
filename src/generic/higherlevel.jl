@@ -52,7 +52,6 @@ end
 function findoffsetedge(mdag::IBNAttributeGraph, remoteibnag::IBNAttributeGraph, e::Edge)
     globalnode_src = getglobalnode(getproperties(getnodeview(remoteibnag, src(e))))
     globalnode_dst = getglobalnode(getproperties(getnodeview(remoteibnag, dst(e))))
-    # TODO find the globalnode index
     src_idx = findindexglobalnode(mdag, globalnode_src)
     dst_idx = findindexglobalnode(mdag, globalnode_dst)
     (isnothing(src_idx) || isnothing(src_idx)) && error("global node not found in multi-domain attribute graph")

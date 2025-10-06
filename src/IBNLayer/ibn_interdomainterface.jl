@@ -6,8 +6,6 @@
 # _term is for the terminal entity to do the job
 # the operation might  depend on the relation of `myibnf`, and `remoteibnf`.
 
-# TODO make a macro for the generation of the init/term function ?
-
 """
 $(TYPEDSIGNATURES) 
 

@@ -140,7 +140,6 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
             end
 
             # is it low-priority or high-priority ?
-            # TODO: prioritize shortest paths as well
             index = searchsortedfirst(groomingpossibilities, lpc2insert; by = length)
 
             if index > length(groomingpossibilities) || groomingpossibilities[index] != lpc2insert #if not already inside

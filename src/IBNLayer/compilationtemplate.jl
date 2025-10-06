@@ -48,7 +48,6 @@ prioritizesplitbordernodes(
         maximumsplitlevel::Int = 1
         # maximumsplitlevel::Int = typemax(Int)
     ) where {F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function}
-    # TODO : accelerate : cache candidate paths ?
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
 
@@ -61,7 +60,6 @@ prioritizesplitbordernodes(
 
     verbose && @info("splitting level: $(currentsplitlevel)")
 
-    # TODO : check if split is permitted due to constraint
     if !issuccess(returncode)
         # if didn't groom
         if isinternalorborderintent(ibnf, getintent(idagnode); noremoteintent = true)
@@ -70,7 +68,6 @@ prioritizesplitbordernodes(
             if !haskey(cachedintentresult, getintent(idagnode)) 
                 cachedintentresult[getintent(idagnode)] = returncode
             end
-            # TODO:  expect also an availability fail error here
             if returncode === ReturnCodes.FAIL_OPTICALREACH_OPTINIT || returncode === ReturnCodes.FAIL_SPECTRUM_OPTINIT || returncode === ReturnCodes.FAIL_SRCTRANSMDL
                 verbose && @info("Compiling intent as whole failed with $(returncode). Attempting to split internal intent $(getintent(idagnode)) in two...")
                 returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime) 
@@ -107,9 +104,6 @@ prioritizesplitbordernodes(
             updateidagnodestates!(ibnf, idagnode; @passtime)
         elseif getibnfid(ibnf) == getibnfid(sourceglobalnode) && getibnfid(ibnf) !== getibnfid(destinationglobalnode)
             # source intra-domain , destination cross-domain
-            # TODO: availability split logic based on estimations
-            # what's the availability estimation from border 
-
             # border-node
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
@@ -159,8 +153,6 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     intent = getintent(idagnode)
     idag = getidag(ibnf)
 
-    # TODO : give some availability target  (could be iterative) : split availability proportionally per shortest path length
-    
     masteravcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(intent))
 
     limitedsplitconstraint = getfirst(c -> c isa LimitedSplitConstraint, getconstraints(getintent(idagnode)))
@@ -696,7 +688,6 @@ chooseoxcadddropport(
                 deleteat!(prlpath, 2:length(prlpath))
 
                 # try grooming
-                # TODO : perf: do not repeat grooming upon same candidate path 
                 if all(x -> !(x isa NoGroomingConstraint) && !(x isa OpticalInitiateConstraint), getconstraints(getintent(idagnode)))
                     usedgrooming = true
                     groomingpossibilities = prioritizegrooming(ibnf, idagnode, protectedpaths)
