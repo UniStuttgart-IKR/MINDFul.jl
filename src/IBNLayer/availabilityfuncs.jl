@@ -138,7 +138,7 @@ function estimatepathavailability(ibnf::IBNFramework, path::Vector{LocalNode})
 end
 
 function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{LocalNode}})
-    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getintcompalg(ibnf)))
+    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
 function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent})

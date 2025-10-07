@@ -368,3 +368,51 @@ function testalluuidnodeindices(ibnf)
         return getidagnodeid(idagnode) == k
     end
 end
+
+
+function testlinklogsseriallyincrementaltimestamps(ibnf::IBNFramework)
+    for ed in edges(getibnag(ibnf))
+        linkstates = MINDF.getlinkstates(ibnf, ed)
+        lstime = linkstates[1][1]
+        for i in 2:length(linkstates)
+            if linkstates[i][1] < lstime
+                @warn "date in linkstate $(i) of edge $(ed) is earlier than predecessor"
+                return false
+            end
+            lstime = linkstates[i][1]
+        end
+    end
+    return true
+end
+
+function testintentstateseriallyincreamentaltimestamps(ibnf::IBNFramework)
+    for idn in getidagnodes(getidag(ibnf))
+        logstates = getlogstate(idn)
+        logstatedatetime = logstates[1][1]
+        for i in 2:length(logstates)
+            if logstates[i][1] < logstatedatetime
+                @warn "date logstate $(i) of intent $(getidagnodeid(idn)) is earlier than predecessor"
+                return false
+            end
+            logstatedatetime = logstates[i][1]
+        end
+    end
+    return true
+end
+
+function testinstalledlightpathsupdowntimespositive(ibnf::IBNFramework)
+    for loginterupddowntimesdict in MINDF.getloginterupdowntimes(MINDF.getintcompalg(ibnf))
+        dictuuidupdowntime = loginterupddowntimesdict[2]
+        for (intentuuid, updowntimes) in dictuuidupdowntime
+            if any(x -> x < zero(x), MINDF.getuptimes(updowntimes))
+                @warn "uptimes of $(intentuuid) at $(globaledge) contains negative values"
+                return false
+            end
+            if any(x -> x < zero(x), MINDF.getdowntimes(updowntimes))
+                @warn "downtimes of $(intentuuid) at $(globaledge) contains negative values"
+                return false
+            end
+        end
+    end
+    return true
+end

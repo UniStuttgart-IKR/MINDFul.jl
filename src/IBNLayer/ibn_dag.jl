@@ -294,8 +294,12 @@ Return value is true if state is changed.
                     addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
                 end
             end
-        elseif newstate == IntentState.Installed && (getintent(idagnode) isa CrossLightpathIntent || getintent(idagnode) isa ProtectedLightpathIntent)
-            addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+        elseif newstate == IntentState.Installed
+            if getintent(idagnode) isa CrossLightpathIntent
+                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+            elseif getintent(idagnode) isa ProtectedLightpathIntent
+                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+            end
         end
         if newstate == IntentState.Compiled && (getintent(idagnode) isa LightpathIntent || getintent(idagnode) isa CrossLightpathIntent || getintent(idagnode) isa ProtectedLightpathIntent)
             removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove

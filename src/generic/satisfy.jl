@@ -109,7 +109,10 @@ function issatisfied(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{CrossLi
             allowuninstalled = any(getidagnodellis(idag, getidagnodeid(idagnode))) do idagnodelli
                 if getintent(idagnodelli) ∈ orderedllis
                     return getidagnodestate(idagnodelli) != IntentState.Installed
+                else
+                    return false
                 end
+                # TODO : write else
             end
             if getintent(idagnodeconnectivityintent) isa CrossLightpathIntent
                 remoteidagnode = getfirst(x -> getintent(x) isa RemoteIntent, getidagnodechildren(idag, getidagnodeid(idagnodeconnectivityintent)))

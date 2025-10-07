@@ -274,15 +274,25 @@ $(TYPEDSIGNATURES)
     # make a CrossLightpathIntent parent of last LightpathIntent and the Remote Intent
     # find the pair LightPathIntent for the RemoteIntent
     lpidagnode = getfirst(getidagnodedescendants(getidag(ibnf), getidagnodeid(internalidagnode))) do idagnode
-        lightpathintent = getintent(idagnode)
-        lightpathintent isa LightpathIntent || return false
-        isonlyoptical(getdestinationnodeallocations(lightpathintent)) || return false
-        lightpath = getpath(lightpathintent)
-        length(lightpath) > 1 || return false
-        getglobalnode(getibnag(ibnf), lightpath[end]) == getglobalnode(splitbordernode) || return false
-        getglobalnode(getibnag(ibnf), lightpath[end - 1]) == getglobalnode_input(opticalinitiateconstraint) || return false
-        getspectrumslotsrange(lightpathintent) == getspectrumslotsrange(opticalinitiateconstraint) || return false
-        return true
+        plightpathintent = getintent(idagnode)
+        if plightpathintent isa LightpathIntent
+            isonlyoptical(getdestinationnodeallocations(plightpathintent)) || return false
+            lightpath = getpath(plightpathintent)
+            length(lightpath) > 1 || return false
+            getglobalnode(getibnag(ibnf), lightpath[end]) == getglobalnode(splitbordernode) || return false
+            getglobalnode(getibnag(ibnf), lightpath[end - 1]) == getglobalnode_input(opticalinitiateconstraint) || return false
+            getspectrumslotsrange(plightpathintent) == getspectrumslotsrange(opticalinitiateconstraint) || return false
+            return true
+        elseif plightpathintent isa ProtectedLightpathIntent
+            all(x -> isonlyoptical(x), getprdestinationnodeallocations(plightpathintent)) || return false
+            prlightpaths = getprpath(plightpathintent)
+            all(x -> length(x) > 1, prlightpaths) || return false
+            all(lightpath -> getglobalnode(getibnag(ibnf), lightpath[end]) == getglobalnode(splitbordernode), prlightpaths) || return false
+            all(lightpath -> getglobalnode(getibnag(ibnf), lightpath[end - 1]) == getglobalnode_input(opticalinitiateconstraint), prlightpaths) || return false
+            all(spectrumslotrange -> spectrumslotrange == getspectrumslotsrange(opticalinitiateconstraint), getprspectrumslotsrange(plightpathintent)) || return false
+            return true
+        end
+        return false
     end
     @assert !isnothing(lpidagnode)
     # remove previous idagnodes
@@ -589,6 +599,7 @@ chooseoxcadddropport(
         opticalinitiateconstraint = getfirst(x -> x isa OpticalInitiateConstraint, constraints)
         if !isnothing(opticalinitiateconstraint) # cannot groom
             for protectedpaths in candidatepaths
+                verbose && @info("Testing protected paths $(protectedpaths)")
                 deleteat!(prsrcallocations, 2:length(prsrcallocations))
                 deleteat!(prdstallocations, 2:length(prdstallocations))
                 deleteat!(prspectrumslotsrange, 2:length(prspectrumslotsrange))
@@ -615,7 +626,7 @@ chooseoxcadddropport(
                     end
 
                     path = protectedpaths[pi]
-                    if pi > length(prspectrumslotsrange)
+                    if pi > length(prlpath)
                         push!(prlpath, path)
                     else
                         prlpath[pi] = path
@@ -628,12 +639,12 @@ chooseoxcadddropport(
                     if length(path) > 1
                         if getopticalreach(opticalinitiateconstraint) < getpathdistance3(ibnagweights, path)
                             returncode = ReturnCodes.FAIL_OPTICALREACH_OPTINIT
-                            continue
+                            break
                         end
                         pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
                         if !all(pathspectrumavailability[prspectrumslotsrange[pi]])
                             returncode = ReturnCodes.FAIL_SPECTRUM_OPTINIT
-                            continue
+                            break
                         end
                     end
 
@@ -653,7 +664,7 @@ chooseoxcadddropport(
                         end
                         if hassameallocation
                             returncode = ReturnCodes.FAIL_SAMEOXCLLI
-                            continue
+                            break
                         end
                     end
                     setlocalnode_input!(srcallocations, opticalinitincomingnode)
@@ -705,6 +716,10 @@ chooseoxcadddropport(
                 issuccess(returncode) && break
                 usedgrooming = false
 
+                path1 = protectedpaths[1]
+                protectedpathsspectrumavailabilities = [getpathspectrumavailabilities(ibnf, path) for path in protectedpaths]
+                protectedpathsspectrumavailability = reduce(.&, protectedpathsspectrumavailabilities)
+                protecteddemandslotsneeded = 0
                 for pi in eachindex(protectedpaths)
                     returncode = ReturnCodes.FAIL_CANDIDATEPATHS # restart fail for new protected path
                     if pi > length(prsrcallocations)
@@ -731,8 +746,7 @@ chooseoxcadddropport(
                     end
                     verbose && @info("Testing path $(path)")
 
-
-                        # find transmission module and mode
+                    # find transmission module and mode
                     for sourcerouteridx in sourcerouteridxs
                         setrouterportindex!(prsrcallocations[pi], sourcerouteridx)
                         sourcerouterview = getrouterview(getnodeview(getibnag(ibnf), sourcelocalnode))
@@ -751,8 +765,13 @@ chooseoxcadddropport(
 
                             transmissionmodulecompat = TransmissionModuleCompatibility(sourcerouterportrate, transmissionmoderate, demandslotsneeded, transmissionmodulename)
 
-                            # TODO if opticalterminate spectrum must be found same for all protected paths
-                            startingslot = choosespectrum(ibnf, idagnode, path, demandslotsneeded)
+                            opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
+                            if !isnothing(opticalterminateconstraint)
+                                protecteddemandslotsneeded = max(protecteddemandslotsneeded, demandslotsneeded)
+                                startingslot = choosespectrum(ibnf, protectedpathsspectrumavailability, protecteddemandslotsneeded)
+                            else
+                                startingslot = choosespectrum(ibnf, protectedpathsspectrumavailabilities[pi], demandslotsneeded)
+                            end
                             if isnothing(startingslot)
                                 returncode = ReturnCodes.FAIL_SPECTRUM
                                 continue
@@ -773,13 +792,19 @@ chooseoxcadddropport(
 
                             opticalinitincomingnode = nothing
                             setlocalnode_input!(srcallocations, opticalinitincomingnode)
-                            prspectrumslotsrange[pi] = startingslot:(startingslot + demandslotsneeded - 1)
+                            if !isnothing(opticalterminateconstraint)
+                                # all optical terminates should have the same spectrum to give a single wavelength to the optical initiate
+                                for pii in 1:pi
+                                    prspectrumslotsrange[pii] = startingslot:(startingslot + demandslotsneeded - 1)
+                                end
+                            else
+                                prspectrumslotsrange[pi] = startingslot:(startingslot + demandslotsneeded - 1)
+                            end
 
                             # double code with the first if
                             verbose && @info("Picked OXC LLIs at", prspectrumslotsrange[pi])
 
                             # successful source-path configuration
-                            opticalterminateconstraint = getfirst(x -> x isa OpticalTerminateConstraint, constraints)
                             if !isnothing(opticalterminateconstraint)
                                 # no need to do something more. add intents and return true
                                 returncode = ReturnCodes.SUCCESS
@@ -1198,6 +1223,22 @@ $(TYPEDSIGNATURES)
 """
 function choosespectrum_firstfit(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, path::Vector{LocalNode}, demandslotsneeded::Int)
     pathspectrumavailability = getpathspectrumavailabilities(ibnf, path)
+    return firstfit(pathspectrumavailability, demandslotsneeded)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function choosespectrum_firstfit(ibnf::IBNFramework, pathspectrumavailability::AbstractVector{Bool}, demandslotsneeded::Int)
+    return firstfit(pathspectrumavailability, demandslotsneeded)
+end
+
+function choosespectrum_firstfit(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, prpath::Vector{Vector{LocalNode}}, demandslotsneeded::Int)
+    path1 = prpath[1]
+    pathspectrumavailability = getpathspectrumavailabilities(ibnf, path1)
+    for i in 2:length(prpath)
+        pathspectrumavailability .&= getpathspectrumavailabilities(ibnf, prpath[i])
+    end
     return firstfit(pathspectrumavailability, demandslotsneeded)
 end
 

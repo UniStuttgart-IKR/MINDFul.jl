@@ -702,3 +702,48 @@ function setcompliancetarget!(mav::MutableAvailabilityConstraint, newval::Float6
     mav.compliancetarget = newval
 end
 
+function getlateststateloggeddatetime(idagnode::IntentDAGNode)
+    return getlogstate(idagnode)[end][1]
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function SplitGlobalNode(globalnode::GlobalNode)
+    return SplitGlobalNode(globalnode, nothing, nothing)
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getglobalnode(splitglobalnode::SplitGlobalNode)
+    return splitglobalnode.globalnode
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getfirsthalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
+    return splitglobalnode.firsthalfavailabilityconstraint
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getsecondhalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
+    return splitglobalnode.secondhalfavailabilityconstraint
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getsplitlevel(lsc::LimitedSplitConstraint)
+    return lsc.splitlevel
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getmaximumsplitlevel(lsc::LimitedSplitConstraint)
+    return lsc.maximumsplitlevel
+end

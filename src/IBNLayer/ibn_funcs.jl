@@ -1,5 +1,6 @@
 """
 $(TYPEDSIGNATURES)
+using Base: source_path
 kk
 Add a new user intent to the IBN framework and return the id.
 """
@@ -256,7 +257,7 @@ $(TYPEDSIGNATURES)
     idagnodeleafs = getidagnodeleafs2install(ibnf, idagnodeid)
     @returnwtimeiffalse(verbose, !isempty(idagnodeleafs))
 
-    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose)
+    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose, @passtime)
     updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime)
     # run once to sync with idag
     foreach(idagnodeleafs) do idagnodeleaf
@@ -288,9 +289,9 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installed, IntentState.Failed, IntentState.Pending])
+    @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installing, IntentState.Installed, IntentState.Failed, IntentState.Pending])
     # this check is for grooming cases, such that LLIs don't get uninstalled as long as a parent is installed
-    if all(x -> getidagnodestate(x) == IntentState.Compiled, getidagnodeparents(getidag(ibnf), idagnodeid))
+    if all(x -> getidagnodestate(x) !== IntentState.Installed, getidagnodeparents(getidag(ibnf), idagnodeid))
         idagnodechildren = getidagnodechildren(getidag(ibnf), idagnodeid)
         if length(idagnodechildren) == 0
             reserveunreserveleafintents!(ibnf, getidagnode(getidag(ibnf), idagnodeid), false; verbose, @passtime)
@@ -656,20 +657,28 @@ Set the link state on both OXCView ends of `edge`
     idagnodeids = getidagnodeid.(getnetworkoperatoridagnodes(getidag(ibnf)))
     rootintentstatesbefore = getidagnodestate.(getnetworkoperatoridagnodes(getidag(ibnf)))
 
+    # first do whatever is intra 
+
     if issrcbordernode
+        if isdstbordernode
+            remoteibnfid = getibnfid(getglobalnode(ibnag, eddst))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            requestsetlinkstate_init!(ibnf, ibnfhandler, globaledge, operatingstate; @passtime)
+        else
+            setlinkstate!(ibnf, getoxcview(nodeviewdst), edge, operatingstate; @passtime)
+        end
         remoteibnfid = getibnfid(getglobalnode(ibnag, edsrc))
         ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
         requestsetlinkstate_init!(ibnf, ibnfhandler, globaledge, operatingstate; @passtime)
     else
         setlinkstate!(ibnf, getoxcview(nodeviewsrc), edge, operatingstate; @passtime)
-    end
-
-    if isdstbordernode
-        remoteibnfid = getibnfid(getglobalnode(ibnag, eddst))
-        ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
-        requestsetlinkstate_init!(ibnf, ibnfhandler, globaledge, operatingstate; @passtime)
-    else
-        setlinkstate!(ibnf, getoxcview(nodeviewdst), edge, operatingstate; @passtime)
+        if isdstbordernode
+            remoteibnfid = getibnfid(getglobalnode(ibnag, eddst))
+            ibnfhandler = getibnfhandler(ibnf, remoteibnfid)
+            requestsetlinkstate_init!(ibnf, ibnfhandler, globaledge, operatingstate; @passtime)
+        else
+            setlinkstate!(ibnf, getoxcview(nodeviewdst), edge, operatingstate; @passtime)
+        end
     end
 
     rootintentstatesafter = getidagnodestate.(getnetworkoperatoridagnodes(getidag(ibnf)))
@@ -935,8 +944,20 @@ Get the `OpticalInitiateConstraint` for the current intent DAG.
 If the compilation is not optically terminated return `nothing`.
 
 To me this has all the logic needed to be type stable but the compiler fails.
+
 """
 function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeid::UUID)
+    # TODO : perf: don't use lowlevelintents  but LightPtah and ProtectedLightpath
+    idnchildren = getidagnodechildren(getidag(ibnf), idagnodeid)
+    if length(idnchildren) == 1
+        idnchildintent = getintent(first(idnchildren))
+        if idnchildintent isa LightpathIntent
+            return getopticalinitiateconstraint(ibnf, idagnodeid, idnchildintent)
+        elseif idnchildintent isa ProtectedLightpathIntent
+            return getopticalinitiateconstraint(ibnf, idagnodeid, idnchildintent)
+        end
+    end
+
     ibnag = getibnag(ibnf)
     logicallliorder::Vector{LowLevelIntent} = getlogicallliorder(ibnf, idagnodeid; onlyinstalled=false)
 
@@ -970,6 +991,106 @@ function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeid::UUID)
 
     return OpticalInitiateConstraint(globalnode_input, spectrumslotsrange, newopticalreach, transmdlcompat)
 end
+
+function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeidparent::UUID, lpintent::LightpathIntent)
+    @assert isonlyoptical(getdestinationnodeallocations(lpintent))
+    path = getpath(lpintent)
+    @assert getibnfid(getglobalnode(getibnag(ibnf), path[end])) !== getibnfid(ibnf)
+
+    globalnode_input = getglobalnode(getibnag(ibnf), path[end-1])
+    spectrumslotsrange = getspectrumslotsrange(lpintent)
+    sourcenodeallocations = getsourcenodeallocations(lpintent)
+
+    ibnagweights = getibnagweights(getcachedresults(getintcompalg(ibnf)))
+    if !isonlyoptical(sourcenodeallocations)
+        transmodule = gettransmissionmodule(ibnf, sourcenodeallocations)
+        mode = gettransmissionmodes(transmodule)[gettransmissionmodesindex(sourcenodeallocations)]
+        rate = getrate(mode)
+        name = getname(transmodule)
+        transmdlcompat = TransmissionModuleCompatibility(rate, length(spectrumslotsrange), name)
+
+        lastopticalreach = getopticalreach(mode)
+        distancecovered = getpathdistance3(ibnagweights, path)
+
+        newopticalreach = lastopticalreach - distancecovered
+
+        return OpticalInitiateConstraint(globalnode_input, spectrumslotsrange, newopticalreach, transmdlcompat)
+    else
+        previousopticalinitiateconstraint = something(getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getidagnode(ibnf, idagnodeidparent))))
+        lastopticalreach = getopticalreach(previousopticalinitiateconstraint)
+        distancecovered = getpathdistance3(ibnagweights, path)
+        newopticalreach = lastopticalreach - distancecovered
+        transmdlcompat = gettransmissionmodulecompat(previousopticalinitiateconstraint)
+        return OpticalInitiateConstraint(globalnode_input, spectrumslotsrange, newopticalreach, transmdlcompat)
+    end
+end
+
+function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeidparent::UUID, lpintent::ProtectedLightpathIntent)
+    @assert all(destinationnodeallocation -> isonlyoptical(destinationnodeallocation), getprdestinationnodeallocations(lpintent))
+    prpath = getprpath(lpintent)
+    @assert all(path -> getibnfid(getglobalnode(getibnag(ibnf), path[end])) !== getibnfid(ibnf), prpath)
+
+    # we always have up to 2 lightpath protections anyhow..
+    # TODO : change if more protection is needed
+    @assert length(prpath) == 2
+    globalnode_input_1 = getglobalnode(getibnag(ibnf), prpath[1][end-1])
+    globalnode_input_2 = getglobalnode(getibnag(ibnf), prpath[2][end-1])
+    # TODO: this will break if more internal nodes lead to border node (fow now just avoid this use case)
+    @assert globalnode_input_1 == globalnode_input_2
+
+    prspectrumslotsrange = getprspectrumslotsrange(lpintent)
+    @assert prspectrumslotsrange[1] == prspectrumslotsrange[2]
+
+    prsourcenodeallocations = getprsourcenodeallocations(lpintent)
+    sourcenodeallocations1 = prsourcenodeallocations[1]
+    sourcenodeallocations2 = prsourcenodeallocations[2]
+
+    ibnagweights = getibnagweights(getcachedresults(getintcompalg(ibnf)))
+    if !isonlyoptical(sourcenodeallocations1) && !isonlyoptical(sourcenodeallocations2)
+        transmodule1 = gettransmissionmodule(ibnf, sourcenodeallocations1)
+        transmodule2 = gettransmissionmodule(ibnf, sourcenodeallocations2)
+
+        mode1 = gettransmissionmodes(transmodule1)[gettransmissionmodesindex(sourcenodeallocations1)]
+        mode2 = gettransmissionmodes(transmodule2)[gettransmissionmodesindex(sourcenodeallocations2)]
+
+        rate1 = getrate(mode1)
+        rate2 = getrate(mode2)
+        newrate = max(rate1, rate2)
+
+        name1 = getname(transmodule1)
+        name2 = getname(transmodule2)
+
+        # TODO : will not check that name1 == name2 although I should
+
+
+        transmdlcompat = TransmissionModuleCompatibility(newrate, length(prspectrumslotsrange[1]), name1)
+
+        lastopticalreach1 = getopticalreach(mode1)
+        lastopticalreach2 = getopticalreach(mode2)
+        newlastopticalreach = min(lastopticalreach1, lastopticalreach2)
+
+        distancecovered1 = getpathdistance3(ibnagweights, prpath[1])
+        distancecovered2 = getpathdistance3(ibnagweights, prpath[2])
+
+        newopticalreach1 = lastopticalreach1 - distancecovered1
+        newopticalreach2 = lastopticalreach2 - distancecovered2
+        newopticalreach = min(newopticalreach1, newopticalreach2)
+
+        return OpticalInitiateConstraint(globalnode_input_1, prspectrumslotsrange[1], newopticalreach, transmdlcompat)
+    else
+        previousopticalinitiateconstraint = something(getfirst(x -> x isa OpticalInitiateConstraint, getconstraints(getidagnode(ibnf, idagnodeidparent))))
+        lastopticalreach = getopticalreach(previousopticalinitiateconstraint)
+        distancecovered1 = getpathdistance3(ibnagweights, prpath[1])
+        distancecovered2 = getpathdistance3(ibnagweights, prpath[2])
+
+        newopticalreach1 = lastopticalreach - distancecovered1
+        newopticalreach2 = lastopticalreach - distancecovered2
+        newopticalreach = min(newopticalreach1, newopticalreach2)
+        transmdlcompat = gettransmissionmodulecompat(previousopticalinitiateconstraint)
+        return OpticalInitiateConstraint(globalnode_input_1, prspectrumslotsrange[1], newopticalreach, transmdlcompat)
+    end
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -1037,6 +1158,24 @@ function getpathdistance3(ws::Matrix, path::Vector{Int})
     return mysum
 end
 
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:CrossLightpathIntent})
+    lpidagnode = (getfirst(x -> getintent(x) isa LightpathIntent, getidagnodechildren(getidag(ibnf), getidagnodeid(idagnode))))
+    if !isnothing(lpidagnode)
+        lightpathrepresentation = createlightpathrepresentation(ibnf, lpidagnode; overwritedestinationnode = getdestinationnode(getremoteconnectivityintent(getintent(idagnode))))
+        installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+        installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+        return true
+    else
+        plpidagnode = (getfirst(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodechildren(getidag(ibnf), getidagnodeid(idagnode))))
+        if !isnothing(plpidagnode)
+            lightpathrepresentation = createlightpathrepresentation(ibnf, plpidagnode; overwritedestinationnode = getdestinationnode(getremoteconnectivityintent(getintent(idagnode))))
+            installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+            installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+            return true
+        end
+    end
+    return false
+end
 
 """
 $(TYPEDSIGNATURES)
@@ -1044,12 +1183,15 @@ $(TYPEDSIGNATURES)
 If `idagnode` represents a direct parent of LLIs that are a lightpath, add representation to the IntentDAGInfo
 Return `true` if done. Otherwise `false`
 """
-function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<:Union{LightpathIntent,CrossLightpathIntent}})
-    if getintent(idagnode) isa LightpathIntent
-        lpintent = getintent(idagnode)
-    elseif getintent(idagnode) isa CrossLightpathIntent
-        lpintent = getintent(something(getfirst(x -> getintent(x) isa LightpathIntent, getidagnodechildren(getidag(ibnf), getidagnodeid(idagnode)))))
-    end
+function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{LightpathIntent})
+    lightpathrepresentation = createlightpathrepresentation(ibnf, idagnode)
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+    return true
+end
+
+function createlightpathrepresentation(ibnf::IBNFramework, idagnode::IntentDAGNode{LightpathIntent}; overwritedestinationnode=nothing)
+    lpintent = getintent(idagnode)
     path = getpath(lpintent)
     startsoptically = isonlyoptical(getsourcenodeallocations(lpintent))
     terminatesoptically = isonlyoptical(getdestinationnodeallocations(lpintent))
@@ -1083,21 +1225,25 @@ function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{<
             end
         end
     end
-    if getintent(idagnode) isa LightpathIntent
+    if isnothing(overwritedestinationnode)
         lightpathrepresentation = LightpathRepresentation([path], startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), path[end]))
-    elseif getintent(idagnode) isa CrossLightpathIntent
-        lightpathrepresentation = LightpathRepresentation([path], startsoptically, terminatesoptically, totalbandwidth, getdestinationnode(getremoteconnectivityintent(getintent(idagnode))))
+    else
+        lightpathrepresentation = LightpathRepresentation([path], startsoptically, terminatesoptically, totalbandwidth, overwritedestinationnode)
     end
-    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
-    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
-    return true
-
+    return lightpathrepresentation
 end
 
 """
 $(TYPEDSIGNATURES)
 """
 function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{ProtectedLightpathIntent})
+    lightpathrepresentation = createlightpathrepresentation(ibnf, idagnode)
+    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
+    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
+    return true
+end
+
+function createlightpathrepresentation(ibnf::IBNFramework, idagnode::IntentDAGNode{ProtectedLightpathIntent}; overwritedestinationnode=nothing)
     lpintents::Vector{LightpathIntent} = getintent.(getidagnodechildren(getidag(ibnf), idagnode))
 
     paths = getpath.(lpintents)
@@ -1151,11 +1297,11 @@ function addtoinstalledlightpaths!(ibnf::IBNFramework, idagnode::IntentDAGNode{P
             end
         end
     end
-    lightpathrepresentation = LightpathRepresentation(paths, startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), paths[1][end]))
-    installedlightpaths = getinstalledlightpaths(getidaginfo(getidag(ibnf)))
-    installedlightpaths[getidagnodeid(idagnode)] = lightpathrepresentation
-    return true
-
+    if isnothing(overwritedestinationnode)
+        return LightpathRepresentation(paths, startsoptically, terminatesoptically, totalbandwidth, getglobalnode(getibnag(ibnf), paths[1][end]))
+    else
+        return LightpathRepresentation(paths, startsoptically, terminatesoptically, totalbandwidth, overwritedestinationnode)
+    end
 end
 
 """
@@ -1338,48 +1484,16 @@ function _leafs_recu2install!(vidns::Vector{IntentDAGNode}, ibnf::IBNFramework, 
     return false
 end
 
-function getlateststateloggeddatetime(idagnode::IntentDAGNode)
-    return getlogstate(idagnode)[end][1]
+
+function gettransmissionmodule(ibnf::IBNFramework, endnodeallocations::EndNodeAllocations)
+    localnode = getlocalnode(endnodeallocations)
+    nodeview = getnodeview(getibnag(ibnf), localnode)
+    transmissionmoduleviewpoolindex = gettransmissionmoduleviewpoolindex(endnodeallocations)
+    return gettransmissionmoduleviewpool(nodeview)[transmissionmoduleviewpoolindex]
 end
 
-"""
-$(TYPEDSIGNATURES) 
-"""
-function SplitGlobalNode(globalnode::GlobalNode)
-    return SplitGlobalNode(globalnode, nothing, nothing)
-end
-
-"""
-$(TYPEDSIGNATURES) 
-"""
-function getglobalnode(splitglobalnode::SplitGlobalNode)
-    return splitglobalnode.globalnode
-end
-
-"""
-$(TYPEDSIGNATURES) 
-"""
-function getfirsthalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
-    return splitglobalnode.firsthalfavailabilityconstraint
-end
-
-"""
-$(TYPEDSIGNATURES) 
-"""
-function getsecondhalfavailabilityconstraint(splitglobalnode::SplitGlobalNode)
-    return splitglobalnode.secondhalfavailabilityconstraint
-end
-
-"""
-$(TYPEDSIGNATURES) 
-"""
-function getsplitlevel(lsc::LimitedSplitConstraint)
-    return lsc.splitlevel
-end
-
-"""
-$(TYPEDSIGNATURES) 
-"""
-function getmaximumsplitlevel(lsc::LimitedSplitConstraint)
-    return lsc.maximumsplitlevel
+function gettransmissionmode(ibnf::IBNFramework, endnodeallocations::EndNodeAllocations)
+    transmodule = gettransmissionmodule(ibnf, endnodeallocations)
+    modeindex = gettransmissionmodesindex(endnodeallocations)
+    return gettransmissionmodes(transmodule)[modeindex]
 end

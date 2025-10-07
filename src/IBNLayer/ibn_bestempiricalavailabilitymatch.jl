@@ -105,14 +105,17 @@ function prioritizepaths_bestempiricalavailability(ibnf::IBNFrameworkBEA, idagno
         end
     end
 
-    kprotectedpaths = yenstatepaths[1:getpathsforprotectionnum(intentcomp)]
+    upperindex = getpathsforprotectionnum(intentcomp) > length(yenstatepaths) ? length(yenstatepaths) : getpathsforprotectionnum(intentcomp)
+    kprotectedpaths = yenstatepaths[1:upperindex]
     for i1 in eachindex(kprotectedpaths)
         path1 = yenstatepaths[i1]
+        edges1 = edgeify(path1)
+        any(ed -> !getcurrentlinkstate(ibnf, ed), edges1) && continue
         for i2 in i1+1:length(kprotectedpaths)
             path2 = yenstatepaths[i2]
-            edges1 = edgeify(path1)
-            avails1 = [dictlinkempiricalavail[ed] for ed in edges1]
             edges2 = edgeify(path2)
+            any(ed -> !getcurrentlinkstate(ibnf, ed), edges2) && continue
+            avails1 = [dictlinkempiricalavail[ed] for ed in edges1]
             avails2 = [dictlinkempiricalavail[ed] for ed in edges2]
             if !any(x -> x isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
                 # protection with optical terminate requires that last link is the same (such that the protected paths terminate similarly)
