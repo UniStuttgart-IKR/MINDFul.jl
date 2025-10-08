@@ -688,7 +688,7 @@ chooseoxcadddropport(
                 issuccess(returncode) && break
             end
         else
-            returncode = ReturnCodes.FAIL_SRCROUTERPORT
+            returncode = ReturnCodes.FAIL_CANDIDATEPATHS
             sourcerouteridxs = prioritizerouterport(ibnf, idagnode, sourcelocalnode)
 
 
@@ -747,6 +747,7 @@ chooseoxcadddropport(
                     verbose && @info("Testing path $(path)")
 
                     # find transmission module and mode
+                    returncode = ReturnCodes.FAIL_SRCROUTERPORT
                     for sourcerouteridx in sourcerouteridxs
                         setrouterportindex!(prsrcallocations[pi], sourcerouteridx)
                         sourcerouterview = getrouterview(getnodeview(getibnag(ibnf), sourcelocalnode))

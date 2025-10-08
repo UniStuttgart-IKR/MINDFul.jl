@@ -1,3 +1,5 @@
+@testset ExtendedTestSet "singledomainavailabilityprotection_grooming_split.jl"  begin
+
 nt = starttime = DateTime("2026-01-01")
 
 compalg = MINDF.BestEmpiricalAvailabilityCompilation(10, 5; nodenum=1)
@@ -24,7 +26,8 @@ getavcon2 = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent
 
 rc, nt = installintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 @test rc == ReturnCodes.SUCCESS
-# TODO : check that Availability was split as expected
+
+# TODO : more tests ?
 
 # @test installintent!(ibnfs[1], intentuuid1, beacomp; offsettime = nowtime) == ReturnCodes.SUCCESS
 #
@@ -34,3 +37,4 @@ rc, nt = installintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 # TM.@test_nothrows MINDF.updatelogintentcomp!(ibnfs[1], beacomp)
 #
 
+end

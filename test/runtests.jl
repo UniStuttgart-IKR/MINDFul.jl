@@ -12,12 +12,14 @@ include("testsuite/interface.jl")
 include("testsuite/permissions.jl")
 include("testsuite/rsaauthentication.jl")
 
+# include("testsuite/increasingtimestamps.jl")
+
 include("testsuite/singledomainavailabilityprotection.jl")
 include("testsuite/singledomainavailabilityprotection_grooming.jl")
 
 include("testsuite/logintraintertest.jl")
 
 include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
-# include("testsuite/multidomainavailabilityprotection_grooming.jl")
+include("testsuite/multidomainavailabilityprotection_grooming.jl")
 
 nothing

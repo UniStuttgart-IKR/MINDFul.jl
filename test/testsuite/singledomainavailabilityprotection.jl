@@ -129,13 +129,10 @@ returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), true; offsettim
 # give an impossible availability to cover
 avcon2 = MINDF.AvailabilityConstraint(0.9999, 0.99999) 
 conintent2 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon2])
-intentuuid2, nowtime = addintent!(ibnfs[1], conintent1, NetworkOperator(); offsettime=nowtime)
+intentuuid2, nowtime = addintent!(ibnfs[1], conintent2, NetworkOperator(); offsettime=nowtime)
 
 returncode, nowtime = compileintent!(ibnfs[1], intentuuid2; offsettime = nowtime)
-@test returncode == ReturnCodes.SUCCESS
-
-returncode, nowtime = installintent!(ibnfs[1], intentuuid2; offsettime = nowtime)
-@test returncode == ReturnCodes.FAIL
+@test returncode == ReturnCodes.FAIL_CANDIDATEPATHS
 
 
 end
