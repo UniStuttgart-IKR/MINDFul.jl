@@ -61,6 +61,15 @@ end
 
 """
 $(TYPEDSIGNATURES)
+"""
+function getempiricalavailability(ibnf::IBNFramework, intentuuid::UUID, endtime=nothing)
+    logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
+    updowntimes = getupdowntimes(logstates, endtime)
+    return calculateavailability(updowntimes)
+end
+
+"""
+$(TYPEDSIGNATURES)
 
 Return the up and downtimes for the specific link
 """
@@ -141,8 +150,12 @@ function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{Lo
     return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
+function estimateintentavailability(ibnf::IBNFramework, intentuuid::UUID)
+    return estimateintentavailability(ibnf, getidagnode(getidag(ibnf), intentuuid))
+end
+
 function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent})
-    estimatedavailability = 1
+    estimatedavailability = 1.
     remintent = nothing
     for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
         if avawareintent isa LightpathIntent
@@ -152,11 +165,12 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
             prpath = getprpath(avawareintent)
             estimatedavailability *= estimateprpathavailability(ibnf, prpath)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
-            remintent = getintent(getintent(avawareintent))
+            remintent = getintent(avawareintent)
             srcglobalnode = getsourcenode(remintent)
             dstglobalnode = getdestinationnode(remintent)
             globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-            estimatedavailability *= estimatecrossconnectionavailability(ibnf, globaledge)
+            estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge)
+            estimatedavailability *= estimatedcrosssav
         end
     end
     return estimatedavailability
@@ -172,14 +186,20 @@ function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]
         updowntimesndatetimes = values(updowntimesndatetimedict)
-        externalintentavails = [calculateavailability(updowntimesndatetime) for updowntimesndatetime in updowntimesndatetimes]
-        estimatedavailabilitysum = 1.0
+        estimatedavailabilitysum = 0.0
         count = 0
         for updowntimesndatetime in updowntimesndatetimes
+            if isempty(getuptimes(updowntimesndatetime)) && isempty(getdowntimes(updowntimesndatetime))
+                continue
+            end
             estimatedavailabilitysum += calculateavailability(updowntimesndatetime)
             count += 1
         end
-        estimatedavailability = estimatedavailabilitysum / count
+        if iszero(count)
+            return 1.0
+        else
+            estimatedavailability = estimatedavailabilitysum / count
+        end
         return estimatedavailability
     else
         return 1.0

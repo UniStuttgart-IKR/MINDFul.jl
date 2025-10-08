@@ -254,7 +254,10 @@ Return value is true if state is changed.
         end
     elseif all(x -> x in [IntentState.Installed, IntentState.Compiled], childrenstates)
         newstate = IntentState.Compiled
-        pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
+        if newstate != currentstate
+            changedstate = true
+            pushstatetoidagnode!(idagnode, newstate; @passtime)
+        end
     elseif any(==(IntentState.Failed), childrenstates)
         if currentstate != IntentState.Failed && currentstate != IntentState.Compiled
             changedstate = true
@@ -301,8 +304,14 @@ Return value is true if state is changed.
                 addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
             end
         end
-        if newstate == IntentState.Compiled && (getintent(idagnode) isa LightpathIntent || getintent(idagnode) isa CrossLightpathIntent || getintent(idagnode) isa ProtectedLightpathIntent)
-            removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
+        if newstate == IntentState.Compiled
+            if getintent(idagnode) isa LightpathIntent
+                removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
+            elseif getintent(idagnode) isa CrossLightpathIntent
+                removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
+            elseif getintent(idagnode) isa ProtectedLightpathIntent
+                removefrominstalledlightpaths!(ibnf, idagnode) # if intentid found, remove
+            end
         end
         if getintent(idagnode) isa RemoteIntent && !getisinitiator(getintent(idagnode)) # notify initiator domain
             ibnfhandler = getibnfhandler(ibnf, getibnfid(getintent(idagnode)))
@@ -330,7 +339,7 @@ end
 function _descendants_recu_availabilityaware!(vidns::Vector{AbstractIntent}, idag::IntentDAG, idagnodeid::UUID)
     idn = getintent(getidagnode(idag, idagnodeid))
     if idn isa LightpathIntent || idn isa ProtectedLightpathIntent || 
-        (idn isa RemoteIntent && !getisinitiator(getintent(idn)))
+        (idn isa RemoteIntent && getisinitiator(idn))
 
         any(x -> x === idn, vidns) || push!(vidns, idn)
         return nothing
@@ -340,8 +349,8 @@ function _descendants_recu_availabilityaware!(vidns::Vector{AbstractIntent}, ida
     end
     return nothing
 end
-"""
 
+"""
 $(TYPEDSIGNATURES) 
 
 Get all descendants of DAG `dag` starting from node `idagnodeid`

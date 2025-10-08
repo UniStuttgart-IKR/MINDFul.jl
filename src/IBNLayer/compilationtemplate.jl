@@ -1062,6 +1062,7 @@ function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{
         candidatepath = protectedpaths[1]
         for (intentid, lightpathrepresentation) in installedlightpaths
               # Protected paths will not be groomed
+            # 2dlt 0x1117
             if length(getpath(lightpathrepresentation)) <= 1 && getidagnodestate(getidag(ibnf), intentid) == IntentState.Installed
                 # have to find exactly the candidatepath
                 pathlightpathrepresentation = getpath(lightpathrepresentation)[1]
