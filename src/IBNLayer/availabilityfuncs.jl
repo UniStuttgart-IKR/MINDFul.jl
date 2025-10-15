@@ -154,7 +154,7 @@ function estimateintentavailability(ibnf::IBNFramework, intentuuid::UUID)
     return estimateintentavailability(ibnf, getidagnode(getidag(ibnf), intentuuid))
 end
 
-function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent})
+function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
     estimatedavailability = 1.
     remintent = nothing
     for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
@@ -165,12 +165,16 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
             prpath = getprpath(avawareintent)
             estimatedavailability *= estimateprpathavailability(ibnf, prpath)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
-            remintent = getintent(avawareintent)
-            srcglobalnode = getsourcenode(remintent)
-            dstglobalnode = getdestinationnode(remintent)
-            globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-            estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge)
-            estimatedavailability *= estimatedcrosssav
+            if requested
+                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(avawareintent))))
+            else
+                remintent = getintent(avawareintent)
+                srcglobalnode = getsourcenode(remintent)
+                dstglobalnode = getdestinationnode(remintent)
+                globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
+                estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge)
+                estimatedavailability *= estimatedcrosssav
+            end
         end
     end
     return estimatedavailability

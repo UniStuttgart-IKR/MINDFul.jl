@@ -108,7 +108,7 @@ prioritizesplitbordernodes(
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
                 masteravcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idagnode)))
-                if !isnothing(masteravcon)
+                if isnothing(masteravcon)
                     destinationsplitglobalnode = SplitGlobalNode(destinationglobalnode)
                 else
                     destinationsplitglobalnode = SplitGlobalNode(destinationglobalnode, masteravcon, nothing)

@@ -259,7 +259,7 @@ function estimateprpathavailability(ibnf::IBNFrameworkBEA, prpath::Vector{Vector
     return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getintcompalg(ibnf)))
 end
 
-function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::IntentDAGNode{<:ConnectivityIntent})
+function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
     estimatedavailability = 1
     remintent = nothing
     for avawareintent in getidagnodedescendants_availabilityaware(ibnf, conintidagnode)
@@ -275,12 +275,17 @@ function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::Inten
     end
 
     if !isnothing(remintent)
-        srcglobalnode = getsourcenode(remintent)
-        dstglobalnode = getdestinationnode(remintent)
-        globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-        dnp = estimatecrossconnectionavailability(ibnf, globaledge)
-        newsupport = dnp.support .* estimatedavailability
-        return DiscreteNonParametric(newsupport, dnp.p)
+        if requested
+            estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
+            return DiscreteNonParametric([estimatedavailability], [1.])
+        else
+            srcglobalnode = getsourcenode(remintent)
+            dstglobalnode = getdestinationnode(remintent)
+            globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
+            dnp = estimatecrossconnectionavailability(ibnf, globaledge)
+            newsupport = dnp.support .* estimatedavailability
+            return DiscreteNonParametric(newsupport, dnp.p)
+        end
     else
         return DiscreteNonParametric([estimatedavailability], [1.])
     end

@@ -380,6 +380,16 @@ struct AvailabilityConstraint <: AbstractIntentConstraint
     availabilityrequirement::Float64
     "A float between 0 and 1 expressing the desired probability to cover the availability requirement"
     compliancetarget::Float64
+    "Default constructor"
+    function AvailabilityConstraint(a::Float64, c::Float64)
+        if a > 1
+            error("Availability requirement must be positive and lower than 1.0")
+        end
+        if c > 1
+            error("Compliance target must be positive and lower than 1.0")
+        end
+        return new(a,c)
+    end
 end
 
 mutable struct MutableAvailabilityConstraint <: AbstractIntentConstraint

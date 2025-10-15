@@ -485,6 +485,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getidagnodeparentsnum(idag::IntentDAG, idagnodeid::UUID)
+    vertexidx = getidagnodeidx(idag, idagnodeid)
+    childrenidxs = Graphs.inneighbors(idag, vertexidx)
+    return length(childrenidxs)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getidagnodeparents(idag::IntentDAG, idagnodeid::UUID)
     vertexidx = getidagnodeidx(idag, idagnodeid)
     childrenidxs = Graphs.inneighbors(idag, vertexidx)
