@@ -150,8 +150,8 @@ function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{Lo
     return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
-function estimateintentavailability(ibnf::IBNFramework, intentuuid::UUID)
-    return estimateintentavailability(ibnf, getidagnode(getidag(ibnf), intentuuid))
+function estimateintentavailability(ibnf::IBNFramework, intentuuid::UUID; requested::Bool=true)
+    return estimateintentavailability(ibnf, getidagnode(getidag(ibnf), intentuuid); requested)
 end
 
 function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
@@ -166,7 +166,7 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
             estimatedavailability *= estimateprpathavailability(ibnf, prpath)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
             if requested
-                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(avawareintent))))
+                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(avawareintent)))))
             else
                 remintent = getintent(avawareintent)
                 srcglobalnode = getsourcenode(remintent)

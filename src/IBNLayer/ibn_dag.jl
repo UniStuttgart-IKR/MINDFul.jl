@@ -282,10 +282,15 @@ Return value is true if state is changed.
         end
     end
     if changedstate
-        if newstate == IntentState.Installing # go down the DAG
+        # @show getibnfid(ibnf), idagnodeid
+        if newstate == IntentState.Installing # go down and up the DAG: Installing should propagate to all connected nodes
             foreach(getidagnodechildren(idag, idagnodeid)) do idagnodechild
                 updateidagnodestates!(ibnf, idagnodechild, IntentState.Installing; @passtime)
             end
+            # This solves protected remote intent updating but breaks grooming
+            # foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
+            #     updateidagnodestates!(ibnf, idagnodeparent, IntentState.Installing; @passtime)
+            # end
         else # go up the DAG
             foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
                 updateidagnodestates!(ibnf, idagnodeparent; @passtime)

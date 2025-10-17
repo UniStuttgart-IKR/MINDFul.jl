@@ -257,7 +257,7 @@ $(TYPEDSIGNATURES)
     idagnodeleafs = getidagnodeleafs2install(ibnf, idagnodeid)
     @returnwtimeiffalse(verbose, !isempty(idagnodeleafs))
 
-    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose, @passtime)
+    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose, @passtime, force=true)
     updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime)
     # run once to sync with idag
     foreach(idagnodeleafs) do idagnodeleaf
@@ -288,17 +288,17 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
+@recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false, force=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installing, IntentState.Installed, IntentState.Failed, IntentState.Pending])
     # this check is for grooming cases, such that LLIs don't get uninstalled as long as a parent is installed
-    if all(x -> getidagnodestate(x) !== IntentState.Installed, getidagnodeparents(getidag(ibnf), idagnodeid))
+    if force || all(x -> getidagnodestate(x) !== IntentState.Failed && getidagnodestate(x) !== IntentState.Installed, getidagnodeparents(getidag(ibnf), idagnodeid))
         idagnodechildren = getidagnodechildren(getidag(ibnf), idagnodeid)
         if length(idagnodechildren) == 0
             reserveunreserveleafintents!(ibnf, getidagnode(getidag(ibnf), idagnodeid), false; verbose, @passtime)
         else
             updateidagstates!(ibnf, idagnodeid, IntentState.Compiled; @passtime)
             for idagnodechild in idagnodechildren
-                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose, @passtime)
+                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose, @passtime, force)
             end
         end
     end
@@ -643,7 +643,7 @@ end
 $(TYPEDSIGNATURES)
 Set the link state on both OXCView ends of `edge`
 """
-@recvtime function setlinkstate!(ibnf::IBNFramework, edge::Edge, operatingstate::Bool)
+@recvtime function setlinkstate!(ibnf::IBNFramework, edge::Edge, operatingstate::Bool; verbose=false)
     ibnag = getibnag(ibnf)
     edsrc = src(edge)
     nodeviewsrc = getnodeview(ibnag, edsrc)
@@ -654,8 +654,8 @@ Set the link state on both OXCView ends of `edge`
     @returnwtimeiffalse(verbose, !(issrcbordernode && isdstbordernode))
     globaledge = GlobalEdge(getglobalnode(ibnag, edsrc), getglobalnode(ibnag, eddst))
 
-    idagnodeids = getidagnodeid.(getnetworkoperatoridagnodes(getidag(ibnf)))
-    rootintentstatesbefore = getidagnodestate.(getnetworkoperatoridagnodes(getidag(ibnf)))
+    idagnodeids = getidagnodeid.(getnetworkoperatornremotenotinitidagnodes(getidag(ibnf)))
+    rootintentstatesbefore = getidagnodestate.(getnetworkoperatornremotenotinitidagnodes(getidag(ibnf)))
 
     # first do whatever is intra 
 
@@ -681,17 +681,22 @@ Set the link state on both OXCView ends of `edge`
         end
     end
 
-    rootintentstatesafter = getidagnodestate.(getnetworkoperatoridagnodes(getidag(ibnf)))
+    rootintentstatesafter = getidagnodestate.(getnetworkoperatornremotenotinitidagnodes(getidag(ibnf)))
 
     for (idnid, risb, risa) in zip(idagnodeids, rootintentstatesbefore, rootintentstatesafter)
-        if any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodedescendants(getidag(ibnf), idnid))
-            if risb == IntentState.Installed && risa == IntentState.Failed
+        # risnow = getidagnodestate(getidag(ibnf), idnid)
+        # if risnow !== IntentState.Installed
+            if any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodedescendants(getidag(ibnf), idnid))
                 # reinstall in case there is protection deployed
-                installintent!(ibnf, idnid; @passtime)
-            elseif risb == risa == IntentState.Failed && !isempty(getidagnodeleafs2install(ibnf, idnid))
-                installintent!(ibnf, idnid; @passtime)
+                if risb == IntentState.Installed && risa == IntentState.Failed
+                    # @show "1", getibnfid(ibnf), idnid
+                    installintent!(ibnf, idnid; @passtime)
+                elseif risb == risa == IntentState.Failed && !isempty(getidagnodeleafs2install(ibnf, idnid))
+                    # @show "2", getibnfid(ibnf), idnid
+                    installintent!(ibnf, idnid; @passtime)
+                end
             end
-        end
+        # end
     end
 
     return ReturnCodeTime(ReturnCodes.SUCCESS, @logtime)

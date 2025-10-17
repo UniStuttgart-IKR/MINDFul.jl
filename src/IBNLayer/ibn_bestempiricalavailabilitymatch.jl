@@ -138,6 +138,7 @@ function prioritizepaths_bestempiricalavailability(ibnf::IBNFrameworkBEA, idagno
 
     availabilityrequirement = getavailabilityrequirement(availabilityconstraint)
     # pick best availability match
+    # TODO : perf: a lot of copies
     sp = sortperm(pathempavail; by = x ->  x - availabilityrequirement)
 
     # prioritize based on highest availability

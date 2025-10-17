@@ -1,6 +1,8 @@
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
+
+Cannot handle AvailabilityConstraints and will fail with weird error
 """
 struct KShorestPathFirstFitCompilation <: IntentCompilationAlgorithmWithMemory
     "How many k paths to check"

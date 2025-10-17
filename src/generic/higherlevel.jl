@@ -60,3 +60,37 @@ function findoffsetedge(mdag::IBNAttributeGraph, remoteibnag::IBNAttributeGraph,
     return offset_e
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@recvtime function getlinkintentuuids(ibnf::IBNFramework, edge::Edge)
+    intentsuuidusingedge = UUID[]
+
+    ibnag = getibnag(ibnf)
+    edsrc = src(edge)
+    nodeviewsrc = getnodeview(ibnag, edsrc)
+    eddst = dst(edge)
+    nodeviewdst = getnodeview(ibnag, eddst)
+    issrcbordernode = isbordernode(ibnf, edsrc)
+    isdstbordernode = isbordernode(ibnf, eddst)
+
+    if !issrcbordernode
+        for (lliid, oxclli) in getreservations(getoxcview(nodeviewsrc))
+            if oxcllicontainsedge(oxclli, edge)
+                push!(intentsuuidusingedge, lliid)
+            end
+        end
+    end
+
+    if !isdstbordernode
+        for (lliid, oxclli) in getreservations(getoxcview(nodeviewdst))
+            if oxcllicontainsedge(oxclli, edge)
+                push!(intentsuuidusingedge, lliid)
+            end
+        end
+    end
+
+    return intentsuuidusingedge
+end
+

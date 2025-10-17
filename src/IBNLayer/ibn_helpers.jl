@@ -1,10 +1,15 @@
 """
 $(TYPEDSIGNATURES) 
-
-Request topology information
 """
 function getnetworkoperatoridagnodes(idag::IntentDAG)
     return filter(x -> getintentissuer(x) == NetworkOperator(), getidagnodes(idag))
+end
+
+"""
+$(TYPEDSIGNATURES) 
+"""
+function getnetworkoperatornremotenotinitidagnodes(idag::IntentDAG)
+    return filter(x -> getintentissuer(x) == NetworkOperator() || (getintent(x) isa RemoteIntent && !getisinitiator(getintent(x))), getidagnodes(idag))
 end
 
 function getloginterupdowntimesperintent(ibnf::IBNFramework, intentuuid::UUID)

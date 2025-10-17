@@ -400,8 +400,8 @@ $(TYPEDSIGNATURES)
     localnodedst = something(getlocalnode(myibnag, dst(ge)))
     le = Edge(localnodesrc, localnodedst)
 
-    idagnodeids = getidagnodeid.(getnetworkoperatoridagnodes(getidag(myibnf)))
-    rootintentstatesbefore = getidagnodestate.(getnetworkoperatoridagnodes(getidag(myibnf)))
+    idagnodeids = getidagnodeid.(getnetworkoperatornremotenotinitidagnodes(getidag(myibnf)))
+    rootintentstatesbefore = getidagnodestate.(getnetworkoperatornremotenotinitidagnodes(getidag(myibnf)))
 
     returnvalue = nothing
     if getibnfid(getglobalnode(getproperties(nodeviewsrc))) == getibnfid(remoteibnfhandler)
@@ -412,7 +412,7 @@ $(TYPEDSIGNATURES)
         returnvalue = setlinkstate!(myibnf, something(getoxcview(nodeviewsrc)), le, operatingstate; @passtime)
     end
 
-    rootintentstatesafter = getidagnodestate.(getnetworkoperatoridagnodes(getidag(myibnf)))
+    rootintentstatesafter = getidagnodestate.(getnetworkoperatornremotenotinitidagnodes(getidag(myibnf)))
 
     for (idnid, risb, risa) in zip(idagnodeids, rootintentstatesbefore, rootintentstatesafter)
         if any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodedescendants(getidag(myibnf), idnid))
@@ -636,6 +636,9 @@ end
     oldstate = getidagnodestate(getidag(myibnf), idagnodeid)
     if oldstate != newstate
         idagnode = getidagnode(getidag(myibnf), idagnodeid)
+        # updateidagnodestates!(myibnf, idagnode, newstate; @passtime)
+        # TODO : brave change maybe revert to commented code
+
         pushstatetoidagnode!(idagnode, newstate; @passtime)
         foreach(getidagnodeparents(getidag(myibnf), idagnodeid)) do idagnodeparent
             updateidagnodestates!(myibnf, idagnodeparent; @passtime)

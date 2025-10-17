@@ -76,6 +76,8 @@ idagnodes2install0 = MINDF.getidagnodeleafs2install(ibnfs[1], UUID(0x1))
 nowtime += Dates.Hour(1)
 returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15, 20), false; offsettime=nowtime)
 
+# TODO check LLIs of the uninstalling branch must be "Compiled"
+
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
 @test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 idagnodes2install1 = MINDF.getidagnodeleafs2install(ibnfs[1], UUID(0x1))
