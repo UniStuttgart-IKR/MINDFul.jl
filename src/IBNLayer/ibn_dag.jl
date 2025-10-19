@@ -314,7 +314,9 @@ Return value is true if state is changed.
             if getintent(idagnode) isa CrossLightpathIntent
                 addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
             elseif getintent(idagnode) isa ProtectedLightpathIntent
-                addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+                if !any(x -> getintent(x) isa CrossLightpathIntent, getidagnodeparents(getidag(ibnf), idagnode))
+                    addtoinstalledlightpaths!(ibnf, idagnode) # first check if intent implementation is a lightpath
+                end
             end
         end
         if newstate == IntentState.Compiled
@@ -420,9 +422,10 @@ $(TYPEDSIGNATURES)
 
 Get all connected nodes of DAG `dag` starting from node `idagnodeid`. Return as node indices of the graph.
 """
-function getidagnodeidxsconnected(idag::IntentDAG, idagnodeid::UUID)
+function getidagnodeidxsconnected(idag::IntentDAG, idagnodeid::UUID; includeroot=false)
     idxs = Vector{Int}()
     vertexidx = getidagnodeidx(idag, idagnodeid)
+    includeroot && push!(idxs, vertexidx)
     for chididx in Graphs.outneighbors(idag, vertexidx)
         _descendants_recu_connected_idxs!(idxs, idag, chididx)
     end
