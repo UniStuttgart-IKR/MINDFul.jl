@@ -120,7 +120,7 @@ end
 $(TYPEDSIGNATURES)
 """
 @recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
-    @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending])
+    @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending, IntentState.Installing])
     updatelogintentcomp!(ibnf; @passtime)
     deleteedgesuntilgroomingfound!(getidag(ibnf), idagnodeid)
     idagnodedescendants = getidagnodedescendants(getidag(ibnf), idagnodeid; parentsfirst=false)
@@ -255,9 +255,13 @@ $(TYPEDSIGNATURES)
     startingstate = getidagnodestate(getidag(ibnf), idagnodeid)
     # unblock from the Compiled state. needed due to grooming which locks parents intents from getting installed if all LLIs are installed.
     idagnodeleafs = getidagnodeleafs2install(ibnf, idagnodeid)
-    @returnwtimeiffalse(verbose, !isempty(idagnodeleafs))
+    # @returnwtimeiffalse(verbose, !isempty(idagnodeleafs))
+    if isempty(idagnodeleafs)
+        updateidagstates!(ibnf, idagnodeid, IntentState.Failed; @passtime)
+        return ReturnCodeTime(ReturnCodes.FAIL, @logtime)
+    end
 
-    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose, @passtime, force=true)
+    startingstate == IntentState.Failed && uninstallintent!(ibnf, idagnodeid; verbose, @passtime, forceinstallable=true)
     updateidagstates!(ibnf, idagnodeid, IntentState.Installing; @passtime)
     # run once to sync with idag
     foreach(idagnodeleafs) do idagnodeleaf
@@ -288,22 +292,23 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false, force=false)
+@recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false, forceinstallable=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installing, IntentState.Installed, IntentState.Failed, IntentState.Pending])
+    finalstate = forceinstallable ? IntentState.Installing : IntentState.Compiled
     # this check is for grooming cases, such that LLIs don't get uninstalled as long as a parent is installed
-    if force || all(x -> getidagnodestate(x) !== IntentState.Failed && getidagnodestate(x) !== IntentState.Installed, getidagnodeparents(getidag(ibnf), idagnodeid))
+    if forceinstallable || all(x -> getidagnodestate(x) !== IntentState.Failed && getidagnodestate(x) !== IntentState.Installed, getidagnodeparents(getidag(ibnf), idagnodeid))
         idagnodechildren = getidagnodechildren(getidag(ibnf), idagnodeid)
         if length(idagnodechildren) == 0
-            reserveunreserveleafintents!(ibnf, getidagnode(getidag(ibnf), idagnodeid), false; verbose, @passtime)
+            reserveunreserveleafintents!(ibnf, getidagnode(getidag(ibnf), idagnodeid), false; verbose, @passtime, forceinstallable)
         else
-            updateidagstates!(ibnf, idagnodeid, IntentState.Compiled; @passtime)
+            updateidagstates!(ibnf, idagnodeid, finalstate; @passtime)
             for idagnodechild in idagnodechildren
-                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose, @passtime, force)
+                uninstallintent!(ibnf, getidagnodeid(idagnodechild); verbose, @passtime, forceinstallable)
             end
         end
     end
 
-    if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Compiled
+    if getidagnodestate(getidag(ibnf), idagnodeid) == finalstate
         returncode = ReturnCodes.SUCCESS
     else
         returncode = ReturnCodes.FAIL
@@ -316,7 +321,8 @@ $(TYPEDSIGNATURES)
 
 to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
 """
-@recvtime function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool=false)
+@recvtime function reserveunreserveleafintents!(ibnf::IBNFramework, idagnodeleaf::IntentDAGNode, doinstall::Bool; verbose::Bool=false, forceinstallable=false)
+    finalstate = forceinstallable ? IntentState.Installing : IntentState.Compiled
     leafintent = getintent(idagnodeleaf)
     leafid = getidagnodeid(idagnodeleaf)
     if leafintent isa LowLevelIntent
@@ -357,7 +363,7 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
             end
         else
             if issuccessfull
-                pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Compiled; @passtime)
+                pushstatetoidagnode!(getlogstate(idagnodeleaf), finalstate; @passtime)
                 stageunstageleafintent!(ibnf, leafintent, true)
             end
         end
@@ -367,7 +373,7 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
             if doinstall
                 requestinstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose, @passtime)
             else
-                requestuninstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose, @passtime)
+                requestuninstallintent_init!(ibnf, ibnfhandler, getidagnodeid(leafintent); verbose, @passtime, forceinstallable)
             end
         end
     end
@@ -689,10 +695,9 @@ Set the link state on both OXCView ends of `edge`
             if any(x -> getintent(x) isa ProtectedLightpathIntent, getidagnodedescendants(getidag(ibnf), idnid))
                 # reinstall in case there is protection deployed
                 if risb == IntentState.Installed && risa == IntentState.Failed
-                    # @show "1", getibnfid(ibnf), idnid
                     installintent!(ibnf, idnid; @passtime)
                 elseif risb == risa == IntentState.Failed && !isempty(getidagnodeleafs2install(ibnf, idnid))
-                    # @show "2", getibnfid(ibnf), idnid
+                    # because maybe repaired link is in the other branch of the protection
                     installintent!(ibnf, idnid; @passtime)
                 end
             end

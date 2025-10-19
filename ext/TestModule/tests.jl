@@ -308,7 +308,7 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     internaledgelinkstates = getlinkstates(ibnfs[1], internaledge)
     @test all(getindex.(internaledgelinkstates[2:end], 1) .- getindex.(internaledgelinkstates[1:(end - 1)], 1) .>= Hour(1))
     intentuuid_internal_fail_timelog = getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_internal_fail)), 1)
-    @test length(intentuuid_internal_fail_timelog) == 7
+    @test length(intentuuid_internal_fail_timelog) == 6
     @test intentuuid_internal_fail_timelog[end] - intentuuid_internal_fail_timelog[1] >= Hour(2)
 
 
@@ -361,10 +361,10 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     borderedgelinkstates = getlinkstates(ibnfs[1], borderedge; checkfirst = true)
     @test all(getindex.(borderedgelinkstates[2:end], 1) .- getindex.(borderedgelinkstates[1:(end - 1)], 1) .>= Hour(1))
     intentuuid_border_fail_timelog = getindex.(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid_border_fail)), 1)
-    @test length(intentuuid_border_fail_timelog) == 9
+    @test length(intentuuid_border_fail_timelog) == 8
     @test intentuuid_border_fail_timelog[end] - intentuuid_border_fail_timelog[1] >= Hour(2)
     intentuuid_border_fail_timelog_remote = getindex.(MINDF.getlogstate(MINDF.getidagnode(MINDF.requestidag_init(ibnfs[1], remoteibnf_border), remoteintentid_border)), 1)
-    @test length(intentuuid_border_fail_timelog_remote) == 7
+    @test length(intentuuid_border_fail_timelog_remote) == 6
     @test intentuuid_border_fail_timelog_remote[end] - intentuuid_border_fail_timelog_remote[1] >= Hour(2) - Second(5)
 
     # uninstall, remove all

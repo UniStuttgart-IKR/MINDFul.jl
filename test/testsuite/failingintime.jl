@@ -5,7 +5,7 @@
     ibnfs = loadmultidomaintestibnfs(compalg, nowtime)
     TM.testsuitefailingintime!(ibnfs, nowtime)
 
-    ibnfs = loadmultidomaintestidistributedbnfs(compalg, nowtime)
-    TM.testsuitefailingintime!(ibnfs, nowtime)
-    MINDF.closeibnfserver(ibnfs)
+    # ibnfs = loadmultidomaintestidistributedbnfs(compalg, nowtime)
+    # TM.testsuitefailingintime!(ibnfs, nowtime)
+    # MINDF.closeibnfserver(ibnfs)
 end

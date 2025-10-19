@@ -75,6 +75,8 @@ const KEY_CHOOSEALTERNATIVEORDER = "choosealternativeorder"
 
 const KEY_VERBOSE = "verbose"
 
+const FORCEINSTALLABLE = "forceinstallable"
+
 const KEY_LINKDATETIME = "linkdatetime"
 
 const KEY_LINKSTATE = "linkstate"

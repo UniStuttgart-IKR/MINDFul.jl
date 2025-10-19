@@ -220,6 +220,10 @@ Return value is true if state is changed.
         changedstate = true
         newstate = makestate
         pushstatetoidagnode!(idagnode, newstate; @passtime)
+    elseif makestate == IntentState.Failed && currentstate in [IntentState.Installed, IntentState.Installing]
+        changedstate = true
+        newstate = makestate
+        pushstatetoidagnode!(idagnode, newstate; @passtime)
     elseif length(childrenstates) == 0
         if !isnothing(makestate) && makestate != currentstate
             changedstate = true
@@ -268,6 +272,12 @@ Return value is true if state is changed.
             end
             pushstatetoidagnode!(idagnode, newstate; @passtime)
         end
+    elseif any(==(IntentState.Installing), childrenstates)
+        if currentstate in [IntentState.Installed, IntentState.Failed]
+            changedstate = true
+            newstate = IntentState.Installing
+            pushstatetoidagnode!(idagnode, IntentState.Installing; @passtime)
+        end
     elseif any(==(IntentState.Pending), childrenstates)
         if currentstate != IntentState.Pending && currentstate != IntentState.Compiled && currentstate != IntentState.Uncompiled
             changedstate = true
@@ -282,15 +292,13 @@ Return value is true if state is changed.
         end
     end
     if changedstate
-        # @show getibnfid(ibnf), idagnodeid
         if newstate == IntentState.Installing # go down and up the DAG: Installing should propagate to all connected nodes
             foreach(getidagnodechildren(idag, idagnodeid)) do idagnodechild
                 updateidagnodestates!(ibnf, idagnodechild, IntentState.Installing; @passtime)
             end
-            # This solves protected remote intent updating but breaks grooming
-            # foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
-            #     updateidagnodestates!(ibnf, idagnodeparent, IntentState.Installing; @passtime)
-            # end
+            foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
+                updateidagnodestates!(ibnf, idagnodeparent; @passtime)
+            end
         else # go up the DAG
             foreach(getidagnodeparents(idag, idagnodeid)) do idagnodeparent
                 updateidagnodestates!(ibnf, idagnodeparent; @passtime)

@@ -1,5 +1,5 @@
 using MbedTLS: NetworkOptions
-# @testset ExtendedTestSet "grooming.jl"  begin
+@testset ExtendedTestSet "grooming.jl"  begin
     # to test the following:
     # - do not groom if external lightpath is failed
     compalg = MINDF.KShorestPathFirstFitCompilation(10; nodenum=1)
@@ -11,5 +11,5 @@ using MbedTLS: NetworkOptions
     # TM.testsuitegrooming!(ibnfs)
     # MINDF.closeibnfserver(ibnfs)
 
-# end
+end
 

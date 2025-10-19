@@ -509,12 +509,12 @@ end
 """
 $(TYPEDSIGNATURES) 
 """
-@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
+@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false, forceinstallable::Bool=false)
     myibnfhandler = getibnfhandler(remoteibnf, getibnfid(myibnf))
-    return requestuninstallintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose, @passtime)
+    return requestuninstallintent_term!(myibnfhandler, remoteibnf, idagnodeid; verbose, @passtime, forceinstallable)
 end
 
-@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool = false)
+@recvtime function requestuninstallintent_init!(myibnf::IBNFramework, remoteibnfhandler::RemoteHTTPHandler, idagnodeid::UUID; verbose::Bool = false, forceinstallable::Bool=false)
     initiatoribnfid = string(getibnfid(myibnf))
 
     resp = sendrequest(
@@ -522,7 +522,8 @@ end
         Dict(
             HTTPMessages.KEY_INITIATORIBNFID => initiatoribnfid,
             HTTPMessages.KEY_IDAGNODEID => string(idagnodeid),
-            HTTPMessages.KEY_VERBOSE => verbose
+            HTTPMessages.KEY_VERBOSE => verbose,
+            HTTPMessages.FORCEINSTALLABLE => forceinstallable
         ); @passtime
     )
 
@@ -531,7 +532,7 @@ end
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestuninstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
+        requestuninstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose, forceinstallable)
     else
         error("Failed to uninstall intent: $(JSON.parse(String(resp.body)))")
     end
@@ -540,8 +541,8 @@ end
 """
 $(TYPEDSIGNATURES) 
 """
-@recvtime function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false)
-    return uninstallintent!(myibnf, idagnodeid; verbose, @passtime)
+@recvtime function requestuninstallintent_term!(remoteibnfhandler::AbstractIBNFHandler, myibnf::IBNFramework, idagnodeid::UUID; verbose::Bool = false, forceinstallable::Bool=false)
+    return uninstallintent!(myibnf, idagnodeid; verbose, @passtime, forceinstallable)
 end
 
 """

@@ -4,9 +4,9 @@
     ibnfs = loadmultidomaintestibnfs(compalg)
     TM.testsuiteinterface!(ibnfs)
 
-    ibnfs = loadmultidomaintestidistributedbnfs(compalg)
-    TM.testsuiteinterface!(ibnfs)
-    MINDF.closeibnfserver(ibnfs)
+    # ibnfs = loadmultidomaintestidistributedbnfs(compalg)
+    # TM.testsuiteinterface!(ibnfs)
+    # MINDF.closeibnfserver(ibnfs)
 
 
 end

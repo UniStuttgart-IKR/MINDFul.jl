@@ -375,7 +375,7 @@ end
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
-    compileintent = MINDF.requestcompileintent_term!(remoteibnfhandler, ibnf, idagnodeid; offsettime = otime)
+    compileintent = MINDF.requestcompileintent_term!(remoteibnfhandler, ibnf, idagnodeid, compilationalgorithmkey, compilationalgorithmargs; offsettime = otime)
     if !isnothing(compileintent)
         return HTTP.Response(200, JSON.json(string(compileintent)))
     else
@@ -640,7 +640,7 @@ end
     end
 
     idagnodeid = UUID(parsedbody[MINDF.HTTPMessages.KEY_IDAGNODEID])
-    uninstallintent = MINDF.requestuninstallintent_term!(remoteibnfhandler, ibnf, idagnodeid; verbose, offsettime = otime)
+    uninstallintent = MINDF.requestuninstallintent_term!(remoteibnfhandler, ibnf, idagnodeid; verbose, offsettime = otime, forceinstallable)
     if !isnothing(uninstallintent)
         return HTTP.Response(200, JSON.json(uninstallintent))
     else
