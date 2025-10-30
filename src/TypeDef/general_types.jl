@@ -1,5 +1,19 @@
 """
 $(TYPEDEF)
+All possible default intent states.
+Another intent state schema could be defined.
+"""
+@enumx IntentState begin
+    Uncompiled
+    Pending
+    Compiled
+    Installing
+    Installed
+    Failed
+end
+
+"""
+$(TYPEDEF)
 
 A concrete subtype of `AbstractIntent` must implement the following methods: 
 - [`is_low_level_intent`](@ref)
@@ -84,7 +98,12 @@ end
 mutable struct UpDownTimesNDatetime <: AbstractUpDownTimes 
     uptimes::Vector{Dates.Millisecond}
     downtimes::Vector{Dates.Millisecond}
+    datetimestamps::Vector{Tuple{DateTime, IntentState.T}}
     datetime::DateTime
+end
+
+function getdatetimestamps(uptnd::UpDownTimesNDatetime)
+    return uptnd.datetimestamps
 end
 
 function getdatetime(uptnd::UpDownTimesNDatetime)

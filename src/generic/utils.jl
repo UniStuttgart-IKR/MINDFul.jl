@@ -231,13 +231,23 @@ If endtime is different that the one in list, pass it.
 function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
     uptimes = Vector{Dates.Millisecond}()
 	downtimes = empty(uptimes)
+    lssimple = empty(ls)
 	for (prev,now) in zip(ls[1:end-1], ls[2:end])
 		dt = now[1] - prev[1]
         # if prev[2] == true || prev[2] == IntentState.Installed
         if prev[2] !== now[2] && prev[2] == gettruesingleton(T)
+            @assert dt >= zero(dt)
 			push!(uptimes, dt)
+            push!(lssimple, (now[1], gettruesingleton(T)))
 		elseif prev[2] !== now[2] && prev[2] == getfalsesingleton(T)
+            @assert dt >= zero(dt)
 			push!(downtimes, dt)
+            if isempty(lssimple)
+                push!(lssimple, (now[1], gettruesingleton(T)))
+                push!(lssimple, (now[1], getfalsesingleton(T)))
+            else
+                push!(lssimple, (now[1], getfalsesingleton(T)))
+            end
 		end
 	end
     # TODO double code
@@ -245,13 +255,21 @@ function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
         dt = endtime - ls[end][1]
         if !iszero(dt) && dt > zero(dt)
             if ls[end][2] == gettruesingleton(T)
-                push!(uptimes, dt)
+                if isempty(uptimes)
+                    push!(uptimes, dt)
+                else
+                    uptimes[end] += dt
+                end
             elseif ls[end][2] == getfalsesingleton(T)
-                push!(downtimes, dt)
+                if isempty(downtimes)
+                    push!(downtimes, dt)
+                else
+                    downtimes[end] += dt
+                end
             end
         end
     end
-    return UpDownTimes(uptimes, downtimes )
+    return UpDownTimes(uptimes, downtimes), lssimple
 end
 
 function gettruesingleton(::Type{Bool})
@@ -268,10 +286,12 @@ Incremeantaly update `updowntimesndatetime` given the new `ls`
 """
 function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
     laststateindex_bigenough = findfirst(lg -> lg[1] > getdatetime(updowntimesndatetime), ls)
-    laststateindex = isnothing(laststateindex_bigenough) ? nothing : findfirst(i -> i > laststateindex_bigenough && (ls[i][2] == gettruesingleton(T) || ls[i][2] == getfalsesingleton(T)), eachindex(ls))
+    laststateindex = isnothing(laststateindex_bigenough) ? 
+        nothing : findfirst(i -> i > laststateindex_bigenough && (ls[i][2] == gettruesingleton(T) || ls[i][2] == getfalsesingleton(T)), eachindex(ls))
 
     uptimes = getuptimes(updowntimesndatetime)
     downtimes = getdowntimes(updowntimesndatetime)
+    datetimestamps = getdatetimestamps(updowntimesndatetime)
     
     if isnothing(laststateindex)
         if isnothing(endtime)
@@ -287,18 +307,24 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
                 if previoustimestate[2] == gettruesingleton(T)
                     if length(uptimes) > 0
                         if newstate
+                            # intent has just been installed and just failed and time proceeded so an uptime must be created
                             push!(uptimes, dt)
+                            push!(datetimestamps, (endtime, gettruesingleton(T)))
                         else
                             uptimes[end] += dt
                         end
                     else
+                        # intent has just been installed and time proceeded so an uptime must be created
                         push!(uptimes, dt)
+                        push!(datetimestamps, (previoustime, gettruesingleton(T)))
                     end
                     setdatetime!(updowntimesndatetime, endtime)
                 elseif previoustimestate[2] == getfalsesingleton(T)
                     if length(downtimes) > 0
                         if newstate
+                            # intent has just been installed, failed and just repaired and time proceeded so an downtime must be created
                             push!(downtimes, dt)
+                            push!(datetimestamps, (endtime, getfalsesingleton(T)))
                         else
                             downtimes[end] += dt
                         end
@@ -316,9 +342,16 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
             if prev[2] !== now[2] && prev[2] == gettruesingleton(T)
                 push!(uptimes, dt)
                 setdatetime!(updowntimesndatetime, now[1])
+                push!(datetimestamps, (now[1], gettruesingleton(T)))
             elseif prev[2] !== now[2] && prev[2] == getfalsesingleton(T)
                 push!(downtimes, dt)
                 setdatetime!(updowntimesndatetime, now[1])
+                if isempty(datetimestamps)
+                    push!(datetimestamps, (prev[1], gettruesingleton(T)))
+                    push!(datetimestamps, (now[1], getfalsesingleton(T)))
+                else
+                    push!(datetimestamps, (now[1], getfalsesingleton(T)))
+                end
             end
         end
 
@@ -328,10 +361,18 @@ function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{
             @assert dt >= zero(dt)
             if !iszero(dt)
                 if ls[end][2] == gettruesingleton(T)
-                    push!(uptimes, dt)
+                    if isempty(uptimes)
+                        push!(uptimes, dt)
+                    else
+                        uptimes[end] += dt
+                    end
                     setdatetime!(updowntimesndatetime, endtime)
                 elseif ls[end][2] == getfalsesingleton(T)
-                    push!(downtimes, dt)
+                    if isempty(downtimes)
+                        push!(downtimes, dt)
+                    else
+                        downtimes[end] += dt
+                    end
                     setdatetime!(updowntimesndatetime, endtime)
                 end
             end

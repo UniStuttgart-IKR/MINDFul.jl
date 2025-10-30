@@ -21,7 +21,7 @@ _, nowtime = uninstallintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 nowtime += Dates.Year(1) 
 
 logstates1 = MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))
-updowntimes1 = MINDF.getupdowntimes(logstates1, nowtime)
+updowntimes1, _ = MINDF.getupdowntimes(logstates1, nowtime)
 @test length(MINDF.getuptimes(updowntimes1)) == 2
 @test length(MINDF.getdowntimes(updowntimes1)) == 1
 @test 20 <= sum(MINDF.getuptimesmonth(updowntimes1)) <= 22

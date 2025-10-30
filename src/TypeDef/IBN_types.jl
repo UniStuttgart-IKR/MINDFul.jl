@@ -1,17 +1,3 @@
-"""
-$(TYPEDEF)
-All possible default intent states.
-Another intent state schema could be defined.
-"""
-@enumx IntentState begin
-    Uncompiled
-    Pending
-    Compiled
-    Installing
-    Installed
-    Failed
-end
-
 function gettruesingleton(::Type{IntentState.T})
     return IntentState.Installed
 end

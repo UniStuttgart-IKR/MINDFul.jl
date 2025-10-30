@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "interface.jl"  begin
+# @testset ExtendedTestSet "interface.jl"  begin
     compalg = MINDF.KShorestPathFirstFitCompilation(5; nodenum=1)
 
     ibnfs = loadmultidomaintestibnfs(compalg)
@@ -9,4 +9,4 @@
     # MINDF.closeibnfserver(ibnfs)
 
 
-end
+# end

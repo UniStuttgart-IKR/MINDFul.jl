@@ -228,13 +228,13 @@ function _rec_logintrapathsandinterintents!(ibnf::IBNFrameworkIntentAlgorithmWit
         sourcenode = getsourcenode(conintent)
         destinationnode = getdestinationnode(conintent)
         logstates = getlogstate(idagnode)
-        updowntimes = getupdowntimes(logstates, getdatetime(getbasicalgmem(intentcomp)))
+        updowntimes, logstatessimple = getupdowntimes(logstates, getdatetime(getbasicalgmem(intentcomp)))
         globaledge = GlobalEdge(sourcenode, destinationnode) 
         loginterupdowntimes = getloginterupdowntimes(intentcomp)
         if haskey(loginterupdowntimes, globaledge)
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), getdatetime(getbasicalgmem(intentcomp)))
+            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), logstatessimple ,getdatetime(getbasicalgmem(intentcomp)))
         else
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, UpDownTimesNDatetime}(getidagnodeid(idagnode) => UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), getdatetime(getbasicalgmem(intentcomp))))
+            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, UpDownTimesNDatetime}(getidagnodeid(idagnode) => UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), logstatessimple, getdatetime(getbasicalgmem(intentcomp))))
         end
         continuedown = false
     end

@@ -64,7 +64,7 @@ $(TYPEDSIGNATURES)
 """
 function getempiricalavailability(ibnf::IBNFramework, intentuuid::UUID, endtime=nothing)
     logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
-    updowntimes = getupdowntimes(logstates, endtime)
+    updowntimes, _ = getupdowntimes(logstates, endtime)
     return calculateavailability(updowntimes)
 end
 
@@ -75,7 +75,8 @@ Return the up and downtimes for the specific link
 """
 function getlinkupdowntimes(ibnf, edge; checkfirst = true, verbose::Bool = false, endtime=nothing)
     linkstates = getlinkstates(ibnf, edge; checkfirst, verbose)
-    return getupdowntimes(linkstates, endtime)
+    updowntimes,_ = getupdowntimes(linkstates, endtime)
+    return updowntimes
 end
 
 function calculateavailability(updowntimes::UpDownTimes)

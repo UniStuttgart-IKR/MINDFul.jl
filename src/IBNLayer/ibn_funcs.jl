@@ -1130,6 +1130,22 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Return true if source node belongs to `ibnf` and destination node to another domain that is NOT a border node.
+"""
+function isvalidexternalintent(ibnf::IBNFramework, connectivityintent::ConnectivityIntent)
+    sourceglobalnode = getsourcenode(connectivityintent)
+    destinationglobalnode = getdestinationnode(connectivityintent)
+    if isinternalnode(ibnf, sourceglobalnode) 
+        if !isbordernode(ibnf, destinationglobalnode) && !isinternalnode(ibnf, destinationglobalnode)
+            return true
+        end
+    end
+    return false
+end
+
+"""
+$(TYPEDSIGNATURES)
 """
 function getpathdistance(ibnag::IBNAttributeGraph, path::Vector{Int})
     @warn "You are using an underoptimized version of `getpathdistance` that is not approprite for hot loops. Consider passing the `weights` directly."
