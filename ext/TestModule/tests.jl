@@ -197,6 +197,7 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         testalluuidnodeindices(ibnf)
+        testallstatelogascendingtime(ibnf)
     end
 end
 
@@ -254,6 +255,7 @@ function testsuitemultidomain!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         testalluuidnodeindices(ibnf)
+        testallstatelogascendingtime(ibnf)
     end
 end
 
@@ -445,6 +447,7 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     for ibnf in ibnfs
         testedgeoxclogs(ibnf)
         testoxcllistateconsistency(ibnf)
+        testallstatelogascendingtime(ibnf)
     end
     return
 end
@@ -872,6 +875,7 @@ function testsuitegrooming!(ibnfs)
         testzerostaged(ibnf)
         nothingisallocated(ibnf)
         testalluuidnodeindices(ibnf)
+        testallstatelogascendingtime(ibnf)
     end
     @test iszero(nv(MINDF.getidag(ibnfs[1])))
     @test iszero(ne(MINDF.getidag(ibnfs[1])))

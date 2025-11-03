@@ -20,6 +20,10 @@ include("testsuite/singledomainavailabilityprotection_grooming.jl")
 
 include("testsuite/logintraintertest.jl")
 
+# TODO make better
+include("testsuite/updowntimes.jl")
+include("testsuite/updowntimes_interdomain.jl")
+
 include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
 include("testsuite/multidomainavailabilityprotection_grooming.jl")
 

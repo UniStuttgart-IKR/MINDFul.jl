@@ -228,7 +228,7 @@ Get uptime and downtime periods from link states.
 Return a tuple with the first element being the uptimes in Milliseconds and the second the downtimes in Milliseconds.
 If endtime is different that the one in list, pass it.
 """
-function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
+function getupdowntimes2(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
     uptimes = Vector{Dates.Millisecond}()
 	downtimes = empty(uptimes)
     lssimple = empty(ls)
@@ -272,19 +272,13 @@ function getupdowntimes(ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
     return UpDownTimes(uptimes, downtimes), lssimple
 end
 
-function gettruesingleton(::Type{Bool})
-    return true
-end
-function getfalsesingleton(::Type{Bool})
-    return false
-end
 
 """
 $(TYPEDSIGNATURES)
 
 Incremeantaly update `updowntimesndatetime` given the new `ls`
 """
-function getupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
+function getupdowntimes2!(updowntimesndatetime::UpDownTimesNDatetime, ls::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
     laststateindex_bigenough = findfirst(lg -> lg[1] > getdatetime(updowntimesndatetime), ls)
     laststateindex = isnothing(laststateindex_bigenough) ? 
         nothing : findfirst(i -> i > laststateindex_bigenough && (ls[i][2] == gettruesingleton(T) || ls[i][2] == getfalsesingleton(T)), eachindex(ls))

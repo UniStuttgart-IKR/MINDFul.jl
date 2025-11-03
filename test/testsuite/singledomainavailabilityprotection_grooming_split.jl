@@ -6,7 +6,7 @@ ibnfs = loadmultidomaintestibnfs(compalg, starttime;  useshortreachtransmissionm
 
 avcon1 = MINDF.AvailabilityConstraint(0.94, 0.9) 
 conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[3]), 21), GlobalNode(getibnfid(ibnfs[3]), 51), u"5.0Gbps", [avcon1])
-intentuuid1, nt = addintent!(ibnfs[3], conintent1, NetworkOperator())
+intentuuid1, nt = addintent!(ibnfs[3], conintent1, NetworkOperator(); offsettime=nt)
 
 rc, nt = compileintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 @test rc == ReturnCodes.SUCCESS

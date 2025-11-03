@@ -21,7 +21,8 @@ _, nowtime = uninstallintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 nowtime += Dates.Year(1) 
 
 logstates1 = MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))
-updowntimes1, _ = MINDF.getupdowntimes(logstates1, nowtime)
+updowntimes1 = MINDF.getupdowntimes(logstates1, nowtime)
+
 @test length(MINDF.getuptimes(updowntimes1)) == 2
 @test length(MINDF.getdowntimes(updowntimes1)) == 1
 @test 20 <= sum(MINDF.getuptimesmonth(updowntimes1)) <= 22
@@ -44,12 +45,14 @@ remidagnode2 = getfirst(x -> getintent(x) isa RemoteIntent{<:ConnectivityIntent}
 @test MINDF.getlogintrapaths(getbasicalgmem(getintcompalg(ibnfs[1])))[Edge(4,29)][[MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid2))]] == 1
 @test length(MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))) == 1
 updowntimesndatetime2 = MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode2)]
+
 @test sum(MINDF.getuptimes(updowntimesndatetime2)) < Dates.Second(5)
 @test sum(MINDF.getdowntimes(updowntimesndatetime2)) < Dates.Second(5)
 
 
 nowtime1 = nowtime
 nowtime += Dates.Year(1) 
+
 MINDF.updatelogintentcomp!(ibnfs[1]; offsettime=nowtime)
 
 @test (nowtime - nowtime1) - Dates.Second(5) <= sum(MINDF.getuptimes(updowntimesndatetime2)) < (nowtime - nowtime1) + Dates.Second(5)

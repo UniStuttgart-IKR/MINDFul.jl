@@ -248,10 +248,6 @@ $(TYPEDSIGNATURES)
 """
 @recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Compiled, IntentState.Installing, IntentState.Failed])
-    if getintcompalg(ibnf) isa IntentCompilationAlgorithmWithMemory
-        lg = @logtime
-        setdatetime!(getbasicalgmem(getintcompalg(ibnf)), lg)
-    end
     startingstate = getidagnodestate(getidag(ibnf), idagnodeid)
     # unblock from the Compiled state. needed due to grooming which locks parents intents from getting installed if all LLIs are installed.
     idagnodeleafs = getidagnodeleafs2install(ibnf, idagnodeid)
@@ -280,6 +276,10 @@ $(TYPEDSIGNATURES)
         end
     end
 
+    if getintcompalg(ibnf) isa IntentCompilationAlgorithmWithMemory
+        lg = @logtime
+        setdatetime!(getbasicalgmem(getintcompalg(ibnf)), lg)
+    end
     if getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Installed
         updateintcompalginstallation!(ibnf, idagnodeid)
         returncode = ReturnCodes.SUCCESS

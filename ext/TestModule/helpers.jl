@@ -416,3 +416,15 @@ function testinstalledlightpathsupdowntimespositive(ibnf::IBNFramework)
     end
     return true
 end
+
+function testallstatelogascendingtime(ibnf::IBNFramework)
+    for idn in MINDF.getidagnodes(MINDF.getidag(ibnf))
+        ls = getlogstate(idn)
+        for (ls1, ls2) in zip(ls[1:end-1], ls[2:end])
+            if ls2[1] < ls1[1]
+                return false
+            end
+        end
+    end
+    return true
+end

@@ -104,11 +104,11 @@ mutable struct BasicAlgorithmMemory
     Update entries upon compilation.
     All UUIDs correspond to Remote Connectivity intents
     """
-    loginterupdowntimes::Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime}}
+    loginterupdowntimes::Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime{IntentState.T}}}
 end
 
 function BasicAlgorithmMemory()
-    return BasicAlgorithmMemory(now(), Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}(), Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime}}())
+    return BasicAlgorithmMemory(now(), Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}(), Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime{IntentState.T}}}())
 end
 
 const IBNFrameworkIntentAlgorithmWithMemory = IBNFramework{A,B,C,D,R} where {A,B,C,D,R<:IntentCompilationAlgorithmWithMemory}
@@ -228,13 +228,13 @@ function _rec_logintrapathsandinterintents!(ibnf::IBNFrameworkIntentAlgorithmWit
         sourcenode = getsourcenode(conintent)
         destinationnode = getdestinationnode(conintent)
         logstates = getlogstate(idagnode)
-        updowntimes, logstatessimple = getupdowntimes(logstates, getdatetime(getbasicalgmem(intentcomp)))
+        updowntimesndatetime = getupdowntimes(logstates, getdatetime(getbasicalgmem(intentcomp)))
         globaledge = GlobalEdge(sourcenode, destinationnode) 
         loginterupdowntimes = getloginterupdowntimes(intentcomp)
         if haskey(loginterupdowntimes, globaledge)
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), logstatessimple ,getdatetime(getbasicalgmem(intentcomp)))
+            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = updowntimesndatetime
         else
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, UpDownTimesNDatetime}(getidagnodeid(idagnode) => UpDownTimesNDatetime(getuptimes(updowntimes), getdowntimes(updowntimes), logstatessimple, getdatetime(getbasicalgmem(intentcomp))))
+            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, UpDownTimesNDatetime{IntentState.T}}(getidagnodeid(idagnode) => updowntimesndatetime)
         end
         continuedown = false
     end
@@ -258,7 +258,7 @@ $(TYPEDSIGNATURES)
             if intentuuid in idagnodeids
                 if currentdatetime > getdatetime(updownndatetime)
                     logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
-                    getupdowntimes!(updownndatetime, logstates, currentdatetime)
+                    updateupdowntimes!(updownndatetime, logstates, currentdatetime)
                 end
             end
         end

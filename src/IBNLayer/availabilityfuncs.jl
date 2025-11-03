@@ -1,3 +1,164 @@
+function gettruesingleton(::Type{IntentState.T})
+    return IntentState.Installed
+end
+function getfalsesingleton(::Type{IntentState.T})
+    return IntentState.Failed
+end
+function getfinalsingleton(::Type{IntentState.T})
+    return IntentState.Compiled
+end
+
+function gettruesingleton(::Type{Bool})
+    return true
+end
+function getfalsesingleton(::Type{Bool})
+    return false
+end
+function getfinalsingleton(::Type{Bool})
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Get uptime and downtime periods from link/intent states.
+Return a tuple with the first element being the uptimes in Milliseconds and the second the downtimes in Milliseconds.
+If endtime is different that the one in list, pass it.
+Also return a simplified version of the log state vector
+
+For links the state machine goes:
+true -> false -> true -> false -> ...
+
+For intents the state machine goes:
+Installed -> Failed --> Installed --> Failed --> Compiled
+or
+Installed -> Failed --> Installed --> Failed --> Installed --> Compiled
+"""
+function getupdowntimes(logstates::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
+    uptimes = Vector{Dates.Millisecond}()
+	downtimes = empty(uptimes)
+    lssimple = empty(logstates)
+
+    datetime2start = logstates[1][1] - Dates.Hour(1)
+
+    uddts = UpDownTimesNDatetime(uptimes, downtimes, lssimple, datetime2start)
+    updateupdowntimes!(uddts, logstates, endtime)
+
+    return uddts
+end
+
+function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstates::Vector{Tuple{R, T}}, endtime=nothing) where {R,T}
+    uptimes = getuptimes(updowntimesndatetime)
+    downtimes = getdowntimes(updowntimesndatetime)
+    datetimestamps = getdatetimestamps(updowntimesndatetime)
+
+    if isempty(datetimestamps)
+        prsti = 0
+    else
+        prsti = findfirst(==(datetimestamps[end]), logstates)
+        @assert !isnothing(prsti)
+    end
+
+    # probably not needed
+    nextlsi = prsti + 1
+    for i in (prsti+1):length(logstates)
+        nextlsi = i
+        logstates[i][1] >= getdatetime(updowntimesndatetime) && break
+    end
+
+    for i in (nextlsi):length(logstates)
+        currentstate = logstates[i][2]
+        currenttime = logstates[i][1]
+        # @show currenttime, currentstate
+        if iszero(prsti)
+            prsti = i
+            if currentstate == gettruesingleton(T) || currentstate == getfalsesingleton(T)
+                push!(datetimestamps, logstates[i])
+            end
+        else
+            previousstate = logstates[prsti][2]
+            previoustime = getdatetime(updowntimesndatetime) > logstates[prsti][1] ? getdatetime(updowntimesndatetime) : logstates[prsti][1]
+            requirenewblock = logstates[prsti][1] == previoustime
+            if currentstate !== previousstate
+
+                # store
+                dt = currenttime - previoustime
+                @assert dt >= zero(dt)
+
+                if currentstate == gettruesingleton(T)
+                    if previousstate == getfalsesingleton(T)
+                        if requirenewblock
+                            push!(downtimes, dt)
+                        else
+                            downtimes[end] += dt
+                        end
+                    end
+                    push!(datetimestamps, logstates[i])
+                    @assert currenttime >= getdatetime(updowntimesndatetime)
+                    setdatetime!(updowntimesndatetime, currenttime)
+                    prsti = i
+                elseif currentstate == getfalsesingleton(T)
+                    if previousstate == gettruesingleton(T)
+                        if requirenewblock
+                            push!(uptimes, dt)
+                        else
+                            uptimes[end] += dt
+                        end
+                    end
+                    push!(datetimestamps, logstates[i])
+                    @assert currenttime >= getdatetime(updowntimesndatetime)
+                    setdatetime!(updowntimesndatetime, currenttime)
+                    prsti = i
+                elseif currentstate == getfinalsingleton(T)
+                    if previousstate == gettruesingleton(T)
+                        if requirenewblock
+                            push!(uptimes, dt)
+                        else
+                            uptimes[end] += dt
+                        end
+                    elseif previousstate == getfalsesingleton(T)
+                        if requirenewblock
+                            push!(downtimes, dt)
+                        else
+                            downtimes[end] += dt
+                        end
+                    end
+                    push!(datetimestamps, logstates[i])
+                    @assert currenttime >= getdatetime(updowntimesndatetime)
+                    setdatetime!(updowntimesndatetime, currenttime)
+                    prsti = i
+                end
+                prsti
+            end
+        end 
+    end
+
+    # if there is additional endtime
+    if !isnothing(endtime)
+        previousstate = logstates[prsti][2]
+        previoustime = logstates[prsti][1]
+        requirenewblock = previoustime == getdatetime(updowntimesndatetime)
+        dt = endtime - getdatetime(updowntimesndatetime)
+        @assert dt >= zero(dt)
+        if dt > zero(dt)
+            if previousstate == gettruesingleton(T)
+                if requirenewblock || isempty(uptimes)
+                    push!(uptimes, dt)
+                else
+                    uptimes[end] += dt
+                end
+            elseif previousstate == getfalsesingleton(T)
+                if requirenewblock || isempty(downtimes)
+                    push!(downtimes, dt)
+                else
+                    downtimes[end] += dt
+                end
+            end
+            setdatetime!(updowntimesndatetime, endtime)
+        end
+    end
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -64,7 +225,7 @@ $(TYPEDSIGNATURES)
 """
 function getempiricalavailability(ibnf::IBNFramework, intentuuid::UUID, endtime=nothing)
     logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
-    updowntimes, _ = getupdowntimes(logstates, endtime)
+    updowntimes = UpDownTimes(getupdowntimes(logstates, endtime))
     return calculateavailability(updowntimes)
 end
 
@@ -75,7 +236,7 @@ Return the up and downtimes for the specific link
 """
 function getlinkupdowntimes(ibnf, edge; checkfirst = true, verbose::Bool = false, endtime=nothing)
     linkstates = getlinkstates(ibnf, edge; checkfirst, verbose)
-    updowntimes,_ = getupdowntimes(linkstates, endtime)
+    updowntimes = UpDownTimes(getupdowntimes(linkstates, endtime))
     return updowntimes
 end
 

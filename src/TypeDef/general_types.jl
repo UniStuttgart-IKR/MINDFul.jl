@@ -95,11 +95,15 @@ function getdowntimesmonth(updt::AbstractUpDownTimes)
     return millisecondtomonth.(updt.downtimes)
 end
 
-mutable struct UpDownTimesNDatetime <: AbstractUpDownTimes 
+mutable struct UpDownTimesNDatetime{T} <: AbstractUpDownTimes 
     uptimes::Vector{Dates.Millisecond}
     downtimes::Vector{Dates.Millisecond}
-    datetimestamps::Vector{Tuple{DateTime, IntentState.T}}
+    datetimestamps::Vector{Tuple{DateTime, T}}
     datetime::DateTime
+end
+
+function UpDownTimes(udtnd::UpDownTimesNDatetime)
+    return UpDownTimes(getuptimes(udtnd), getdowntimes(udtnd))
 end
 
 function getdatetimestamps(uptnd::UpDownTimesNDatetime)

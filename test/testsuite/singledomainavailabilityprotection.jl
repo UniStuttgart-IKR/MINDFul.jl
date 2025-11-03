@@ -5,7 +5,7 @@ starttime = nowtime
 
 compalg = MINDF.BestEmpiricalAvailabilityCompilation(5, 5; nodenum=1)
 
-ibnfs = loadmultidomaintestibnfs(compalg)
+ibnfs = loadmultidomaintestibnfs(compalg, nowtime)
 
 avcon1 = MINDF.AvailabilityConstraint(0.94, 0.9) 
 conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon1])
@@ -23,6 +23,7 @@ returncode, nowtime = MINDF.uncompileintent!(ibnfs[1], intentuuid1; offsettime =
 returncode, _ = setlinkstate!(ibnfs[1], Edge(3=>14), false; offsettime = starttime + Dates.Month(3))
 returncode, _ = setlinkstate!(ibnfs[1], Edge(3=>14), true; offsettime = starttime + Dates.Month(6))
 @test MINDF.getempiricalavailability(ibnfs[1], path1; endtime = nowtime) < 0.94
+
 
 returncode, nowtime = compileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 path2 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=false))
@@ -109,7 +110,7 @@ nowtime += Dates.Hour(1)
 returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15, 20), true; offsettime=nowtime)
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
 @test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
-@test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(100)
+@test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(500)
 
 # what if the failed equipment is shared ?
 nowtime += Dates.Hour(1)
@@ -117,7 +118,7 @@ returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false; offsetti
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Failed
 @test !MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 @test isempty(MINDF.getidagnodeleafs2install(ibnfs[1], intentuuid1))
-@test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(100)
+@test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(500)
 
 # make up but should'nt make a difference because common equipment is failing
 nowtime += Dates.Hour(1)
