@@ -20,7 +20,7 @@ nowtime += Dates.Month(7) # some uptime
 nowtime2 = nowtime 
 
 updowntimesndt1 = MINDF.getupdowntimes(MINDF.getlogstate(idn1))
-@test length(MINDF.getdatetimestamps(updowntimesndt1)) == 2
+@test length(MINDF.getdatetimestamps(updowntimesndt1)) == 1
 @test length(MINDF.getuptimes(updowntimesndt1)) == 0
 @test length(MINDF.getdowntimes(updowntimesndt1)) == 0
 
@@ -30,14 +30,14 @@ MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime)
 
 time2test = nowtime - nowtime1
 for updndt in [updowntimesndt1, updowntimesndt2]
-    @test length(MINDF.getdatetimestamps(updndt)) == 2
+    @test length(MINDF.getdatetimestamps(updndt)) == 1
     @test length(MINDF.getuptimes(updndt)) == 1
     @test length(MINDF.getdowntimes(updndt)) == 0
     @test time2test - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < time2test + Dates.Second(5)
 end
 MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime) #shouldn't change anything
 let updndt = updowntimesndt1
-    @test length(MINDF.getdatetimestamps(updndt)) == 2
+    @test length(MINDF.getdatetimestamps(updndt)) == 1
     @test length(MINDF.getuptimes(updndt)) == 1
     @test length(MINDF.getdowntimes(updndt)) == 0
     @test time2test - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < time2test + Dates.Second(5)
@@ -56,7 +56,7 @@ updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(idn1), nowtime)
 MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime)
 
 for updndt in [updowntimesndt1, updowntimesndt2]
-    @test length(MINDF.getdatetimestamps(updndt)) == 3
+    @test length(MINDF.getdatetimestamps(updndt)) == 2
     @test length(MINDF.getuptimes(updndt)) == 1
     @test length(MINDF.getdowntimes(updndt)) == 1
     @test nowtime3 - nowtime1 - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < nowtime3 - nowtime1 + Dates.Second(5)
@@ -70,7 +70,7 @@ nowtime5 = nowtime
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(idn1), nowtime)
 MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime)
 for updndt in [updowntimesndt1, updowntimesndt2]
-    @test length(MINDF.getdatetimestamps(updndt)) == 3
+    @test length(MINDF.getdatetimestamps(updndt)) == 2
     @test length(MINDF.getuptimes(updndt)) == 1
     @test length(MINDF.getdowntimes(updndt)) == 1
     @test nowtime3 - nowtime1 - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < nowtime3 - nowtime1 + Dates.Second(5)
@@ -100,7 +100,7 @@ MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime)
 uptime1 = nowtime9 - nowtime8 + nowtime3 - nowtime1
 downtime1 = nowtime8 - nowtime3
 for updndt in [updowntimesndt1, updowntimesndt2]
-    @test length(MINDF.getdatetimestamps(updndt)) == 4
+    @test length(MINDF.getdatetimestamps(updndt)) == 3
     @test length(MINDF.getuptimes(updndt)) == 2
     @test length(MINDF.getdowntimes(updndt)) == 1
     @test uptime1 - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < uptime1 + Dates.Second(5)
@@ -116,7 +116,7 @@ updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(idn1), nowtime)
 MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime)
 downtime1 += nowtime10 - nowtime9
 for updndt in [updowntimesndt1, updowntimesndt2]
-    @test length(MINDF.getdatetimestamps(updndt)) == 5
+    @test length(MINDF.getdatetimestamps(updndt)) == 4
     @test length(MINDF.getuptimes(updndt)) == 2
     @test length(MINDF.getdowntimes(updndt)) == 2
     @test uptime1 - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < uptime1 + Dates.Second(5)
@@ -133,7 +133,7 @@ updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(idn1), nowtime)
 MINDF.updateupdowntimes!(updowntimesndt1, logstates1, nowtime)
 uptime1 +=  nowtime11 - nowtime10
 for updndt in [updowntimesndt1, updowntimesndt2]
-    @test length(MINDF.getdatetimestamps(updndt)) == 6
+    @test length(MINDF.getdatetimestamps(updndt)) == 5
     @test length(MINDF.getuptimes(updndt)) == 3
     @test length(MINDF.getdowntimes(updndt)) == 2
     @test uptime1 - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < uptime1 + Dates.Second(5)

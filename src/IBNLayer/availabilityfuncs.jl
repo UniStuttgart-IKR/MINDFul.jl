@@ -116,14 +116,15 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
                         else
                             uptimes[end] += dt
                         end
+                        push!(datetimestamps, logstates[i])
                     elseif previousstate == getfalsesingleton(T)
                         if requirenewblock
                             push!(downtimes, dt)
                         else
                             downtimes[end] += dt
                         end
+                        push!(datetimestamps, logstates[i])
                     end
-                    push!(datetimestamps, logstates[i])
                     @assert currenttime >= getdatetime(updowntimesndatetime)
                     setdatetime!(updowntimesndatetime, currenttime)
                     prsti = i

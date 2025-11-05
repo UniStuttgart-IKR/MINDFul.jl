@@ -71,6 +71,10 @@ struct UpDownTimes <: AbstractUpDownTimes
     downtimes::Vector{Dates.Millisecond}
 end
 
+function Base.show(io::IO, udts::UpDownTimes)
+    print(io, "UpDownTimes( up: ", getuptimeshour(udts), " hr, down: ", getdowntimeshour(udts), " hr)")
+end
+
 function getuptimes(updt::AbstractUpDownTimes) 
     return updt.uptimes
 end

@@ -82,6 +82,31 @@ end
 "Compilation algorithm with some memory"
 abstract type IntentCompilationAlgorithmWithMemory <: IntentCompilationAlgorithm end
 
+const CrossConnections = Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime{IntentState.T}}}
+
+struct CrossConnectionID 
+    globaledge::GlobalEdge
+    intentuuid::UUID
+end
+
+function getglobaledge(ccid::CrossConnectionID)
+    return ccid.globaledge
+end
+
+function getintentuuid(ccid::CrossConnectionID)
+    return ccid.intentuuid
+end
+
+function getconnection(cc::CrossConnections, ccid::CrossConnectionID)
+    cc[getglobaledge(ccid)][getintentuuid(ccid)]
+end
+
+function getallconnectionswithconnectionids(ibnf::IBNFramework)
+    loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    allcrossconnectionswithconnectionid = [CrossConnectionID(ge,intentuuid ) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+    return allcrossconnectionswithconnectionid
+end
+
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
@@ -104,7 +129,7 @@ mutable struct BasicAlgorithmMemory
     Update entries upon compilation.
     All UUIDs correspond to Remote Connectivity intents
     """
-    loginterupdowntimes::Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime{IntentState.T}}}
+    loginterupdowntimes::CrossConnections
 end
 
 function BasicAlgorithmMemory()
