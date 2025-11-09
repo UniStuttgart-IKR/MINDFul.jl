@@ -1523,3 +1523,50 @@ function gettransmissionmode(ibnf::IBNFramework, endnodeallocations::EndNodeAllo
     modeindex = gettransmissionmodesindex(endnodeallocations)
     return gettransmissionmodes(transmodule)[modeindex]
 end
+
+function pingdistanceconnectivityintent(ibnf::IBNFramework, startintentuuid::UUID)
+    idn = getidagnode(getidag(ibnf), startintentuuid)
+    currentstate = getcurrentstate(getlogstate(idn))
+    if currentstate !== IntentState.Installed
+        return nothing
+    else
+        if getintent(idn) isa RemoteIntent 
+            conintent = getintent(getintent(idn)) 
+            intentuuid = getidagnodeid(getintent(idn)) 
+            remibnfid = getibnfid(getintent(idn)) 
+            ibnf2use = getibnfhandler(ibnf, remibnfid)
+        else 
+            conintent = getintent(idn)
+            intentuuid = startintentuuid
+            ibnf2use = ibnf
+        end
+        conintent = getintent(idn) isa RemoteIntent ? getintent(getintent(idn)) : getintent(idn)
+        if isvalidexternalintent(ibnf2use, conintent)
+            #external
+            # calculate internal first
+            path = logicalordergetpath(getlogicallliorder(ibnf2use, intentuuid))
+            ibnagweights = getibnagweights(getcachedresults(getintcompalg(ibnf2use)))
+            internaldistance = getpathdistance3(ibnagweights, path)
+            
+            remoteidn = getfirst(idn -> getintent(idn) isa RemoteIntent, getidagnodedescendants(getidag(ibnf2use), intentuuid))
+            remibnfid = getibnfid(getintent(remoteidn))
+            remintentuuid = getidagnodeid(getintent(remoteidn))
+
+            # TODO : use inter-domain interface 
+            ibnfhandler = getibnfhandler(ibnf2use, remibnfid)
+            remotedistance = pingdistanceconnectivityintent(ibnfhandler, remintentuuid)
+
+            # ask and add the external
+            return internaldistance + remotedistance
+        else
+            # internal
+            # get distance
+            # TODO : delegate to SDN. That's only dummy
+            path = logicalordergetpath(getlogicallliorder(ibnf2use, intentuuid))
+            ibnagweights = getibnagweights(getcachedresults(getintcompalg(ibnf2use)))
+            dist = getpathdistance3(ibnagweights, path)
+            return dist
+        end
+    end
+    return nothing
+end

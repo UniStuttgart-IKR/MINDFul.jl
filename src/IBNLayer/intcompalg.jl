@@ -89,6 +89,68 @@ struct CrossConnectionID
     intentuuid::UUID
 end
 
+function CrossConnectionID(str::String)
+    pattern = r"^([0-9a-fA-F]+)\.([0-9]+)=>([0-9a-fA-F]+)\.([0-9]+)\|([0-9a-fA-F]+)$"
+
+    m = match(pattern, str)
+
+    isnothing(m) && error("Invalid CrossConnectionID string format: \"$str\"")
+
+    src_ibnfid_hex, src_localnode_dec, dst_ibnfid_hex, dst_localnode_dec, intentuuid_hex = m.captures
+
+    src_ibnfid_val = parse(UInt128, src_ibnfid_hex, base=16)
+    dst_ibnfid_val = parse(UInt128, dst_ibnfid_hex, base=16)
+    intentuuid_val = parse(UInt128, intentuuid_hex, base=16)
+
+    src_localnode_val = parse(Int, src_localnode_dec)
+    dst_localnode_val = parse(Int, dst_localnode_dec)
+    src_ibnfid = UUID(src_ibnfid_val)
+    dst_ibnfid = UUID(dst_ibnfid_val)
+
+    src_node = GlobalNode(src_ibnfid, src_localnode_val)
+    dst_node = GlobalNode(dst_ibnfid, dst_localnode_val)
+
+    ge = GlobalEdge(src_node, dst_node)
+
+    uuid = UUID(intentuuid_val)
+
+    return CrossConnectionID(ge, uuid)
+end
+
+function getcrossconnectionid_srcdstnode(str::String)
+    pattern = r"^([0-9a-fA-F]+)\.([0-9]+)=>([0-9a-fA-F]+)\.([0-9]+)\|[0-9a-fA-F]+$"
+
+    m = match(pattern, str)
+
+    isnothing(m) && error("Invalid CrossConnectionID string format: \"$str\"")
+
+    src_ibnfid_hex, src_localnode_dec, dst_ibnfid_hex, dst_localnode_dec = m.captures
+
+    src_ibnfid_val = parse(UInt128, src_ibnfid_hex, base=16)
+    dst_ibnfid_val = parse(UInt128, dst_ibnfid_hex, base=16)
+    src_localnode_val = parse(Int, src_localnode_dec)
+    dst_localnode_val = parse(Int, dst_localnode_dec)
+    src_ibnfid = UUID(src_ibnfid_val)
+    dst_ibnfid = UUID(dst_ibnfid_val)
+
+    src_node = GlobalNode(src_ibnfid, src_localnode_val)
+    dst_node = GlobalNode(dst_ibnfid, dst_localnode_val)
+    return src_node, dst_node
+end
+
+function stringify(conid::CrossConnectionID)
+	io = IOBuffer();
+	ge = getglobaledge(conid)
+	
+	@printf(io, "%0.0x.", getibnfid(src(ge)).value)
+	@printf(io, "%0.0d=>", getlocalnode(src(ge)))
+	@printf(io, "%0.0x.", getibnfid(dst(ge)).value)
+	@printf(io, "%0.0d|", getlocalnode(dst(ge)))
+	@printf(io, "%0.0x", getintentuuid(conid).value)
+
+	return String(take!(io))
+end
+
 function getglobaledge(ccid::CrossConnectionID)
     return ccid.globaledge
 end
@@ -101,10 +163,26 @@ function getconnection(cc::CrossConnections, ccid::CrossConnectionID)
     cc[getglobaledge(ccid)][getintentuuid(ccid)]
 end
 
-function getallconnectionswithconnectionids(ibnf::IBNFramework)
+function getallconnectionpairs(ibnf::IBNFramework)
     loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    allcrossconnectionswithconnectionid = [CrossConnectionID(ge,intentuuid ) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+    allcrossconnectionswithconnectionid = [stringify(CrossConnectionID(ge,intentuuid)) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
     return allcrossconnectionswithconnectionid
+end
+
+function getallcrossconnectionids(ibnf::IBNFramework)
+    loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    return [CrossConnectionID(ge,intentuuid) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+end
+
+function getallcrossconnectionidsstr(ibnf::IBNFramework)
+    loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    return [stringify(CrossConnectionID(ge,intentuuid)) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+end
+
+function getallconnectionsdict(ibnf::IBNFramework)
+    loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    allcrossconnectionswithconnectioniddict = Dict(stringify(CrossConnectionID(ge,intentuuid)) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic)
+    return allcrossconnectionswithconnectioniddict
 end
 
 """
@@ -254,6 +332,12 @@ function _rec_logintrapathsandinterintents!(ibnf::IBNFrameworkIntentAlgorithmWit
         destinationnode = getdestinationnode(conintent)
         logstates = getlogstate(idagnode)
         updowntimesndatetime = getupdowntimes(logstates, getdatetime(getbasicalgmem(intentcomp)))
+        if getcurrentstate(getlogstate(getidagnode(getidag(ibnf), getidagnodeid(idagnode)))) == IntentState.Installed
+            distance = pingdistanceconnectivityintent(ibnf, getidagnodeid(idagnode))
+            @assert !isinf(ustrip(distance))
+            setconnectiondistance!(updowntimesndatetime, distance)
+        end
+
         globaledge = GlobalEdge(sourcenode, destinationnode) 
         loginterupdowntimes = getloginterupdowntimes(intentcomp)
         if haskey(loginterupdowntimes, globaledge)
@@ -284,6 +368,14 @@ $(TYPEDSIGNATURES)
                 if currentdatetime > getdatetime(updownndatetime)
                     logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
                     updateupdowntimes!(updownndatetime, logstates, currentdatetime)
+
+                    # update distance in case it changed
+                    if getcurrentstate(getlogstate(getidagnode(getidag(ibnf), intentuuid))) == IntentState.Installed
+                        distance = pingdistanceconnectivityintent(ibnf, intentuuid)
+                        @assert !isinf(ustrip(distance))
+                        prevdistance = getconnectiondistance(updownndatetime)
+                        setconnectiondistance!(updownndatetime, (distance+prevdistance)/2)
+                    end
                 end
             end
         end

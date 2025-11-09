@@ -347,28 +347,69 @@ $(TYPEDSIGNATURES)
     Return a Vector{Int} with the path given from the logical low level intent order
 """
 function logicalordergetpath(lo::Vector{<:LowLevelIntent})
-    function validnextinsert(nd, p)
-        return !iszero(nd) &&
-            (
-            isempty(p) ||
-                (
-                (length(p) == 1 && nd != p[end]) ||
-                    (length(p) >= 2 && nd != p[end] && nd != p[end - 1])
-            )
-        )
-    end
-
     path = LocalNode[]
-    for oxclli in filter(x -> x isa OXCAddDropBypassSpectrumLLI, lo)
-        input = getlocalnode_input(oxclli)
-        validnextinsert(input, path) && push!(path, input)
-        node = getlocalnode(oxclli)
-        validnextinsert(node, path)  && push!(path, node)
-        output = getlocalnode_output(oxclli)
-        validnextinsert(output, path)  && push!(path, output)
+    EOEed = true
+    for lli in lo
+        if lli isa RouterPortLLI
+            EOEed = true
+        elseif lli isa OXCAddDropBypassSpectrumLLI
+            input = getlocalnode_input(lli)
+            if logicalordergetpath_validnextinsert(input, path, EOEed)
+                push!(path, input)
+            end
+            node = getlocalnode(lli)
+            if logicalordergetpath_validnextinsert(node, path, EOEed)
+                push!(path, node)
+            end
+            output = getlocalnode_output(lli)
+            if logicalordergetpath_validnextinsert(output, path, EOEed)
+                push!(path, output)
+            end
+            EOEed = false
+        end
     end
 
     return path
+end
+
+function logicalordergetpath_validnextinsert(node::Int, path::Vector{Int}, EOEed::Bool)
+    # Rule 1: The node cannot be zero.
+    if iszero(node)
+        return false
+    end
+
+    # Rule 2: If the path is empty, any non-zero node is valid.
+    if isempty(path)
+        return true
+    end
+
+    # Rule 3: The node cannot be the same as the last element.
+    if node == path[end]
+        return false
+    end
+
+    # Rule 4: If the path has 2 or more elements, it also
+    # cannot be the same as the second-to-last element.
+    if !EOEed
+        if length(path) >= 2 && node == path[end - 1]
+            return false
+        end
+    end
+
+    # If none of the above conditions made it invalid, it's valid.
+    return true
+end
+
+
+function logicalordergetpath_validnextinsert_deprec(nd, p)
+    return !iszero(nd) &&
+        (
+        isempty(p) ||
+            (
+            (length(p) == 1 && nd != p[end]) ||
+                (length(p) >= 2 && nd != p[end] && nd != p[end - 1])
+        )
+    )
 end
 
 """

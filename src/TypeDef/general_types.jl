@@ -71,6 +71,10 @@ struct UpDownTimes <: AbstractUpDownTimes
     downtimes::Vector{Dates.Millisecond}
 end
 
+function UpDownTimes()
+    return UpDownTimes(Vector{Dates.Millisecond}(), Vector{Dates.Millisecond}())
+end
+
 function Base.show(io::IO, udts::UpDownTimes)
     print(io, "UpDownTimes( up: ", getuptimeshour(udts), " hr, down: ", getdowntimeshour(udts), " hr)")
 end
@@ -104,6 +108,7 @@ mutable struct UpDownTimesNDatetime{T} <: AbstractUpDownTimes
     downtimes::Vector{Dates.Millisecond}
     datetimestamps::Vector{Tuple{DateTime, T}}
     datetime::DateTime
+    connectiondistance::KMf
 end
 
 function UpDownTimes(udtnd::UpDownTimesNDatetime)
@@ -116,6 +121,14 @@ end
 
 function getdatetime(uptnd::UpDownTimesNDatetime)
     return uptnd.datetime
+end
+
+function getconnectiondistance(uptnd::UpDownTimesNDatetime)
+    return uptnd.connectiondistance
+end
+
+function setconnectiondistance!(uptnd::UpDownTimesNDatetime, condist::KMf)
+    uptnd.connectiondistance = condist
 end
 
 function setdatetime!(uptnd::UpDownTimesNDatetime, datetime::DateTime)

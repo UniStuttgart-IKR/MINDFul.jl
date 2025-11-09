@@ -41,7 +41,7 @@ function getupdowntimes(logstates::Vector{Tuple{R, T}}, endtime=nothing) where {
 
     datetime2start = logstates[1][1] - Dates.Hour(1)
 
-    uddts = UpDownTimesNDatetime(uptimes, downtimes, lssimple, datetime2start)
+    uddts = UpDownTimesNDatetime(uptimes, downtimes, lssimple, datetime2start, KMf(0.))
     updateupdowntimes!(uddts, logstates, endtime)
 
     return uddts
