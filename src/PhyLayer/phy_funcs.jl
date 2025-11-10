@@ -168,6 +168,13 @@ Set the operating state of the edge in `oxcview` and trigger the state update of
     if getcurrentlinkstate(oxcview, edge) != operatingstate
         linkstates = getlinkstates(oxcview)[edge]
         push!(linkstates, (@logtime, operatingstate))
+
+        ibnagaweights = getibnagweights(getcachedresults(getintcompalg(ibnf)))
+        if operatingstate == false
+            ibnagaweights[src(edge), dst(edge)] = typemax(eltype(ibnagaweights))
+        else
+            ibnagaweights[src(edge), dst(edge)] =  getdistance(getedgeview(getibnag(ibnf), edge))
+        end
         # update LLIs
         for (lliid, oxclli) in getreservations(oxcview)
             if oxcllicontainsedge(oxclli, edge)

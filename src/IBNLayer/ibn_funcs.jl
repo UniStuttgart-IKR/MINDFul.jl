@@ -1530,7 +1530,7 @@ function pingdistanceconnectivityintent(ibnf::IBNFramework, startintentuuid::UUI
     if currentstate !== IntentState.Installed
         return nothing
     else
-        if getintent(idn) isa RemoteIntent 
+        if getintent(idn) isa RemoteIntent && getisinitiator(getintent(idn))
             conintent = getintent(getintent(idn)) 
             intentuuid = getidagnodeid(getintent(idn)) 
             remibnfid = getibnfid(getintent(idn)) 

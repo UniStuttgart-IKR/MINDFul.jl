@@ -371,6 +371,7 @@ $(TYPEDSIGNATURES)
 
                     # update distance in case it changed
                     if getcurrentstate(getlogstate(getidagnode(getidag(ibnf), intentuuid))) == IntentState.Installed
+                        # @show getibnfid(ibnf), intentuuid
                         distance = pingdistanceconnectivityintent(ibnf, intentuuid)
                         @assert !isinf(ustrip(distance))
                         prevdistance = getconnectiondistance(updownndatetime)

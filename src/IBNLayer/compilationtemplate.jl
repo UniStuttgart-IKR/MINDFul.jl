@@ -337,11 +337,11 @@ function prioritizesplitbordernodes_shortestorshortestrandom(ibnf::IBNFramework,
     borderlocals = getbordernodesaslocal(ibnf)
     # pick closest border node
     ibnagaweights = getibnagweights(getcachedresults(intentcomp))
-    foreach(edges(ibnag)) do ed
-        if !getcurrentlinkstate(ibnf, ed; checkfirst = true)
-            ibnagaweights[src(ed), dst(ed)] = typemax(eltype(ibnagaweights))
-        end
-    end
+    # foreach(edges(ibnag)) do ed
+    #     if !getcurrentlinkstate(ibnf, ed; checkfirst = true)
+    #         ibnagaweights[src(ed), dst(ed)] = typemax(eltype(ibnagaweights))
+    #     end
+    # end
     # TODO : perf: it's already cached
     hopdists = Graphs.dijkstra_shortest_paths(ibnag, sourcelocalnode, ibnagaweights).dists
 

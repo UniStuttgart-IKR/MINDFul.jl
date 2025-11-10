@@ -1,4 +1,4 @@
-# @testset ExtendedTestSet "pingintent.jl"  begin
+@testset ExtendedTestSet "pingintent.jl"  begin
 
 
 nowtime = starttime = DateTime("2026-01-01")
@@ -23,6 +23,6 @@ _, nowtime = installintent!(ibnfs[1], intentuuid2; offsettime = nowtime)
 
 MINDF.pingdistanceconnectivityintent(ibnfs[1], intentuuid2)
 
-# end
+end
 
 nothing

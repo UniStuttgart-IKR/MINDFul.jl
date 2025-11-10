@@ -385,7 +385,7 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     testuncompilation(ibnfs[1], intentuuid_border)
    
     # External link is failing (ibnfs[3])
-    externaledge = Edge(17, 43)
+    externaledge = Edge(25, 24)
     conintent_external = ConnectivityIntent(GlobalNode(UUID(1), 14), GlobalNode(UUID(3), 12), u"100.0Gbps")
     intentuuid_external_fail, nowtime = addintent!(ibnfs[1], conintent_external, NetworkOperator(); offsettime=nowtime)
     returncode, nowtime = compileintent!(ibnfs[1], intentuuid_external_fail; offsettime=nowtime)
