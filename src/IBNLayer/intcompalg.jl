@@ -163,9 +163,19 @@ function getconnection(cc::CrossConnections, ccid::CrossConnectionID)
     cc[getglobaledge(ccid)][getintentuuid(ccid)]
 end
 
-function getallconnectionpairs(ibnf::IBNFramework)
+function getallconnectionpairs(ibnf::IBNFramework; crossdomainibnfid=nothing)
     loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    allcrossconnectionswithconnectionid = [stringify(CrossConnectionID(ge,intentuuid)) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+    allcrossconnectionswithconnectionid = Vector{Pair{String, UpDownTimesNDatetime{IntentState.T}}}()
+    for (ge,dic) in loginterupdowntimes 
+        if !isnothing(crossdomainibnfid)
+            if getibnfid(src(ge)) != crossdomainibnfid || getibnfid(dst(ge)) != crossdomainibnfid
+                continue
+            end
+        end
+        for (intentuuid, updtimes) in dic
+            push!(allcrossconnectionswithconnectionid, stringify(CrossConnectionID(ge,intentuuid)) => updtimes)
+        end
+    end
     return allcrossconnectionswithconnectionid
 end
 
@@ -174,15 +184,31 @@ function getallcrossconnectionids(ibnf::IBNFramework)
     return [CrossConnectionID(ge,intentuuid) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
 end
 
-function getallcrossconnectionidsstr(ibnf::IBNFramework)
+function getallcrossconnectionidsstr(ibnf::IBNFramework; crossdomainibnfid=nothing)
     loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    return [stringify(CrossConnectionID(ge,intentuuid)) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+    retval = String[]
+    for (ge,dic) in loginterupdowntimes 
+        if !isnothing(crossdomainibnfid)
+            if getibnfid(src(ge)) != crossdomainibnfid || getibnfid(dst(ge)) != crossdomainibnfid
+                continue
+            end
+        end
+        for (intentuuid, updtimes) in dic
+            push!(retval, stringify(CrossConnectionID(ge,intentuuid)))
+        end
+    end
+    return retval
+    #
+    # loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    # return [stringify(CrossConnectionID(ge,intentuuid)) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
 end
 
-function getallconnectionsdict(ibnf::IBNFramework)
-    loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    allcrossconnectionswithconnectioniddict = Dict(stringify(CrossConnectionID(ge,intentuuid)) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic)
-    return allcrossconnectionswithconnectioniddict
+function getallconnectionsdict(ibnf::IBNFramework; crossdomainibnfid=nothing)
+    # loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    # allcrossconnectionswithconnectioniddict = Dict(stringify(CrossConnectionID(ge,intentuuid)) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic)
+    allconnectionpairs = getallconnectionpairs(ibnf; crossdomainibnfid)
+    allconnectiondict = Dict(k => v for (k,v) in allconnectionpairs)
+    return allconnectiondict
 end
 
 """

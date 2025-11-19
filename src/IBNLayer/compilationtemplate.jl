@@ -6,24 +6,39 @@ A template compilation function that can be extended
 Give in the following hook functions:
 - `intradomainalgfun` is used as compilation algorithm for the intents handled internally. 
 It should return a `Symbol` as a return code. 
-Common return codes are found in `MINDFul.ReturnCodes`
+Common return codes are found in [`MINDFul.ReturnCodes`](@ref).
+This function is generated using [`MINDFul.intradomaincompilationtemplate`](@ref)
 ```
 intradomainalgfun(
     ibnf::IBNFramework, 
     idagnode::IntentDAGNode{<:ConnectivityIntent},
+    cachedintentresult::Dict{ConnectivityIntent, Symbol},
     ; datetime::DateTime
 ) -> Symbol
 ```
 
-- `prioritizesplitnodes` is called when optical reach is not enough to have a lightpath end-to-end to serve the intent and a path to split was already selected.
-The node selected will break the intent into two pieces with the node standing in between.
+- `prioritizegrooming` is called when the intent begins electrically (no [`OpticalInitiateConstraint`](@ref)).
+Pass the `protectedpaths` which are the options for deploying the intent irrespectively of grooming.
+Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
+Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
+
+```
+prioritizegrooming(
+    ibnf::IBNFramework,
+    idagnode::IntentDAGNode{<:ConnectivityIntent},
+    protectedpaths::Vector{Vector{LocalNode}}
+) -> Vector{Vector{Union{UUID, Edge{Int}}}}
+```
+
+
+- `prioritizesplitnodes` is called when optical reach is not enough to have a lightpath end-to-end to serve the intent. The node selected will break the intent into two pieces with the node standing in between.
 This function should return a vector of `SplitGlobalNode`s with decreasing priority of which node should be chosen.
 The same split node might be returned multiple times, but with different availability requirements.
 ```
 prioritizesplitnodes(
     ibnf::IBNFramework,
     idagnode::IntentDAGNode,
-) -> Vector{GlobalNode}
+) -> Vector{SplitGlobalNode}
 ```
 
 - `prioritizesplitbordernodes` is called to select the border node to work as the source node for the delegated intent in a neighboring domain.
@@ -34,6 +49,10 @@ prioritizesplitbordernodes(
     ibnf::IBNFramework,
     idagnode::IntentDAGNode{<:ConnectivityIntent},
 ) -> Vector{GlobalNode}
+
+- `cachedintentresult` are the cached `ResultCode` per intent considered.
+
+- `maximumsplitlevel` is the maximum times an intent will be split with `prioritizesplitnodes`
 ```
 """
 @recvtime function compileintenttemplate!(
@@ -1029,7 +1048,11 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Return a Dict{Edge{LocalNode}, Vector{GroomingPossibility}}
+Only grooms exactly upon the `protectedpaths` passed (which is the intended routing implementation without grooming)
+If there is no protection in `protectedpaths` (`length(protectedpaths) <= 1`) several combinations of already deployed intents are searched such that the end-to-end path from `protectedpaths[1]` is respected.
+Return a `Vector{Vector{Union{UUID, Edge{Int}}}}`.
+If there is protection (`length(protectedpaths) > 1`) exactly an intent with exactly the `protectedpaths` must be found.
+This method gives responsibility to the `prioritizepaths` method which cares for availability, so that grooming will not change the availability of the final path deployed.
 """
 function prioritizegrooming_default(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent}, protectedpaths::Vector{Vector{LocalNode}})
     groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
