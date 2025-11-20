@@ -17,20 +17,6 @@ intradomainalgfun(
 ) -> Symbol
 ```
 
-- `prioritizegrooming` is called when the intent begins electrically (no [`OpticalInitiateConstraint`](@ref)).
-Pass the `protectedpaths` which are the options for deploying the intent irrespectively of grooming.
-Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
-Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
-
-```
-prioritizegrooming(
-    ibnf::IBNFramework,
-    idagnode::IntentDAGNode{<:ConnectivityIntent},
-    protectedpaths::Vector{Vector{LocalNode}}
-) -> Vector{Vector{Union{UUID, Edge{Int}}}}
-```
-
-
 - `prioritizesplitnodes` is called when optical reach is not enough to have a lightpath end-to-end to serve the intent. The node selected will break the intent into two pieces with the node standing in between.
 This function should return a vector of `SplitGlobalNode`s with decreasing priority of which node should be chosen.
 The same split node might be returned multiple times, but with different availability requirements.
@@ -60,13 +46,12 @@ prioritizesplitbordernodes(
         idagnode::IntentDAGNode{<:ConnectivityIntent};
         verbose::Bool = false,
         intradomainalgfun::F1,
-        prioritizegrooming::F2 = prioritizegrooming_default,
         prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
         prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom,
         cachedintentresult = Dict{ConnectivityIntent, Symbol}(),
         maximumsplitlevel::Int = 1
         # maximumsplitlevel::Int = typemax(Int)
-    ) where {F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function}
+    ) where {F1 <: Function, F3 <: Function, F4 <: Function}
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
 
@@ -106,7 +91,6 @@ prioritizesplitbordernodes(
                             splitglobalnode,
                             cachedintentresult; 
                             verbose, 
-                            prioritizegrooming,
                             prioritizesplitnodes,
                             prioritizesplitbordernodes,
                             maximumsplitlevel,
@@ -161,7 +145,6 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     splitglobalnode::SplitGlobalNode, 
     cachedintentresult::Dict{ConnectivityIntent, Symbol}; 
     verbose::Bool,
-    prioritizegrooming::F2 = prioritizegrooming_default,
     prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
     prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom,
     maximumsplitlevel::Int
@@ -490,54 +473,67 @@ end
 """
 $(TYPEDSIGNATURES)
 
-AIntra domain compilation algorithm template.
+An intra domain compilation algorithm template.
 Return function to do the intra domain compilation with the signature
 ```
 intradomainalgfun(
     ibnf::IBNFramework, 
     idagnode::IntentDAGNode{<:ConnectivityIntent},
-) -> Symbol
+    cachedintentresult::Dict{ConnectivityIntent, Symbol}
+    ; verbose::Bool = false,
+    offsettime::DateTime
+) -> MINDF.ReturnCodes
 ```
 
 The returned algorithm can be customized as follows.
-
 The major selection process is made on the source.
 
-Interfaces needed:
-```
-getcandidatepathsnum(
-    intentcompilationalgorithm::IntentCompilationAlgorithm)
- -> Int
-```
+# Configuration Arguments
 
-Return the candidate paths with highest priority first as `Vector{Vector{Int}}}`.
+- `prioritizepaths = prioritizepaths_shortest`
+It's the core pathfinding mechanism for the `idagnode` intent passed.
+Return the candidate paths with highest priority first as `Vector{Vector{{Vector{Int}}}}`.
+The first `Vector` are all the alternatives sorted per priority.
+The second `Vector` are the protected paths (if no protection is a single element vector).
+(Protection paths shouldnt end on border node)
+The third `Vector` is the path.
 Return empty collection if non available.
-TODO docts protection: Protection paths... shouldnt end on border node !
 ```
 prioritizepaths(
     ibnf::IBNFramework,
     idagnode::IntentDAGNode{<:ConnectivityIntent},
-) -> Vector{Vector{LocalNode}}
+) -> Vector{Vector{Vector{LocalNode}}}
 ```
 
-Return a Vector of grooming possibilities.
+- `prioritizegrooming = prioritizegrooming_default`
+It is invoked when the intent begins electrically (no [`OpticalInitiateConstraint`](@ref)).
+Pass the `protectedpaths` which are the options for deploying the intent irrespectively of grooming.
 Return a `Vector` of grooming possibilities: `Vector{Vector{Union{UUID, Edge{Int}}}}`
 Each element is a `Vector` of either an intent `UUID` or a new connectivity intent defined with `Edge`.
+
 ```
 prioritizegrooming(
-    ibnf::IBNFramework, 
-    idagnode::IntentDAGNode{<:ConnectivityIntent}, 
+    ibnf::IBNFramework,
+    idagnode::IntentDAGNode{<:ConnectivityIntent},
+    protectedpaths::Vector{Vector{LocalNode}}
+) -> Vector{Vector{Union{UUID, Edge{Int}}}}
 ```
 
+- `prioritizerouterport = prioritizerouterports_lowestrate`
+
 Return the candidate router ports with highest priority first
+The ports must be on node `node` and surpass the needed rate `transmissionmoderate`.
 Return empty collection if non available.
 ```
 prioritizerouterport(
     ibnf::IBNFramework,
     idagnode::IntentDAGNode{<:ConnectivityIntent},
-    node::LocalNode
+    node::LocalNode,
+    transmissionmoderate::GBPSf
 ) -> Vector{Int}
 ```
+
+- `prioritizetransmdlandmode = prioritizetransmdlmode_cheaplowrate`
 
 Return the transmission module index and the transmission mode index of that module as a `Vector{Tuple{Int, Int}}` with the first being the transmission module index and the second the transmission mode.
 If this is calculated for the source node (default) pass `path::Vector{LocalNode}` and `transmdlcompat::Nothing`.
@@ -549,9 +545,12 @@ prioritizetransmdlandmode(
     idagnode::IntentDAGNode{<:ConnectivityIntent},
     node::LocalNode,
     path::Union{Nothing, Vector{LocalNode}},
+    routerportrate::GBPSf,
     transmdlcompat::Union{Nothing, TransmissionModuleCompatibility}=nothing
 ) -> Vector{Tuple{Int, Int}}
 ```
+
+- `choosespectrum = choosespectrum_firstfit`
 
 Return the first index of the spectrum slot range to be allocated.
 If none found, return `nothing`
@@ -564,6 +563,8 @@ choosespectrum(
 ) -> Vector{Int}
 ```
 
+- `chooseoxcadddropport = chooseoxcadddropport_first`
+
 Return the index of the add/drop OXC port to allocate at node `node`
 If none found, return `nothing`
 ```
@@ -573,6 +574,14 @@ chooseoxcadddropport(
     node::LocalNode
 ) -> Vector{Int}
 ```
+
+# Interfaces
+```
+getcandidatepathsnum(
+    intentcompilationalgorithm::IntentCompilationAlgorithm)
+ -> Int
+```
+
 """
 @recvtime function intradomaincompilationtemplate(;
         prioritizepaths = prioritizepaths_shortest,
