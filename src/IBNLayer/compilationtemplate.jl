@@ -148,7 +148,7 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     prioritizesplitnodes::F3 = prioritizesplitnodes_longestfirstshortestpath,
     prioritizesplitbordernodes::F4 = prioritizesplitbordernodes_shortestorshortestrandom,
     maximumsplitlevel::Int
-    ) where {F <: Function, F2 <: Function, F3 <: Function, F4 <: Function}
+    ) where {F <: Function, F3 <: Function, F4 <: Function}
 
     sourceglobalnode = getsourcenode(getintent(idagnode))
     destinationglobalnode = getdestinationnode(getintent(idagnode))
@@ -1305,36 +1305,12 @@ function choosegroominornot(ibnf::IBNFramework{A,B,C,D,F}, protectedpaths::Vecto
     return nogroomingnewhops < length(path)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function estimateintraconnectionavailability(ibnf::IBNFramework, srcnode::LocalNode, dstnode::LocalNode)
-    return nothing
-end
 
 """
 $(TYPEDSIGNATURES)
 """
 function estimatecrossconnectionavailability(ibnf::IBNFramework, srcnode::GlobalNode, dstnode::GlobalNode)
     return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function chooseintrasplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability, secondhalfavailability, intentcomp::IntentCompilationAlgorithm)
-    availabilityrequirement = getavailabilityrequirement(avcon)
-    compliancetarget = getcompliancetarget(avcon)
-    firsthalfavailabilityconstraint = AvailabilityConstraint(sqrt(availabilityrequirement), sqrt(compliancetarget)) 
-    secondhalfavailabilityconstraint = AvailabilityConstraint(sqrt(availabilityrequirement), sqrt(compliancetarget)) 
-    return firsthalfavailabilityconstraint, secondhalfavailabilityconstraint
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function choosecrosssplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability, secondhalfavailability, intentcomp::IntentCompilationAlgorithm)
-    return chooseintrasplitavailabilities(avcon, firsthalfavailability, secondhalfavailability, intentcomp)
 end
 
 """

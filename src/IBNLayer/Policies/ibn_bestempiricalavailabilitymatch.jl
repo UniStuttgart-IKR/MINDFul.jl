@@ -25,7 +25,7 @@ mutable struct BestEmpiricalAvailabilityCompilation <: IntentCompilationAlgorith
     basicalgmem::BasicAlgorithmMemory
 end
 
-const IBNFrameworkBEA = IBNFramework{A,B,C,D,BestEmpiricalAvailabilityCompilation} where {A,B,C,D}
+const IBNFrameworkBEA = IBNFramework{O,S,T,I,R} where {O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication,R<:BestEmpiricalAvailabilityCompilation}
 
 function BestEmpiricalAvailabilityCompilation(ibnag::IBNAttributeGraph, candidatepathsnum::Int, pathforprotectionnum::Int)
     cachedresults = CachedResults(ibnag, candidatepathsnum)

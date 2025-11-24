@@ -11,7 +11,7 @@ struct KShorestPathFirstFitCompilation <: IntentCompilationAlgorithmWithMemory
     basicalgmem::BasicAlgorithmMemory
 end
 
-const IBNFrameworkKSP = IBNFramework{A,B,C,D,R} where {A,B,C,D,R<:KShorestPathFirstFitCompilation}
+const IBNFrameworkKSP = IBNFramework{O,S,T,I,R} where {O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication,R<:KShorestPathFirstFitCompilation}
 
 """
 $(TYPEDSIGNATURES)
