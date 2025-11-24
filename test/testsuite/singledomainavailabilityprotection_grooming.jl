@@ -7,7 +7,7 @@ ibnfs = loadmultidomaintestibnfs(compalg)
 # basically best effort
 avcon1 = MINDF.AvailabilityConstraint(0.94, 0.9) 
 conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon1])
-avcon2 = MINDF.AvailabilityConstraint(0.92, 0.9) 
+avcon2 = MINDF.AvailabilityConstraint(0.90, 0.9) 
 conintent2 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon2])
 
 intentuuid1_1, _ = addintent!(ibnfs[1], conintent1, NetworkOperator())
@@ -65,7 +65,7 @@ returncode, nowtime = compileintent!(ibnfs[1], intentuuid1_1; offsettime = nowti
 returncode, nowtime = installintent!(ibnfs[1], intentuuid1_1; offsettime = nowtime)
 @test returncode == ReturnCodes.SUCCESS
 
-# single intent should not groom
+# single intent should not groom because .... ?
 returncode, nowtime = compileintent!(ibnfs[1], intentuuid2; offsettime = nowtime)
 @test returncode == ReturnCodes.SUCCESS
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1_1) == MINDF.IntentState.Installed

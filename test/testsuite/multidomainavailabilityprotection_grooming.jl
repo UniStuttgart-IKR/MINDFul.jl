@@ -21,8 +21,8 @@ idnchildren = getidagnodechildren(getidag(ibnfs[1]), intentuuid1)
 getavcon1 = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idnchildren[1])))
 getavcon2 = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idnchildren[2])))
 
-@test MINDF.getavailabilityrequirement(getavcon1) * MINDF.getavailabilityrequirement(getavcon2) <= MINDF.getavailabilityrequirement(avcon1)
-@test MINDF.getcompliancetarget(getavcon1) * MINDF.getcompliancetarget(getavcon2) <= MINDF.getcompliancetarget(avcon1)
+@test MINDF.getavailabilityrequirement(getavcon1) * MINDF.getavailabilityrequirement(getavcon2) >= MINDF.getavailabilityrequirement(avcon1)
+@test MINDF.getcompliancetarget(getavcon1) * MINDF.getcompliancetarget(getavcon2) >= MINDF.getcompliancetarget(avcon1)
 
 rc, nt = installintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 @test rc == ReturnCodes.SUCCESS

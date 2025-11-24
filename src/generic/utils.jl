@@ -400,17 +400,22 @@ function millisecondtomonth(ms::Dates.Millisecond)
     return ms.value / 1_000 / 60 / 60 / 24 / 30
 end
 
-function uniquesupportweightsDiscreteNonParametric(support::Vector, weights::Vector)
+function uniquesupportweightsDiscreteNonParametric(support::AbstractVector, weights::AbstractVector)
     uniquesupport = unique(support)
     sameelements = [findall(==(us), support) for us in uniquesupport]
 
-    weights = [
-        let
-            sum(weights[sameels])
-        end for sameels in sameelements
-    ]
+    # weights = [
+    #     let
+    #         sum(weights[sameels])
+    #     end for sameels in sameelements
+    # ]
+    
+    weights2 = [sum(weights[sameels]) for sameels in sameelements]
 
-    ps = weights ./ sum(weights)
+    ps = weights2 ./ sum(weights2)
+    if isnan(ps[1])
+        @show support, weights
+    end
 
     return DiscreteNonParametric(uniquesupport, ps)
 end

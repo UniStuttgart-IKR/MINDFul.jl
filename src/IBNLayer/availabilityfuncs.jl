@@ -248,11 +248,13 @@ function getlinkupdowntimes(ibnf, edge; checkfirst=true, verbose::Bool=false, en
 end
 
 function calculateavailability(updowntimes::UpDownTimes)
-    return sum(getuptimes(updowntimes)) / (sum(getdowntimes(updowntimes)) + sum(getuptimes(updowntimes)))
+    denom = sum(getdowntimes(updowntimes)) + sum(getuptimes(updowntimes))
+    return sum(getuptimes(updowntimes)) / denom
 end
 
 function calculateavailability(updowntimes::UpDownTimesNDatetime)
-    return sum(getuptimes(updowntimes)) / (sum(getdowntimes(updowntimes)) + sum(getuptimes(updowntimes)))
+    denom = sum(getdowntimes(updowntimes)) + sum(getuptimes(updowntimes))
+    return sum(getuptimes(updowntimes)) / denom
 end
 
 """

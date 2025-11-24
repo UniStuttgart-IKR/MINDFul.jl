@@ -26,6 +26,7 @@ mutable struct BestEmpiricalAvailabilityCompilation <: IntentCompilationAlgorith
 end
 
 const IBNFrameworkBEA = IBNFramework{O,S,T,I,R} where {O <: AbstractOperationMode, S <: AbstractSDNController, T <: IBNAttributeGraph, I <: IBNFCommunication,R<:BestEmpiricalAvailabilityCompilation}
+# const IBNFrameworkBEA = IBNFramework{O,S,T,I,BestEmpiricalAvailabilityCompilation} where {O,S,T,I}
 
 function BestEmpiricalAvailabilityCompilation(ibnag::IBNAttributeGraph, candidatepathsnum::Int, pathforprotectionnum::Int)
     cachedresults = CachedResults(ibnag, candidatepathsnum)
@@ -99,7 +100,7 @@ function prioritizepaths_bestempiricalavailability(ibnf::IBNFrameworkBEA, idagno
     pathempavail = Float64[]
     for op in operatingpaths
         pathempavailop = reduce(*, [dictlinkempiricalavail[e] for e in edgeify(op)])
-        if pathempavailop > getavailabilityrequirement(availabilityconstraint)
+        if pathempavailop >= getavailabilityrequirement(availabilityconstraint)
             push!(priorityprotectionpaths, [op])
             push!(pathempavail, pathempavailop)
         end
@@ -121,14 +122,14 @@ function prioritizepaths_bestempiricalavailability(ibnf::IBNFrameworkBEA, idagno
                 # protection with optical terminate requires that last link is the same (such that the protected paths terminate similarly)
                 if path1[end-1] == path2[end-1] && path1[end] == path2[end]
                     pathempavailop = calculateprotectedpathavailability(edges1, avails1, edges2, avails2)
-                    if pathempavailop > getavailabilityrequirement(availabilityconstraint)
+                    if pathempavailop >= getavailabilityrequirement(availabilityconstraint)
                         push!(priorityprotectionpaths, [path1, path2])
                         push!(pathempavail, pathempavailop)
                     end
                 end
             else
                 pathempavailop = calculateprotectedpathavailability(edges1, avails1, edges2, avails2)
-                if pathempavailop > getavailabilityrequirement(availabilityconstraint)
+                if pathempavailop >= getavailabilityrequirement(availabilityconstraint)
                     push!(priorityprotectionpaths, [path1, path2])
                     push!(pathempavail, pathempavailop)
                 end
@@ -157,7 +158,7 @@ function estimateintraconnectionavailability(ibnf::IBNFrameworkBEA, srclocalnode
     if haskey(logintrapaths, ed)
         pastpathsdict = logintrapaths[Edge(srclocalnode, dstlocalnode)]
         ppathavails = [getempiricalavailability(ibnf, ppath; endtime=getdatetime(getbasicalgmem(intentcomp))) for ppath in keys(pastpathsdict)]
-        counts = values(pastpathsdict)
+        counts = collect(values(pastpathsdict))
     else
         yenstatepaths = getyenpathsdict(getcachedresults(intentcomp))[Edge(srclocalnode, dstlocalnode)]
 
@@ -176,8 +177,17 @@ function estimatecrossconnectionavailability(ibnf::IBNFrameworkBEA, ged::GlobalE
         updowntimesndatetimedict = loginterupdowntimes[ged]
         updowntimesndatetimes = values(updowntimesndatetimedict)
         externalintentavails = [calculateavailability(updowntimesndatetime) for updowntimesndatetime in updowntimesndatetimes]
-        weights = [sum(getuptimes(updowntimesndatetime)) + sum(getdowntimes(updowntimesndatetime))  for updowntimesndatetime in updowntimesndatetimes]
-        dnp = uniquesupportweightsDiscreteNonParametric(externalintentavails, weights)
+        weights = [sum(getuptimes(updowntimesndatetime)) + sum(getdowntimes(updowntimesndatetime)) for updowntimesndatetime in updowntimesndatetimes]
+        fa = findall(isnan, externalintentavails)
+        if length(fa) == length(updowntimesndatetimes)
+            externalintentavails = [1.0]
+            counts = [1]
+            dnp = uniquesupportweightsDiscreteNonParametric(externalintentavails, counts)
+        else
+            deleteat!(externalintentavails, fa)
+            deleteat!(weights, fa)
+            dnp = uniquesupportweightsDiscreteNonParametric(externalintentavails, weights)
+        end
     else
         externalintentavails = [1.0]
         counts = [1]
@@ -201,6 +211,7 @@ function chooseintrasplitavailabilities(avcon::AvailabilityConstraint, firsthalf
     compliancetarget = getcompliancetarget(avcon)
 
     sqrtcompliancetarget = sqrt(compliancetarget)
+    sqrtavailabilityrequirement = sqrt(availabilityrequirement)
 
     firsthalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
     secondhalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
@@ -209,13 +220,14 @@ function chooseintrasplitavailabilities(avcon::AvailabilityConstraint, firsthalf
     # begin from 100 % compliance target
     for firstct in 1:-0.01:compliancetarget
         setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
-        firstavailabilityrequirement = cquantile(firsthalfavailability, firstct)
+        firstavailabilityrequirement = quantile(firsthalfavailability, 1 - firstct)
         setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
 
         secondcompliancetargetlimit = compliancetarget / firstct
         for secondct in 1:-0.01:secondcompliancetargetlimit
+            # TODO : don't ask more than avcon ?
             setcompliancetarget!(secondhalfmutavailabilityconstraint, secondct)
-            secondavailabilityrequirement = cquantile(secondhalfavailability, secondct)
+            secondavailabilityrequirement = quantile(secondhalfavailability, 1 - secondct)
             setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
 
             if firstavailabilityrequirement * secondavailabilityrequirement >= availabilityrequirement
@@ -226,15 +238,13 @@ function chooseintrasplitavailabilities(avcon::AvailabilityConstraint, firsthalf
         combinationfound && break
     end
 
-    # Take leap of fath for external domain if current estimations are not enough (explore) by giving half compliance target for each domain
+    # Take leap of fath for external domain if current estimations are not enough (explore) by giving half compliance and availability for each domain
     if !combinationfound
         setcompliancetarget!(firsthalfmutavailabilityconstraint, sqrtcompliancetarget)
-        firstavailabilityrequirement = cquantile(firsthalfavailability, sqrtcompliancetarget)
-        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
+        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, sqrtavailabilityrequirement)
 
         setcompliancetarget!(secondhalfmutavailabilityconstraint, sqrtcompliancetarget)
-        secondavailabilityrequirement = availabilityrequirement / firstavailabilityrequirement
-        setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
+        setavailabilityrequirement!(secondhalfmutavailabilityconstraint, sqrtavailabilityrequirement)
     end
 
     firsthalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(firsthalfmutavailabilityconstraint), getcompliancetarget(firsthalfmutavailabilityconstraint)) 
@@ -253,17 +263,16 @@ end
 # Estimation is a DiscreteNonParametric
 
 function estimatepathavailability(ibnf::IBNFrameworkBEA, path::Vector{LocalNode})
-    return getempiricalavailability(ibnf, path; endtime = getdatetime(getintcompalg(ibnf)))
+    return getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
 function estimateprpathavailability(ibnf::IBNFrameworkBEA, prpath::Vector{Vector{LocalNode}})
-    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getintcompalg(ibnf)))
+    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
 function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
-    estimatedavailability = 1
-    remintent = nothing
-    for avawareintent in getidagnodedescendants_availabilityaware(ibnf, conintidagnode)
+    estimatedavailability = 1.
+    for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
         if avawareintent isa LightpathIntent
             path = getpath(avawareintent)
             estimatedavailability *= estimatepathavailability(ibnf, path)
@@ -271,25 +280,22 @@ function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::Inten
             prpath = getprpath(avawareintent)
             estimatedavailability *= estimateprpathavailability(ibnf, prpath)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
-            remintent = getintent(getintent(avawareintent))
+            remintent = getintent(avawareintent)
+            if requested
+                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
+                return DiscreteNonParametric([estimatedavailability], [1.])
+            else
+                srcglobalnode = getsourcenode(remintent)
+                dstglobalnode = getdestinationnode(remintent)
+                globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
+                dnp = estimatecrossconnectionavailability(ibnf, globaledge)
+                newsupport = dnp.support .* estimatedavailability
+                return DiscreteNonParametric(newsupport, dnp.p)
+            end
         end
     end
 
-    if !isnothing(remintent)
-        if requested
-            estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
-            return DiscreteNonParametric([estimatedavailability], [1.])
-        else
-            srcglobalnode = getsourcenode(remintent)
-            dstglobalnode = getdestinationnode(remintent)
-            globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-            dnp = estimatecrossconnectionavailability(ibnf, globaledge)
-            newsupport = dnp.support .* estimatedavailability
-            return DiscreteNonParametric(newsupport, dnp.p)
-        end
-    else
-        return DiscreteNonParametric([estimatedavailability], [1.])
-    end
+    return DiscreteNonParametric([estimatedavailability], [1.])
 end
 
 """
@@ -301,12 +307,12 @@ Assumes equal compliance target split
 """
 function calcsecondhalfavailabilityconstraint(ibnf::IBNFrameworkBEA, firsthalfavailability::DiscreteNonParametric, masteravconstr::AvailabilityConstraint)
     mastercompliancetarget = getcompliancetarget(masteravconstr)
-    firstcompliancetarget = sqrt(mastercompliancetarget)
-    firstavailabilityrequirement = cquantile(firsthalfavailability, firstcompliancetarget)
+    sqrtcompliancetarget = sqrt(mastercompliancetarget)
+    firstavailabilityrequirement = quantile(firsthalfavailability, 1 - sqrtcompliancetarget)
 
     secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firstavailabilityrequirement
-    secondcompliancetarget = firstcompliancetarget 
-    return AvailabilityConstraint(secondavailabilityrequirement, secondcompliancetarget)
+    secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement
+    return AvailabilityConstraint(secondavailabilityrequirementfinal, sqrtcompliancetarget)
 end
 
 # TODO : my prioritizesplit

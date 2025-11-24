@@ -29,10 +29,10 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
             prpath = getprpath(avawareintent)
             estimatedavailability *= estimateprpathavailability(ibnf, prpath)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
+            remintent = getintent(avawareintent)
             if requested
-                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(avawareintent)))))
+                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
             else
-                remintent = getintent(avawareintent)
                 srcglobalnode = getsourcenode(remintent)
                 dstglobalnode = getdestinationnode(remintent)
                 globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
@@ -64,7 +64,6 @@ Assumes 100% compliance target
 The `firsthalfavailability` must be of the same type that the `estimateintentavailability` returns.
 """
 function calcsecondhalfavailabilityconstraint(ibnf::IBNFramework, firsthalfavailability::Float64, masteravconstr::AvailabilityConstraint)
-    println("calcsecondhalfavailabilityconstraint generic")
     secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firsthalfavailability
     secondcompliancetarget = getcompliancetarget(masteravconstr)
     return AvailabilityConstraint(secondavailabilityrequirement, secondcompliancetarget)
