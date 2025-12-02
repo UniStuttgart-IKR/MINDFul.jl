@@ -1,7 +1,7 @@
 name = "MINDFul"
 uuid = "437ce7a4-cd80-4539-9a29-b274cfe157d6"
-authors = ["fchrstou <filippos.christou@ikr.uni-stuttgart.de> and contributors"]
 version = "0.4.0"
+authors = ["fchrstou <filippos.christou@ikr.uni-stuttgart.de> and contributors"]
 
 [deps]
 AttributeGraphs = "d091dd56-f8c5-469d-b7f7-ff847498145f"
@@ -33,6 +33,9 @@ JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
+[sources]
+SwaggerMarkdown = {rev = "master", url = "https://github.com/zygmuntszpak/SwaggerMarkdown.jl"}
+
 [extensions]
 TestModule = ["JET", "Test", "Random"]
 
@@ -47,11 +50,11 @@ EnumX = "1.0.5"
 Graphs = "1.13"
 HTTP = "1.10.17"
 IterTools = "1.4"
-JET = "0.9.0"
+JET = "0.10"
 JLD2 = "0.6"
-JSON = "0.21.4"
+JSON = "0,1"
 MbedTLS = "1.1.9"
-Oxygen = "1.7.2"
+Oxygen = "1.8"
 Printf = "1.11.0"
 Random = "1.11.0"
 Serialization = "1.11.0"

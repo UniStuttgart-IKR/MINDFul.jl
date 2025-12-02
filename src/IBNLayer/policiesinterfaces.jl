@@ -1,5 +1,9 @@
 ### Overload IBNFramework for the specific algorithm to customize your behavior
 
+function getkpis(intentcomp::IntentCompilationAlgorithm)
+    return missing
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -7,7 +11,7 @@ If estimating is a slow procedure, we have some batched simulations.
 For that this function will be updated.
 This must be called from the simulation code and is not directly called from MINDFul
 """
-function updateestimations!(ibnf::IBNFramework)
+function updateestimations!(ibnf::IBNFramework, currenttime::DateTime)
     return nothing
 end
 
@@ -89,7 +93,7 @@ function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge
     loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]
-        updowntimesndatetimes = values(updowntimesndatetimedict)
+	updowntimesndatetimes = getupdowntimesndatetime.(values(updowntimesndatetimedict))
         estimatedavailabilitysum = 0.0
         count = 0
         for updowntimesndatetime in updowntimesndatetimes

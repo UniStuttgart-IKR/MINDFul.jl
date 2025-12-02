@@ -16,7 +16,8 @@ function getloginterupdowntimesperintent(ibnf::IBNFramework, intentuuid::UUID)
     intentcomp = getintcompalg(ibnf)
     intentinterupdowntimes = UpDownTimesNDatetime{IntentState.T}[]
     for dictuuidupdowndatetime in values(getloginterupdowntimes(intentcomp))
-        for (intuuid, updownndatetime) in dictuuidupdowndatetime
+        for (intuuid, condata) in dictuuidupdowndatetime
+	    updownndatetime = getupdowntimesndatetime(condata)
             if intuuid == intentuuid
                 push!(intentinterupdowntimes, updownndatetime)
             end

@@ -175,7 +175,7 @@ function estimatecrossconnectionavailability(ibnf::IBNFrameworkBEA, ged::GlobalE
     loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]
-        updowntimesndatetimes = values(updowntimesndatetimedict)
+	updowntimesndatetimes = getupdowntimesndatetime.(values(updowntimesndatetimedict))
         externalintentavails = [calculateavailability(updowntimesndatetime) for updowntimesndatetime in updowntimesndatetimes]
         weights = [sum(getuptimes(updowntimesndatetime)) + sum(getdowntimes(updowntimesndatetime)) for updowntimesndatetime in updowntimesndatetimes]
         fa = findall(isnan, externalintentavails)
@@ -207,49 +207,7 @@ For example, now talking availability requirements and compliance targets,
 
 """
 function chooseintrasplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability::DiscreteNonParametric, secondhalfavailability::DiscreteNonParametric, beacomp::BestEmpiricalAvailabilityCompilation)
-    availabilityrequirement = getavailabilityrequirement(avcon)
-    compliancetarget = getcompliancetarget(avcon)
-
-    sqrtcompliancetarget = sqrt(compliancetarget)
-    sqrtavailabilityrequirement = sqrt(availabilityrequirement)
-
-    firsthalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
-    secondhalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
-
-    combinationfound = false
-    # begin from 100 % compliance target
-    for firstct in 1:-0.01:compliancetarget
-        setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
-        firstavailabilityrequirement = quantile(firsthalfavailability, 1 - firstct)
-        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
-
-        secondcompliancetargetlimit = compliancetarget / firstct
-        for secondct in 1:-0.01:secondcompliancetargetlimit
-            # TODO : don't ask more than avcon ?
-            setcompliancetarget!(secondhalfmutavailabilityconstraint, secondct)
-            secondavailabilityrequirement = quantile(secondhalfavailability, 1 - secondct)
-            setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
-
-            if firstavailabilityrequirement * secondavailabilityrequirement >= availabilityrequirement
-                combinationfound = true
-                break
-            end
-        end
-        combinationfound && break
-    end
-
-    # Take leap of fath for external domain if current estimations are not enough (explore) by giving half compliance and availability for each domain
-    if !combinationfound
-        setcompliancetarget!(firsthalfmutavailabilityconstraint, sqrtcompliancetarget)
-        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, sqrtavailabilityrequirement)
-
-        setcompliancetarget!(secondhalfmutavailabilityconstraint, sqrtcompliancetarget)
-        setavailabilityrequirement!(secondhalfmutavailabilityconstraint, sqrtavailabilityrequirement)
-    end
-
-    firsthalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(firsthalfmutavailabilityconstraint), getcompliancetarget(firsthalfmutavailabilityconstraint)) 
-    secondhalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(secondhalfmutavailabilityconstraint), getcompliancetarget(secondhalfmutavailabilityconstraint)) 
-    return firsthalfavailabilityconstraint, secondhalfavailabilityconstraint
+    return chooseintrasplitavailabilities_defaultstochastic(avcon, firsthalfavailability, secondhalfavailability, beacomp)
 end
 
 """
@@ -306,13 +264,7 @@ Must always return a AvailabilityConstraint
 Assumes equal compliance target split
 """
 function calcsecondhalfavailabilityconstraint(ibnf::IBNFrameworkBEA, firsthalfavailability::DiscreteNonParametric, masteravconstr::AvailabilityConstraint)
-    mastercompliancetarget = getcompliancetarget(masteravconstr)
-    sqrtcompliancetarget = sqrt(mastercompliancetarget)
-    firstavailabilityrequirement = quantile(firsthalfavailability, 1 - sqrtcompliancetarget)
-
-    secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firstavailabilityrequirement
-    secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement
-    return AvailabilityConstraint(secondavailabilityrequirementfinal, sqrtcompliancetarget)
+    return calcsecondhalfavailabilityconstraint_defaultstochastic(ibnf, firsthalfavailability, masteravconstr)
 end
 
 # TODO : my prioritizesplit

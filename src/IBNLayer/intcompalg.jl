@@ -61,6 +61,20 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getcachedpaths(ibnf::IBNFramework, globaledge::GlobalEdge)
+    cachedresults = getcachedresults(getintcompalg(ibnf))
+    srcglobalnode = src(globaledge)
+    srclocalnode = getlocalnode(getibnag(ibnf), srcglobalnode)
+    dstglobalnode = dst(globaledge)
+    dstlocalnode = getlocalnode(getibnag(ibnf), dstglobalnode)
+    localedge = Edge(srclocalnode, dstlocalnode)
+    paths = cachedresults.yenpathsdict[localedge]
+    return paths
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getcandidatepathsnum(intcompalg::IntentCompilationAlgorithm)
     return intcompalg.candidatepathsnum
 end
@@ -82,7 +96,21 @@ end
 "Compilation algorithm with some memory"
 abstract type IntentCompilationAlgorithmWithMemory <: IntentCompilationAlgorithm end
 
-const CrossConnections = Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime{IntentState.T}}}
+# TODO : tomorrow add AvailabilityConstraint and network operator UUID
+struct ConnectionData
+    availabilityconstraint::Union{Nothing,AvailabilityConstraint}
+    updowntimesndatetime::UpDownTimesNDatetime{IntentState.T}
+end
+
+function getavailabilityconstraint(cd::ConnectionData)
+    return cd.availabilityconstraint
+
+end
+function getupdowntimesndatetime(cd::ConnectionData)
+    return cd.updowntimesndatetime
+end
+
+const CrossConnections = Dict{GlobalEdge, Dict{UUID, ConnectionData}}
 
 struct CrossConnectionID 
     globaledge::GlobalEdge
@@ -159,8 +187,13 @@ function getintentuuid(ccid::CrossConnectionID)
     return ccid.intentuuid
 end
 
+function getconnection(ibnf::IBNFramework, ccid::CrossConnectionID)
+    cc = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)))
+    getupdowntimesndatetime(cc[getglobaledge(ccid)][getintentuuid(ccid)])
+end
+
 function getconnection(cc::CrossConnections, ccid::CrossConnectionID)
-    cc[getglobaledge(ccid)][getintentuuid(ccid)]
+    getupdowntimesndatetime(cc[getglobaledge(ccid)][getintentuuid(ccid)])
 end
 
 function getallconnectionpairs(ibnf::IBNFramework; crossdomainibnfid=nothing)
@@ -172,7 +205,8 @@ function getallconnectionpairs(ibnf::IBNFramework; crossdomainibnfid=nothing)
                 continue
             end
         end
-        for (intentuuid, updtimes) in dic
+        for (intentuuid, condata) in dic
+	    updtimes = getupdowntimesndatetime(condata)
             push!(allcrossconnectionswithconnectionid, stringify(CrossConnectionID(ge,intentuuid)) => updtimes)
         end
     end
@@ -181,7 +215,7 @@ end
 
 function getallcrossconnectionids(ibnf::IBNFramework)
     loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    return [CrossConnectionID(ge,intentuuid) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
+    return [CrossConnectionID(ge,intentuuid) for (ge,dic) in loginterupdowntimes for (intentuuid, _) in dic];
 end
 
 function getallcrossconnectionidsstr(ibnf::IBNFramework; crossdomainibnfid=nothing)
@@ -193,19 +227,14 @@ function getallcrossconnectionidsstr(ibnf::IBNFramework; crossdomainibnfid=nothi
                 continue
             end
         end
-        for (intentuuid, updtimes) in dic
+        for (intentuuid, _) in dic
             push!(retval, stringify(CrossConnectionID(ge,intentuuid)))
         end
     end
     return retval
-    #
-    # loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    # return [stringify(CrossConnectionID(ge,intentuuid)) for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic];
 end
 
 function getallconnectionsdict(ibnf::IBNFramework; crossdomainibnfid=nothing)
-    # loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
-    # allcrossconnectionswithconnectioniddict = Dict(stringify(CrossConnectionID(ge,intentuuid)) => updtimes for (ge,dic) in loginterupdowntimes for (intentuuid, updtimes) in dic)
     allconnectionpairs = getallconnectionpairs(ibnf; crossdomainibnfid)
     allconnectiondict = Dict(k => v for (k,v) in allconnectionpairs)
     return allconnectiondict
@@ -237,7 +266,7 @@ mutable struct BasicAlgorithmMemory
 end
 
 function BasicAlgorithmMemory()
-    return BasicAlgorithmMemory(now(), Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}(), Dict{GlobalEdge, Dict{UUID, UpDownTimesNDatetime{IntentState.T}}}())
+    return BasicAlgorithmMemory(now(), Dict{Edge{LocalNode}, Dict{Vector{Vector{LocalNode}}, Int}}(), CrossConnections())
 end
 
 const IBNFrameworkIntentAlgorithmWithMemory = IBNFramework{A,B,C,D,R} where {A,B,C,D,R<:IntentCompilationAlgorithmWithMemory}
@@ -356,6 +385,7 @@ function _rec_logintrapathsandinterintents!(ibnf::IBNFrameworkIntentAlgorithmWit
         conintent = getintent(intent)
         sourcenode = getsourcenode(conintent)
         destinationnode = getdestinationnode(conintent)
+	avcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(conintent))
         logstates = getlogstate(idagnode)
         updowntimesndatetime = getupdowntimes(logstates, getdatetime(getbasicalgmem(intentcomp)))
         if getcurrentstate(getlogstate(getidagnode(getidag(ibnf), getidagnodeid(idagnode)))) == IntentState.Installed
@@ -367,9 +397,9 @@ function _rec_logintrapathsandinterintents!(ibnf::IBNFrameworkIntentAlgorithmWit
         globaledge = GlobalEdge(sourcenode, destinationnode) 
         loginterupdowntimes = getloginterupdowntimes(intentcomp)
         if haskey(loginterupdowntimes, globaledge)
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = updowntimesndatetime
+	    getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)][getidagnodeid(idagnode)] = ConnectionData(avcon, updowntimesndatetime)
         else
-            getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, UpDownTimesNDatetime{IntentState.T}}(getidagnodeid(idagnode) => updowntimesndatetime)
+	    getloginterupdowntimes(intentcomp)[GlobalEdge(sourcenode, destinationnode)] = Dict{UUID, ConnectionData}(getidagnodeid(idagnode) => ConnectionData(avcon, updowntimesndatetime))
         end
         continuedown = false
     end
@@ -389,7 +419,8 @@ $(TYPEDSIGNATURES)
     setdatetime!(getbasicalgmem(intentcomp), @logtime)
     currentdatetime = getdatetime(getbasicalgmem(intentcomp))
     for dictuuidupdowndatetime in values(getloginterupdowntimes(intentcomp))
-        for (intentuuid, updownndatetime) in dictuuidupdowndatetime
+        for (intentuuid, connectiondata) in dictuuidupdowndatetime
+	    updownndatetime = getupdowntimesndatetime(connectiondata)
             if intentuuid in idagnodeids
                 if currentdatetime > getdatetime(updownndatetime)
                     logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))

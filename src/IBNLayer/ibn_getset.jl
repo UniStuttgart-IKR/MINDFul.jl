@@ -55,8 +55,31 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getibnfhandlerremoteids(s::IBNFramework)
+    return getibnfid.(getibnfcomm(s).ibnfhandlers)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getibnfhandler(s::IBNFramework, uuid::UUID)
     return something(getfirst(ibnh -> uuid == getibnfid(ibnh), getibnfhandlers(s)))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the handler of tyhe uuid of both global nodes from global edge.
+If these do not agree, return nothing
+"""
+function getibnfhandler(s::IBNFramework, globaledge::GlobalEdge)
+    srcglobalnodeibnfid = getibnfid(src(globaledge))
+    dstglobalnodeibnfid = getibnfid(dst(globaledge))
+    if srcglobalnodeibnfid == dstglobalnodeibnfid
+	return getibnfhandler(s, srcglobalnodeibnfid)
+    else
+	return nothing
+    end
 end
 
 """

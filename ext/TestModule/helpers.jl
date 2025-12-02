@@ -403,7 +403,8 @@ end
 function testinstalledlightpathsupdowntimespositive(ibnf::IBNFramework)
     for loginterupddowntimesdict in MINDF.getloginterupdowntimes(MINDF.getintcompalg(ibnf))
         dictuuidupdowntime = loginterupddowntimesdict[2]
-        for (intentuuid, updowntimes) in dictuuidupdowntime
+        for (intentuuid, condata) in dictuuidupdowntime
+	    updowntimes = MINDF.getupdowntimesndatetime(condata)
             if any(x -> x < zero(x), MINDF.getuptimes(updowntimes))
                 @warn "uptimes of $(intentuuid) at $(globaledge) contains negative values"
                 return false

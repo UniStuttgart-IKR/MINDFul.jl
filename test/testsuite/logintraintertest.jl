@@ -44,7 +44,7 @@ remidagnode2 = getfirst(x -> getintent(x) isa RemoteIntent{<:ConnectivityIntent}
 
 @test MINDF.getlogintrapaths(getbasicalgmem(getintcompalg(ibnfs[1])))[Edge(4,29)][[MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid2))]] == 1
 @test length(MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))) == 1
-updowntimesndatetime2 = MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode2)]
+updowntimesndatetime2 = MINDF.getupdowntimesndatetime(MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode2)])
 
 @test sum(MINDF.getuptimes(updowntimesndatetime2)) < Dates.Second(5)
 @test sum(MINDF.getdowntimes(updowntimesndatetime2)) < Dates.Second(5)
@@ -145,6 +145,6 @@ nowtime = MINDF.getlateststateloggeddatetime(MINDF.getidagnode(MINDF.getidag(ibn
 
 @test length(MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))]) == 2
 remidagnode3 = getfirst(x -> getintent(x) isa RemoteIntent{<:ConnectivityIntent}, MINDF.getidagnodedescendants(MINDF.getidag(ibnfs[1]), intentuuid3))
-updowntimesndatetime3 = MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode3)]
+    updowntimesndatetime3 = MINDF.getupdowntimesndatetime(MINDF.getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnfs[1])))[GlobalEdge(GlobalNode(UUID(0x3), 25), GlobalNode(UUID(0x3), 12))][getidagnodeid(remidagnode3)])
 
 end

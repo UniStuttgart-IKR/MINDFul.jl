@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "singledomainavailabilityprotection.jl"  begin
+# @testset ExtendedTestSet "singledomainavailabilityprotection.jl"  begin
 
 nowtime = DateTime("2026-01-01")
 starttime = nowtime
@@ -137,5 +137,18 @@ intentuuid2, nowtime = addintent!(ibnfs[1], conintent2, NetworkOperator(); offse
 returncode, nowtime = compileintent!(ibnfs[1], intentuuid2; offsettime = nowtime)
 @test returncode == ReturnCodes.FAIL_CANDIDATEPATHS
 
+# fail for an instance to see logs
+nowtime += Dates.Year(3)
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), true; offsettime=nowtime)
+@test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
+logstate1 = MINDF.getlogstate(MINDF.getidagnode(MINDF.getidag(ibnfs[1]), intentuuid1))
 
-end
+lsuntilnow = length(logstate1)
+nowtime += Dates.Month(3)
+# one fail but should immediately switch to protection
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(3, 14), false; offsettime=nowtime)
+@test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
+newlogstates = logstate1[lsuntilnow:end]
+
+
+# end

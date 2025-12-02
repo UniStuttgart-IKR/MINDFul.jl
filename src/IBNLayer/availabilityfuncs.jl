@@ -34,14 +34,14 @@ Installed -> Failed --> Installed --> Failed --> Compiled
 or
 Installed -> Failed --> Installed --> Failed --> Installed --> Compiled
 """
-function getupdowntimes(logstates::Vector{Tuple{R,T}}, endtime=nothing) where {R,T}
+function getupdowntimes(logstates::Vector{Tuple{R,T}}, endtime=nothing, distance = KMf(0.)) where {R,T}
     uptimes = Vector{Dates.Millisecond}()
     downtimes = empty(uptimes)
     lssimple = empty(logstates)
 
     datetime2start = logstates[1][1] - Dates.Hour(1)
 
-    uddts = UpDownTimesNDatetime(uptimes, downtimes, lssimple, datetime2start, KMf(0.))
+    uddts = UpDownTimesNDatetime(uptimes, downtimes, lssimple, datetime2start, distance)
     updateupdowntimes!(uddts, logstates, endtime)
 
     return uddts
@@ -139,7 +139,9 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
         previousstate = logstates[prsti][2]
         previoustime = logstates[prsti][1]
         requirenewblock = previoustime == getdatetime(updowntimesndatetime)
-        dt = endtime - getdatetime(updowntimesndatetime)
+	# take newer
+	previoustimefinal = logstates[prsti][1] > getdatetime(updowntimesndatetime) ? logstates[prsti][1] : getdatetime(updowntimesndatetime)
+        dt = endtime - previoustimefinal
         @assert dt >= zero(dt)
         if dt > zero(dt)
             if previousstate == gettruesingleton(T)

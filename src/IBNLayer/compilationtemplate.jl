@@ -1319,3 +1319,81 @@ $(TYPEDSIGNATURES)
 @recvtime function updatelogintentcomp!(ibnf::IBNFramework{A,B,C,D,E}) where {A,B,C,D,E}
     return nothing
 end
+
+### Default stochastic
+# Methods used for stochastic methods
+
+"""
+$(TYPEDSIGNATURES)
+
+Implements [`chooseintrasplitavailabilities`](@ref).
+
+`quantile(::DiscreteNonParametric, q)` gives smallest value `x` such that `cdf(::DiscreteNonParatetric, x) >= q`
+This means that there is `x` is the biggest value for `q`% of `::DiscreteNonParametric`.
+For example, `q=0.95` means that `x` will be bigger than 95% of the support of `::DiscreteNonParametric`.
+`cquantile` is exactly the opposite implying that it would be smaller than 95% of the support.
+For example, now talking availability requirements and compliance targets,  
+
+"""
+function chooseintrasplitavailabilities_defaultstochastic(avcon::AvailabilityConstraint, firsthalfavailability, secondhalfavailability, intcomp::IntentCompilationAlgorithm)
+    availabilityrequirement = getavailabilityrequirement(avcon)
+    compliancetarget = getcompliancetarget(avcon)
+
+    sqrtcompliancetarget = sqrt(compliancetarget)
+    sqrtavailabilityrequirement = sqrt(availabilityrequirement)
+
+    firsthalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
+    secondhalfmutavailabilityconstraint = MutableAvailabilityConstraint(0.0, 0.0) 
+
+    combinationfound = false
+    # begin from 100 % compliance target
+    for firstct in 1:-0.01:compliancetarget
+        setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
+        firstavailabilityrequirement = quantile(firsthalfavailability, 1 - firstct)
+        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
+
+        secondcompliancetargetlimit = compliancetarget / firstct
+        for secondct in 1:-0.01:secondcompliancetargetlimit
+            # TODO : don't ask more than avcon ?
+            setcompliancetarget!(secondhalfmutavailabilityconstraint, secondct)
+            secondavailabilityrequirement = quantile(secondhalfavailability, 1 - secondct)
+            setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
+
+            if firstavailabilityrequirement * secondavailabilityrequirement >= availabilityrequirement
+                combinationfound = true
+                break
+            end
+        end
+        combinationfound && break
+    end
+
+    # Take leap of fath for external domain if current estimations are not enough (explore) by giving half compliance and availability for each domain
+    if !combinationfound
+        setcompliancetarget!(firsthalfmutavailabilityconstraint, sqrtcompliancetarget)
+        setavailabilityrequirement!(firsthalfmutavailabilityconstraint, sqrtavailabilityrequirement)
+
+        setcompliancetarget!(secondhalfmutavailabilityconstraint, sqrtcompliancetarget)
+        setavailabilityrequirement!(secondhalfmutavailabilityconstraint, sqrtavailabilityrequirement)
+    end
+
+    firsthalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(firsthalfmutavailabilityconstraint), getcompliancetarget(firsthalfmutavailabilityconstraint)) 
+    secondhalfavailabilityconstraint = AvailabilityConstraint(getavailabilityrequirement(secondhalfmutavailabilityconstraint), getcompliancetarget(secondhalfmutavailabilityconstraint)) 
+    return firsthalfavailabilityconstraint, secondhalfavailabilityconstraint
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Implements [`calcsecondhalfavailabilityconstraint`](@ref)
+
+Assumes equal compliance target split
+"""
+function calcsecondhalfavailabilityconstraint_defaultstochastic(ibnf::IBNFramework, firsthalfavailability, masteravconstr::AvailabilityConstraint)
+    mastercompliancetarget = getcompliancetarget(masteravconstr)
+    sqrtcompliancetarget = sqrt(mastercompliancetarget)
+    firstavailabilityrequirement = quantile(firsthalfavailability, 1 - sqrtcompliancetarget)
+
+    secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firstavailabilityrequirement
+    secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement
+    return AvailabilityConstraint(secondavailabilityrequirementfinal, sqrtcompliancetarget)
+end
