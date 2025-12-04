@@ -616,6 +616,32 @@ $(TYPEDSIGNATURES)
 
 Get the roots of DAG `dag` starting from node `idn`.
 """
+function getidagnoderootsnum(idag::IntentDAG, idagnodeid::UUID)
+    idnsids = UUID[]
+    for paridn in getidagnodeparents(idag, idagnodeid)
+        _parents_recunum!(idnsids, idag, paridn)
+    end
+    isempty(idnsids) && push!(idnsids, idagnodeid)
+    return length(idnsids)
+end
+
+function _parents_recunum!(idnsids::Vector{UUID}, dag::IntentDAG, idn::IntentDAGNode)
+    idnid = getidagnodeid(idn)
+    if hasidagnodeparents(dag, idn)
+        for paridn in getidagnodeparents(dag, idn)
+            _parents_recunum!(idnsids, dag, paridn)
+        end
+    else
+	any(x -> x == idnid, idnsids) || push!(idnsids, idnid)
+    end
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES) 
+
+Get the roots of DAG `dag` starting from node `idn`.
+"""
 function getidagnoderoots(idag::IntentDAG, idagnodeid::UUID)
     idns = IntentDAGNode[]
     for paridn in getidagnodeparents(idag, idagnodeid)

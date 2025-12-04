@@ -192,3 +192,15 @@ $(TYPEDSIGNATURES)
 function getdatetime(rct::ReturnUUIDTime)
     rct.datetime
 end
+
+mutable struct MutableStruct{T}
+    value::T
+end
+
+function setvalue!(ms::MutableStruct, v)
+    ms.value = v
+end
+
+function getvalue(ms::MutableStruct)
+    return ms.value
+end

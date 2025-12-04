@@ -196,6 +196,23 @@ function getconnection(cc::CrossConnections, ccid::CrossConnectionID)
     getupdowntimesndatetime(cc[getglobaledge(ccid)][getintentuuid(ccid)])
 end
 
+function getallconnectionpairs_geavcon(ibnf::IBNFramework; crossdomainibnfid=nothing)
+    loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
+    geavconpairs = Vector{Pair{GlobalEdge, AvailabilityConstraint}}()
+    for (ge,dic) in loginterupdowntimes 
+        if !isnothing(crossdomainibnfid)
+            if getibnfid(src(ge)) != crossdomainibnfid || getibnfid(dst(ge)) != crossdomainibnfid
+                continue
+            end
+        end
+        for (_, condata) in dic
+	    avcon = getavailabilityconstraint(condata)
+            push!(geavconpairs, ge => avcon)
+        end
+    end
+    return geavconpairs
+end
+
 function getallconnectionpairs(ibnf::IBNFramework; crossdomainibnfid=nothing)
     loginterupdowntimes = getloginterupdowntimes(getbasicalgmem(getintcompalg(ibnf)));
     allcrossconnectionswithconnectionid = Vector{Pair{String, UpDownTimesNDatetime{IntentState.T}}}()

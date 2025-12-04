@@ -371,6 +371,18 @@ struct AvailabilityConstraint <: AbstractIntentConstraint
     end
 end
 
+function multavs(avcon1::AvailabilityConstraint, avcon2::AvailabilityConstraint)
+    return AvailabilityConstraint(avcon1.availabilityrequirement * avcon2.availabilityrequirement, avcon1.compliancetarget, avcon2.compliancetarget)
+end
+
+function multavs(avcon1::AvailabilityConstraint, ::Nothing)
+    return avcon1
+end
+
+function multavs(::Nothing, avcon2::AvailabilityConstraint)
+    return avcon2
+end
+
 mutable struct MutableAvailabilityConstraint <: AbstractIntentConstraint
     availabilityrequirement::Float64
     compliancetarget::Float64

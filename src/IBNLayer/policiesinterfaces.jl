@@ -15,6 +15,22 @@ function updateestimations!(ibnf::IBNFramework, currenttime::DateTime)
     return nothing
 end
 
+function multavs(av1, av2)
+    return av1 * av2
+end
+
+function multavs(av1::AbstractVector, av2::AbstractVector)
+    return av1 .* av2
+end
+
+function multavs(av1::AbstractVector, av2::Number)
+    return av1 .* av2
+end
+
+function initializeestimateavailability(ibnf::IBNFramework)
+    return 1.0
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -23,25 +39,29 @@ It's used to reestimate the intent availability after the first split is done.
 The intent is usually an internal intent.
 """
 function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
-    estimatedavailability = 1.
+    # TODO : perf maybe make mutable to save on allocations with doing multiavs! ?
+    estimatedavailability = initializeestimateavailability(ibnf)
     remintent = nothing
     for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
         if avawareintent isa LightpathIntent
             path = getpath(avawareintent)
-            estimatedavailability *= estimatepathavailability(ibnf, path)
+	    newestim = estimatepathavailability(ibnf, path)
+	    estimatedavailability = multavs(estimatedavailability, newestim)
         elseif avawareintent isa ProtectedLightpathIntent
             prpath = getprpath(avawareintent)
-            estimatedavailability *= estimateprpathavailability(ibnf, prpath)
+	    newestim = estimateprpathavailability(ibnf, prpath)
+	    estimatedavailability = multavs(estimatedavailability, newestim)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
             remintent = getintent(avawareintent)
             if requested
-                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
+                avreq = getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
+		estimatedavailability = multavs(estimatedavailability, avreq)
             else
                 srcglobalnode = getsourcenode(remintent)
                 dstglobalnode = getdestinationnode(remintent)
                 globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
                 estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge)
-                estimatedavailability *= estimatedcrosssav
+		estimatedavailability = multavs(estimatedavailability, estimatedcrosssav)
             end
         end
     end

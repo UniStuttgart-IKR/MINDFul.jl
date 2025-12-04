@@ -220,41 +220,62 @@ end
 # --------------------------- Estimating availability ------------------------------
 # Estimation is a DiscreteNonParametric
 
+function initializeestimateavailability(ibnf::IBNFrameworkBEA)
+    return DiscreteNonParametric([1.0], [1.0])
+end
+
+function multavs(av1::DiscreteNonParametric, av2::DiscreteNonParametric)
+    newsupport = [s1 * s2 for s1 in av1.support for s2 in av2.support]
+    newps = [p1 * p2 for p1 in av1.p for p2 in av2.p]
+    return uniquesupportweightsDiscreteNonParametric(newsupport, newps)
+end
+
+function multavs(av1::DiscreteNonParametric, av::Float64)
+    newsupport = av1.support .* av
+    return uniquesupportweightsDiscreteNonParametric(newsupport, av1.p)
+end
+
 function estimatepathavailability(ibnf::IBNFrameworkBEA, path::Vector{LocalNode})
-    return getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
+    empav = getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
+    dnp = DiscreteNonParametric([empav], [1.0])
+    return dnp
 end
 
 function estimateprpathavailability(ibnf::IBNFrameworkBEA, prpath::Vector{Vector{LocalNode}})
-    return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
+    empav = getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
+    dnp = DiscreteNonParametric([empav], [1.0])
+    return dnp
 end
 
-function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
-    estimatedavailability = 1.
-    for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
-        if avawareintent isa LightpathIntent
-            path = getpath(avawareintent)
-            estimatedavailability *= estimatepathavailability(ibnf, path)
-        elseif avawareintent isa ProtectedLightpathIntent
-            prpath = getprpath(avawareintent)
-            estimatedavailability *= estimateprpathavailability(ibnf, prpath)
-        elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
-            remintent = getintent(avawareintent)
-            if requested
-                estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
-                return DiscreteNonParametric([estimatedavailability], [1.])
-            else
-                srcglobalnode = getsourcenode(remintent)
-                dstglobalnode = getdestinationnode(remintent)
-                globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-                dnp = estimatecrossconnectionavailability(ibnf, globaledge)
-                newsupport = dnp.support .* estimatedavailability
-                return DiscreteNonParametric(newsupport, dnp.p)
-            end
-        end
-    end
-
-    return DiscreteNonParametric([estimatedavailability], [1.])
-end
+# upsteamed in policiesinterface
+# function estimateintentavailability(ibnf::IBNFrameworkBEA, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
+#     estimatedavailability = 1.
+#     for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
+#         if avawareintent isa LightpathIntent
+#             path = getpath(avawareintent)
+#             estimatedavailability *= estimatepathavailability(ibnf, path)
+#         elseif avawareintent isa ProtectedLightpathIntent
+#             prpath = getprpath(avawareintent)
+#             estimatedavailability *= estimateprpathavailability(ibnf, prpath)
+#         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
+#             remintent = getintent(avawareintent)
+# 	    # TODO : now returns are faulty : what if RemoteIntent is selected first in the for loop ?
+#             if requested
+#                 estimatedavailability *= getavailabilityrequirement(something(getfirst(x -> x isa AvailabilityConstraint, getconstraints(remintent))))
+#                 return DiscreteNonParametric([estimatedavailability], [1.])
+#             else
+#                 srcglobalnode = getsourcenode(remintent)
+#                 dstglobalnode = getdestinationnode(remintent)
+#                 globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
+#                 dnp = estimatecrossconnectionavailability(ibnf, globaledge)
+#                 newsupport = dnp.support .* estimatedavailability
+#                 return DiscreteNonParametric(newsupport, dnp.p)
+#             end
+#         end
+#     end
+#
+#     return DiscreteNonParametric([estimatedavailability], [1.])
+# end
 
 """
 $(TYPEDSIGNATURES)
