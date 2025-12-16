@@ -1347,13 +1347,13 @@ function chooseintrasplitavailabilities_defaultstochastic(avcon::AvailabilityCon
 
     combinationfound = false
     # begin from 100 % compliance target
-    for firstct in 1:-0.01:compliancetarget
+    for firstct in 1.0:-0.01:compliancetarget
         setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
         firstavailabilityrequirement = quantile(firsthalfavailability, 1 - firstct)
         setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
 
-        secondcompliancetargetlimit = compliancetarget / firstct
-        for secondct in 1:-0.01:secondcompliancetargetlimit
+	secondcompliancetargetlimit = iszero(compliancetarget) && iszero(firstct) ? 0.0 : compliancetarget / firstct
+        for secondct in 1.0:-0.01:secondcompliancetargetlimit
             # TODO : don't ask more than avcon ?
             setcompliancetarget!(secondhalfmutavailabilityconstraint, secondct)
             secondavailabilityrequirement = quantile(secondhalfavailability, 1 - secondct)
