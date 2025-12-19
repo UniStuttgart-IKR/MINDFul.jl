@@ -153,3 +153,17 @@ $(TYPEDSIGNATURES)
 function choosecrosssplitavailabilities(avcon::AvailabilityConstraint, firsthalfavailability, secondhalfavailability, intentcomp::IntentCompilationAlgorithm)
     return chooseintrasplitavailabilities(avcon, firsthalfavailability, secondhalfavailability, intentcomp)
 end
+
+function getavailabilityatcompliancetarget(availabilityestimation::Float64, compliancetarget::Float64)
+    return availabilityestimation
+end
+
+function getavailabilityatcompliancetarget(availabilityestimation::AbstractVector, compliancetarget::Float64)
+    quantl = quantile(availabilityestimation, 1. - compliancetarget)
+    return quantl
+end
+
+function getavailabilityatcompliancetarget(availabilityestimation::Distribution, compliancetarget::Float64)
+    quantl = quantile(availabilityestimation, 1. - compliancetarget)
+    return quantl
+end

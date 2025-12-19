@@ -1101,6 +1101,11 @@ function getopticalinitiateconstraint(ibnf::IBNFramework, idagnodeidparent::UUID
     end
 end
 
+function ismultidomainintent(connectivityintent::ConnectivityIntent)
+    sourceglobalnode = getsourcenode(connectivityintent)
+    destinationglobalnode = getdestinationnode(connectivityintent)
+    return getibnfid(sourceglobalnode) !== getibnfid(destinationglobalnode)
+end
 
 """
 $(TYPEDSIGNATURES)

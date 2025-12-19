@@ -1026,27 +1026,6 @@ chooseoxcadddropport(
     return ReturnCodes.SUCCESS
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function prioritizepaths_shortest(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent})
-    ibnag = getibnag(ibnf)
-    sourcelocalnode = getlocalnode(ibnag, getsourcenode(getintent(idagnode)))
-    destlocalnode = getlocalnode(ibnag, getdestinationnode(getintent(idagnode)))
-
-    intentcomp = getintcompalg(ibnf)
-    yenstatepaths = getyenpathsdict(getcachedresults(intentcomp))[Edge(sourcelocalnode, destlocalnode)]
-
-    operatingpaths = filter(yenstatepaths) do path
-        all(edgeify(path)) do ed
-            getcurrentlinkstate(ibnf, ed; checkfirst = true)
-        end
-    end
-
-    # TODO : perf unneeded allocations
-    return [[opel] for opel in operatingpaths]
-end
-
 "Don't do grooming"
 function prioritizegrooming_none(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent})
     groomingpossibilities = Vector{Vector{Union{UUID, Edge{Int}}}}()
@@ -1396,4 +1375,107 @@ function calcsecondhalfavailabilityconstraint_defaultstochastic(ibnf::IBNFramewo
     secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firstavailabilityrequirement
     secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement
     return AvailabilityConstraint(secondavailabilityrequirementfinal, sqrtcompliancetarget)
+end
+"""
+$(TYPEDSIGNATURES)
+"""
+function prioritizepaths_shortest(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent})
+    ibnag = getibnag(ibnf)
+    sourcelocalnode = getlocalnode(ibnag, getsourcenode(getintent(idagnode)))
+    destlocalnode = getlocalnode(ibnag, getdestinationnode(getintent(idagnode)))
+
+    intentcomp = getintcompalg(ibnf)
+    yenstatepaths = getyenpathsdict(getcachedresults(intentcomp))[Edge(sourcelocalnode, destlocalnode)]
+
+    operatingpaths = filter(yenstatepaths) do path
+        all(edgeify(path)) do ed
+            getcurrentlinkstate(ibnf, ed; checkfirst = true)
+        end
+    end
+
+    # TODO : perf unneeded allocations
+    return [[opel] for opel in operatingpaths]
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return a `Vector{Vector{Int}}` vector of vector of paths.
+Each element in the outer vector is a combination of paths to be used for protection.
+The first path is supposed to be the one deployed and all other are the protection.
+Constrained to return protection only up to 2 paths
+"""
+function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::IntentDAGNode{<:ConnectivityIntent})
+    priorityprotectionpaths = Vector{Vector{Vector{LocalNode}}}()
+
+    ibnag = getibnag(ibnf)
+    sourcelocalnode = getlocalnode(ibnag, getsourcenode(getintent(idagnode)))
+    destlocalnode = getlocalnode(ibnag, getdestinationnode(getintent(idagnode)))
+
+    intentcomp = getintcompalg(ibnf)
+
+    yenstatepaths = getyenpathsdict(getcachedresults(intentcomp))[Edge(sourcelocalnode, destlocalnode)]
+
+    operatingpaths = filter(yenstatepaths) do path
+        all(edgeify(path)) do ed
+            getcurrentlinkstate(ibnf, ed; checkfirst = true)
+        end
+    end
+
+    availabilityconstraint = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idagnode)))
+    isnothing(availabilityconstraint) && return [[opel] for opel in operatingpaths]
+
+    availabilityrequirement = getavailabilityrequirement(availabilityconstraint)
+    compliancetarget = getcompliancetarget(availabilityconstraint)
+
+    pathempavail = Float64[]
+    for op in operatingpaths
+	estimatedpathavail = estimatepathavailability(ibnf, op)
+
+	quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
+        if quantl >= availabilityrequirement
+            push!(priorityprotectionpaths, [op])
+            push!(pathempavail, quantl)
+        end
+    end
+
+    upperindex = getpathsforprotectionnum(intentcomp) > length(yenstatepaths) ? length(yenstatepaths) : getpathsforprotectionnum(intentcomp)
+    kprotectedpaths = yenstatepaths[1:upperindex]
+    for i1 in eachindex(kprotectedpaths)
+        path1 = yenstatepaths[i1]
+        edges1 = edgeify(path1)
+        any(ed -> !getcurrentlinkstate(ibnf, ed), edges1) && continue
+        for i2 in i1+1:length(kprotectedpaths)
+            path2 = yenstatepaths[i2]
+            edges2 = edgeify(path2)
+            any(ed -> !getcurrentlinkstate(ibnf, ed), edges2) && continue
+            if !any(x -> x isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
+		# TODO : looks like no ! is needed before ?
+                # protection with optical terminate requires that last link is the same (such that the protected paths terminate similarly)
+                if path1[end-1] == path2[end-1] && path1[end] == path2[end]
+		    estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2])
+		    quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
+                    if quantl >= availabilityrequirement
+                        push!(priorityprotectionpaths, [path1, path2])
+                        push!(pathempavail, quantl)
+                    end
+                end
+            else
+		estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2])
+		quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
+                if quantl >= availabilityrequirement
+                    push!(priorityprotectionpaths, [path1, path2])
+                    push!(pathempavail, quantl)
+                end
+            end
+        end
+    end
+
+    # pick best availability match
+    # TODO : perf: a lot of copies
+    sp = sortperm(pathempavail; rev=true)
+
+    # prioritize based on highest availability
+    @assert length(pathempavail) == length(priorityprotectionpaths)
+    return priorityprotectionpaths[sp]
 end
