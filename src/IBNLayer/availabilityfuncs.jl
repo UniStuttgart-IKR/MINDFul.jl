@@ -240,6 +240,15 @@ end
 
 """
 $(TYPEDSIGNATURES)
+"""
+function getintervalavailability(ibnf::IBNFramework, intentuuid::UUID, endtime=nothing)
+    logstates = getlogstate(getidagnode(getidag(ibnf), intentuuid))
+    updowntimes = getupdowntimes(logstates, endtime)
+    return calculateavailability(updowntimes)
+end
+
+"""
+$(TYPEDSIGNATURES)
 
 Return the up and downtimes for the specific link
 """

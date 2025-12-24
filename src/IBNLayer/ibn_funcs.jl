@@ -1575,3 +1575,20 @@ function pingdistanceconnectivityintent(ibnf::IBNFramework, startintentuuid::UUI
     end
     return nothing
 end
+
+function getmaximumrouterportnumber(ibnf::IBNFramework)
+    routerports = 0
+    for nv in getnodeviews(getibnag(ibnf))
+	isnodeviewinternal(nv) || continue
+	routerports += getportnumber(getrouterview(nv))
+    end
+    routerports
+end
+
+function getmaximumspectrumslotsnumber(ibnf::IBNFramework)
+    spectrumslots = 0
+    for ed in edges(getibnag(ibnf))
+	spectrumslots += length(getfiberspectrumavailabilities(ibnf, ed))
+    end
+    spectrumslots
+end
