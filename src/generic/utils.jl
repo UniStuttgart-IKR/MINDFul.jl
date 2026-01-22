@@ -419,3 +419,38 @@ function uniquesupportweightsDiscreteNonParametric(support::AbstractVector, weig
 
     return DiscreteNonParametric(uniquesupport, ps)
 end
+
+"""
+Take the mean of the elements inside the HVI
+$(SIGNATURES)
+"""
+function hvimean(x::Vector{T}; alpha=0.11) where {T<:Real}
+    low,up = hvi(x; alpha)
+    lowfinal = low < up ? low : up
+    upfinal = up > low ? up : low
+    mysum = 0.
+    mycount = 0
+    for xel in x
+	if lowfinal <= xel <= upfinal
+	    mycount += 1
+	    mysum += xel
+	end
+    end
+    return mysum / mycount
+end
+
+
+"""
+Highest values interval
+
+$(SIGNATURES)
+"""
+function hvi(x::Vector{T}; alpha=0.11) where {T<:Real}
+    n = length(x)
+    m = max(1, ceil(Int, alpha * n))
+
+    y = sort(x)
+
+    return [y[n-m+1], y[n]]
+end
+

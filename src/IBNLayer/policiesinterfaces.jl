@@ -27,7 +27,7 @@ function multavs(av1::AbstractVector, av2::Number)
     return av1 .* av2
 end
 
-function initializeestimateavailability(ibnf::IBNFramework)
+function initializeestimateavailability(ibnf::IBNFramework, ::Val)
     return 1.0
 end
 
@@ -38,18 +38,18 @@ Estimate the availability of an intent.
 It's used to reestimate the intent availability after the first split is done.
 The intent is usually an internal intent.
 """
-function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent}; requested::Bool=true)
+function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent}, output::Val=Val(:distribution); requested::Bool=true)
     # TODO : perf maybe make mutable to save on allocations with doing multiavs! ?
-    estimatedavailability = initializeestimateavailability(ibnf)
+    estimatedavailability = initializeestimateavailability(ibnf, output)
     remintent = nothing
     for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
         if avawareintent isa LightpathIntent
             path = getpath(avawareintent)
-	    newestim = estimatepathavailability(ibnf, path)
+	    newestim = estimatepathavailability(ibnf, path, output)
 	    estimatedavailability = multavs(estimatedavailability, newestim)
         elseif avawareintent isa ProtectedLightpathIntent
             prpath = getprpath(avawareintent)
-	    newestim = estimateprpathavailability(ibnf, prpath)
+	    newestim = estimateprpathavailability(ibnf, prpath, output)
 	    estimatedavailability = multavs(estimatedavailability, newestim)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
             remintent = getintent(avawareintent)
@@ -60,7 +60,7 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
                 srcglobalnode = getsourcenode(remintent)
                 dstglobalnode = getdestinationnode(remintent)
                 globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-                estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge)
+                estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge, output)
 		estimatedavailability = multavs(estimatedavailability, estimatedcrosssav)
             end
         end
@@ -68,11 +68,11 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
     return estimatedavailability
 end
 
-function estimatepathavailability(ibnf::IBNFramework, path::Vector{LocalNode})
+function estimatepathavailability(ibnf::IBNFramework, path::Vector{LocalNode}, ::Val)
     return getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
-function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{LocalNode}})
+function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{LocalNode}}, ::Val)
     return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
@@ -89,6 +89,7 @@ The `firsthalfavailability` must be of the same type that the `estimateintentava
 """
 function calcsecondhalfavailabilityconstraint(ibnf::IBNFramework, firsthalfavailability::Float64, masteravconstr::AvailabilityConstraint)
     secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firsthalfavailability
+    secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement
     secondcompliancetarget = getcompliancetarget(masteravconstr)
     return AvailabilityConstraint(secondavailabilityrequirement, secondcompliancetarget)
 end
@@ -98,7 +99,7 @@ $(TYPEDSIGNATURES)
 
 This function is called to estimate the first half availability constraint of the `SplitGlobalNode`
 """
-function estimateintraconnectionavailability(ibnf::IBNFramework, srcnode::LocalNode, dstnode::LocalNode)
+function estimateintraconnectionavailability(ibnf::IBNFramework, srcnode::LocalNode, dstnode::LocalNode, ::Val=Val{:pointestimate}())
     return nothing
 end
 
@@ -109,7 +110,7 @@ This function is called to estimate the second half availability constraint of t
 
 Final cross domain avaibility is the average empirical availability
 """
-function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge)
+function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge, ::Val=Val{:pointestimate}())
     loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]
@@ -159,7 +160,7 @@ function getavailabilityatcompliancetarget(availabilityestimation::Float64, comp
 end
 
 function getavailabilityatcompliancetarget(availabilityestimation::AbstractVector, compliancetarget::Float64)
-    quantl = quantile(availabilityestimation, 1. - compliancetarget)
+    quantl = hvimean(availabilityestimation; alpha=compliancetarget)
     return quantl
 end
 

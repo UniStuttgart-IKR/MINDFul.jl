@@ -200,7 +200,7 @@ Splits connectivity intent on `splitglobalnode` with O-E-O conversion
     end
     # revise and calculate rest of availability
     if !isnothing(masteravcon)
-        firsthaldfestimatedavailability = estimateintentavailability(ibnf, firsthalfidagnode)
+	firsthaldfestimatedavailability = estimateintentavailability(ibnf, firsthalfidagnode)
         secondhalfavailabilityconstraint = calcsecondhalfavailabilityconstraint(ibnf, firsthaldfestimatedavailability, masteravcon)
         push!(newsecondhalfconstraints, secondhalfavailabilityconstraint)
     end
@@ -263,7 +263,8 @@ $(TYPEDSIGNATURES)
     push!(externalintentconstraints, opticalinitiateconstraint)
     # revise and calculate rest of availability
     if !isnothing(masteravcon)
-        firsthaldfestimatedavailability = estimateintentavailability(ibnf, internalidagnode)
+	firsthaldfestimatedavailability = estimateintentavailability(ibnf, internalidagnode)
+	# TODO : do i want to give back a full distribution ?
         secondhalfavailabilityconstraint = calcsecondhalfavailabilityconstraint(ibnf, firsthaldfestimatedavailability, masteravcon)
         push!(externalintentconstraints, secondhalfavailabilityconstraint)
     end
@@ -459,7 +460,7 @@ function calcintrasplitglobalnode(ibnf::IBNFramework, intent::ConnectivityIntent
         splitnode = getlocalnode(getibnag(ibnf), splitglobalnodeonly)
         dstnode = getlocalnode(getibnag(ibnf), getdestinationnode(intent))
         # calculate availability first half
-        firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode)
+	firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode)
         # calculate availability second half
         secondhalfavailability = estimateintraconnectionavailability(ibnf, splitnode, dstnode)
         # make decision

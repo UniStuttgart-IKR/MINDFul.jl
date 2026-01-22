@@ -18,7 +18,7 @@ import AttributeGraphs: AttributeGraph, vertex_attr, edge_attr
 # TODO : put it in Companion ?
 import Distributions: DiscreteNonParametric, cquantile, Distribution
 
-import Statistics: quantile
+import Statistics: quantile, mean
 
 # @template (FUNCTIONS, METHODS, MACROS) = """
 #                                          $(DOCSTRING)
