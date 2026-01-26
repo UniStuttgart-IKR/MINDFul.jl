@@ -157,6 +157,12 @@ struct ConnectivityIntent{T <: AbstractIntentConstraint} <: AbstractIntent
     rate::GBPSf
     "Constraints for the Connecivity intent"
     constraints::Vector{T}
+    "Time in hours on nothing"
+    servicetime::Union{Nothing, Float64}
+end
+
+function ConnectivityIntent(sn::GlobalNode, dn::GlobalNode, rate::GBPSf, constraints::Vector{T}) where {T<:AbstractIntentConstraint}
+    return ConnectivityIntent(sn, dn, rate, constraints, nothing)
 end
 
 function Base.hash(ci::ConnectivityIntent, h::UInt)

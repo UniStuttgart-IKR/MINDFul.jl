@@ -1492,17 +1492,19 @@ function _leafs_recu2install!(vidns::Vector{IntentDAGNode}, ibnf::IBNFramework, 
                     !any(chidnchidn -> getintent(chidnchidn) isa OXCAddDropBypassSpectrumLLI && isoxcllifail(ibnf, getintent(chidnchidn)), chidnchidns)
                 end
                 for chidn in chidns]
-
             if all(!, chidnshavenofailchildren)
-                empty!(vidns)
-                return true
-            end
-
-            for chidn in chidns[chidnshavenofailchildren]
+                # empty!(vidns)
+		# pick any random (e.g. first)
+		chidn = first(chidns)
                 killswitch = _leafs_recu2install!(vidns, ibnf, chidn)
                 killswitch && return true
-                break
-            end
+	    else
+		for chidn in chidns[chidnshavenofailchildren]
+		    killswitch = _leafs_recu2install!(vidns, ibnf, chidn)
+		    killswitch && return true
+		    break
+		end
+	    end
         else
             for chidn in getidagnodechildren(dag, idn)
                 killswitch = _leafs_recu2install!(vidns, ibnf, chidn)
