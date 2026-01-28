@@ -32,6 +32,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getallflatpaths(cr::CachedResults)
+    return [path for (_, paths) in cr.yenpathsdict for path in paths]
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getyenpathsdistsdict(cr::CachedResults)
     return cr.yenpathsdistsdict
 end

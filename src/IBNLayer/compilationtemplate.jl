@@ -1474,7 +1474,7 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
 
     # pick best availability match
     # TODO : perf: a lot of copies
-    sp = sortperm(pathempavail; rev=true)
+    sp = sortperm(pathempavail; rev=false)
 
     # prioritize based on highest availability
     @assert length(pathempavail) == length(priorityprotectionpaths)
