@@ -41,15 +41,16 @@ The intent is usually an internal intent.
 function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDAGNode{<:ConnectivityIntent}, output::Val=Val(:distribution); requested::Bool=true)
     # TODO : perf maybe make mutable to save on allocations with doing multiavs! ?
     estimatedavailability = initializeestimateavailability(ibnf, output)
+    servicetime = getservicetime(getintent(conintidagnode))
     remintent = nothing
     for avawareintent in getidagnodedescendants_availabilityaware(getidag(ibnf), getidagnodeid(conintidagnode))
         if avawareintent isa LightpathIntent
             path = getpath(avawareintent)
-	    newestim = estimatepathavailability(ibnf, path, output)
+	    newestim = estimatepathavailability(ibnf, path, output; servicetime)
 	    estimatedavailability = multavs(estimatedavailability, newestim)
         elseif avawareintent isa ProtectedLightpathIntent
             prpath = getprpath(avawareintent)
-	    newestim = estimateprpathavailability(ibnf, prpath, output)
+	    newestim = estimateprpathavailability(ibnf, prpath, output; servicetime)
 	    estimatedavailability = multavs(estimatedavailability, newestim)
         elseif avawareintent isa RemoteIntent{<:ConnectivityIntent}
             remintent = getintent(avawareintent)
@@ -60,7 +61,7 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
                 srcglobalnode = getsourcenode(remintent)
                 dstglobalnode = getdestinationnode(remintent)
                 globaledge = GlobalEdge(srcglobalnode, dstglobalnode)
-                estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge, output)
+                estimatedcrosssav = estimatecrossconnectionavailability(ibnf, globaledge, output; servicetime)
 		estimatedavailability = multavs(estimatedavailability, estimatedcrosssav)
             end
         end
@@ -68,11 +69,11 @@ function estimateintentavailability(ibnf::IBNFramework, conintidagnode::IntentDA
     return estimatedavailability
 end
 
-function estimatepathavailability(ibnf::IBNFramework, path::Vector{LocalNode}, ::Val)
+function estimatepathavailability(ibnf::IBNFramework, path::Vector{LocalNode}, ::Val; servicetime=nothing)
     return getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
-function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{LocalNode}}, ::Val)
+function estimateprpathavailability(ibnf::IBNFramework, prpath::Vector{Vector{LocalNode}}, ::Val; servicetime=nothing)
     return getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
 end
 
@@ -99,7 +100,7 @@ $(TYPEDSIGNATURES)
 
 This function is called to estimate the first half availability constraint of the `SplitGlobalNode`
 """
-function estimateintraconnectionavailability(ibnf::IBNFramework, srcnode::LocalNode, dstnode::LocalNode, ::Val=Val{:pointestimate}())
+function estimateintraconnectionavailability(ibnf::IBNFramework, srcnode::LocalNode, dstnode::LocalNode, ::Val=Val{:pointestimate}(); servicetime=nothing)
     return nothing
 end
 
@@ -110,7 +111,7 @@ This function is called to estimate the second half availability constraint of t
 
 Final cross domain avaibility is the average empirical availability
 """
-function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge, ::Val=Val{:pointestimate}())
+function estimatecrossconnectionavailability(ibnf::IBNFramework, ged::GlobalEdge, ::Val=Val{:pointestimate}(); servicetime=nothing)
     loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if haskey(loginterupdowntimes, ged) 
         updowntimesndatetimedict = loginterupdowntimes[ged]

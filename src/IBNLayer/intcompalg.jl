@@ -454,9 +454,11 @@ $(TYPEDSIGNATURES)
                     if getcurrentstate(getlogstate(getidagnode(getidag(ibnf), intentuuid))) == IntentState.Installed
                         # @show getibnfid(ibnf), intentuuid
                         distance = pingdistanceconnectivityintent(ibnf, intentuuid)
-                        @assert !isinf(ustrip(distance))
-                        prevdistance = getconnectiondistance(updownndatetime)
-                        setconnectiondistance!(updownndatetime, (distance+prevdistance)/2)
+			# inf means it's failed intent
+                        if !isinf(ustrip(distance))
+			    prevdistance = getconnectiondistance(updownndatetime)
+			    setconnectiondistance!(updownndatetime, (distance+prevdistance)/2)
+			end
                     end
                 end
             end

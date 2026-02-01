@@ -70,7 +70,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function estimateintraconnectionavailability(ibnf::IBNFrameworkBAEA, srclocalnode::LocalNode, dstlocalnode::LocalNode, ::Val=Val(:distribution))
+function estimateintraconnectionavailability(ibnf::IBNFrameworkBAEA, srclocalnode::LocalNode, dstlocalnode::LocalNode, ::Val=Val(:distribution); servicetime=nothing)
     ed = Edge(srclocalnode, dstlocalnode)
     intentcomp = getintcompalg(ibnf)
     logintrapaths =  getlogintrapaths(intentcomp)
@@ -91,7 +91,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function estimatecrossconnectionavailability(ibnf::IBNFrameworkBAEA, ged::GlobalEdge, ::Val=Val(:distribution))
+function estimatecrossconnectionavailability(ibnf::IBNFrameworkBAEA, ged::GlobalEdge, ::Val=Val(:distribution); servicetime=nothing)
     loginterupdowntimes = getloginterupdowntimes(getintcompalg(ibnf))
     if src(ged) == dst(ged)
         externalintentavails = [1.0]
@@ -134,12 +134,12 @@ function initializeestimateavailability(ibnf::IBNFrameworkBAEA, ::Val=Val(:distr
     return 1.0
 end
 
-function estimatepathavailability(ibnf::IBNFrameworkBAEA, path::Vector{LocalNode}, ::Val=Val(:distribution))
+function estimatepathavailability(ibnf::IBNFrameworkBAEA, path::Vector{LocalNode}, ::Val=Val(:distribution); servicetime=nothing)
     empav = getempiricalavailability(ibnf, path; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
     return empav
 end
 
-function estimateprpathavailability(ibnf::IBNFrameworkBAEA, prpath::Vector{Vector{LocalNode}}, ::Val=Val(:distribution))
+function estimateprpathavailability(ibnf::IBNFrameworkBAEA, prpath::Vector{Vector{LocalNode}}, ::Val=Val(:distribution); servicetime=nothing)
     empav = getempiricalavailability(ibnf, prpath; endtime = getdatetime(getbasicalgmem(getintcompalg(ibnf))))
     return empav
 end

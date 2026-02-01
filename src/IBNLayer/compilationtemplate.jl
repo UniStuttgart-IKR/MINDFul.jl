@@ -368,13 +368,14 @@ function calcicrosssplitglobalnode(ibnf::IBNFramework, intent::ConnectivityInten
     masteravcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(intent))
     if !isnothing(masteravcon)
         srcnode = getlocalnode(getibnag(ibnf), getsourcenode(intent))
+	servicetime = getservicetime(intent)
         splitnode = getlocalnode(getibnag(ibnf), splitglobalnodeonly)
         dstglobalnode = getdestinationnode(intent)
         dstnode = getlocalnode(getibnag(ibnf), getdestinationnode(intent))
         # calculate availability first half
-        firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode)
+        firsthalfavailability = estimateintraconnectionavailability(ibnf, srcnode, splitnode; servicetime)
         # calculate availability second half
-        secondhalfavailability = estimatecrossconnectionavailability(ibnf, GlobalEdge(splitglobalnodeonly, dstglobalnode))
+        secondhalfavailability = estimatecrossconnectionavailability(ibnf, GlobalEdge(splitglobalnodeonly, dstglobalnode); servicetime)
         # make decision
         firsthalfavailabilityconstraint, secondhalfavailabilityconstraint = choosecrosssplitavailabilities(masteravcon, firsthalfavailability, secondhalfavailability, getintcompalg(ibnf))
         return SplitGlobalNode(splitglobalnodeonly, firsthalfavailabilityconstraint, secondhalfavailabilityconstraint)
@@ -1289,7 +1290,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function estimatecrossconnectionavailability(ibnf::IBNFramework, srcnode::GlobalNode, dstnode::GlobalNode)
+function estimatecrossconnectionavailability(ibnf::IBNFramework, srcnode::GlobalNode, dstnode::GlobalNode; servicetime=nothing)
     return nothing
 end
 
@@ -1412,6 +1413,7 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
     ibnag = getibnag(ibnf)
     sourcelocalnode = getlocalnode(ibnag, getsourcenode(getintent(idagnode)))
     destlocalnode = getlocalnode(ibnag, getdestinationnode(getintent(idagnode)))
+    servicetime = getservicetime(getintent(idagnode))
 
     intentcomp = getintcompalg(ibnf)
 
@@ -1431,7 +1433,7 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
 
     pathempavail = Float64[]
     for op in operatingpaths
-	estimatedpathavail = estimatepathavailability(ibnf, op)
+	estimatedpathavail = estimatepathavailability(ibnf, op; servicetime)
 
 	quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
         if quantl >= availabilityrequirement
@@ -1454,7 +1456,7 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
 		# TODO : looks like no ! is needed before ?
                 # protection with optical terminate requires that last link is the same (such that the protected paths terminate similarly)
                 if path1[end-1] == path2[end-1] && path1[end] == path2[end]
-		    estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2])
+		    estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2]; servicetime)
 		    quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
                     if quantl >= availabilityrequirement
                         push!(priorityprotectionpaths, [path1, path2])
@@ -1462,7 +1464,7 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
                     end
                 end
             else
-		estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2])
+		estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2]; servicetime)
 		quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
                 if quantl >= availabilityrequirement
                     push!(priorityprotectionpaths, [path1, path2])

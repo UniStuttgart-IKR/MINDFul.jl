@@ -199,6 +199,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function getservicetime(conintent::ConnectivityIntent)
+    return conintent.servicetime
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function getweights(ibnag::IBNAttributeGraph)
     return [
         let
