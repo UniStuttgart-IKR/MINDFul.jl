@@ -198,6 +198,9 @@ end
 """
 $(TYPEDSIGNATURES)
 Return value is true if state is changed.
+- ibnf
+- idagnode
+- `makestate` needed if a certain state is wished, e.g. upon failure or repair
 """
 @recvtime function updateidagnodestates!(ibnf::IBNFramework, idagnode::IntentDAGNode, makestate::Union{Nothing, IntentState.T} = nothing)
     idag = getidag(ibnf)
@@ -225,6 +228,7 @@ Return value is true if state is changed.
         newstate = makestate
         pushstatetoidagnode!(idagnode, newstate; @passtime)
     elseif length(childrenstates) == 0
+	# LLIs are the only ones that can be used to force a `makestate`
         if !isnothing(makestate) && makestate != currentstate
             changedstate = true
             newstate = makestate

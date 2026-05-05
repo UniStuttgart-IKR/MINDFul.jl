@@ -1328,16 +1328,17 @@ function chooseintrasplitavailabilities_defaultstochastic(avcon::AvailabilityCon
 
     combinationfound = false
     # begin from 100 % compliance target
-    for firstct in 1.0:-0.01:compliancetarget
+    # shouldn't this try for get the lowest availability constraint ?
+    for firstct in compliancetarget:+0.01:1.0
         setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
-        firstavailabilityrequirement = quantile(firsthalfavailability, 1 - firstct)
+        firstavailabilityrequirement = getavailabilityatcompliancetarget(firsthalfavailability, firstct)
         setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
 
 	secondcompliancetargetlimit = iszero(compliancetarget) && iszero(firstct) ? 0.0 : compliancetarget / firstct
-        for secondct in 1.0:-0.01:secondcompliancetargetlimit
+        for secondct in secondcompliancetargetlimit:+0.01:1.0
             # TODO : don't ask more than avcon ?
             setcompliancetarget!(secondhalfmutavailabilityconstraint, secondct)
-            secondavailabilityrequirement = quantile(secondhalfavailability, 1 - secondct)
+            secondavailabilityrequirement = getavailabilityatcompliancetarget(secondhalfavailability, secondct)
             setavailabilityrequirement!(secondhalfmutavailabilityconstraint, secondavailabilityrequirement)
 
             if firstavailabilityrequirement * secondavailabilityrequirement >= availabilityrequirement
@@ -1372,7 +1373,7 @@ Assumes equal compliance target split
 function calcsecondhalfavailabilityconstraint_defaultstochastic(ibnf::IBNFramework, firsthalfavailability, masteravconstr::AvailabilityConstraint)
     mastercompliancetarget = getcompliancetarget(masteravconstr)
     sqrtcompliancetarget = sqrt(mastercompliancetarget)
-    firstavailabilityrequirement = quantile(firsthalfavailability, 1 - sqrtcompliancetarget)
+    firstavailabilityrequirement = getavailabilityatcompliancetarget(firsthalfavailability, sqrtcompliancetarget)
 
     secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firstavailabilityrequirement
     secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement

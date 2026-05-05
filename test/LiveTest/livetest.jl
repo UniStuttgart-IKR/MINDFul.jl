@@ -10,23 +10,16 @@ const MINDF = MINDFul
 
 # using GLMakie
 
-domains_name_graph = first(JLD2.load(TESTDIR * "/data/itz_IowaStatewideFiberMap-itz_Missouri-itz_UsSignal_addedge_24-23,23-15__(1,9)-(2,3),(1,6)-(2,54),(1,1)-(2,21),(1,16)-(3,18),(1,17)-(3,25),(2,27)-(3,11).jld2"))[2]
+compalg = MINDF.BestEmpiricalAvailabilityCompilation(10, 5; nodenum=1)
 
+ibnfs = loadmultidomaintestibnfs(compalg)
 
-ibnfs = [
-    let
-            ag = name_graph[2]
-            ibnag = MINDF.default_IBNAttributeGraph(ag, 10, 10)
-            ibnf = IBNFramework(ibnag)
-    end for name_graph in domains_name_graph
-]
+avcon1 = MINDF.AvailabilityConstraint(0.94, 0.9) 
+conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[2]), 8), u"5.0Gbps", [avcon1])
 
+intentuuid1, _ = MINDF.addintent!(ibnfs[1], conintent1, NetworkOperator())
+returncode, _  = MINDF.compileintent!(ibnfs[1], intentuuid1)
+returncode, _  = MINDF.installintent!(ibnfs[1], intentuuid1)
+returncode, _  = MINDF.uninstallintent!(ibnfs[1], intentuuid1)
 
-# add ibnf handlers
-
-for i in eachindex(ibnfs)
-    for j in eachindex(ibnfs)
-        i == j && continue
-        push!(getibnfhandlers(ibnfs[i]), ibnfs[j])
-    end
-end
+ # MINDFM.intentplot(ibnfs[1]; intentid=intentuuid1, showstate = true, showintent=true, multidomain=true, subidag=:connected, graphattr=(;arrow_size=15, nlabels_fontsize=20))
