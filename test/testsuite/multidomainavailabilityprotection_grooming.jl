@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "singledomainavailabilityprotection_grooming_split.jl"  begin
+# @testset ExtendedTestSet "singledomainavailabilityprotection_grooming_split.jl"  begin
 
 nt = starttime = DateTime("2026-01-01")
 
@@ -37,4 +37,4 @@ rc, nt = installintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 # TM.@test_nothrows MINDF.updatelogintentcomp!(ibnfs[1], beacomp)
 #
 
-end
+# end

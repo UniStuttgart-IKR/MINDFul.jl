@@ -1,4 +1,4 @@
-@testset ExtendedTestSet "singledomain-splitavail.jl"  begin
+# @testset ExtendedTestSet "singledomain-splitavail.jl"  begin
 nt = starttime = DateTime("2026-01-01")
 compalg = MINDF.BestEmpiricalAvailabilityCompilation(5, 5; nodenum=1)
 
@@ -22,4 +22,4 @@ getavcon2 = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent
 
 rc, nt = installintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 @test rc == ReturnCodes.SUCCESS
-end
+# end

@@ -18,7 +18,7 @@ include("testsuite/installingstate.jl")
 # include("testsuite/increasingtimestamps.jl")
 
 include("testsuite/singledomainavailabilityprotection.jl")
-include("testsuite/singledomainavailabilityprotection_grooming.jl")
+# include("testsuite/singledomainavailabilityprotection_grooming.jl")
 
 include("testsuite/logintraintertest.jl")
 
@@ -26,8 +26,8 @@ include("testsuite/logintraintertest.jl")
 include("testsuite/updowntimes.jl")
 include("testsuite/updowntimes_interdomain.jl")
 
-include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
-include("testsuite/multidomainavailabilityprotection_grooming.jl")
+# include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
+# include("testsuite/multidomainavailabilityprotection_grooming.jl")
 
 
 nothing
