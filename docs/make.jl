@@ -58,8 +58,8 @@ makedocs(
     modules = [MINDFul],
     pages = [
         "Introduction" => "index.md",
+        "Architecture" => "architecture.md",
         "Developing" => "dev.md",
-        "ROADMap" => "roadmap.md",
         "API" => "API.md",
         "Distributed Operation" => [
             "HTTP-API" => "HTTP.md",

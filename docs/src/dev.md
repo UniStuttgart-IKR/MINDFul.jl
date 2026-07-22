@@ -1,47 +1,50 @@
-# Notes for developes and contributors
+# Developer Guide
 
-## Mental classification of functions per functionality
-(must clarify these notes)
-To expand upon:
-allocate - deallocate
-reserve - unreserve
-function getters
-get... -> get field
-new... -> construct something new
-prioritize -> return a vector of indices
-choose -> return a specific (scalar) index
-comp -> compilation
+Welcome to the MINDFul.jl developer documentation. This section covers common conventions, how to extend MINDFul.jl algorithms, and how to run tests.
 
+## Variable Naming Conventions
 
-## How to read variables
-transmission -> trans\
-module -> mdl\
-mode -> mode\
-index -> idx\
-uuid -> id\
-ibn framework -> ibnf\
+To keep the codebase consistent and readable, MINDFul.jl uses the following abbreviations for common variables:
 
-## Create a new availability-aware IP-Optical Algorithm
-Look at `src/IBNLayer/ibn_bestempiricalavailabilitymatch.jl` where the algorithm `BestEmpiricalAvailabilityCompilation` is defined.
-More specifically, assume your new algorithm is a struct `MyNewAlgorithm`.
-We suggest you make it a subtype of `<: IntentCompilationAlgorithmWithMemory` and contain the following fields in your struct:
+| Abbreviation | Meaning |
+| :--- | :--- |
+| `trans` | transmission |
+| `mdl` | module |
+| `mode` | mode |
+| `idx` | index |
+| `id` | uuid |
+| `ibnf` | IBN framework |
+
+## Creating a new Availability-Aware IP-Optical Algorithm
+
+MINDFul.jl is designed to be easily extensible. You can define your own intent compilation algorithms. As an example, look at `src/IBNLayer/ibn_bestempiricalavailabilitymatch.jl` where the algorithm `BestEmpiricalAvailabilityCompilation` is defined.
+
+To create a new algorithm `MyNewAlgorithm`, we recommend making it a subtype of `<: IntentCompilationAlgorithmWithMemory` and including the following fields:
+
 ```julia
+struct MyNewAlgorithm <: IntentCompilationAlgorithmWithMemory
     "How many k paths to check"
     candidatepathsnum::Int
-    """
-    How many m paths to consider for joint protection.
-    It investigates all possible pair of the first m paths
-    """
+    "How many m paths to consider for joint protection."
     pathsforprotectionnum::Int
-    "cached information"
+    "Cached information"
     cachedresults::CachedResults
     "The algorithm memory that is updated"
     basicalgmem::BasicAlgorithmMemory
+end
 ```
 
-1. Define a `const IBNFrameworkMNA = IBNFramework{A,B,C,D,MyNewAlgorithm} where {A,B,C,D}` to use it later
+### 1. Define an IBNFramework alias
 
-2. Define 3 cosntructors
+Define a constant for your new framework configuration:
+```julia
+const IBNFrameworkMNA = IBNFramework{A,B,C,D,MyNewAlgorithm} where {A,B,C,D}
+```
+
+### 2. Define Constructors
+
+Provide convenient constructors to initialize your algorithm's memory and cache:
+
 ```julia
 function MyNewAlgorithm(ibnag::IBNAttributeGraph, candidatepathsnum::Int, pathforprotectionnum::Int)
     cachedresults = CachedResults(ibnag, candidatepathsnum)
@@ -57,25 +60,37 @@ function MyNewAlgorithm(mna::MyNewAlgorithm, cachedresults::CachedResults)
 end
 ```
 
-3. Define a `compileintent!` for your new type `@recvtime function compileintent!(ibnf::IBNFrameworkMNA, idagnode::IntentDAGNode{<:ConnectivityIntent}; verbose::Bool = false)`
-Inside your function you can use [`MINDFul.intradomaincompilationtemplate`](@ref) and [`MINDFul.compileintenttemplate!](@ref) for easier development.
-Read the docs of the two functions for a better understanding. Now that's all.
-For multi-domain availability research the most important configurations you might want to add are `prioritizepaths` from `intradomaincompilationtemplate` and `prioritizesplitbordernodes` from `compileintenttemplate!`.
-The first one determines the internal domain paths and the second the split border nodes between the domains.
+### 3. Define the Compilation Function
 
-## Further APIs
+Define the `compileintent!` function for your new algorithm type. You can use the provided templates `intradomaincompilationtemplate` and `compileintenttemplate!` to jumpstart your development.
+
+```julia
+@recvtime function compileintent!(ibnf::IBNFrameworkMNA, idagnode::IntentDAGNode{<:ConnectivityIntent}; verbose::Bool = false)
+    # Your compilation logic here using intradomaincompilationtemplate and compileintenttemplate!
+end
+```
+
+For multi-domain availability research, the most important configurations to hook into are:
+- `prioritizepaths` (from `intradomaincompilationtemplate`): Determines the internal domain paths.
+- `prioritizesplitbordernodes` (from `compileintenttemplate!`): Determines the split border nodes between domains.
+
+## Event-Based Simulations and Visualizations
+
+MINDFul.jl provides a hackable interface designed to conduct event-based simulations under diverse scenarios. You can interact with the API to change intent states and monitor network resources over time. 
+
+Additionally, the companion package `MINDFulMakie.jl` can be used to visualize your simulations, draw intent DAGs, or render a compiled connectivity intent across the network topology.
 
 ## Testing
 
-Usefull testing functions are in the `TestModule` weak dependency.
-To access them you first need to load `Test` and `JET` and then use `Base.get_extention`.
+Useful testing functions are located in the `TestModule` weak dependency. To access them, first load `Test` and `JET`, and then use `Base.get_extension`.
+
 ```julia
-# get the test module from MINDFul
 import Test, JET
 TestModule = Base.get_extension(MINDFul, :TestModule)
-@test !isnothing(TM)
+@test !isnothing(TestModule)
 ```
-Now, with dot notation (`TestModule.`) you can access all the following functions. 
+
+Now, you can access testing utilities with dot notation (`TestModule.`).
 
 ### Testing API
 
