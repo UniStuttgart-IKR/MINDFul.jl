@@ -1,6 +1,6 @@
 # all logs are serially incremeantally timestamps
 
-testlinklogsseriallyincrementaltimestamps(ibnf)
+TM.testlinklogsseriallyincrementaltimestamps(ibnf)
 
 # intent states serially increameanting timstamps
 

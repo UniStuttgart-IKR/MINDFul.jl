@@ -67,13 +67,33 @@ julia --project=test test/runtests.jl --nojet            # skip JET checks (fast
 julia --project=test test/runtests.jl --nosercache       # recompute cached path results
 ```
 
-`test/runtests.jl` includes `initialize.jl` and `testsuite/utils.jl` first, then each `testsuite/*.jl` file. To run a single file, include those two first:
+`test/runtests.jl` includes `initialize.jl` and `testsuite/utils.jl` first, then each `testsuite/*.jl` file.
+
+### Running a single testsuite file
+
+**`test/initialize.jl` must be included at least once in the Julia session before any `testsuite/*.jl` file.** The testsuite files are not self-contained: `initialize.jl` does the `using`s, imports dozens of MINDFul names, defines `MINDF`, `TESTDIR`, `RUNJET`, the `TM` extension handle and loaders like `loadmultidomaintestibnfs`. Without it, a testsuite file fails with `UndefVarError`s that look like bugs but aren't. Include `testsuite/utils.jl` too, as `runtests.jl` does. In a REPL you only need to include `initialize.jl` once; afterwards you can re-`include` testsuite files repeatedly.
+
+Put throwaway runner/debug scripts in **`test/tmp/`** — its `.gitignore` ignores everything, so nothing pollutes the repo (it also holds the serialized path cache `serializedcachedresultsdict.bin`). Use `@__DIR__`-relative paths so the script works from any cwd:
+
+```julia
+# test/tmp/run_grooming.jl
+include(joinpath(@__DIR__, "..", "initialize.jl"))
+include(joinpath(@__DIR__, "..", "testsuite", "utils.jl"))
+include(joinpath(@__DIR__, "..", "testsuite", "grooming.jl"))
+```
 
 ```bash
-julia --project=test -e 'include("test/initialize.jl"); include("test/testsuite/utils.jl"); include("test/testsuite/grooming.jl")'
+julia --project=test test/tmp/run_grooming.jl           # flags like --nojet work here too
 ```
 
 For an interactive session, `Revise` is in the test environment: `julia --project=test`, then `using Revise` before `include("test/initialize.jl")`, so edits in `src/` are picked up without restarting.
+
+### Simulated time in tests
+
+MINDFul functions take an `offsettime` keyword (added by the `@recvtime` macro) and the simulated clock is `offsettime + (real time spent in the call)`. Two consequences when writing or debugging tests:
+
+- **Always pass `offsettime = nowtime`.** Omitting it defaults to `now()`, the *real* wall clock. Tests use fixed simulated dates (e.g. `DateTime("2026-01-01")`), so a call that silently uses `now()` works until the real date overtakes the simulated one and then fails — a date bomb.
+- **Don't assert exact zero/equal durations.** Real compute time leaks into the simulated clock (JIT compilation can add tens of ms on a cold run), so compare durations with a tolerance (the suite uses ±`Dates.Second(5)`). A test that passes in the full suite but fails when run alone is often this: in the full suite the code is already compiled, so the leak is ~0 ms.
 
 ## Julia version note
 
