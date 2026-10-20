@@ -15,7 +15,7 @@ include("testsuite/rsaauthentication.jl")
 include("testsuite/pingintent.jl")
 
 include("testsuite/installingstate.jl")
-# include("testsuite/increasingtimestamps.jl")
+include("testsuite/increasingtimestamps.jl")
 
 include("testsuite/singledomainavailabilityprotection.jl")
 # include("testsuite/singledomainavailabilityprotection_grooming.jl")

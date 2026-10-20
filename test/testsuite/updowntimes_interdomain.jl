@@ -1,4 +1,4 @@
-# @testset ExtendedTestSet "updowntimes_inter.jl"  begin
+@testset ExtendedTestSet "updowntimes_inter.jl"  begin
 
 nowtime = starttime = DateTime("2026-01-01")
 
@@ -22,10 +22,6 @@ nowtime2 = nowtime
 updowntimesndt1 = MINDF.getloginterupdowntimesperintent(ibnfs[3], MINDF.getidagnodeid(remidagnode))[1]
 @test length(MINDF.getdatetimestamps(updowntimesndt1)) == 1
 # simulated time also advances with real elapsed time, so a few ms of uptime may already be logged
-# dragon
-@test length(MINDF.getuptimes(updowntimesndt1)) == 0
-
-dragon
 @test sum(MINDF.getuptimes(updowntimesndt1); init = Dates.Millisecond(0)) < Dates.Second(5)
 @test length(MINDF.getdowntimes(updowntimesndt1)) == 0
 
@@ -144,4 +140,4 @@ for updndt in [updowntimesndt1, updowntimesndt2]
     @test downtime1 - Dates.Second(5) < sum(MINDF.getdowntimes(updndt)) < downtime1 + Dates.Second(5)
 end
 
-# end
+end
