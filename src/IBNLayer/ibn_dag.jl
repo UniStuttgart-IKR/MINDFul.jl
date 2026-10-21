@@ -38,16 +38,37 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Register `intentstate` in `intentlogstate` at the current simulated time (`offsettime` + elapsed time, see [`@recvtime`](@ref)).
+Throws a [`SimulatedTimeError`](@ref) if that time is earlier than the last registered state.
 """
 @recvtime function pushstatetoidagnode!(intentlogstate::IntentLogState, intentstate::IntentState.T)
-    return push!(intentlogstate, (@logtime, intentstate))
+    logtime = @logtime
+    isempty(intentlogstate) || checktimeforward(logtime, getlogtuplettime(intentlogstate[end]), "intent state ", intentstate)
+    return push!(intentlogstate, (logtime, intentstate))
 end
 
 """
 $(TYPEDSIGNATURES)
+
+Register `intentstate` for `idagnode` of `ibnf` at the current simulated time (`offsettime` + elapsed time, see [`@recvtime`](@ref)).
+
+Throws a [`SimulatedTimeError`](@ref) if that time is earlier than
+- the last registered state of `idagnode`, or
+- the time up to which the up/down times of `idagnode` are already accounted in the algorithm memory
+  (inter-domain intents, see [`updatelogintentcomp!`](@ref)).
 """
-@recvtime function pushstatetoidagnode!(idagnode::IntentDAGNode, intentstate::IntentState.T)
-    return pushstatetoidagnode!(getlogstate(idagnode), intentstate; @passtime)
+@recvtime function pushstatetoidagnode!(ibnf::IBNFramework, idagnode::IntentDAGNode, intentstate::IntentState.T)
+    logtime = @logtime
+    intentlogstate = getlogstate(idagnode)
+    intentuuid = getidagnodeid(idagnode)
+    isempty(intentlogstate) || checktimeforward(logtime, getlogtuplettime(intentlogstate[end]), "state ", intentstate, " of intent ", intentuuid, " in IBNFramework ", getibnfid(ibnf))
+    if getintcompalg(ibnf) isa IntentCompilationAlgorithmWithMemory
+        for updowntimesndatetime in getloginterupdowntimesperintent(ibnf, intentuuid)
+            checktimeforward(logtime, getdatetime(updowntimesndatetime), "state ", intentstate, " of intent ", intentuuid, " in IBNFramework ", getibnfid(ibnf), " (its up/down times are already accounted until then)")
+        end
+    end
+    return push!(intentlogstate, (logtime, intentstate))
 end
 
 """
@@ -216,55 +237,55 @@ Return value is true if state is changed.
             # changedstate = true
             newstate = makestate
             changedstate = true
-            pushstatetoidagnode!(idagnode, newstate; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, newstate; @passtime)
         end
         # propagate down anyhow to turn all "Compiled" to "Installing"
     elseif makestate == IntentState.Compiled && currentstate in [IntentState.Installed, IntentState.Failed]
         changedstate = true
         newstate = makestate
-        pushstatetoidagnode!(idagnode, newstate; @passtime)
+        pushstatetoidagnode!(ibnf, idagnode, newstate; @passtime)
     elseif makestate == IntentState.Failed && currentstate in [IntentState.Installed, IntentState.Installing]
         changedstate = true
         newstate = makestate
-        pushstatetoidagnode!(idagnode, newstate; @passtime)
+        pushstatetoidagnode!(ibnf, idagnode, newstate; @passtime)
     elseif length(childrenstates) == 0
 	# LLIs are the only ones that can be used to force a `makestate`
         if !isnothing(makestate) && makestate != currentstate
             changedstate = true
             newstate = makestate
-            pushstatetoidagnode!(idagnode, makestate; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, makestate; @passtime)
         elseif isnothing(makestate) && currentstate != IntentState.Uncompiled
             changedstate = true
             newstate = IntentState.Uncompiled
-            pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Uncompiled; @passtime)
         end
     elseif all(==(IntentState.Compiled), childrenstates)
         if currentstate != IntentState.Compiled
             changedstate = true
             newstate = IntentState.Compiled
-            pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Compiled; @passtime)
         end
     elseif any(==(IntentState.Uncompiled), childrenstates)
         if currentstate != IntentState.Uncompiled
             changedstate = true
             newstate = IntentState.Uncompiled
-            pushstatetoidagnode!(idagnode, IntentState.Uncompiled; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Uncompiled; @passtime)
         end
     elseif all(==(IntentState.Installed), childrenstates) || (any(==(IntentState.Installed), childrenstates) && getintent(idagnode) isa ProtectedLightpathIntent)
         if currentstate == IntentState.Uncompiled
             changedstate = true
             newstate = IntentState.Compiled
-            pushstatetoidagnode!(idagnode, IntentState.Compiled; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Compiled; @passtime)
         elseif currentstate != IntentState.Installed && currentstate != IntentState.Compiled
             changedstate = true
             newstate = IntentState.Installed
-            pushstatetoidagnode!(idagnode, IntentState.Installed; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Installed; @passtime)
         end
     elseif all(x -> x in [IntentState.Installed, IntentState.Compiled], childrenstates)
         newstate = IntentState.Compiled
         if newstate != currentstate
             changedstate = true
-            pushstatetoidagnode!(idagnode, newstate; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, newstate; @passtime)
         end
     elseif any(==(IntentState.Failed), childrenstates)
         if currentstate != IntentState.Failed && currentstate != IntentState.Compiled
@@ -274,25 +295,25 @@ Return value is true if state is changed.
             else
                 newstate = IntentState.Failed
             end
-            pushstatetoidagnode!(idagnode, newstate; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, newstate; @passtime)
         end
     elseif any(==(IntentState.Installing), childrenstates)
         if currentstate in [IntentState.Installed, IntentState.Failed]
             changedstate = true
             newstate = IntentState.Installing
-            pushstatetoidagnode!(idagnode, IntentState.Installing; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Installing; @passtime)
         end
     elseif any(==(IntentState.Pending), childrenstates)
         if currentstate != IntentState.Pending && currentstate != IntentState.Compiled && currentstate != IntentState.Uncompiled
             changedstate = true
             newstate = IntentState.Pending
-            pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Pending; @passtime)
         end
     else
         if currentstate != IntentState.Pending  && currentstate != IntentState.Compiled && currentstate != IntentState.Uncompiled
             changedstate = true
             newstate = IntentState.Pending
-            pushstatetoidagnode!(idagnode, IntentState.Pending; @passtime)
+            pushstatetoidagnode!(ibnf, idagnode, IntentState.Pending; @passtime)
         end
     end
     if changedstate

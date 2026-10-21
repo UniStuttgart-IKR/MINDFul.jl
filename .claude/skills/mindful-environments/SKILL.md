@@ -90,9 +90,13 @@ For an interactive session, `Revise` is in the test environment: `julia --projec
 
 ### Simulated time in tests
 
-MINDFul functions take an `offsettime` keyword (added by the `@recvtime` macro) and the simulated clock is `offsettime + (real time spent in the call)`. Two consequences when writing or debugging tests:
+MINDFul functions take an `offsettime` keyword (added by the `@recvtime` macro) and the simulated clock is `offsettime + (real time spent in the call)`. Simulated time must only move forward. Rules when writing or debugging tests:
 
 - **Always pass `offsettime = nowtime`.** Omitting it defaults to `now()`, the *real* wall clock. Tests use fixed simulated dates (e.g. `DateTime("2026-01-01")`), so a call that silently uses `now()` works until the real date overtakes the simulated one and then fails — a date bomb.
+- **Always take the returned time and feed it to the next call.** Every state-changing call returns a `ReturnCodeTime` (`addintent!` a `ReturnUUIDTime`) with the simulated time it finished at: `rc, nowtime = installintent!(...; offsettime = nowtime)`, `uuid, nowtime = addintent!(...)`, `_, nowtime = MINDF.updatelogintentcomp!(...)`, `_, nowtime = setlinkstate!(...)`. Let time pass only explicitly (`nowtime += Dates.Month(3)`) after that.
+- **Never reuse an `offsettime`.** Two calls with the same `offsettime` can register their events out of order by a millisecond. The package checks every registered event (intent states, link states, accounted up/down times) and throws `MINDF.SimulatedTimeError` when time would go backwards — if you see one, a call got a stale `offsettime`. (Before this check existed, the symptom was a rare `AssertionError: dt >= zero(dt)` in `src/IBNLayer/availabilityfuncs.jl`.)
+- **"Was this logged during the call?" checks:** `t0 = nowtime; rc, nowtime = f(...; offsettime = t0); @test t0 <= logtime <= nowtime`. Don't compare a log time against the *returned* time with `logtime - nowtime >= 0` — the returned time is the end of the call, so it is always ≥ the log time.
+- The one deliberate exception is back-dating link events to fabricate link history while no intent uses the link (`test/testsuite/singledomainavailabilityprotection.jl`); each edge's own log must still be in order.
 - **Don't assert exact zero/equal durations.** Real compute time leaks into the simulated clock (JIT compilation can add tens of ms on a cold run), so compare durations with a tolerance (the suite uses ±`Dates.Second(5)`). A test that passes in the full suite but fails when run alone is often this: in the full suite the code is already compiled, so the leak is ~0 ms.
 
 ## Julia version note

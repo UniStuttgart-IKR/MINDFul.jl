@@ -197,7 +197,7 @@ function testsuiteopticalconstraintssingledomain!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         testalluuidnodeindices(ibnf)
-        testallstatelogascendingtime(ibnf)
+        @test testallstatelogascendingtime(ibnf)
     end
 end
 
@@ -255,7 +255,7 @@ function testsuitemultidomain!(ibnfs)
         testoxcfiberallocationconsistency(ibnf)
         testzerostaged(ibnf)
         testalluuidnodeindices(ibnf)
-        testallstatelogascendingtime(ibnf)
+        @test testallstatelogascendingtime(ibnf)
     end
 end
 
@@ -264,7 +264,6 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     internaledge = Edge(3, 4)
     getlinkstates(getoxcview(getnodeview(ibnfs[1], src(internaledge))))[internaledge]
 
-    nowtime = DateTime("2026-01-01")
 
 
     conintent_internal = ConnectivityIntent(GlobalNode(UUID(1), 14), GlobalNode(UUID(1), 1), u"100.0Gbps")
@@ -316,7 +315,7 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
 
     # Border link is failing
     # 29 is border node
-    nowtime = DateTime("2026-01-01")
+    # the clock continues (resetting it would back-date events on links and intents of the first part)
     borderedge = Edge(17, 29)
     foreach(ibnfs) do ibnf
         @test all([MINDF.getcurrentlinkstate(ibnf, ed) for ed in edges(getibnag(ibnf))])
@@ -438,7 +437,7 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
         ibnag = getibnag(ibnf)
         for ed in edges(ibnag)
             ls1 = getcurrentlinkstate(ibnf, ed)
-            setlinkstate!(ibnf, ed, !ls1; offsettime=nowtime)
+            _, nowtime = setlinkstate!(ibnf, ed, !ls1; offsettime=nowtime)
             ls2 = getcurrentlinkstate(ibnf, ed)
             @test ls1 !== ls2
         end
@@ -447,7 +446,7 @@ function testsuitefailingintime!(ibnfs, nowtime=DateTime("2026-01-1"))
     for ibnf in ibnfs
         testedgeoxclogs(ibnf)
         testoxcllistateconsistency(ibnf)
-        testallstatelogascendingtime(ibnf)
+        @test testallstatelogascendingtime(ibnf)
     end
     return
 end
@@ -875,7 +874,7 @@ function testsuitegrooming!(ibnfs)
         testzerostaged(ibnf)
         nothingisallocated(ibnf)
         testalluuidnodeindices(ibnf)
-        testallstatelogascendingtime(ibnf)
+        @test testallstatelogascendingtime(ibnf)
     end
     @test iszero(nv(MINDF.getidag(ibnfs[1])))
     @test iszero(ne(MINDF.getidag(ibnfs[1])))
@@ -933,7 +932,8 @@ function testsuitegroomingonfail!(ibnfs)
     @test MINDF.gettotalbandwidth(lpr1) == GBPSf(100)
     @test getresidualbandwidth(ibnfs[1], UUID(0x02)) == GBPSf(70)
 
-    MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false) == ReturnCodes.SUCCESS
+    returncode, _ = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false)
+    @test returncode == ReturnCodes.SUCCESS
     @test getidagnodestate(conintent1idn) == IntentState.Failed
 
     groomconintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"30.0Gbps")
@@ -950,7 +950,8 @@ function testsuitegroomingonfail!(ibnfs)
     installintent!(ibnfs[1], mdconintent1id)
 
     @test getidagnodestate(mdconintent1idn) == IntentState.Installed
-    MINDF.setlinkstate!(ibnfs[3], Edge(24, 23), false) == ReturnCodes.SUCCESS
+    returncode, _ = MINDF.setlinkstate!(ibnfs[3], Edge(24, 23), false)
+    @test returncode == ReturnCodes.SUCCESS
     @test getidagnodestate(mdconintent1idn) == IntentState.Failed
 
 

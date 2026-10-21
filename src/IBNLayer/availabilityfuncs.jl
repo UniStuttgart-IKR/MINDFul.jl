@@ -83,7 +83,7 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
 
                 # store
                 dt = currenttime - previoustime
-                @assert dt >= zero(dt)
+                checktimeforward(currenttime, previoustime, "state ", currentstate, " in the up/down time accounting")
 
                 if currentstate == gettruesingleton(T)
                     if previousstate == getfalsesingleton(T)
@@ -94,7 +94,7 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
                         end
                     end
                     push!(datetimestamps, logstates[i])
-                    @assert currenttime >= getdatetime(updowntimesndatetime)
+                    checktimeforward(currenttime, getdatetime(updowntimesndatetime), "state ", currentstate, " in the up/down time accounting")
                     setdatetime!(updowntimesndatetime, currenttime)
                     prsti = i
                 elseif currentstate == getfalsesingleton(T)
@@ -106,7 +106,7 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
                         end
                     end
                     push!(datetimestamps, logstates[i])
-                    @assert currenttime >= getdatetime(updowntimesndatetime)
+                    checktimeforward(currenttime, getdatetime(updowntimesndatetime), "state ", currentstate, " in the up/down time accounting")
                     setdatetime!(updowntimesndatetime, currenttime)
                     prsti = i
                 elseif currentstate == getfinalsingleton(T)
@@ -125,7 +125,7 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
                         end
                         push!(datetimestamps, logstates[i])
                     end
-                    @assert currenttime >= getdatetime(updowntimesndatetime)
+                    checktimeforward(currenttime, getdatetime(updowntimesndatetime), "state ", currentstate, " in the up/down time accounting")
                     setdatetime!(updowntimesndatetime, currenttime)
                     prsti = i
                 end
@@ -142,7 +142,7 @@ function updateupdowntimes!(updowntimesndatetime::UpDownTimesNDatetime, logstate
 	# take newer
 	previoustimefinal = logstates[prsti][1] > getdatetime(updowntimesndatetime) ? logstates[prsti][1] : getdatetime(updowntimesndatetime)
         dt = endtime - previoustimefinal
-        @assert dt >= zero(dt)
+        checktimeforward(endtime, previoustimefinal, "the end time of the up/down time accounting")
         if dt > zero(dt)
             if previousstate == gettruesingleton(T)
                 if requirenewblock || isempty(uptimes)

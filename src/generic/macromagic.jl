@@ -19,7 +19,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Return a `return ReturnCodeTime(ReturnCodes.Fail, @logtime)` if the expression `ex` evaluates to false.
+Return a `return ReturnCodeTime(ReturnCodes.FAIL, @logtime)` if the expression `ex` evaluates to false.
 That need to happen inside a `@recvtime` function
 If `verbose=true` print the statement and the location.
 If the expression passed is `true` do nothing.
@@ -60,10 +60,16 @@ $(TYPEDSIGNATURES)
 
 This macro is used to receive the (simulated) timing information.
 This macro does two things:
-- puts the `offsettime::DateTime=now()` in the input keyword parameters
+- puts the `offsettime::Union{DateTime, Nothing}=now()` in the input keyword parameters
 - puts `entrytime = now()` as the first command to happen in the function
 Use [`@logtime`](@ref) to calculate the current time inside the function.
 Use [`@passtime`](@ref) to pass the timing information to another function.
+
+`offsettime` is the simulated time at which the call starts; inside the call the simulated time advances with the
+real elapsed time. User-facing functions return a [`ReturnCodeTime`](@ref) (or [`ReturnUUIDTime`](@ref)) with the
+simulated time at which they finished. Simulated time must only move forward: pass that returned time (or a later one)
+as the `offsettime` of the next call and never reuse an `offsettime`. Registering an event earlier than an already
+registered one throws a [`SimulatedTimeError`](@ref).
 """
 macro recvtime(funcexpr)
     addkeywordparameters!(funcexpr, Expr(:kw, :(offsettime::Union{DateTime, Nothing}), :(now())))
@@ -81,6 +87,9 @@ This strategy calls `now()` every time before passing the arguments.
 If that proves to slow down the implementation consider to pass `offsettime, entrytime` around and calcualte @logtime once in the end.
 Another caveat is that the communication overhead between domains is not measured.
 An `offsetime=nothing` logs the time of the current system.
+
+Always pass `@passtime` to nested `@recvtime` functions; otherwise they fall back to the real clock (`now()`)
+and mix real and simulated time.
 """
 macro passtime()
     # return :((; $(esc(:offsettime)) = @logtime )...)
@@ -92,6 +101,8 @@ end
 $(TYPEDSIGNATURES)
 
 This macro is used to calculate the current (simulated) time as `offsettime + (now() - entrytime)`
+(or `now()` if `offsettime === nothing`). Use it for every timestamp that is logged and for the time returned
+in a [`ReturnCodeTime`](@ref).
 """
 macro logtime()
     # return :($(esc(:offsettime)) + (now() - $(esc(:entrytime))) )

@@ -20,6 +20,9 @@ path1 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1
 @test MINDF.getempiricalavailability(ibnfs[1], path1; endtime = nowtime) > MINDF.getavailabilityrequirement(avcon1)
 returncode, nowtime = MINDF.uncompileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 
+# Deliberately back-date link events to fabricate link history (an exception to always passing the latest time):
+# the intent is uncompiled (no reservations), so only this edge's own log is touched, and it stays in order.
+# The returned times are discarded on purpose; the clock `nowtime` continues unchanged.
 returncode, _ = setlinkstate!(ibnfs[1], Edge(3=>14), false; offsettime = starttime + Dates.Month(3))
 returncode, _ = setlinkstate!(ibnfs[1], Edge(3=>14), true; offsettime = starttime + Dates.Month(6))
 @test MINDF.getempiricalavailability(ibnfs[1], path1; endtime = nowtime) < 0.94
@@ -28,8 +31,9 @@ returncode, _ = setlinkstate!(ibnfs[1], Edge(3=>14), true; offsettime = starttim
 returncode, nowtime = compileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 path2 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=false))
 @test MINDF.getempiricalavailability(ibnfs[1], path2; endtime = nowtime) > MINDF.getavailabilityrequirement(avcon1)
-MINDF.uncompileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
+returncode, nowtime = MINDF.uncompileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 
+# Deliberately back-dated link history again (see above).
 returncode, _ = setlinkstate!(ibnfs[1], Edge(1=>6), false; offsettime = starttime + Dates.Month(4))
 returncode, _ = setlinkstate!(ibnfs[1], Edge(1=>6), true; offsettime = starttime + Dates.Month(8))
 @test MINDF.getempiricalavailability(ibnfs[1], path2; endtime = nowtime) < 0.94
@@ -107,18 +111,22 @@ returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), false; offsetti
 
 # now lift the other link. The intent should understand and change configuration automatically
 nowtime += Dates.Hour(1)
-returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15, 20), true; offsettime=nowtime)
+t0 = nowtime
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15, 20), true; offsettime=t0)
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
 @test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
-@test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(500)
+# the state change was logged during the call
+@test t0 <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) <= nowtime
 
 # what if the failed equipment is shared ?
 nowtime += Dates.Hour(1)
-returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false; offsettime=nowtime)
+t0 = nowtime
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false; offsettime=t0)
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Failed
 @test !MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 # @test isempty(MINDF.getidagnodeleafs2install(ibnfs[1], intentuuid1))
-@test Dates.Millisecond(0) <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) - nowtime < Dates.Millisecond(500)
+# the state change was logged during the call
+@test t0 <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) <= nowtime
 
 # make up but should'nt make a difference because common equipment is failing
 nowtime += Dates.Hour(1)

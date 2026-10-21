@@ -383,7 +383,7 @@ end
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestsetlinkstate_init!(myibnf, remoteibnfhandler, ge, operatingstate)
+        requestsetlinkstate_init!(myibnf, remoteibnfhandler, ge, operatingstate; @passtime)
     else
         error("Failed to set link state: $(JSON.parse(String(resp.body)))")
     end
@@ -493,7 +493,7 @@ end
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestinstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
+        requestinstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose, @passtime)
     else
         error("Failed to install intent: $(JSON.parse(String(resp.body)))")
     end
@@ -532,7 +532,7 @@ end
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestuninstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose, forceinstallable)
+        requestuninstallintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose, forceinstallable, @passtime)
     else
         error("Failed to uninstall intent: $(JSON.parse(String(resp.body)))")
     end
@@ -571,7 +571,7 @@ end
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestuncompileintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
+        requestuncompileintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose, @passtime)
     else
         error("Failed to uncompile intent: $returncompileinit")
     end
@@ -584,7 +584,7 @@ $(TYPEDSIGNATURES)
     uncompiledflag, _ = uncompileintent!(myibnf, idagnodeid; verbose, @passtime)
     if uncompiledflag == ReturnCodes.SUCCESS
         # delete also the intent
-        removeintent!(myibnf, idagnodeid; verbose)
+        removeintent!(myibnf, idagnodeid; verbose, @passtime)
         return ReturnCodes.SUCCESS
     end
     return uncompiledflag
@@ -627,7 +627,7 @@ end
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestremoteintentstateupdate_init!(myibnf, remoteibnfhandler, idagnodeid, newstate)
+        requestremoteintentstateupdate_init!(myibnf, remoteibnfhandler, idagnodeid, newstate; @passtime)
     else
         error("Failed to update remote intent state: $(JSON.parse(String(resp.body)))")
     end
@@ -640,7 +640,7 @@ end
         # updateidagnodestates!(myibnf, idagnode, newstate; @passtime)
         # TODO : brave change maybe revert to commented code
 
-        pushstatetoidagnode!(idagnode, newstate; @passtime)
+        pushstatetoidagnode!(myibnf, idagnode, newstate; @passtime)
         foreach(getidagnodeparents(getidag(myibnf), idagnodeid)) do idagnodeparent
             updateidagnodestates!(myibnf, idagnodeparent; @passtime)
         end
@@ -753,7 +753,7 @@ Return the id of the new dag node if successful and `nothing` otherwise
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestdelegateintent_init!(myibnf, remoteibnfhandler, intent, internalidagnodeid)
+        requestdelegateintent_init!(myibnf, remoteibnfhandler, intent, internalidagnodeid; @passtime)
     else
         error("Failed to delegate intent: $uuidreturned")
     end
@@ -813,7 +813,7 @@ MA1069 implementation
     elseif resp.status == 202
         encryptedsecret = rsaauthentication_init(myibnf, remoteibnfhandler)
         token = handshake_init!(myibnf, remoteibnfhandler, encryptedsecret)
-        requestcompileintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose)
+        requestcompileintent_init!(myibnf, remoteibnfhandler, idagnodeid; verbose, @passtime)
     else
         error("Failed to compile intent: $returncompileinit")
     end

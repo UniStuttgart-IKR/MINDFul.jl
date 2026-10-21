@@ -139,7 +139,14 @@ end
 $(TYPEDEF)
 $(TYPEDFIELDS)
 
-What most time-sensitive functions return
+What most time-sensitive functions return: a return code and the simulated time `datetime` at which the call finished.
+
+Simulated time must only move forward. Use the returned `datetime` (or a later time) as the `offsettime` of the
+next call, e.g. `returncode, nowtime = installintent!(ibnf, intentuuid; offsettime = nowtime)`.
+Reusing an `offsettime` that was already used, or passing an earlier one, can record events in the past;
+this is detected and a [`SimulatedTimeError`](@ref) is thrown.
+
+It iterates over its fields, so it can be destructured as `returncode, datetime = ...`.
 """
 struct ReturnCodeTime
     returncode::Symbol
@@ -168,6 +175,10 @@ end
 """
 $(TYPEDEF)
 $(TYPEDFIELDS)
+
+Like [`ReturnCodeTime`](@ref) but carries a `uuid` (e.g. of a newly added intent) instead of a return code.
+`datetime` is the simulated time at which the call finished; use it as the `offsettime` of the next call,
+e.g. `intentuuid, nowtime = addintent!(ibnf, intent, NetworkOperator(); offsettime = nowtime)`.
 """
 struct ReturnUUIDTime
     uuid::UUID
@@ -192,6 +203,22 @@ $(TYPEDSIGNATURES)
 function getdatetime(rct::ReturnUUIDTime)
     rct.datetime
 end
+
+"""
+$(TYPEDEF)
+$(TYPEDFIELDS)
+
+Thrown when an event would be recorded at a simulated time earlier than what is already recorded
+(an intent state before the intent's previous state or before the time its up/down record already accounted,
+a link state before the edge's previous state).
+This means that simulated time went backwards, typically because an `offsettime` was reused or is earlier than the
+`datetime` returned by a previous call (see [`ReturnCodeTime`](@ref)).
+"""
+struct SimulatedTimeError <: Exception
+    msg::String
+end
+
+Base.showerror(io::IO, e::SimulatedTimeError) = print(io, "SimulatedTimeError: ", e.msg)
 
 mutable struct MutableStruct{T}
     value::T

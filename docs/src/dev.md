@@ -80,6 +80,27 @@ MINDFul.jl provides a hackable interface designed to conduct event-based simulat
 
 Additionally, the companion package `MINDFulMakie.jl` can be used to visualize your simulations, draw intent DAGs, or render a compiled connectivity intent across the network topology.
 
+### Simulated time
+
+Every time-aware function (marked with `@recvtime`) takes the keyword `offsettime`: the simulated time at which the call starts.
+Inside the call, simulated time advances with the real elapsed time (`offsettime + (now() - entrytime)`, see `@logtime`), and nested calls receive it through `@passtime`.
+Without `offsettime` the real clock (`now()`) is used.
+
+User-facing functions return a `ReturnCodeTime` (`addintent!` returns a `ReturnUUIDTime`) whose `datetime` is the simulated time at which the call finished.
+**Simulated time must only move forward**: pass the returned time (or a later one) as the `offsettime` of the next call, advance it explicitly to let time pass, and never reuse an `offsettime`.
+
+```julia
+nowtime = DateTime("2026-01-01")
+intentuuid, nowtime = addintent!(ibnf, intent, NetworkOperator(); offsettime = nowtime)
+returncode, nowtime = compileintent!(ibnf, intentuuid; offsettime = nowtime)
+returncode, nowtime = installintent!(ibnf, intentuuid; offsettime = nowtime)
+nowtime += Dates.Month(3)  # let time pass
+returncode, nowtime = MINDF.setlinkstate!(ibnf, Edge(3, 14), false; offsettime = nowtime)
+```
+
+Reusing an `offsettime` makes two calls start at the same simulated time, so the second one can register its events a few milliseconds *before* the events of the first one.
+MINDFul.jl checks every registered event (intent states, link states, accounted up/down times) and throws a `SimulatedTimeError` when time would move backwards.
+
 ## Testing
 
 Useful testing functions are located in the `TestModule` weak dependency. To access them, first load `Test` and `JET`, and then use `Base.get_extension`.

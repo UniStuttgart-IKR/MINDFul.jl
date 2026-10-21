@@ -113,6 +113,24 @@ function issuccess(s::Symbol)
 end
 
 """
+$(TYPEDSIGNATURES)
+
+Check that simulated time moves forward when registering an event: throw a [`SimulatedTimeError`](@ref) if `newtime`
+is earlier than `lasttime`. Equal times are allowed.
+`what` describes the event being registered; its parts are only joined into a message when the check fails.
+"""
+function checktimeforward(newtime::DateTime, lasttime::DateTime, what...)
+    if newtime < lasttime
+        throw(SimulatedTimeError(string(
+            "cannot register ", what..., " at ", newtime, ", earlier than the already registered ", lasttime,
+            " (", lasttime - newtime, " in the past). Simulated time must only move forward: pass the `datetime` of the ",
+            "`ReturnCodeTime` returned by the previous call (or a later time) as `offsettime`, and never reuse an `offsettime`."
+        )))
+    end
+    return nothing
+end
+
+"""
     Pass a `Vector{Vector{Int}}` where `Int` are the nodes of each lightpath.
     Return a `Vector{Vector{Int}}` where `Int` is the index of the contained lightpaths.
     if `startingnode = true`, `node` is starting else is ending.

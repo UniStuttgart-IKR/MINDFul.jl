@@ -1,8 +1,12 @@
 """
 $(TYPEDSIGNATURES)
-using Base: source_path
-kk
-Add a new user intent to the IBN framework and return the id.
+
+Add a new user intent to the IBN framework.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnUUIDTime`](@ref) with the id of the new intent and the simulated time at which the call finished:
+`intentuuid, nowtime = addintent!(ibnf, intent, NetworkOperator(); offsettime = nowtime)`.
+Pass that time as `offsettime` to the next call; simulated time must never go backwards.
 """
 @recvtime function addintent!(ibnf::IBNFramework, intent::AbstractIntent, intentissuer::IntentIssuer)
     idagnode = addidagnode!(ibnf, intent; intentissuer, @passtime)
@@ -11,6 +15,12 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Remove the uncompiled intent `idagnodeid` (it must have no children) from the intent DAG.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished;
+pass it as `offsettime` to the next call (simulated time must never go backwards).
 """
 @recvtime function removeintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
@@ -22,7 +32,13 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Compile the uncompiled intent `idagnodeid`.
 THIS SHOULD BE THE ENTRY FUNCTION. DO NOT USE DIRECTLY THE `idagnode` ONES.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished;
+pass it as `offsettime` to the next call (simulated time must never go backwards):
+`returncode, nowtime = compileintent!(ibnf, intentuuid; offsettime = nowtime)`.
 """
 @recvtime function compileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) == IntentState.Uncompiled)
@@ -118,6 +134,12 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Uncompile the compiled (not installed) intent `idagnodeid`, removing its machine-generated descendants.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished;
+pass it as `offsettime` to the next call (simulated time must never go backwards).
 """
 @recvtime function uncompileintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) in [IntentState.Compiled, IntentState.Uncompiled, IntentState.Pending, IntentState.Installing])
@@ -245,6 +267,13 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Install the compiled intent `idagnodeid`.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished;
+pass it as `offsettime` to the next call (simulated time must never go backwards):
+`returncode, nowtime = installintent!(ibnf, intentuuid; offsettime = nowtime)`.
 """
 @recvtime function installintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Compiled, IntentState.Installing, IntentState.Failed])
@@ -291,6 +320,12 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Uninstall the installed intent `idagnodeid`.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished;
+pass it as `offsettime` to the next call (simulated time must never go backwards).
 """
 @recvtime function uninstallintent!(ibnf::IBNFramework, idagnodeid::UUID; verbose::Bool=false, forceinstallable=false)
     @returnwtimeiffalse(verbose, getidagnodestate(getidag(ibnf), idagnodeid) ∈ [IntentState.Installing, IntentState.Installed, IntentState.Failed, IntentState.Pending])
@@ -352,18 +387,18 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
             if issuccessfull
                 if getintent(idagnodeleaf) isa OXCAddDropBypassSpectrumLLI
                     if isoxcllifail(ibnf, getintent(idagnodeleaf))
-                        pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Failed; @passtime)
+                        pushstatetoidagnode!(ibnf, idagnodeleaf, IntentState.Failed; @passtime)
                     else
-                        pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+                        pushstatetoidagnode!(ibnf, idagnodeleaf, IntentState.Installed; @passtime)
                     end
                 else
-                    pushstatetoidagnode!(getlogstate(idagnodeleaf), IntentState.Installed; @passtime)
+                    pushstatetoidagnode!(ibnf, idagnodeleaf, IntentState.Installed; @passtime)
                 end
                 stageunstageleafintent!(ibnf, leafintent, false; about2install=true)
             end
         else
             if issuccessfull
-                pushstatetoidagnode!(getlogstate(idagnodeleaf), finalstate; @passtime)
+                pushstatetoidagnode!(ibnf, idagnodeleaf, finalstate; @passtime)
                 stageunstageleafintent!(ibnf, leafintent, true)
             end
         end
@@ -647,7 +682,14 @@ end
 
 """
 $(TYPEDSIGNATURES)
-Set the link state on both OXCView ends of `edge`
+Set the link state on both OXCView ends of `edge` (also in the neighboring domain for border edges)
+and update the states of the affected intents.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished;
+pass it as `offsettime` to the next call: `returncode, nowtime = setlinkstate!(ibnf, edge, false; offsettime = nowtime)`.
+Simulated time must never go backwards: registering a link or intent state earlier than an already registered one
+throws a [`SimulatedTimeError`](@ref).
 """
 @recvtime function setlinkstate!(ibnf::IBNFramework, edge::Edge, operatingstate::Bool; verbose=false)
     ibnag = getibnag(ibnf)

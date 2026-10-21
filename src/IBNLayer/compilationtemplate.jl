@@ -1296,9 +1296,14 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Fallback for intent compilation algorithms without memory: nothing to update.
+
+Accepts the keyword `offsettime` (see [`@recvtime`](@ref)) and returns a [`ReturnCodeTime`](@ref) whose `datetime`
+is the simulated time at which the call finished, so callers can always advance their clock with it.
 """
 @recvtime function updatelogintentcomp!(ibnf::IBNFramework{A,B,C,D,E}) where {A,B,C,D,E}
-    return nothing
+    return ReturnCodeTime(ReturnCodes.SUCCESS, @logtime)
 end
 
 ### Default stochastic

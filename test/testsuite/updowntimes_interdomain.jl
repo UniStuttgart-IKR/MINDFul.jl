@@ -7,7 +7,7 @@ ibnfs = loadmultidomaintestibnfs(compalg, nowtime)
 
 avcon1 = MINDF.AvailabilityConstraint(0.999, 0.9) 
 conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[3]), 24), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon1])
-intentuuid1, _ = addintent!(ibnfs[3], conintent1, NetworkOperator(); offsettime = nowtime)
+intentuuid1, nowtime = addintent!(ibnfs[3], conintent1, NetworkOperator(); offsettime = nowtime)
 
 _, nowtime = compileintent!(ibnfs[3], intentuuid1; offsettime = nowtime)
 _, nowtime = installintent!(ibnfs[3], intentuuid1; offsettime = nowtime)
@@ -27,7 +27,7 @@ updowntimesndt1 = MINDF.getloginterupdowntimesperintent(ibnfs[3], MINDF.getidagn
 
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(remidagnode), nowtime)
 # updating dt1 should be the same
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
 
 time2test = nowtime - nowtime1
 for updndt in [updowntimesndt1, updowntimesndt2]
@@ -36,7 +36,7 @@ for updndt in [updowntimesndt1, updowntimesndt2]
     @test length(MINDF.getdowntimes(updndt)) == 0
     @test time2test - Dates.Second(5) < sum(MINDF.getuptimes(updndt)) < time2test + Dates.Second(5)
 end
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime) # same simulated time: shouldn't change anything
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime) # update again right away: shouldn't change anything
 let updndt = updowntimesndt1
     @test length(MINDF.getdatetimestamps(updndt)) == 1
     @test length(MINDF.getuptimes(updndt)) == 1
@@ -46,15 +46,15 @@ end
 
 
 nowtime += Dates.Month(10) # before first break
-nowtime3 = nowtime
+nowtime3 = nowtime # time at which the link fails
 
-rct, nowtime3 = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
+rct, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
 
 nowtime += Dates.Month(2) # some downtime
 nowtime4 = nowtime 
 
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(remidagnode), nowtime)
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
 for updndt in [updowntimesndt1, updowntimesndt2]
     @test length(MINDF.getdatetimestamps(updndt)) == 2
     @test length(MINDF.getuptimes(updndt)) == 1
@@ -68,7 +68,7 @@ nowtime += Dates.Month(2) # some downtime
 nowtime5 = nowtime 
 
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(remidagnode), nowtime)
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
 for updndt in [updowntimesndt1, updowntimesndt2]
     @test length(MINDF.getdatetimestamps(updndt)) == 2
     @test length(MINDF.getuptimes(updndt)) == 1
@@ -80,23 +80,23 @@ end
 nowtime += Dates.Month(1) # some more downtime
 nowtime6 = nowtime 
 
-MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), false; offsettime = nowtime) 
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), false; offsettime = nowtime)
 
 nowtime += Dates.Month(2)
 nowtime7 = nowtime 
 
-MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
 
 nowtime += Dates.Month(1)
 nowtime8 = nowtime 
 
-MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), true; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), true; offsettime = nowtime)
 
 nowtime += Dates.Month(1)
 nowtime9 = nowtime 
 
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(remidagnode), nowtime)
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
 uptime1 = nowtime9 - nowtime8 + nowtime3 - nowtime1
 downtime1 = nowtime8 - nowtime3
 for updndt in [updowntimesndt1, updowntimesndt2]
@@ -108,12 +108,12 @@ for updndt in [updowntimesndt1, updowntimesndt2]
 end
 
 # down again
-MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
 nowtime += Dates.Month(2)
 nowtime10 = nowtime 
 
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(remidagnode), nowtime)
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
 downtime1 += nowtime10 - nowtime9
 for updndt in [updowntimesndt1, updowntimesndt2]
     @test length(MINDF.getdatetimestamps(updndt)) == 4
@@ -125,12 +125,12 @@ end
 
 
 # up again
-MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
 nowtime += Dates.Month(2)
 nowtime11 = nowtime 
 
 updowntimesndt2 = MINDF.getupdowntimes(MINDF.getlogstate(remidagnode), nowtime)
-MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
+_, nowtime = MINDF.updatelogintentcomp!(ibnfs[3]; offsettime=nowtime)
 uptime1 +=  nowtime11 - nowtime10
 for updndt in [updowntimesndt1, updowntimesndt2]
     @test length(MINDF.getdatetimestamps(updndt)) == 5

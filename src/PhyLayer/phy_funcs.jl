@@ -163,11 +163,18 @@ end
 """
 $(TYPEDSIGNATURES)
 Set the operating state of the edge in `oxcview` and trigger the state update of the relevant low level intents.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+The new link state is registered at the current simulated time; a [`SimulatedTimeError`](@ref) is thrown if that is
+earlier than the last registered state of `edge`.
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished.
 """
 @recvtime function setlinkstate!(ibnf::IBNFramework, oxcview::OXCView, edge::Edge, operatingstate::Bool)
     if getcurrentlinkstate(oxcview, edge) != operatingstate
         linkstates = getlinkstates(oxcview)[edge]
-        push!(linkstates, (@logtime, operatingstate))
+        logtime = @logtime
+        isempty(linkstates) || checktimeforward(logtime, first(linkstates[end]), "link state ", operatingstate, " of edge ", edge, " in IBNFramework ", getibnfid(ibnf))
+        push!(linkstates, (logtime, operatingstate))
 
         ibnagaweights = getibnagweights(getcachedresults(getintcompalg(ibnf)))
         if operatingstate == false

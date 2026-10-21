@@ -436,6 +436,14 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Bring the algorithm memory up to the current simulated time: set its datetime and account the up/down times of
+every logged inter-domain intent up to that time.
+
+Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
+Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at which the call finished.
+Pass that `datetime` (or a later time) as `offsettime` to the next call: simulated time must never go backwards,
+otherwise a later event is recorded before the time already accounted here and a [`SimulatedTimeError`](@ref) is thrown.
 """
 @recvtime function updatelogintentcomp!(ibnf::IBNFrameworkIntentAlgorithmWithMemory)
     intentcomp = getintcompalg(ibnf)
@@ -464,4 +472,5 @@ $(TYPEDSIGNATURES)
             end
         end
     end
+    return ReturnCodeTime(ReturnCodes.SUCCESS, @logtime)
 end

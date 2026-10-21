@@ -7,7 +7,7 @@ ibnfs = loadmultidomaintestibnfs(compalg, nowtime)
 
 avcon1 = MINDF.AvailabilityConstraint(0.999, 0.9) 
 conintent1 = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon1])
-intentuuid1, _ = addintent!(ibnfs[1], conintent1, NetworkOperator(); offsettime = nowtime)
+intentuuid1, nowtime = addintent!(ibnfs[1], conintent1, NetworkOperator(); offsettime = nowtime)
 
 _, nowtime = compileintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
 _, nowtime = installintent!(ibnfs[1], intentuuid1; offsettime = nowtime)
@@ -45,9 +45,9 @@ end
 
 
 nowtime += Dates.Month(10) # before first break
-nowtime3 = nowtime
+nowtime3 = nowtime # time at which the link fails
 
-rct, nowtime3 = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
+rct, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
 
 nowtime += Dates.Month(2) # some downtime
 nowtime4 = nowtime 
@@ -80,17 +80,17 @@ end
 nowtime += Dates.Month(1) # some more downtime
 nowtime6 = nowtime 
 
-MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), false; offsettime = nowtime) 
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), false; offsettime = nowtime)
 
 nowtime += Dates.Month(2)
 nowtime7 = nowtime 
 
-MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
 
 nowtime += Dates.Month(1)
 nowtime8 = nowtime 
 
-MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), true; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(14=>15), true; offsettime = nowtime)
 
 nowtime += Dates.Month(1)
 nowtime9 = nowtime 
@@ -108,7 +108,7 @@ for updndt in [updowntimesndt1, updowntimesndt2]
 end
 
 # down again
-MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), false; offsettime = nowtime)
 nowtime += Dates.Month(2)
 nowtime10 = nowtime 
 
@@ -125,7 +125,7 @@ end
 
 
 # up again
-MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15=>20), true; offsettime = nowtime)
 nowtime += Dates.Month(2)
 nowtime11 = nowtime 
 
