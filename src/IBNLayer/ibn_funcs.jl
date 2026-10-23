@@ -363,7 +363,14 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
     if leafintent isa LowLevelIntent
         localnode = getlocalnode(leafintent)
         nodeview = AG.vertex_attr(getibnag(ibnf))[localnode]
-        successflag = if leafintent isa TransmissionModuleLLI
+        resourceview = leafintent isa TransmissionModuleLLI ? nodeview :
+                       leafintent isa RouterPortLLI ? getrouterview(nodeview) : getoxcview(nodeview)
+        # the leaf may already hold its reservation, e.g. a lightpath shared by grooming that was installed for another intent.
+        # Reserving it again would conflict with itself.
+        alreadyreserved = doinstall && haskey(getreservations(resourceview), leafid)
+        successflag = if alreadyreserved
+            ReturnCodes.SUCCESS
+        elseif leafintent isa TransmissionModuleLLI
             if doinstall
                 reserve!(getsdncontroller(ibnf), nodeview, leafintent, leafid; checkfirst=true, verbose)
             else
@@ -394,7 +401,8 @@ to reserve pass `doinstall=true`, and to unreserve `doinstall=false`
                 else
                     pushstatetoidagnode!(ibnf, idagnodeleaf, IntentState.Installed; @passtime)
                 end
-                stageunstageleafintent!(ibnf, leafintent, false; about2install=true)
+                # an already reserved leaf was unstaged when it was reserved
+                alreadyreserved || stageunstageleafintent!(ibnf, leafintent, false; about2install=true)
             end
         else
             if issuccessfull
