@@ -163,6 +163,8 @@ end
 """
 $(TYPEDSIGNATURES)
 Set the operating state of the edge in `oxcview` and trigger the state update of the relevant low level intents.
+On failure, every reserved OXC LLI using `edge` becomes `Failed`.
+On repair, such an LLI becomes `Installed` only if all of its links (input and output) are up.
 
 Keyword `offsettime` (added by [`@recvtime`](@ref)): simulated time at which the call starts (default `now()`, i.e. real time).
 The new link state is registered at the current simulated time; a [`SimulatedTimeError`](@ref) is thrown if that is
@@ -186,7 +188,11 @@ Returns a [`ReturnCodeTime`](@ref) whose `datetime` is the simulated time at whi
         for (lliid, oxclli) in getreservations(oxcview)
             if oxcllicontainsedge(oxclli, edge)
                 if operatingstate
-                    updateidagstates!(ibnf, lliid, IntentState.Installed; @passtime)
+                    # an OXC LLI can span two links: it is repaired only if its other link is up too.
+                    # Read the states from this OXC view: the view at the other end of `edge` may not be updated yet.
+                    if all(ed -> getcurrentlinkstate(oxcview, ed), getoxclliedges(oxclli))
+                        updateidagstates!(ibnf, lliid, IntentState.Installed; @passtime)
+                    end
                 else
                     updateidagstates!(ibnf, lliid, IntentState.Failed; @passtime)
                 end

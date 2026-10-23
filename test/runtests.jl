@@ -26,6 +26,7 @@ include("testsuite/logintraintertest.jl")
 include("testsuite/updowntimes.jl")
 include("testsuite/updowntimes_interdomain.jl")
 include("testsuite/simulatedtime.jl")
+include("testsuite/consecutive_link_failure.jl")
 
 # include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
 # include("testsuite/multidomainavailabilityprotection_grooming.jl")
