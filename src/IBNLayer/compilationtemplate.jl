@@ -117,15 +117,25 @@ prioritizesplitbordernodes(
                     destinationsplitglobalnode = SplitGlobalNode(destinationglobalnode, masteravcon, nothing)
                 end
                 returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intradomainalgfun, destinationsplitglobalnode, cachedintentresult; verbose, @passtime)
+                # like a failed split attempt in the intra-domain branch, undo the failed attempt
+                if !issuccess(returncode)
+                    returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+                    @assert returncodetemp == ReturnCodes.SUCCESS
+                end
             else
                 # select border node
                 candidatedestinationglobalbordernodes = prioritizesplitbordernodes(ibnf, idagnode)
                 isempty(candidatedestinationglobalbordernodes) && return ReturnCodes.FAIL_OPTICALREACH_OPTINIT_NONODESPLIT
                 for destinationglobalbordernode in candidatedestinationglobalbordernodes
-                    uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
                     verbose && @info("Attempting to split cross intent at GlobalNode", destinationglobalbordernode)
                     returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intradomainalgfun, destinationglobalbordernode, cachedintentresult; verbose, @passtime)
-                    issuccess(returncode) && break
+                    if issuccess(returncode)
+                        break
+                    else
+                        # undo the failed attempt right away, like the intra-domain split loop
+                        returncodetemp, _ = uncompileintent!(ibnf, getidagnodeid(idagnode); @passtime)
+                        @assert returncodetemp == ReturnCodes.SUCCESS
+                    end
                 end
             end
         end
