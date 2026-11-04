@@ -1,4 +1,4 @@
-# @testset ExtendedTestSet "singledomain-splitavail.jl"  begin
+@testset ExtendedTestSet "singledomainavailabilityprotection_grooming_split.jl"  begin
 nt = starttime = DateTime("2026-01-01")
 compalg = MINDF.BestEmpiricalAvailabilityCompilation(5, 5; nodenum=1)
 
@@ -18,8 +18,10 @@ getavcon1 = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent
 getavcon2 = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idnchildren[2])))
 
 @test MINDF.getavailabilityrequirement(getavcon1) * MINDF.getavailabilityrequirement(getavcon2) >= MINDF.getavailabilityrequirement(avcon1)
-@test MINDF.getcompliancetarget(getavcon1) * MINDF.getcompliancetarget(getavcon2) >= MINDF.getcompliancetarget(avcon1)
+# the product is sqrt(ct) * sqrt(ct), which can be one ulp below ct
+ctproduct = MINDF.getcompliancetarget(getavcon1) * MINDF.getcompliancetarget(getavcon2)
+@test ctproduct >= MINDF.getcompliancetarget(avcon1) || ctproduct ≈ MINDF.getcompliancetarget(avcon1)
 
 rc, nt = installintent!(ibnfs[3], intentuuid1; offsettime = nt, verbose=false)
 @test rc == ReturnCodes.SUCCESS
-# end
+end

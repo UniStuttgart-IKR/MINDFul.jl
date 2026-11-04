@@ -29,8 +29,9 @@ include("testsuite/simulatedtime.jl")
 include("testsuite/consecutive_link_failure.jl")
 include("testsuite/groomed_install_on_failure.jl")
 include("testsuite/failed_crossdomain_compile.jl")
+include("testsuite/splitavailability.jl")
 
-# include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
+include("testsuite/singledomainavailabilityprotection_grooming_split.jl")
 # include("testsuite/multidomainavailabilityprotection_grooming.jl")
 
 

@@ -84,14 +84,14 @@ After `estimateintentavailability(IBNFramework, ::IntentDAGNode{<:ConnectivityIn
 
 Must always return a AvailabilityConstraint
 
-Assumes 100% compliance target
+Assumes equal compliance target split, like [`chooseintrasplitavailabilities`](@ref) gives to the first half
 
 The `firsthalfavailability` must be of the same type that the `estimateintentavailability` returns.
 """
 function calcsecondhalfavailabilityconstraint(ibnf::IBNFramework, firsthalfavailability::Float64, masteravconstr::AvailabilityConstraint)
     secondavailabilityrequirement = getavailabilityrequirement(masteravconstr) / firsthalfavailability
     secondavailabilityrequirementfinal = secondavailabilityrequirement > 1.0 ? 1.0 : secondavailabilityrequirement
-    secondcompliancetarget = getcompliancetarget(masteravconstr)
+    secondcompliancetarget = sqrt(getcompliancetarget(masteravconstr))
     return AvailabilityConstraint(secondavailabilityrequirement, secondcompliancetarget)
 end
 

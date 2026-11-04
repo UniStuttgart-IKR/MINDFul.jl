@@ -110,12 +110,8 @@ prioritizesplitbordernodes(
             # border-node
             if isbordernode(ibnf, destinationglobalnode)
                 verbose && @info("Splitting at the border node")
-                masteravcon = getfirst(x -> x isa AvailabilityConstraint, getconstraints(getintent(idagnode)))
-                if isnothing(masteravcon)
-                    destinationsplitglobalnode = SplitGlobalNode(destinationglobalnode)
-                else
-                    destinationsplitglobalnode = SplitGlobalNode(destinationglobalnode, masteravcon, nothing)
-                end
+                # plan the availability split like for the other border nodes (`prioritizesplitbordernodes_shortestorshortestrandom`)
+                destinationsplitglobalnode = calcicrosssplitglobalnode(ibnf, getintent(idagnode), destinationglobalnode)
                 returncode = splitandcompilecrossdomainconnectivityintent(ibnf, idagnode, intradomainalgfun, destinationsplitglobalnode, cachedintentresult; verbose, @passtime)
                 # like a failed split attempt in the intra-domain branch, undo the failed attempt
                 if !issuccess(returncode)
@@ -1344,7 +1340,9 @@ function chooseintrasplitavailabilities_defaultstochastic(avcon::AvailabilityCon
     combinationfound = false
     # begin from 100 % compliance target
     # shouldn't this try for get the lowest availability constraint ?
-    for firstct in compliancetarget:+0.01:1.0
+    # The first half gets at least sqrt(compliancetarget): `calcsecondhalfavailabilityconstraint` revises the second half
+    # with sqrt(compliancetarget), so both halves hold together with probability firstct * sqrt(compliancetarget) >= compliancetarget
+    for firstct in sqrtcompliancetarget:+0.01:1.0
         setcompliancetarget!(firsthalfmutavailabilityconstraint, firstct)
         firstavailabilityrequirement = getavailabilityatcompliancetarget(firsthalfavailability, firstct)
         setavailabilityrequirement!(firsthalfmutavailabilityconstraint, firstavailabilityrequirement)
