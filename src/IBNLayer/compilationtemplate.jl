@@ -1460,6 +1460,7 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
 
     upperindex = getpathsforprotectionnum(intentcomp) > length(yenstatepaths) ? length(yenstatepaths) : getpathsforprotectionnum(intentcomp)
     kprotectedpaths = yenstatepaths[1:upperindex]
+    needssamelasthop = any(x -> x isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
     for i1 in eachindex(kprotectedpaths)
         path1 = yenstatepaths[i1]
         edges1 = edgeify(path1)
@@ -1468,24 +1469,15 @@ function prioritizepaths_stochasticavailability(ibnf::IBNFramework, idagnode::In
             path2 = yenstatepaths[i2]
             edges2 = edgeify(path2)
             any(ed -> !getcurrentlinkstate(ibnf, ed), edges2) && continue
-            if !any(x -> x isa OpticalTerminateConstraint, getconstraints(getintent(idagnode)))
-		# TODO : looks like no ! is needed before ?
-                # protection with optical terminate requires that last link is the same (such that the protected paths terminate similarly)
-                if path1[end-1] == path2[end-1] && path1[end] == path2[end]
-		    estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2]; servicetime)
-		    quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
-                    if quantl >= availabilityrequirement
-                        push!(priorityprotectionpaths, [path1, path2])
-                        push!(pathempavail, quantl)
-                    end
-                end
-            else
-		estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2]; servicetime)
-		quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
-                if quantl >= availabilityrequirement
-                    push!(priorityprotectionpaths, [path1, path2])
-                    push!(pathempavail, quantl)
-                end
+            # protection with optical terminate requires that last link is the same (such that the protected paths terminate similarly)
+            if needssamelasthop && !(path1[end-1] == path2[end-1] && path1[end] == path2[end])
+                continue
+            end
+            estimatedpathavail = estimateprpathavailability(ibnf, [path1, path2]; servicetime)
+            quantl = getavailabilityatcompliancetarget(estimatedpathavail, compliancetarget)
+            if quantl >= availabilityrequirement
+                push!(priorityprotectionpaths, [path1, path2])
+                push!(pathempavail, quantl)
             end
         end
     end

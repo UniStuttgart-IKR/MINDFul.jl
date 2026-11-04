@@ -49,10 +49,26 @@ returncode, nowtime = compileintent!(ibnfs[1], intentuuid1; offsettime = nowtime
 protectedpath1 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=false, choosealternativeorder=1))
 @test protectedpath1 == [4, 3, 14, 15, 20, 8]
 protectedpath2 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=false, choosealternativeorder=2))
-@test protectedpath2 == [4, 1, 6, 20, 8]
+@test protectedpath2 == [4, 1, 6, 5, 7, 8]
+# without an OpticalTerminateConstraint the protected paths can be fully disjoint
+@test isempty(intersect(MINDF.edgeify(protectedpath1), MINDF.edgeify(protectedpath2)))
 protectedpath1availability = MINDF.getempiricalavailability(ibnfs[1], protectedpath1; endtime = nowtime)
 protectedpath2availability = MINDF.getempiricalavailability(ibnfs[1], protectedpath2; endtime = nowtime)
 @test MINDF.calculateparallelavailability(protectedpath1availability, protectedpath2availability) > MINDF.getavailabilityrequirement(avcon1)
+
+# with an OpticalTerminateConstraint all protected paths must end with the same link
+# (whatever continues optically, e.g. the remote domain, gets a single OpticalInitiateConstraint)
+conintentot = ConnectivityIntent(GlobalNode(getibnfid(ibnfs[1]), 4), GlobalNode(getibnfid(ibnfs[1]), 8), u"5.0Gbps", [avcon1, MINDF.OpticalTerminateConstraint(GlobalNode(getibnfid(ibnfs[1]), 8))])
+intentuuidot, nowtime = addintent!(ibnfs[1], conintentot, NetworkOperator(); offsettime=nowtime)
+candidatesot = MINDF.prioritizepaths_stochasticavailability(ibnfs[1], MINDF.getidagnode(getidag(ibnfs[1]), intentuuidot))
+candidatepairsot = filter(c -> length(c) == 2, candidatesot)
+@test !isempty(candidatepairsot)
+@test all(prp -> prp[1][end-1:end] == prp[2][end-1:end], candidatepairsot)
+# without it, disjoint pairs are candidates too
+candidates1 = MINDF.prioritizepaths_stochasticavailability(ibnfs[1], MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))
+@test any(prp -> length(prp) == 2 && isempty(intersect(MINDF.edgeify(prp[1]), MINDF.edgeify(prp[2]))), candidates1)
+returncode, nowtime = removeintent!(ibnfs[1], intentuuidot; offsettime=nowtime)
+@test returncode == ReturnCodes.SUCCESS
 
 
 # do an intent state circle 
@@ -90,9 +106,9 @@ idagnodes2install1 = MINDF.getidagnodeleafs2install(ibnfs[1], UUID(0x1))
 installedpath2 = MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=true))
 @test installedpath2 == protectedpath2
 
-# fail also the other link
+# fail also a link of the other path
 nowtime += Dates.Hour(1)
-returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), false; offsettime=nowtime)
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 5), false; offsettime=nowtime)
 
 idagnodes2install2 = MINDF.getidagnodeleafs2install(ibnfs[1], UUID(0x1))
 
@@ -101,13 +117,13 @@ idagnodes2install2 = MINDF.getidagnodeleafs2install(ibnfs[1], UUID(0x1))
 
 # one of the links is up
 nowtime += Dates.Hour(1)
-_, nowtime =MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), true; offsettime=nowtime)
+_, nowtime =MINDF.setlinkstate!(ibnfs[1], Edge(6, 5), true; offsettime=nowtime)
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
 @test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 
 # make it down again
 nowtime += Dates.Hour(1)
-returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), false; offsettime=nowtime)
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 5), false; offsettime=nowtime)
 
 # now lift the other link. The intent should understand and change configuration automatically
 nowtime += Dates.Hour(1)
@@ -117,24 +133,32 @@ returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(15, 20), true; offsetti
 @test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
 # the state change was logged during the call
 @test t0 <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) <= nowtime
+@test MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=true)) == protectedpath1
 
-# what if the failed equipment is shared ?
+# the last link of the installed path fails: the paths are disjoint, so the intent switches to the other path
+nowtime += Dates.Hour(1)
+_, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 5), true; offsettime=nowtime)
+nowtime += Dates.Hour(1)
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false; offsettime=nowtime)
+@test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
+@test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
+@test MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=true)) == protectedpath2
+
+# the last link of the other path fails too
 nowtime += Dates.Hour(1)
 t0 = nowtime
-returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(20, 8), false; offsettime=t0)
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(7, 8), false; offsettime=t0)
 @test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Failed
 @test !MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
-# @test isempty(MINDF.getidagnodeleafs2install(ibnfs[1], intentuuid1))
 # the state change was logged during the call
 @test t0 <= MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) <= nowtime
 
-# make up but should'nt make a difference because common equipment is failing
+# make up again
 nowtime += Dates.Hour(1)
-returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(6, 20), true; offsettime=nowtime)
-@test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Failed
-@test !MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
-# @test isempty(MINDF.getidagnodeleafs2install(ibnfs[1], intentuuid1))
-# @test Dates.Hour(1) + Dates.Millisecond(100) >= nowtime - MINDF.getlogtuplettime(MINDF.getlogstate(MINDF.getidagnode(getidag(ibnfs[1]), intentuuid1))[end]) >= Dates.Hour(1)
+returncode, nowtime = MINDF.setlinkstate!(ibnfs[1], Edge(7, 8), true; offsettime=nowtime)
+@test MINDF.getidagnodestate(getidag(ibnfs[1]), intentuuid1) == MINDF.IntentState.Installed
+@test MINDF.issatisfied(ibnfs[1], intentuuid1, noextrallis = false)
+@test MINDF.logicalordergetpath(MINDF.getlogicallliorder(ibnfs[1], intentuuid1; onlyinstalled=true)) == protectedpath2
 
 
 # give an impossible availability to cover
