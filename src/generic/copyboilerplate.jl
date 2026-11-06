@@ -22,10 +22,12 @@ end
 $(TYPEDSIGNATURES) 
 
 Recursively compare all fields until a primitive element type is found
+
+Currently unused by the package; only the tests use it (`ext/TestModule/tests.jl`). A candidate for removal in a later cleanup.
 """
 function isthesame(obj1::T, obj2::T) where {T}
     skiphandlers = false
-    if T <: IBNFramework{O, S, T, H} where {O, S, T, H <: IBNFramework}
+    if T <: IBNFramework
         # cannot do recursive
         length(getibnfhandlers(obj1)) == length(getibnfhandlers(obj2)) || return false
         skiphandlers = true
@@ -51,20 +53,30 @@ function isthesame(obj1::T, obj2::T) where {T}
             end
         end
     elseif T <: AbstractVector
+        length(obj1) == length(obj2) || return false
         return all(zip(obj1, obj2)) do (obj1el, obj2el)
             isthesame(obj1el, obj2el)
         end
+    elseif fieldcount(T) == 0
+        # nothing to recurse into (e.g. `String`, `Symbol`, singletons)
+        return obj1 == obj2
     else
         return all(fieldnames(T)) do fn
-            if skiphandlers
-                if fn == :ibnfhandlers
-                    return true
-                else
-                    isthesame(getfield(obj1, fn), getfield(obj2, fn))
-                end
-            else
+            # the handlers (in `ibnfcomm`) refer back to IBNFrameworks; only their number is compared above
+            if skiphandlers && fn == :ibnfcomm
                 return true
+            else
+                return isthesame(getfield(obj1, fn), getfield(obj2, fn))
             end
         end
     end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Objects of different types are not the same (e.g. a field of abstract type holding different concrete types)
+"""
+function isthesame(obj1, obj2)
+    return false
 end

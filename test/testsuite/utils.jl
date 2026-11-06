@@ -30,4 +30,11 @@
         [[7, 12, 1], [1, 2, 3]],
     ]
 
+    # `isthesame` compares the fields recursively
+    @test MINDF.isthesame(GlobalNode(UUID(1), 1), GlobalNode(UUID(1), 1))
+    @test !MINDF.isthesame(GlobalNode(UUID(1), 1), GlobalNode(UUID(1), 2))
+    @test !MINDF.isthesame(GlobalNode(UUID(1), 1), GlobalNode(UUID(2), 1))
+    @test !MINDF.isthesame([1, 2, 3], [1, 2])
+    @test !MINDF.isthesame("abc", "abd")
+
 end
