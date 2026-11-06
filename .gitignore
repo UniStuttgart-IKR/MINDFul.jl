@@ -13,3 +13,6 @@ docs/build/
 .vimsession.vim
 MYREADME.md
 test/LiveTest_ma1069
+.worktrees/
+issuedescription.md
+ISSUES.md
