@@ -132,7 +132,36 @@ function testoxcfiberallocationconsistency(ibnf)
         end
     end
 
+    # the slots must also be the ones of the reserved and staged LLIs (a leak is symmetric, so the check above misses it)
+    @test isempty(spectruminvariantviolations(ibnf))
+
     return
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Check the spectrum bookkeeping of every (non-border) OXC: a slot of an edge is unavailable if and only if a reserved
+or staged OXC LLI of that OXC uses the edge and the slot.
+Return the violations as `(localnode, edge, slots marked free although used, slots marked used although no LLI uses them)`.
+"""
+function spectruminvariantviolations(ibnf)
+    violations = Tuple{Int, Edge{Int}, Vector{Int}, Vector{Int}}[]
+    for nodeview in MINDF.getintranodeviews(MINDF.getibnag(ibnf))
+        oxcview = MINDF.getoxcview(nodeview)
+        expected = Dict(ed => fill(true, length(slots)) for (ed, slots) in MINDF.getlinkspectrumavailabilities(oxcview))
+        for lli in Iterators.flatten((values(MINDF.getreservations(oxcview)), MINDF.getstaged(oxcview)))
+            for ed in MINDF.getoxclliedges(lli)
+                expected[ed][MINDF.getspectrumslotsrange(lli)] .= false
+            end
+        end
+        for (ed, slots) in MINDF.getlinkspectrumavailabilities(oxcview)
+            if slots != expected[ed]
+                push!(violations, (MINDF.getlocalnode(MINDF.getproperties(nodeview)), ed, findall(slots .& .!expected[ed]), findall(.!slots .& expected[ed])))
+            end
+        end
+    end
+    return violations
 end
 
 """
