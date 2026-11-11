@@ -15,6 +15,47 @@ function updateestimations!(ibnf::IBNFramework, currenttime::DateTime)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Record the result of `updateestimations!` into the algorithm KPIs.
+Called from the simulation code after `updateestimations!`.
+Overload for the KPI type of the specific algorithm; does nothing by default.
+"""
+function addkpiestimation!(kpis, estimation, datetime::DateTime)
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return diagnostics of the estimation procedure of the compilation algorithm, e.g. MCMC convergence diagnostics.
+Overload for the specific algorithm; returns `missing` by default.
+"""
+function getestimationdiagnostics(ibnf::IBNFramework)
+    return missing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+The availability compliance target of the compilation algorithm.
+Overload for the specific algorithm; returns `missing` by default.
+"""
+function getcompliancetarget(intentcomp::IntentCompilationAlgorithm)
+    return missing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Construct the compilation algorithm identified by the `Val` symbol with the parameters in `tomlparameters`.
+External packages overload this to register their algorithms by name; returns `nothing` by default.
+"""
+function constructcompilationalgorithm(::Val, tomlparameters::Dict)
+    return nothing
+end
+
 function multavs(av1, av2)
     return av1 * av2
 end
