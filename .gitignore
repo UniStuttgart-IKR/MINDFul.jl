@@ -16,3 +16,4 @@ test/LiveTest_ma1069
 .worktrees/
 issuedescription.md
 ISSUES.md
+test/cache/

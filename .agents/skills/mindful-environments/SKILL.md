@@ -39,18 +39,18 @@ julia --project=test -e 'using Pkg; Pkg.develop(path=".")'
 
 - **Used by code in `src/`** → root `Project.toml`: add to `[deps]` *and* give it a `[compat]` bound (the package is registered, so every dep needs compat). From the root: `julia --project=. -e 'using Pkg; Pkg.add("Foo")'`, then add the compat entry.
 - **Only used by tests** → `test/Project.toml` only: `julia --project=test -e 'using Pkg; Pkg.add("Foo")'`. Never put test-only tools in the root `[deps]`; that forces them on every user of the package.
-- **Used by both `src/` and directly by test files** → both. Julia only lets you `using Foo` for packages that are *direct* deps of the active environment, so even though MINDFul already depends on e.g. `Graphs` or `JLD2`, `test/initialize.jl` can only `using Graphs` because `Graphs` is also listed in `test/Project.toml`. If a test file gains a new `using`/`import`, the package must be added to the test environment.
+- **Used by both `src/` and directly by test files** → both. Julia only lets you `using Foo` for packages that are *direct* deps of the active environment, so even though MINDFul already depends on e.g. `Graphs`, `test/runtests.jl` can only `using Graphs` because `Graphs` is also listed in `test/Project.toml`. If a test file gains a new `using`/`import`, the package must be added to the test environment.
 - **Used by the `TestModule` extension** (`ext/TestModule.jl`) → see below.
 
 After editing the root `Project.toml`, the test environment picks the change up on its next resolve: `julia --project=test -e 'using Pkg; Pkg.resolve(); Pkg.instantiate()'`.
 
 ## The TestModule extension
 
-Shared test helpers (`testcompilation`, `testinstallation`, `nothingisallocated`, …) live in a package extension, not in `test/`:
+Shared test helpers (`testcompilation`, `testinstallation`, `nothingisallocated`, …), the test-network loaders (`loadmultidomaintestibnfs`, …, reading the TOML networks in `test/data`) and the path cache (`setcachedresults!`) live in a package extension, not in `test/`:
 
 - Root `Project.toml` declares `JET`, `Test`, `Random` as `[weakdeps]` and `TestModule = ["JET", "Test", "Random"]` under `[extensions]`.
 - The extension code is `ext/TestModule.jl` (+ `ext/TestModule/`).
-- Because the test environment has JET, Test and Random installed and loads them, Julia activates the extension automatically. `test/initialize.jl` fetches it with `TM = Base.get_extension(MINDFul, :TestModule)` and asserts it is not `nothing`.
+- Because the test environment has JET, Test and Random installed and loads them, Julia activates the extension automatically. `test/runtests.jl` fetches it with `const TM = Base.get_extension(MINDFul, :TestModule)`, asserts it is not `nothing`, and does `using .TM`: the extension exports the helpers, loaders, suites and the MINDFul names the tests use (the "test prelude").
 
 If `TM` is `nothing`, one of the trigger packages isn't loaded/installed in the active environment — you're probably not running under `--project=test`. If the extension needs a new package that isn't already a MINDFul dep, add it to the root `[weakdeps]` (with `[compat]`), add it to the `TestModule` trigger list, and add it to `test/Project.toml` so it gets loaded.
 
@@ -67,26 +67,27 @@ julia --project=test test/runtests.jl --nojet            # skip JET checks (fast
 julia --project=test test/runtests.jl --nosercache       # recompute cached path results
 ```
 
-`test/runtests.jl` includes `initialize.jl` and `testsuite/utils.jl` first, then each `testsuite/*.jl` file.
+`test/runtests.jl` starts with the test prelude (the `using`s, `const TM = …; using .TM`, and `TM.setcachedresults!` with the git-ignored `test/cache/cachedresults.bin`), then includes each `testsuite/*.jl` file.
 
 ### Running a single testsuite file
 
-**`test/initialize.jl` must be included at least once in the Julia session before any `testsuite/*.jl` file.** The testsuite files are not self-contained: `initialize.jl` does the `using`s, imports dozens of MINDFul names, defines `MINDF`, `TESTDIR`, `RUNJET`, the `TM` extension handle and loaders like `loadmultidomaintestibnfs`. Without it, a testsuite file fails with `UndefVarError`s that look like bugs but aren't. Include `testsuite/utils.jl` too, as `runtests.jl` does. In a REPL you only need to include `initialize.jl` once; afterwards you can re-`include` testsuite files repeatedly.
+**The test prelude must run once in the Julia session before any `testsuite/*.jl` file.** The testsuite files are not self-contained: they use the names the prelude brings in (`MINDF`, the MINDFul names, `runjet()`, `TESTDATADIR`, loaders like `loadmultidomaintestibnfs`, helpers like `nothingisallocated`, `ExtendedTestSet`, `Edge`, `DateTime`, `u"..."`). Without it, a testsuite file fails with `UndefVarError`s that look like bugs but aren't. In a REPL you only need the prelude once; afterwards you can re-`include` testsuite files repeatedly.
 
-Put throwaway runner/debug scripts in **`test/tmp/`** — its `.gitignore` ignores everything, so nothing pollutes the repo (it also holds the serialized path cache `serializedcachedresultsdict.bin`). Use `@__DIR__`-relative paths so the script works from any cwd:
+Put throwaway runner/debug scripts in the session scratchpad (not in the repo). A script starts with the prelude lines of `test/runtests.jl`:
 
 ```julia
-# test/tmp/run_grooming.jl
-include(joinpath(@__DIR__, "..", "initialize.jl"))
-include(joinpath(@__DIR__, "..", "testsuite", "utils.jl"))
-include(joinpath(@__DIR__, "..", "testsuite", "grooming.jl"))
+using Test, TestSetExtensions, JET, MINDFul, Graphs, UUIDs, Unitful, UnitfulData, Dates, MbedTLS
+const TM = Base.get_extension(MINDFul, :TestModule)
+using .TM
+TM.setcachedresults!(joinpath(pkgdir(MINDFul), "test", "cache", "cachedresults.bin"))   # reuse the cached paths
+include(joinpath(pkgdir(MINDFul), "test", "testsuite", "grooming.jl"))
 ```
 
 ```bash
-julia --project=test test/tmp/run_grooming.jl           # flags like --nojet work here too
+julia --project=test /path/to/script.jl           # flags like --nojet work here too
 ```
 
-For an interactive session, `Revise` is in the test environment: `julia --project=test`, then `using Revise` before `include("test/initialize.jl")`, so edits in `src/` are picked up without restarting.
+For an interactive session, `Revise` is in the test environment: `julia --project=test`, then `using Revise` before the prelude, so edits in `src/` are picked up without restarting.
 
 ### Simulated time in tests
 

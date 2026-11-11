@@ -1,5 +1,5 @@
 ---
-name: solving_issues_with_worktree
+name: solving-issues-with-worktree
 description: The process for solving an issue or bug in MINDFul.jl — each issue is fixed in its own git worktree inside the repo (`.worktrees/<topic>`) on a new branch `fix/<topic>`, documented in a git-ignored `issuedescription.md`, covered by a minimal regression test, and verified with the full test suite before the user merges it. Use this skill whenever the user asks to fix, solve or analyze an issue, a bug or a review item in MINDFul.jl ("next issue", "item 6", "fix this bug"), picks the next entry from `ISSUES.md`, or asks to merge such a fix.
 ---
 
@@ -49,7 +49,7 @@ Keep it readable: short paragraphs and lists, no padding.
 
 ## 4. Reproduce and fix
 - Reproduce scripts and logs go into the **session scratchpad**, never into the repo or `test/tmp/`.
-  - A script starts with `include("<repo>/test/initialize.jl")`.
+  - A script starts with the test prelude of `test/runtests.jl` (see the `mindful-environments` skill).
   - Run it with `~/.juliaup/bin/julia --project=test <script>`; run it from the worktree to load the worktree's `src`.
 - Apply the fix in the worktree.
 

@@ -1,7 +1,7 @@
 @testset ExtendedTestSet "rsaauthentication.jl"  begin
     secret = rand(UInt8, 32)
 
-    CONFIGDIR = joinpath(TESTDIR, "data")
+    CONFIGDIR = TESTDATADIR
     MINDF.generateRSAkeys(CONFIGDIR)
 
     rsapublickeyb64 = MINDF.readb64keys(joinpath(CONFIGDIR, "rsa_pub1.pem"))

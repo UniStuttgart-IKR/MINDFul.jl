@@ -336,24 +336,24 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Read and update the cached results in the file `serializedcachedresultsdictpath`
+Read and update the cached results in the file `serializedcachedresultsdictpath`, under the key `cachekey`.
+The key must identify the graph: the default `(ibnfid, candidatepathsnum)` doesn't distinguish two graphs with the same id.
+A file that can't be read (e.g. written by another MINDFul version) is replaced.
 """
-function deserializeorcalculatecachedresults(ibnag::MINDF.IBNAttributeGraph, candidatepathsnum::Int; serializedcachedresultsdictpath::String)
-    ibnfid = AG.graph_attr(ibnag)
+function deserializeorcalculatecachedresults(ibnag::MINDF.IBNAttributeGraph, candidatepathsnum::Int; serializedcachedresultsdictpath::String, cachekey = (AG.graph_attr(ibnag), candidatepathsnum))
+    serializedcachedresultsdict = Dict{Any, CachedResults}()
     if isfile(serializedcachedresultsdictpath)
-        serializedcachedresultsdict = deserialize(serializedcachedresultsdictpath)
-        if haskey(serializedcachedresultsdict, (ibnfid, candidatepathsnum))
-            cachedresults = serializedcachedresultsdict[(ibnfid, candidatepathsnum)]
-        else
-            cachedresults = CachedResults(ibnag, candidatepathsnum)
-            serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
-            # update
-            serialize(serializedcachedresultsdictpath, serializedcachedresultsdict)
+        try
+            merge!(serializedcachedresultsdict, deserialize(serializedcachedresultsdictpath))
+        catch e
+            @warn "Cannot read the cached results in $(serializedcachedresultsdictpath); calculating them anew" exception = e
         end
+    end
+    if haskey(serializedcachedresultsdict, cachekey)
+        cachedresults = serializedcachedresultsdict[cachekey]
     else
-        serializedcachedresultsdict = Dict{Tuple{UUID, Int}, CachedResults}()
         cachedresults = CachedResults(ibnag, candidatepathsnum)
-        serializedcachedresultsdict[(ibnfid, candidatepathsnum)] = cachedresults
+        serializedcachedresultsdict[cachekey] = cachedresults
         # store
         serialize(serializedcachedresultsdictpath, serializedcachedresultsdict)
     end

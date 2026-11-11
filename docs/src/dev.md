@@ -112,6 +112,53 @@ TestModule = Base.get_extension(MINDFul, :TestModule)
 ```
 
 Now, you can access testing utilities with dot notation (`TestModule.`).
+`using .TestModule` gives the testing utilities, the test networks and the MINDFul names used in the tests without the prefix.
+This is how MINDFul's own tests start (`test/runtests.jl`):
+
+```julia
+using Test, TestSetExtensions, JET, MINDFul, Graphs, UUIDs, Unitful, UnitfulData, Dates, MbedTLS
+const TM = Base.get_extension(MINDFul, :TestModule)
+using .TM
+TM.setcachedresults!(joinpath(@__DIR__, "cache", "cachedresults.bin"); reuse = !("--nosercache" in ARGS))
+```
+
+The test networks are text (TOML) files in `test/data` and are loaded with `loadmultidomaintestibnfs` (3 domains) and `loadsingledomaintestibnf` (1 domain).
+Loading a network calculates the candidate paths of every domain, which is slow.
+With `setcachedresults!`, they are calculated once and stored in a file that all later loads (also in later sessions) reuse;
+the cache is keyed by the content of the network file, so a changed network is calculated anew.
+MINDFul's tests keep it in the git-ignored `test/cache`; `--nosercache` calculates it anew, and `--nojet` skips the JET checks:
+
+```
+julia --project=test test/runtests.jl --nosercache --nojet
+```
+
+### Testing your own compilation algorithm
+
+A compilation algorithm implemented in another package can run MINDFul's **core tests**, without running MINDFul's whole test suite.
+The core tests check behaviour that every algorithm must have, independent of its choices (paths, spectrum, ports):
+- the intent lifecycle (add, compile, install, uninstall, uncompile, remove) in a single domain and across domains,
+- 100 random intents that must compile, install and be satisfied, with consistent resources and logs,
+- a failed compilation leaves no trace (intent `Uncompiled`, nothing reserved or staged in any domain), also when retried,
+- the state logs are in ascending time (for an `IntentCompilationAlgorithmWithMemory`).
+
+The algorithm is written like [`KShorestPathFirstFitCompilation`](@ref MINDFul.KShorestPathFirstFitCompilation) and needs:
+- the constructor `MyAlg(alg::MyAlg, cachedresults::CachedResults)`, which the test networks use to build the algorithm of each domain,
+- `getcandidatepathsnum` (e.g. a `candidatepathsnum` field),
+- `compileintent!` for `ConnectivityIntent`s. No `AvailabilityConstraint` is used.
+
+In the `test/runtests.jl` of your package:
+```julia
+using Test, JET, MINDFul, MyAlgorithm
+TestModule = Base.get_extension(MINDFul, :TestModule)
+TestModule.testsuitecompilationalgorithm(MyAlgorithm.MyAlg(10; nodenum = 1))
+```
+This takes about one to two minutes, most of it compilation.
+With `TestModule.setcachedresults!(file)` before it, the calculated paths are cached in `file` for the next runs.
+The test networks shipped with MINDFul can be loaded with `TestModule.loadsingledomaintestibnf` and `TestModule.loadmultidomaintestibnfs` for your own tests.
+
+The other test suites of MINDFul are not part of the core tests: they check MINDFul internals (e.g. the physical layer) or
+the specific choices of MINDFul's algorithms (exact paths, spectrum slots or grooming decisions), which another algorithm may legitimately make differently.
+MINDFul runs the core tests on its own algorithms and on an example external algorithm (`test/testsuite/conformance.jl`).
 
 ### Testing API
 
