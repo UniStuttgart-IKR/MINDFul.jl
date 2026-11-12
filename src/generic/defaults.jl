@@ -125,3 +125,39 @@ function default_IBNAttributeGraph(ag::AG.OAttributeGraph{Int, SimpleDiGraph{Int
     # return IBNAttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
     return AG.AttributeGraph(AG.getgraph(ag), nodeviews, edgeviews, UUID(ibnfid))
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Read a multi-domain network from a TOML file and return a `name => attribute graph` pair per domain, as expected by
+[`default_IBNAttributeGraph`](@ref).
+
+The file has one `[[domains]]` table per domain with
+- `name`, `ibnfid` and `spectrumslots`,
+- `nodes`: one row `[localnode, globalnode_ibnfid, globalnode_node, latitude, longitude, label]` per node, in local node order.
+  Border nodes are the nodes of other domains (another `globalnode_ibnfid`).
+- `fibers`: one row `[src, dst, distance_km]` per fiber, used in both directions.
+"""
+function loadnetworkfile(networkfile::AbstractString)
+    return map(TOML.parsefile(networkfile)["domains"]) do domain
+        nodes = domain["nodes"]
+        fibers = domain["fibers"]
+        graph = SimpleDiGraph(length(nodes))
+        for (s, d, _) in fibers
+            add_edge!(graph, s, d)
+            add_edge!(graph, d, s)
+        end
+        ag = AG.OAttributeGraph(graph; vertex_type = Dict{Symbol}, edge_type = Dict{Symbol}, graph_type = Dict{Symbol, Any})
+        for (i, (localnode, globalnode_ibnfid, globalnode_node, latitude, longitude, label)) in enumerate(nodes)
+            @assert localnode == i "the nodes of domain $(domain["name"]) must be listed in local node order"
+            push!(AG.vertex_attr(ag), Dict{Symbol, Any}(:localnode => localnode, :globalnode_ibnfid => globalnode_ibnfid, :globalnode_node => globalnode_node, :Latitude => latitude, :Longitude => longitude, :label => label))
+        end
+        for (s, d, distance) in fibers
+            AG.edge_attr(ag)[(s, d, 1)] = Dict{Symbol, Any}(:distance => float(distance))
+            AG.edge_attr(ag)[(d, s, 1)] = Dict{Symbol, Any}(:distance => float(distance))
+        end
+        AG.graph_attr(ag)[:ibnfid] = domain["ibnfid"]
+        AG.graph_attr(ag)[:spectrumslots] = domain["spectrumslots"]
+        domain["name"] => ag
+    end
+end
